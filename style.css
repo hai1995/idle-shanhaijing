@@ -689,7 +689,22 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
 .skill-card .mat-inv .ok{ color:var(--tai); }
 .skill-card .mat-inv .gap{ color:var(--zhu); }
 
-.recipe-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(196px,1fr)); gap:10px; }
+.recipe-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(252px,1fr)); gap:6px; }
+/* 制作卡：一行排完（图标 / 名 / 阶位 / 经验 / 动作），材料与经验明细收进浮层。
+   原先是三行卡片，一屏只放得下五六条；单行后同屏能看到的配方翻倍。 */
+.recipe-card{ display:flex; align-items:center; gap:8px; padding:6px 10px; }
+.recipe-card .rc-icon{ font-size:15px; flex:0 0 auto; }
+.recipe-card .rc-name{
+  font-size:13px; font-weight:600; color:var(--ink);
+  flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.recipe-card .rc-lvl{ margin:0; flex:0 0 auto; }
+.recipe-card .rc-xp{ margin:0; flex:0 0 auto; font-size:10.5px; }
+.recipe-card .rc-acts{ display:flex; gap:3px; flex:0 0 auto; }
+.recipe-card .rc-acts .btn.small{ padding:4px 8px; line-height:1.1; }
+.recipe-card .rc-acts .btn.ghost{ padding:4px 6px; color:var(--ink-3); font-family:var(--f-num); }
+.recipe-card .rc-acts .btn.ghost:hover{ color:var(--ink); }
+.recipe-card .rc-acts .btn:disabled{ color:var(--ink-4); }
 .recipe-card,.rite-card,.shop-card,.building-card,.beast-card,.codex-card,.mini-card{
   background:var(--paper-2); border:1px solid var(--rule); border-radius:var(--r);
   padding:10px 12px; position:relative;
@@ -1362,7 +1377,9 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
   .vs{ transform:none; padding:1px 0; font-size:12px; }
 
   /* 小屏两列：单列会让 26 门技艺变成一条极长的卷轴 */
-  .skill-grid,.recipe-grid,.beast-grid{ grid-template-columns:repeat(auto-fill,minmax(min(146px,100%),1fr)); }
+  /* 制作卡是单行结构，两列会挤成截断名；窄屏干脆一列到底 */
+  .recipe-grid{ grid-template-columns:1fr; gap:5px; }
+  .skill-grid,.beast-grid{ grid-template-columns:repeat(auto-fill,minmax(min(146px,100%),1fr)); }
   .farm-grid,.mini-grid,.shop-grid,.sell-grid,.inv-grid,.gear-grid,.omen-grid,.rite-grid,.stat-grid{
     grid-template-columns:repeat(auto-fill,minmax(min(140px,100%),1fr));
   }

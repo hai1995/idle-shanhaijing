@@ -1037,12 +1037,19 @@ UI.renderSkills = function(){
       const lvOk = levelOf(mapRecipeSkill(r.type)) >= r.lvl;
       const afford = canAfford(r.cost);
       return `<div class="recipe-card ${lvOk?'':'lock'}" data-tip data-tip-title="${esc(it?it.name:r.out)}">
-        <div class="rc-head"><span class="rc-icon">${it?it.icon:'📦'}</span><b>${esc(it?it.name:r.out)}</b>
-          <span class="rc-lvl">${Skills[mapRecipeSkill(r.type)].name} ${r.lvl}</span></div>
-        <div class="rc-foot"><span class="rc-xp">经验 ${r.xp}</span>
+        <span class="rc-icon">${it?it.icon:'📦'}</span>
+        <b class="rc-name">${esc(it?it.name:r.out)}</b>
+        <span class="rc-lvl">${Skills[mapRecipeSkill(r.type)].name} ${r.lvl}</span>
+        <span class="rc-xp">经验 ${r.xp}</span>
+        <span class="rc-acts">
           <button class="btn small ${lvOk&&afford?'primary':''}" ${lvOk&&afford?'':'disabled'}
-            onclick="startActivity('craft','${r.type}::${r.out}')">制作</button></div>
-        <span class="tip-body hidden"><div class="rc-cost">${costChips(r.cost)}</div></span>
+            title="只做一件，做完即停"
+            onclick="startActivity('craft','${r.type}::${r.out}',{times:1})">制作</button>
+          <button class="btn small ghost" ${lvOk&&afford?'':'disabled'}
+            title="连作：一直做到材料用尽"
+            onclick="startActivity('craft','${r.type}::${r.out}')">连</button>
+        </span>
+        <span class="tip-body hidden"><div class="rc-cost">${costChips(r.cost)}</div><div class="rc-xp">经验 ${r.xp}</div></span>
       </div>`;
     }).join('')}
     </div>

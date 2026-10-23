@@ -1,7 +1,7 @@
 // ===== 玩家交互：选择活动、装备、商旅贸易 =====
 
 // ---------- 开始/切换活动 ----------
-function startActivity(kind, arg){
+function startActivity(kind, arg, opts){
   if (kind === 'combat'){ startCombat(arg); return; }
   if (kind === 'observe'){ return startObserve(arg); }
   if (kind === 'audience'){ return startAudience(arg); }
@@ -34,7 +34,9 @@ function startActivity(kind, arg){
       return false;
     }
     activityProgress = 0;
-    Game.activity = { kind:'craft', recipe:rec, src:'manual' };
+    // times: 制作几件后自动停（单件武器/装备用 1，材料类不传则一直做）
+    const times = (opts && opts.times > 0) ? Math.floor(opts.times) : null;
+    Game.activity = { kind:'craft', recipe:rec, src:'manual', remain:times };
   } else {
     return false;
   }

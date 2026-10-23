@@ -1297,7 +1297,16 @@ function doRecipeAction(a){
     Game.activity = null;
     return;
   }
-  processRecipe(a.recipe, 1);
+  const done = processRecipe(a.recipe, 1);
+  // 限量制作（如单件武器）：做够件数就收手，不再无限连做
+  if (done && a.remain != null){
+    a.remain--;
+    if (a.remain <= 0){
+      Game.activity = null;
+      UI && UI.toast(`✓ 已成 ${Items[a.recipe.out] ? Items[a.recipe.out].name : '此物'}`);
+      UI && UI.refreshActivity();
+    }
+  }
 }
 
 // ---------- 离线 / 后台结算 ----------
@@ -1323,13 +1332,19 @@ function settleAway(seconds){
       summary.records += recs;
     }
   } else if (a && a.kind === 'craft'){
-    const times = Math.floor(seconds / 2.0);
+    // 限量制作（remain）离线时也只算这么多件，不能借离线做出整仓
+    const times = a.remain != null ? Math.min(Math.floor(seconds / 2.0), a.remain) : Math.floor(seconds / 2.0);
     let t = 0;
     while (t < times && canAfford(a.recipe.cost)){ payCost(a.recipe.cost); t++; }
     if (t > 0){
       giveItem(a.recipe.out, a.recipe.qty*t, false);
       addXp(mapRecipeSkill(a.recipe.type), a.recipe.xp * t);
       summary.items[a.recipe.out] = a.recipe.qty*t;
+      // 限量制作：离线做满件数即结束，不留一个「还剩 0 件」的空活动
+      if (a.remain != null){
+        a.remain -= t;
+        if (a.remain <= 0) Game.activity = null;
+      }
     }
   } else if (a && a.kind === 'observe'){
     const times = Math.floor(seconds / TUNING.OBSERVE_SEC);

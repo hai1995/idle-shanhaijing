@@ -1823,5 +1823,46 @@ section('日志 300 条上限 / 离线结算统计');
   assert(html.includes('data-stat="offlineCount"') && html.includes('data-stat="lastOffline"'), '离线数据带刷新标记');
   assert(uiSrc.includes('function lastOfflineText()'), '上次离线有可读摘要（多久以前 · 离线多长 · 得多少经验）');
 }
+// ============ 35. 制作：单件即停 + 卡片紧凑 ============
+section('制作：单件 / 连作 / 紧凑卡片');
+{
+  // 35.1 单件制作：做一件即收手
+  G.resetToDefault();
+  ST.Game.inventory.jing = 50;
+  const ok = ST.startActivity('craft', 'craft::sheng', { times: 1 });
+  assert(ok && ST.Game.activity && ST.Game.activity.remain === 1, '「制作」按一件设定活动（remain=1）');
+  const c0 = ST.Game.stats.crafts;
+  G.doRecipeAction(ST.Game.activity);
+  assert(ST.Game.stats.crafts === c0 + 1, '做出一件');
+  assert(ST.Game.activity === null, '做完一件即停，不进入无限连做');
+
+  // 35.2 连作：不设上限，持续做
+  ST.Game.inventory.jing = 50;
+  ST.startActivity('craft', 'craft::sheng');
+  assert(ST.Game.activity && ST.Game.activity.remain == null, '「连」不设件数上限');
+  G.doRecipeAction(ST.Game.activity);
+  G.doRecipeAction(ST.Game.activity);
+  assert(!!ST.Game.activity && ST.Game.stats.crafts === c0 + 3, '连作持续进行');
+
+  // 35.3 离线结算尊重限量
+  G.resetToDefault();
+  ST.Game.inventory.jing = 100;
+  ST.startActivity('craft', 'craft::sheng', { times: 2 });
+  const beforeOut = ST.Game.inventory.sheng || 0;
+  G.settleAway(3600);
+  const made = (ST.Game.inventory.sheng || 0) - beforeOut;
+  assert(made === 4, '离线一小时也只做 2 次（每次 2 件，共 4 件）-> 实际 ' + made);
+  assert(ST.Game.activity === null, '离线做满件数后收手');
+
+  // 35.4 卡片结构与紧凑样式
+  assert(uiSrc.includes("startActivity('craft','${r.type}::${r.out}',{times:1})"), '「制作」按钮传 {times:1}');
+  assert(uiSrc.includes("onclick=\"startActivity('craft','${r.type}::${r.out}')\">连</button>"), '「连」按钮走持续制作');
+  assert(uiSrc.includes('class="rc-name"') && uiSrc.includes('class="rc-acts"'), '卡片改为单行结构（名称 + 动作区）');
+  assert(!/class="recipe-card[^"]*"[^>]*>\s*<div class="rc-head">/.test(uiSrc), '制作卡不再套 rc-head 三行结构');
+  assert(/\.recipe-card\{ display:flex; align-items:center;/.test(css), '制作卡单行 flex 布局');
+  assert(/\.recipe-grid\{ grid-template-columns:1fr; gap:5px; \}/.test(css), '窄屏制作列表一列到底');
+  assert(interactSrc.includes('const times = (opts && opts.times > 0)'), 'startActivity 支持 times 参数');
+  assert(gameSrc.includes('if (done && a.remain != null)') && gameSrc.includes('a.remain--;'), '制作完成扣次数并收手');
+}
 console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
 process.exit(fail ? 1 : 0);
