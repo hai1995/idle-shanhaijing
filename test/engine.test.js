@@ -1856,11 +1856,14 @@ section('制作：单件 / 连作 / 紧凑卡片');
 
   // 35.4 卡片结构与紧凑样式
   assert(uiSrc.includes("startActivity('craft','${r.type}::${r.out}',{times:1})"), '「制作」按钮传 {times:1}');
-  assert(uiSrc.includes("onclick=\"startActivity('craft','${r.type}::${r.out}')\">连</button>"), '「连」按钮走持续制作');
-  assert(uiSrc.includes('class="rc-name"') && uiSrc.includes('class="rc-acts"'), '卡片改为单行结构（名称 + 动作区）');
+  assert(uiSrc.includes('class="tile-more"') && uiSrc.includes("startActivity('craft','${r.type}::${r.out}')"), '方块右上角「连」走持续制作');
+  assert(uiSrc.includes('class="tile-ic"') && uiSrc.includes('class="tile-nm"') && uiSrc.includes('class="tile-tag"'), '配方改为方形卡（图标 / 名 / 阶位）');
+  assert(uiSrc.includes('role="button" tabindex="0"'), '方块可聚焦（键盘可达）');
   assert(!/class="recipe-card[^"]*"[^>]*>\s*<div class="rc-head">/.test(uiSrc), '制作卡不再套 rc-head 三行结构');
-  assert(/\.recipe-card\{ display:flex; align-items:center;/.test(css), '制作卡单行 flex 布局');
-  assert(/\.recipe-grid\{ grid-template-columns:1fr; gap:5px; \}/.test(css), '窄屏制作列表一列到底');
+  assert(/\.tile\{[^}]*aspect-ratio:1\/1/.test(css), '方形卡为正比例');
+  assert(/\.recipe-grid\{ grid-template-columns:repeat\(3,1fr\); gap:6px; \}/.test(css), '窄屏配方三列');
+  assert(uiSrc.includes("`UI.craftDenied('${r.type}::${r.out}')`") && uiSrc.includes('UI.craftDenied = function(key)'), '不可制作时点按给出缺料 / 等级提示');
+  assert(uiSrc.includes('e.target === a && a.hasAttribute && a.hasAttribute(\'onclick\')'), '浮层捕获层放行「点按即执行」的方块');
   assert(interactSrc.includes('const times = (opts && opts.times > 0)'), 'startActivity 支持 times 参数');
   assert(gameSrc.includes('if (done && a.remain != null)') && gameSrc.includes('a.remain--;'), '制作完成扣次数并收手');
 }

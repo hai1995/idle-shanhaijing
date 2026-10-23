@@ -1031,25 +1031,22 @@ UI.renderSkills = function(){
       ${Object.entries(ActionKinds).filter(([k,d])=>d.mode==='recipe').map(([k,d])=>
         `<button class="chip-btn ${this.recipeSkill===k?'on':''}" onclick="UI.recipeSkill='${k}';UI.renderSkills()">${d.icon} ${d.label}</button>`).join('')}
     </div>
-    <div class="recipe-grid">
+    <div class="tile-grid recipe-grid">
     ${Recipes.filter(r=>r.type===this.recipeSkill).sort((a,b)=>a.lvl-b.lvl).map(r=>{
       const it = Items[r.out];
+      const sk = Skills[mapRecipeSkill(r.type)];
       const lvOk = levelOf(mapRecipeSkill(r.type)) >= r.lvl;
       const afford = canAfford(r.cost);
-      return `<div class="recipe-card ${lvOk?'':'lock'}" data-tip data-tip-title="${esc(it?it.name:r.out)}">
-        <span class="rc-icon">${it?it.icon:'📦'}</span>
-        <b class="rc-name">${esc(it?it.name:r.out)}</b>
-        <span class="rc-lvl">${Skills[mapRecipeSkill(r.type)].name} ${r.lvl}</span>
-        <span class="rc-xp">经验 ${r.xp}</span>
-        <span class="rc-acts">
-          <button class="btn small ${lvOk&&afford?'primary':''}" ${lvOk&&afford?'':'disabled'}
-            title="只做一件，做完即停"
-            onclick="startActivity('craft','${r.type}::${r.out}',{times:1})">制作</button>
-          <button class="btn small ghost" ${lvOk&&afford?'':'disabled'}
-            title="连作：一直做到材料用尽"
-            onclick="startActivity('craft','${r.type}::${r.out}')">连</button>
-        </span>
-        <span class="tip-body hidden"><div class="rc-cost">${costChips(r.cost)}</div><div class="rc-xp">经验 ${r.xp}</div></span>
+      const can = lvOk && afford;
+      return `<div class="tile ${can?'':'lock'}" data-tip data-tip-title="${esc(it?it.name:r.out)}"
+        role="button" tabindex="0"
+        onclick="${can?`startActivity('craft','${r.type}::${r.out}',{times:1})`:`UI.craftDenied('${r.type}::${r.out}')`}">
+        <span class="tile-ic">${it?it.icon:'📦'}</span>
+        <span class="tile-nm">${esc(it?it.name:r.out)}</span>
+        <span class="tile-tag">${sk.name} ${r.lvl}</span>
+        ${can?`<button class="tile-more" type="button" title="连作：做到材料用尽"
+          onclick="event.stopPropagation();startActivity('craft','${r.type}::${r.out}')">连</button>`:''}
+        <span class="tip-body hidden"><div class="rc-cost">${costChips(r.cost)}</div><div class="rc-xp">经验 ${r.xp}</div>${!lvOk?`<div class="hint">需${sk.name} ${r.lvl} 级</div>`:''}</span>
       </div>`;
     }).join('')}
     </div>
@@ -2106,6 +2103,17 @@ UI.renderStats = function(){
     UI.patchStats();
   }, 800);
 };
+// 点按不可制作的方块：说清差在哪（缺哪几样材料，差多少）
+UI.craftDenied = function(key){
+  const [type, out] = String(key || '').split('::');
+  const rec = Recipes.find(r => r.type === type && r.out === out);
+  if (!rec) return;
+  const sk = mapRecipeSkill(type);
+  if (levelOf(sk) < rec.lvl){ UI.toast(`🔒 需${Skills[sk].name} ${rec.lvl} 级`); return; }
+  const lacks = rec.cost.filter(([id, q]) => totalOf(id) < q)
+    .map(([id, q]) => `${(Items[id] || {}).name || id} ${totalOf(id)}/${q}`);
+  UI.toast(lacks.length ? `原料不足：缺 ${lacks.join('、')}` : '原料不足');
+};
 // 逐项改写统计数值；只在值真的变了才碰 DOM，避免无谓重排
 UI.patchStats = function(){
   if (this.currentTab !== 'stats') return;
@@ -2284,6 +2292,9 @@ function bindTipEvents(){
     if (a){
       // 锚点内的按钮 / 表单元素自行处理，不触发浮层开关
       if (e.target.closest('button:not(.tip-close), a, select, input, textarea, label')) return;
+      // 「点按即执行」的方块（自带 onclick）：让动作先发生，不再被浮层吞掉。
+      // PC 端仍可靠悬停看详情；移动端以动作为主。
+      if (e.target === a && a.hasAttribute && a.hasAttribute('onclick')) return;
       if (Tip.anchor === a){ hideTip(); return; }
       showTipFor(a);
       e.stopPropagation();
