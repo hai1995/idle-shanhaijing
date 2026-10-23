@@ -602,6 +602,67 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
   font-family:var(--f-song); font-size:12px; line-height:1.95; color:var(--ink-3);
 }
 
+/* ===== 叙录（关于本作） =====
+   一页说明「此为何书、所志何物、此刻何版本」。排版取古籍「卷首提要」的写法：
+   题记在上，条目分栏，注释用小字次级色。 */
+/* 卷首宜窄：一行过宽则目力难收，取 760px 居中，如摊开的一页 */
+.about-wrap{ max-width:760px; margin:0 auto; }
+.about-panel{ padding:16px 18px 14px; }
+.ab-head{ display:flex; align-items:center; gap:14px; padding-bottom:12px; border-bottom:2px solid var(--zhu); }
+.ab-seal{
+  flex:0 0 auto; width:38px; height:38px; display:grid; grid-template-rows:1fr 1fr;
+  place-items:center; background:var(--zhu); color:#fff; border-radius:1px;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.26), 0 1px 0 rgba(0,0,0,.3);
+  transform:rotate(-1.2deg);
+}
+.ab-seal i{ font-family:var(--f-kai); font-size:13px; line-height:1; letter-spacing:0; }
+.ab-title{ min-width:0; }
+.ab-title h3{
+  margin:0; font-family:var(--f-kai); font-size:19px; font-weight:400;
+  letter-spacing:.1em; color:var(--ink);
+}
+.ab-title .hint{ margin:2px 0 0; font-size:11.5px; }
+.ab-sec{ margin-top:14px; }
+.ab-sec h4{
+  margin:0 0 6px; padding-bottom:4px; border-bottom:1px solid var(--rule-2);
+  font-family:var(--f-kai); font-size:14.5px; font-weight:400;
+  letter-spacing:.06em; color:var(--qing);
+}
+.ab-p{
+  margin:0 0 6px; font-family:var(--f-song); font-size:13px;
+  line-height:2; color:var(--ink-2); text-indent:2em;
+}
+.ab-p b{ color:var(--zhu-d); font-weight:600; }
+.ab-flow{
+  display:flex; flex-wrap:wrap; align-items:center; gap:6px;
+  margin-bottom:8px; font-family:var(--f-song); font-size:12.5px; color:var(--ink-2);
+}
+.ab-flow span{
+  padding:2px 7px; background:var(--zhu-w); border:1px solid rgba(176,58,43,.25);
+  border-radius:2px; color:var(--zhu-d);
+}
+.ab-flow i{ color:var(--ink-4); font-style:normal; }
+.ab-list div{ margin-bottom:5px; font-family:var(--f-song); font-size:12.5px; line-height:1.85; color:var(--ink-2); }
+.ab-list b{ display:inline-block; min-width:44px; color:var(--ink); font-weight:600; }
+/* 卷帙：方格计数 */
+.ab-stats{ display:grid; grid-template-columns:repeat(auto-fill,minmax(126px,1fr)); gap:6px; }
+.ab-stats > span{
+  display:flex; align-items:baseline; justify-content:space-between; gap:8px;
+  padding:6px 9px; background:var(--paper-2); border:1px solid var(--rule); border-radius:var(--r);
+}
+.ab-stats i{ font-style:normal; font-size:11px; letter-spacing:.08em; color:var(--ink-4); white-space:nowrap; }
+.ab-stats b{ font-family:var(--f-num); font-size:13.5px; font-weight:700; color:var(--ink); white-space:nowrap; }
+
+/* 成书：左名右值，行间虚线（目录式的条目感） */
+.ab-kv .ab-row{
+  display:flex; align-items:baseline; gap:10px; padding:5px 0;
+  border-bottom:1px dotted var(--rule-2); font-size:12.5px;
+}
+.ab-kv .ab-row:last-child{ border-bottom:none; }
+.ab-kv .ab-row span{ flex:0 0 46px; font-size:11.5px; letter-spacing:.08em; color:var(--ink-4); }
+.ab-kv .ab-row b{ font-family:var(--f-num); font-weight:600; color:var(--ink-2); }
+.ab-note{ margin:10px 0 0; padding-top:8px; border-top:1px solid var(--rule-2); }
+
 .node-list{ max-height:min(62vh, 560px); overflow-y:auto; margin:-4px -6px 0; padding:0 6px; }
 .node-item{
   display:flex; align-items:center; gap:6px; padding:6px 8px;

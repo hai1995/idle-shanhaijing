@@ -542,6 +542,7 @@ try {
   ST.UI.currentTab = 'queue';  ST.UI.renderQueue();
   ST.UI.currentTab = 'pack';   ST.UI.renderPack();
   ST.UI.currentTab = 'stats';  ST.UI.renderStats();
+  ST.UI.currentTab = 'about'; ST.UI.renderAbout();
   ST.UI.renderTopbar();
   ST.UI.tickProgress();
   ST.UI.refreshActivity();
@@ -660,7 +661,7 @@ assert(ST.UI.currentTab === 'skills', '左滑切到下一页签');
 ST.UI.switchTabNeighbor(-1);
 assert(ST.UI.currentTab === 'yudi', '右滑切回上一页签');
 ST.UI.switchTabNeighbor(-1);
-assert(ST.UI.currentTab === 'stats', '右滑在首页环绕到末页');
+assert(ST.UI.currentTab === 'about', '右滑在首页环绕到末页（叙录）');
 
 // ============ 16.9 征兆数值预览 · 售价走势 ============
 section('征兆数值预览 · 售价走势');
@@ -981,6 +982,7 @@ assert(readText('src/ui.js').includes('toggleDrawer'), 'ui.js 含抽屉开关实
 // ============ 19. 小单块 + 详情浮层（渐进披露） ============
 section('小单块与详情浮层');
 const uiSrc = readText('src/ui.js');
+const gameDataSrc = readText('src/gameData.js');
 assert(uiSrc.includes('showTipFor') && uiSrc.includes('tip-body') && uiSrc.includes('bindTipEvents'), 'ui.js 含详情浮层组件（悬停/点按两路触发）');
 assert(uiSrc.includes('hideTip()') && /renderCurrent\(\)\{[^}]*hideTip/s.test(uiSrc), '重渲染时关闭浮层（防锚点销毁后残留）');
 const tipCount = t => (t.match(/data-tip/g) || []).length;
@@ -2009,6 +2011,39 @@ section('取消前往 / 动作即动身');
   assert(G.startGrow(gid2) === true && ST.Game.node === ST.GROW_SITES[gid2].nodeId,
     '点「灌木」自动前往 -> ' + ST.Game.node);
   ST.Game.activity = null;
+}
+
+// ============ 39. 叙录（关于本作） ============
+section('叙录 / 关于本作');
+{
+  G.resetToDefault();
+
+  // 39.1 页签：末页为叙录，图标与其余页签同一路数（内联 SVG）
+  const ids = ST.TABS.map(t => t.id);
+  assert(ids[ids.length - 1] === 'about', '末页签为「叙录」');
+  assert(ids.includes('about') && ids.length === 12, '功能页签共 12 项（另有侧栏末尾的「设置」入口）');
+  const ab = ST.TABS.find(t => t.id === 'about');
+  assert(ab.label === '叙录' && /<svg/.test(ab.icon), '叙录页签带内联 SVG 图标');
+
+  // 39.2 渲染：写入主内容区，含书名 / 版本 / 代号 / 更新 / 缘起 / 体例 / 卷帙 / 稽考
+  ST.UI.currentTab = 'about';
+  ST.UI.renderAbout();
+  const h = renderTargets.content.innerHTML;
+  assert(h.indexOf('山海经') >= 0, '叙录页显示书名');
+  assert(/v1\.0\.0/.test(h), '叙录页显示版本号');
+  assert(h.indexOf('代号') >= 0 && h.indexOf('山经') >= 0, '叙录页显示版本代号');
+  assert(h.indexOf('更新') >= 0 && /2026-10-23/.test(h), '叙录页显示更新日期');
+  ['缘起', '此身', '体例', '卷帙', '稽考', '成书'].forEach(k =>
+    assert(h.indexOf(k) >= 0, '叙录页含「' + k + '」一栏'));
+
+  // 39.3 卷帙为实时统计，不是写死的数字
+  assert(h.indexOf(String(ST.WORLD.regions.length)) >= 0, '卷帙含实时山系数');
+  assert(h.indexOf(String(Object.keys(ST.Monsters).length)) >= 0, '卷帙含实时异兽数');
+  assert(h.indexOf(String(Object.keys(ST.CODEX).length)) >= 0, '卷帙含实时图鉴条数');
+
+  // 39.4 版本印记集中一处，不散落各处硬编码
+  assert(gameDataSrc.includes('const GAME_META = {'), '版本印记集中在 GAME_META 常量');
+  assert(gameDataSrc.includes('window.GAME_META = GAME_META;'), 'GAME_META 已导出到 window');
 }
 
 console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

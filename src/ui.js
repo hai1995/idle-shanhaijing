@@ -17,6 +17,7 @@ const TABS = [
   { id:'queue',   label:'行动', icon:ICON('<circle cx="12" cy="12" r="8.6"/><path d="M15.2 8.8 13 13l-4.2 2.2L11 11l4.2-2.2Z"/>') },
   { id:'pack',    label:'行装', icon:ICON('<path d="M4.8 8.2h14.4l-1 11.6H5.8L4.8 8.2Z"/><path d="M8.8 8.2V6.4a3.2 3.2 0 0 1 6.4 0v1.8"/>') },
   { id:'stats',   label:'统计', icon:ICON('<path d="M4 19.6h16"/><path d="M7.4 19.6v-6.2M12 19.6V7.6M16.6 19.6v-9.2"/>') },
+  { id:'about',   label:'叙录', icon:ICON('<rect x="4.6" y="3.4" width="14.8" height="17.2" rx="1.4"/><path d="M8.2 8.2h7.6M8.2 11.6h7.6M8.2 15h4.6"/>') },
 ];
 const CAT_EMOJI = { 兽:'🐾', 鸟:'🪶', 水族:'🐟', 蛇:'🐍' };
 const LOG_COLORS = { good:'#4A7C59', bad:'#C3272B', gold:'#D9A521', sys:'#8C5A3C' };
@@ -389,7 +390,8 @@ const UI = {
     if (typeof hideTip === 'function') hideTip();   // 重渲染后锚点已销毁，浮层随之关闭
     const fn = { yudi:'renderYudi', skills:'renderSkills', taofa:'renderTaofa', yushi:'renderYushi',
       codex:'renderCodex', jisi:'renderJisi', shichan:'renderShichan', ying:'renderYing',
-      queue:'renderQueue', pack:'renderPack', stats:'renderStats', settings:'renderSettings' }[this.currentTab];
+      queue:'renderQueue', pack:'renderPack', stats:'renderStats', settings:'renderSettings',
+      about:'renderAbout' }[this.currentTab];
     if (fn && this[fn]) this[fn]();
     this.renderTopbar();
     this.refreshActivity();
@@ -1743,7 +1745,7 @@ function openOmenSummary(){
   }
   UI.modal(`<h3>⚡ 征兆总效应</h3>${body}<div class="modal-btns"><button class="btn" onclick="UI.closeModal()">闭</button></div>`);
 }
-window.openOmenSummary = openOmenSummary;
+window.openOmenSummary = openOmenSummary; window.TABS = TABS;
 window.wuxingAdvice = wuxingAdvice; window.counterOf = counterOf;
 window.combatEstimateHtml = combatEstimateHtml;
 window.estimateOfflineGains = estimateOfflineGains;
@@ -2243,6 +2245,111 @@ UI.craftDenied = function(key){
     .map(([id, q]) => `${(Items[id] || {}).name || id} ${totalOf(id)}/${q}`);
   UI.toast(lacks.length ? `原料不足：缺 ${lacks.join('、')}` : '原料不足');
 };
+// ================= 叙录（关于本作） =================
+// 「叙录」者，古者校书，每一书毕，条其篇目、撮其指意而奏之。
+// 此页答三问：此为何书、书中所志何物、此刻是何版本。
+UI.renderAbout = function(){
+  const box = $('content');
+  if (!box) return;
+  const M = (typeof GAME_META !== 'undefined') ? GAME_META
+        : { name:'山海经 · 著录', version:'—', codename:'—', updated:'—', form:'—', license:'—' };
+  const s = Game.stats;
+  const monsterIds = Object.keys(Monsters);
+  const bossCount = monsterIds.filter(id => Monsters[id].boss).length;
+  const nodeCount = WORLD.regions.reduce((a, r) => a + r.nodes.length, 0);
+  const codexDone = recordedCount(), codexTotal = Object.keys(CODEX).length;
+  const qLen = (Game.queue && Game.queue.length) || 0;
+
+  // 成书一栏：左名右值，行间细虚线（古书目录的「某卷·某篇」做派）
+  const rows = (list) => list.map(([k, v]) =>
+    `<div class="ab-row"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('');
+  // 卷帙一栏：方格计数，一望便知这部书有多大
+  const cells = (list) => list.map(([k, v]) =>
+    `<span><i>${esc(k)}</i><b>${esc(v)}</b></span>`).join('');
+
+  const facts = rows([
+    ['版本', 'v' + M.version],
+    ['代号', M.codename],
+    ['更新', M.updated],
+    ['形态', M.form],
+    ['存档', 'localStorage · 可导出导入'],
+    ['在册', fmtTime(s.time)],
+  ]);
+
+  const volumes = cells([
+    ['山系', WORLD.regions.length + ' 系'],
+    ['山川', nodeCount + ' 山'],
+    ['异兽', monsterIds.length + ' 只'],
+    ['六凶', bossCount + ' 首'],
+    ['图鉴', codexDone + ' / ' + codexTotal + ' 条'],
+    ['技艺', Object.keys(Skills).length + ' 门'],
+    ['征兆', Object.keys(OMENS).length + ' 兆'],
+    ['祠礼', Object.keys(RITES).length + ' 套'],
+    ['观象处', Object.keys(OBSERVE_SITES).length + ' 处'],
+    ['营造', Object.keys(BUILDINGS).length + ' 栋'],
+  ]);
+
+  const flow = ['舆地','采集','著录','制作','御使','祠祀']
+    .map(t => `<span>${t}</span>`).join('<i>→</i>');
+
+  box.innerHTML = `
+  <div class="about-wrap"><div class="panel about-panel">
+    <div class="ab-head">
+      <span class="ab-seal" aria-hidden="true"><i>叙</i><i>录</i></span>
+      <div class="ab-title">
+        <h3>${esc(M.name)}</h3>
+        <p class="hint">v${esc(M.version)} · ${esc(M.codename)} · ${esc(M.updated)}</p>
+      </div>
+    </div>
+
+    <section class="ab-sec">
+      <h4>缘起</h4>
+      <p class="ab-p">昔者洪水滔天，禹疏九河、随山刊木，所至命人记其山川：某山之首，其上多玉，其下多铜；有兽焉，其状如禺而白耳，食之善走。伯益受而次之，是为《五藏山经》。</p>
+      <p class="ab-p">其书不记人事，唯志山海——草木之形、金石之藏、鸟兽之状、神灵之礼，与其吉凶之兆。文极简而物极繁，四万余言之间，载山二百五十、兽四百有余，皆先民耳目所及，非尽虚妄。</p>
+      <p class="ab-p">后人重其辞而疑其物，遂以志怪目之。然所谓「怪」者，不过未识之名、未至之地耳。</p>
+    </section>
+
+    <section class="ab-sec">
+      <h4>此身</h4>
+      <p class="ab-p">君今受命为<b>著录者</b>，负简执笔，自南山发轫。循五方之经，涉大川、登危峰，录其物产，志其异兽，礼其山神。</p>
+      <p class="ab-p">录之愈广，简帙愈厚；简帙既盈，此卷遂成——<b>游之终，即经之成</b>。</p>
+    </section>
+
+    <section class="ab-sec">
+      <h4>体例</h4>
+      <div class="ab-flow">${flow}</div>
+      <div class="ab-list">
+        <div><b>舆地</b>择山而行。每山之志，载其形胜、物产、异兽与神话，一目了然。</div>
+        <div><b>采集</b>樵采 / 采玉 / 渔 / 采药。点一处即动身前往，随即开工，所得入行囊。</div>
+        <div><b>著录</b>把所得记成条目。历始见 · 略识 · 通形 · 得御 · 穷理五阶，阶阶累加其效。</div>
+        <div><b>制作</b>制器 / 烹饪 / 炼药 / 营建。材料不足会直说缺哪样、差多少。</div>
+        <div><b>征伐</b>五行相克 ×1.35、被克 ×0.75、相生 ×1.15。同兽连杀经验递减，六凶为终战。</div>
+        <div><b>御使</b>著录至「通形」的异兽可入槽，化作被动增益与自动作业。</div>
+        <div><b>祠祀</b>十六套礼制，行祭得山系增益；吉凶之兆随之而动，可禳可禳解。</div>
+        <div><b>离线</b>离山亦不停笔，归来按效率一并结算，不令一日虚度。</div>
+      </div>
+    </section>
+
+    <section class="ab-sec">
+      <h4>卷帙</h4>
+      <div class="ab-stats">${volumes}</div>
+    </section>
+
+    <section class="ab-sec">
+      <h4>稽考</h4>
+      <p class="ab-p">底本：中华书局点校本《山海经校注》（袁珂），参校维基文库、中国哲学书电子化计划（ctext）等多本；原著属公有领域，异文随条标注，异体字从通行写法。</p>
+      <p class="ab-p">自研：全部数值、机制、条目命名与界面排版均为本项目自行设计调参，未沿用任何既有产品；玩法骨架取放置类通用设计。</p>
+      <p class="ab-p">免责：本作与任何商业产品无关联，内容仅供学习与娱乐，非学术考据定本。</p>
+    </section>
+
+    <section class="ab-sec">
+      <h4>成书</h4>
+        <div class="ab-kv">${facts}</div>
+        <p class="hint ab-note">纯前端、无账号、无后端，进度只存于此设备的浏览器。清缓存或换设备前，记得在「统计」页导出存档。</p>
+      </section>
+    </div></div>`;
+};
+
 // 逐项改写统计数值；只在值真的变了才碰 DOM，避免无谓重排
 UI.patchStats = function(){
   if (this.currentTab !== 'stats') return;

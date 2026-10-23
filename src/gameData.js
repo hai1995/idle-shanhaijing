@@ -1534,6 +1534,18 @@ function orderQtyFor(value){
   return 12 + Math.floor(Math.random()*16);                   // 12~27
 }
 
+// ---------- 卷首印记（「叙录」页与页脚读出） ----------
+// 版本代号取「五藏山经」体例：一卷一山系，一章一山。
+const GAME_META = {
+  name:    '山海经 · 著录',
+  version: '1.0.0',
+  codename:'山经 · 墨启',
+  updated: '2026-10-23',
+  form:    '纯静态站点 · 原生 JavaScript · 零依赖',
+  license: '代码 MIT · 文本取自公有领域古籍',
+};
+window.GAME_META = GAME_META;
+
 // ---------- 浏览器全局导出 ----------
 if (typeof window !== 'undefined'){
   window.TUNING = TUNING; window.RARITY = RARITY; window.RARITY_TIERS = RARITY_TIERS;
