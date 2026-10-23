@@ -1015,12 +1015,23 @@ UI.renderSkills = function(){
       const mst = nf ? null : materialStatusForSkill(id);
       const matBtns = (mns && mns.length) ? `<div class="mat-src">材料来源：${mns.slice(0,3).map(m=>`<button class="btn-mini skill-go" onclick="UI.selRegion='${m.regionId}';UI.selNode='${m.nodeId}';UI.switchTab('yudi')">📍 ${esc(m.nodeName||'')}</button>`).join('')}${mns.length>3?`<span class="hint">等 ${mns.length} 处</span>`:''}</div>` : '';
       const matInv = (mst && mst.length) ? `<div class="mat-inv">${mst.map(m=>`<span class="${m.ok?'ok':'gap'}">${esc(m.name)} ${m.have}/${m.need}${m.ok?'✓':'✗'}</span>`).join(' · ')}</div>` : '';
-      // 紧凑卡：默认只留 图标 + 名称 + 等级 + 经验条 + 前往按钮；描述 / 材料来源 / 持有情况入浮层
-      return `<div class="skill-card ${active?'active':''}" data-skill="${id}" data-tip data-tip-title="${esc(sk.name)}">
-        <div class="sc-head"><span class="sc-icon">${sk.icon}</span><b>${esc(sk.name)}</b>${skillLevelTag(id)}</div>
-        ${xpBar(id)}
-        ${nf?`<button class="btn-mini skill-go" onclick="UI.selRegion='${nf.regionId}';UI.selNode='${nf.nodeId}';UI.switchTab('yudi')">📍 产出地</button>`:''}
-        <span class="tip-body hidden"><div class="sc-desc">${esc(sk.desc||'')}</div>${matBtns}${matInv}</span>
+      // 方块：图标 + 名 + 阶位，右上角等级，底部一条经验进度；
+      // 描述 / 产出地 / 材料来源与持有缺口全在浮层（点按即开）
+      const lv = levelOf(id);
+      const raw = Game.skills[id];
+      const xc = xpForLevel(raw.level), xn = xpForLevel(raw.level + 1);
+      const pct = xn > xc ? Math.min(100, (raw.xp - xc) / (xn - xc) * 100) : 100;
+      return `<div class="tile skill-tile ${active?'active':''}" data-skill="${id}" data-tip data-tip-title="${esc(sk.name)}">
+        <span class="sk-lv">${lv}</span>
+        <span class="tile-ic">${sk.icon}</span>
+        <span class="tile-nm">${esc(sk.name)}</span>
+        <span class="tile-tag">${TUNING.TIER_NAMES[tierOfLevel(lv)]}</span>
+        <span class="sk-bar"><i style="width:${pct.toFixed(1)}%"></i></span>
+        <span class="tip-body hidden">
+          <div class="sc-desc">${esc(sk.desc||'')}</div>
+          ${nf?`<button class="btn-mini skill-go" onclick="UI.selRegion='${nf.regionId}';UI.selNode='${nf.nodeId}';UI.switchTab('yudi')">📍 产出地</button>`:''}
+          ${matBtns}${matInv}
+        </span>
       </div>`;
     }).join('')}
   </div>
@@ -1543,12 +1554,21 @@ UI.renderJisi = function(){
       const region = WORLD.regions.find(r=>r.regionId===def.regionId);
       const afford = canAfford(rec.cost);
       const lvOk = levelOf('jisi') >= rec.lvl;
-      return `<div class="rite-card" data-tip data-tip-title="${esc((Items[id]||{}).name|| (region?region.regionName+'祠礼':id))}">
-        <div class="rc-head"><span class="rc-icon">🕯️</span><b>${esc((Items[id]||{}).name|| (region?region.regionName+'祠礼':id))}</b>
-          <span class="rc-lvl">祭祀 ${rec.lvl}</span></div>
-        <div class="rc-foot"><span class="rc-xp">${esc(region?region.regionName:'')}</span>
-          <button class="btn small ${afford&&lvOk?'primary':''}" ${afford&&lvOk?'':'disabled'} onclick="performRite('${id}');UI.renderJisi()">行祭</button></div>
-        <span class="tip-body hidden">${(region&&region.deity)?`<div class="rc-sub">${esc(region.deity.form||'')}</div>`:''}<div class="rc-cost">${costChips(rec.cost)}</div>${(Items[id]||{}).note?`<div class="hint">${esc((Items[id]||{}).note)}</div>`:''}</span>
+      const riteName = (Items[id]||{}).name || (region?region.regionName+'祠礼':id);
+      const can = afford && lvOk;
+      // 方块：点按即行祭（材料/等级不足给说明）；山系与祭品明细在浮层
+      return `<div class="tile rite-tile ${can?'':'lock'}" data-rite="${id}" data-tip data-tip-title="${esc(riteName)}"
+        role="button" tabindex="0" onclick="UI.tryRite('${id}')">
+        <span class="tile-seal">${esc((String(riteName).split('·')[1] || String(riteName)).trim().slice(0,1))}</span>
+        <span class="tile-nm">${esc(riteName)}</span>
+        <span class="tile-tag">祭祀 ${rec.lvl}</span>
+        <span class="tip-body hidden">
+          <div class="rc-sub">${esc(region?region.regionName:'常祭')}</div>
+          ${(region&&region.deity)?`<div class="rc-sub">${esc(region.deity.form||'')}</div>`:''}
+          <div class="rc-cost">${costChips(rec.cost)}</div>
+          ${(Items[id]||{}).note?`<div class="hint">${esc((Items[id]||{}).note)}</div>`:''}
+          ${!lvOk?`<div class="hint">需祭祀 ${rec.lvl} 级</div>`:''}
+        </span>
       </div>`;
     }).join('')}
     </div>
@@ -1687,15 +1707,21 @@ UI.renderShichan = function(){
       const idx = ShopStock.indexOf(s);
       const lvOk = levelOf('shanglv') >= s.lvl;
       const afford = Game.shells >= s.cost;
-      return `<div class="shop-card ${lvOk?'':'lock'}" data-tip data-tip-title="${esc(it?it.name:s.itemId)}">
-        <div class="sc-head"><span class="rc-icon">${it?it.icon:'📦'}</span><b>${esc(it?it.name:s.itemId)}</b></div>
-        <div class="rc-foot">
-          <span class="rc-cost">${s.cost} 贝 / ${s.qty} 件</span>
-          <button class="btn small ${lvOk&&afford?'primary':''}" ${lvOk&&afford?'':'disabled'} onclick="buyItem(${idx},1)">买</button>
-          <button class="btn small" ${lvOk&&afford?'':'disabled'} onclick="buyItem(${idx},10)">×10</button>
-        </div>
-        ${!lvOk?`<div class="hint">需商旅 ${s.lvl} 级</div>`:''}
-        <span class="tip-body hidden">${s.note?`<div class="hint">${esc(s.note)}</div>`:''}${it&&it.note?`<div class="rc-sub">${esc(it.note)}</div>`:''}</span>
+      const can = lvOk && afford;
+      // 方块：点按买一份（buyItem 自带等级与贝币校验），右上「×10」买十份
+      return `<div class="tile shop-tile ${can?'':'lock'}" data-tip data-tip-title="${esc(it?it.name:s.itemId)}"
+        role="button" tabindex="0" onclick="buyItem(${idx},1)">
+        <span class="tile-ic">${it?it.icon:'📦'}</span>
+        <span class="tile-nm">${esc(it?it.name:s.itemId)}</span>
+        <span class="tile-tag">${s.cost} 贝</span>
+        ${can?`<button class="tile-more" type="button" title="买十份（${s.cost*10} 贝）"
+          onclick="event.stopPropagation();buyItem(${idx},10)">×10</button>`:''}
+        <span class="tip-body hidden">
+          <div class="bc-sub">${s.qty} 件 / 份 · 单价 ${s.cost} 贝</div>
+          ${!lvOk?`<div class="hint">需商旅 ${s.lvl} 级</div>`:''}
+          ${s.note?`<div class="hint">${esc(s.note)}</div>`:''}
+          ${it&&it.note?`<div class="rc-sub">${esc(it.note)}</div>`:''}
+        </span>
       </div>`;
     }).join('');
     buy += `</div>`;
@@ -2174,6 +2200,20 @@ UI.patchStats = function(){
       el.firstChild.nodeValue = el.firstChild.nodeValue.replace(/^[✔○]/, ok ? '✔' : '○');
     }
   });
+};
+// 方块的「行祭」：先校验等级与祭品，缺什么说清楚
+UI.tryRite = function(id){
+  const rec = Recipes.find(r => r.type === 'rite' && r.out === id);
+  if (!rec) return;
+  if (levelOf('jisi') < rec.lvl){ UI.toast(`🔒 需祭祀 ${rec.lvl} 级`); return; }
+  if (!canAfford(rec.cost)){
+    const lacks = rec.cost.filter(([iid, q]) => totalOf(iid) < q)
+      .map(([iid, q]) => `${(Items[iid] || {}).name || iid} ${totalOf(iid)}/${q}`);
+    UI.toast(lacks.length ? `祭品不足：缺 ${lacks.join('、')}` : '祠礼材料不备');
+    return;
+  }
+  performRite(id);
+  UI.renderJisi();
 };
 UI.renderLog = function(){
   const box = $('logList');

@@ -669,7 +669,16 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
 .stats-bar{ display:flex; gap:20px; flex-wrap:wrap; font-size:12.5px; color:var(--ink-3); align-items:center; }
 .stats-bar b{ font-family:var(--f-num); color:var(--ink); font-size:14px; margin-left:4px; }
 
-.skill-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(178px,1fr)); gap:10px; }
+/* 技能：方块 + 底部经验条（26 门一屏扫完，点开看描述与材料来源） */
+.skill-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(92px,1fr)); gap:6px; }
+.skill-tile .sk-lv{
+  position:absolute; top:3px; right:5px; font-family:var(--f-num);
+  font-size:10px; color:var(--ink-4);
+}
+.skill-tile .sk-bar{ position:absolute; left:0; right:0; bottom:0; height:3px; background:var(--rule-3); border-radius:0 0 var(--r) var(--r); overflow:hidden; }
+.skill-tile .sk-bar i{ display:block; height:100%; background:var(--zhu); transition:width .3s; }
+.skill-tile.active{ border-color:rgba(176,58,43,.55); background:var(--zhu-w); }
+@media (max-width:760px){ .skill-grid{ grid-template-columns:repeat(3,1fr); gap:6px; } }
 .skill-card{
   background:var(--paper-2); border:1px solid var(--rule); border-radius:var(--r);
   padding:10px 12px 11px; position:relative; transition:border-color .15s, background .15s;
@@ -987,7 +996,15 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
 /* ==========================================================================
    祠祀
    ========================================================================== */
-.rite-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(208px,1fr)); gap:10px; }
+/* 祠礼：方块同语言，点按即祭 */
+.rite-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(92px,1fr)); gap:6px; }
+.rite-tile .tile-tag{ letter-spacing:0; }
+/* 祠礼都是同一支蜡烛图标，辨识度低：改用「首字朱印」，一眼分出是哪一礼 */
+.tile-seal{
+  width:34px; height:34px; display:flex; align-items:center; justify-content:center;
+  font-family:var(--f-kai); font-size:19px; line-height:1; color:#FCFBF6;
+  background:var(--zhu); border-radius:2px;
+}
 .omen-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(184px,1fr)); gap:8px; }
 .omen-card{ background:var(--paper-2); border:1px solid var(--rule); border-radius:var(--r); padding:9px 11px; }
 .omen-card.active{ border-color:rgba(156,118,40,.55); background:rgba(156,118,40,.06); }
@@ -1012,7 +1029,8 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
 .shop-head{ display:flex; gap:20px; flex-wrap:wrap; align-items:center; font-size:12.5px; color:var(--ink-3); }
 .shop-head b{ font-family:var(--f-num); color:var(--ink); font-size:14px; margin-left:4px; }
 .shop-head b.gold{ color:var(--jin); }
-.shop-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(192px,1fr)); gap:10px; }
+/* 墟市：商品方块（点按买一份，右上 ×10） */
+.shop-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(92px,1fr)); gap:6px; }
 /* 营造：建筑卡（此前缺此栅格定义，卡片会拉成一整条） */
 .building-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(196px,1fr)); gap:10px; }
 /* 商货卡：价格一行、按钮一行都不折行；价格靠左、按钮靠右 */
@@ -1443,7 +1461,8 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
   .skill-grid{ grid-template-columns:repeat(auto-fill,minmax(min(146px,100%),1fr)); }
   .beast-grid{ grid-template-columns:repeat(3,1fr); gap:6px; }
   /* 提高特异性：后面那组 .inv-grid/.codex-grid 的 minmax(140px) 会覆盖同权重规则 */
-  .panel .inv-grid, .panel .codex-grid{ grid-template-columns:repeat(3,1fr); gap:6px; }
+  .panel .inv-grid, .panel .codex-grid,
+  .panel .rite-grid, .panel .shop-grid{ grid-template-columns:repeat(3,1fr); gap:6px; }
   .farm-grid,.mini-grid,.shop-grid,.sell-grid,.inv-grid,.gear-grid,.omen-grid,.rite-grid,.stat-grid{
     grid-template-columns:repeat(auto-fill,minmax(min(140px,100%),1fr));
   }
@@ -1588,3 +1607,9 @@ mark.hit{
 .bs-total{ font-size:12px; color:var(--ink-2); }
 .bs-total b{ font-family:var(--f-num); }
 .bs-total .zhu-num{ color:var(--zhu); }
+
+/* 技能方格：窄屏三列（后面 1410 行附近的 .skill-grid minmax 会覆盖同权重规则，
+   这里用 #content 提高特异性一锤定音） */
+@media (max-width:760px){
+  #content .skill-grid{ grid-template-columns:repeat(3,1fr); gap:6px; }
+}

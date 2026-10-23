@@ -1000,8 +1000,10 @@ assert(css.includes('sheet-in') && css.includes('bottom:0 !important'), '窄屏�
 assert(css.includes('tip-in'), '宽屏浮层为气泡形态');
 // 触屏点按与悬停的模态区分：避免合成 mouseover 开层后 click 又将其关掉
 assert(uiSrc.includes('touchJustNow') && uiSrc.includes('lastTouchAt'), 'ui.js 区分触屏点按与鼠标悬停（防止点按开层即被关）');
-// 网格密度：最小列宽下调（一屏展示更多条目）
-['minmax(178px,1fr)','minmax(196px,1fr)','minmax(184px,1fr)'].forEach(g=>assert(css.includes(g), '网格密度上调 ' + g));
+// 网格密度：改为正比例方块后，列宽由 minmax 控制（一屏能扫更多）
+assert(/\.tile-grid\{[^}]*minmax\(104px,1fr\)/.test(css), '方块网格列宽 104px（桌面最多十列）');
+assert(/\.skill-grid\{[^}]*minmax\(92px,1fr\)/.test(css) && /\.beast-grid\{[^}]*minmax\(92px,1fr\)/.test(css), '技能与征伐方格 92px');
+assert(/\.skill-grid\{ grid-template-columns:repeat\(3,1fr\); gap:6px; \}/.test(css), '窄屏技能三列');
 
 // ============ 20. 状态条上移 + 顶栏精简 + 悬浮按钮避让抽屉 ============
 section('状态条上移与悬浮按钮避让');
@@ -1867,6 +1869,24 @@ section('制作：单件 / 连作 / 紧凑卡片');
   assert(uiSrc.includes('e.target === a && a.hasAttribute && a.hasAttribute(\'onclick\')'), '浮层捕获层放行「点按即执行」的方块');
   assert(interactSrc.includes('const times = (opts && opts.times > 0)'), 'startActivity 支持 times 参数');
   assert(gameSrc.includes('if (done && a.remain != null)') && gameSrc.includes('a.remain--;'), '制作完成扣次数并收手');
+}
+// ============ 36. 方块语言：技能 / 祠礼 / 墟市 ============
+section('方块语言：技能 / 祠礼 / 墟市');
+{
+  assert(uiSrc.includes('class="tile skill-tile') && uiSrc.includes('class="sk-bar"'), '技能改为方块 + 底部经验条');
+  assert(uiSrc.includes('<span class="sk-lv">${lv}</span>'), '技能方块右上角显示等级');
+  assert(/\.skill-grid\{[^}]*minmax\(92px,1fr\)/.test(css), '技能方格 92px');
+  assert(/#content \.skill-grid\{ grid-template-columns:repeat\(3,1fr\)/.test(css), '窄屏技能三列（高特异性覆盖）');
+
+  assert(uiSrc.includes('class="tile rite-tile') && uiSrc.includes('class="tile-seal"'), '祠礼改为方块 + 首字朱印');
+  assert(uiSrc.includes('UI.tryRite = function(id)'), '祠礼点按走 tryRite（校验等级与祭品）');
+  assert(uiSrc.includes('祭品不足：缺'), '缺祭品时说清缺哪几样');
+  assert(/\.rite-grid\{[^}]*minmax\(92px,1fr\)/.test(css), '祠礼方格 92px');
+
+  assert(uiSrc.includes('class="tile shop-tile') && uiSrc.includes("onclick=\"buyItem(${idx},1)\""), '商品方块点按买一份');
+  assert(uiSrc.includes("event.stopPropagation();buyItem(${idx},10)"), '商品方块右上 ×10 买十份');
+  assert(/\.shop-grid\{[^}]*minmax\(92px,1fr\)/.test(css), '墟市方格 92px');
+  assert(/\.panel \.inv-grid, \.panel \.codex-grid,[\s\S]{0,80}\.panel \.rite-grid, \.panel \.shop-grid\{ grid-template-columns:repeat\(3,1fr\)/.test(css), '窄屏行装/图鉴/祠礼/墟市统一三列');
 }
 console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
 process.exit(fail ? 1 : 0);
