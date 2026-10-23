@@ -1691,5 +1691,28 @@ section('征兆可触发：兆必有兽 / 兆必能应');
   assert(!ST.Game.stats.omens.junniao && !ST.Game.stats.omens.dae, '谒见钟山不误触化鸟之兆');
 }
 
+// ============ 31. 山志异兽小签（按节点定位记录 / 无实体如实标注） ============
+section('山志异兽：记录不串山 / 无实体如实标注');
+{
+  G.resetToDefault();
+  const nodeOf = id => ST.WORLD.regions.reduce((a, r) => a.concat(r.nodes), []).find(n => n.id === id);
+  const faunaOf = (id, name) => nodeOf(id).fauna.find(x => x.name === name);
+  const chip = (id, name) => ST.UI.faunaChipHtml(nodeOf(id), faunaOf(id, name));
+
+  assert(chip('beishan-1-19', '山𤟤').includes('未录'), '有实体未著录 → 「未录」');
+  const m = Object.values(ST.Monsters).find(x => x.nodeId === 'beishan-1-19' && x.name === '山𤟤');
+  G.recordObject(m.id, 3);
+  assert(/录\s*3/.test(chip('beishan-1-19', '山𤟤')), '著录 3 次后显示「录 3」');
+  assert(chip('beishan-1-19', '䲃鱼').includes('仅载其名'), '原文有名但未设实体 → 「仅载其名」');
+  assert(chip('nanshan-3-03', '凤皇').includes('祥瑞'), '凤皇为祥瑞（观瑞可见、不可讨伐）');
+  assert(chip('xishan-3-07', '（天神）').includes('未录'), '神祇记录走谒见（deity id），此处仍为「未录」');
+  // 同名异兽必须按节点取记录
+  const west = Object.values(ST.Monsters).find(x => x.nodeId === 'xishan-1-07' && x.name === '肥遗');
+  G.recordObject(west.id, 5);
+  assert(/录\s*5/.test(chip('xishan-1-07', '肥遗')), '西山肥遗显示自身著录数');
+  assert(/未录/.test(chip('beishan-1-21', '肥遗')), '北山肥遗不借用西山肥遗的记录');
+  assert(ST.Items && Object.keys(ST.Monsters).length >= 194, '异兽表含新增四兽（总 ' + Object.keys(ST.Monsters).length + '）');
+}
+
 console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
 process.exit(fail ? 1 : 0);

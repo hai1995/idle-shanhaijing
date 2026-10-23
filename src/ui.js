@@ -663,6 +663,33 @@ function recommendedNodes(){
   return map;
 }
 
+// 山志异兽小签。记录对象必须按「同节点」定位：同名异兽分处两经（北山肥遗 ≠ 西山
+// 肥遗），只按名字找会把别处的著录数借过来。神祇的记录走谒见（deity id）。
+// 三者皆无时按性质标注：祥瑞（观瑞可见、不可讨伐）/ 渔获 / 仅载其名（原文有名而本作未设实体）。
+UI.faunaChipHtml = function(sel, f){
+  const m = Object.values(Monsters).find(x=>x.nodeId===sel.id && (x.faunaName||x.name)===f.name);
+  let rid = m && m.id;
+  if (!rid){
+    const site = (typeof AUDIENCE_SITES!=='undefined') && AUDIENCE_SITES[sel.id];
+    const d = site && (site.deities||[]).find(x=>x.name===f.name || '（'+x.name+'）'===f.name);
+    if (d) rid = d.id;
+  }
+  if (!rid){
+    const any = Object.values(Monsters).find(x=>x.name===f.name);   // 祥瑞等跨节点同名
+    if (any) rid = any.id;
+  }
+  const rec = rid ? (Game.records[rid]||{count:0}) : null;
+  let tag;
+  if (rec){
+    tag = `<i class="${rec.count>0?'rec-ok':'rec-no'}">${rec.count>0?'录 '+rec.count:'未录'}</i>`;
+  } else {
+    const fm = (typeof FAUNA_META !== 'undefined') && FAUNA_META[f.name];
+    const hint = fm && fm.pacifist ? '祥瑞' : fm && fm.fishOnly ? '渔获' : '仅载其名';
+    tag = `<i class="rec-none">${hint}</i>`;
+  }
+  return `<span class="fauna-chip ${rec && rec.count>0 ? 'seen':''}"${f.effect?` title="${esc(f.effect)}"`:''}>${CAT_EMOJI[f.category]||'🐾'}${esc(f.name)}${tag}</span>`;
+};
+
 UI.renderYudi = function(){
   const box = $('content');
   if (!box) return;
@@ -742,12 +769,11 @@ UI.renderYudi = function(){
       return rows.length ? `<div class="yield-rows">${rows.join('')}</div>` : '<span class="hint">无所载</span>';
     })();
     // 异兽：带著录状态的小签，已录的转朱色，未录的留白
+    // ⚠️ 取记录必须按「同节点」定位：同名异兽分处两经（北山肥遗 ≠ 西山肥遗），
+    // 只按名字找会把别处的著录数借过来。神祇的记录走谒见（deity id），
+    // 二者都没有的（原文有名、本作未设实体）标「仅载其名」，免得玩家以为漏了内容。
     const faunaRows = (sel.fauna||[]).length
-      ? `<div class="fauna">${sel.fauna.map(f=>{
-          const meta = Object.values(Monsters).find(m=>m.name===f.name);
-          const rec = meta ? (Game.records[meta.id]||{count:0}) : null;
-          return `<span class="fauna-chip ${rec && rec.count>0 ? 'seen':''}"${f.effect?` title="${esc(f.effect)}"`:''}>${CAT_EMOJI[f.category]||'🐾'}${esc(f.name)}${rec?`<i class="${rec.count>0?'rec-ok':'rec-no'}">${rec.count>0?'录 '+rec.count:'未录'}</i>`:''}</span>`;
-        }).join('')}</div>`
+      ? `<div class="fauna">${sel.fauna.map(f=>UI.faunaChipHtml(sel, f)).join('')}</div>`
       : '<span class="hint">此地无异兽记载</span>';
     // 山志全文：悬停 / 点按「山志」展开，含山川、注解、神话等长文
     const shanZhi = `<div class="nd-sec"><b>山川</b>${esc(sel.chapter||'')} · 需舆地 ${sel.unlockLevel}${sel.hazard?` · <span class="haz-text">${esc(sel.hazard.detail||sel.hazard.type)}</span>`:''}${sel.terrain?`<br>${esc(sel.terrain)}`:''}</div>

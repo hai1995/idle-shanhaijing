@@ -599,6 +599,8 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
 .fauna-chip i{ font-style:normal; color:var(--ink-4); font-size:10.5px; }
 .fauna-chip i.rec-ok{ color:var(--zhu); }
 .fauna-chip i.rec-no{ color:var(--ink-4); }
+/* 原文载其名、本作未设实体（如北山多数普通兽）：淡而可见，说明「不是漏了」 */
+.fauna-chip i.rec-none{ color:var(--ink-4); opacity:.72; }
 .fauna-chip.seen i{ color:var(--zhu); }
 .actions{ display:flex; flex-wrap:wrap; gap:7px; margin:12px 0; }
 
