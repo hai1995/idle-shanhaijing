@@ -2218,6 +2218,10 @@ function init(){
   if (td){
     const syncTopDockSpace = ()=>{
       document.documentElement.style.setProperty('--topdock-h', td.offsetHeight + 'px');
+      // 书脊高度单独给侧边栏用：折叠态「≡」要正好落进栏顶的墨色格里，
+      // 墨色也只铺到书脊下沿，否则左上角会出现一块比书脊高一截的纯墨空白。
+      const tb = $('topbar');
+      if (tb) document.documentElement.style.setProperty('--topbar-h', tb.offsetHeight + 'px');
     };
     syncTopDockSpace();
     if (window.ResizeObserver) new ResizeObserver(syncTopDockSpace).observe(td);

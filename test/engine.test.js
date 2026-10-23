@@ -935,7 +935,10 @@ assert(/flex-direction:column/.test(tabsRule), '#tabs 竖排（flex-direction:co
 assert(css2.includes('body.drawer-open #tabs'), '抽屉展开规则 body.drawer-open #tabs 存在');
 assert(css2.includes('body.drawer-open #tabs{') && css2.includes('width:min(228px, 80vw);'), '移动端侧边栏展开为宽菜单（228px）');
 assert(/position:fixed; left:0; top:0; bottom:0; width:54px;/.test(css), '移动端图标栏铺满全高（上接书脊，左侧无断带空白）');
-assert(/linear-gradient\(to bottom,\s*var\(--chrome\) 0 var\(--topdock-h, 87px\),\s*var\(--paper\) var\(--topdock-h, 87px\)\)/.test(css), '图标栏上段与书脊同色、下段转纸色（白天非整块深墨）');
+assert(/var\(--chrome\) 0 var\(--topbar-h, 48px\),\s*var\(--paper\) var\(--topbar-h, 48px\)/.test(css), '图标栏墨色只铺到书脊下沿、再转纸色（白天非整块深墨）');
+// 回归：墨色若铺满整条吸顶区，左上角会出现一块 54×82 的纯墨空白，比右边书脊高出一截
+assert(!/var\(--chrome\) 0 var\(--topdock-h/.test(css), '墨色不再铺满整条吸顶区（消除左上角深色空块）');
+assert(/\.tab-expand\{[^}]*position:absolute; left:0; top:0; width:100%; height:var\(--topbar-h, 48px\)/.test(css), '折叠态「≡」落在栏顶书脊格里（填补左上角）');
 assert(/min-height:42px;[^}]*color:var\(--ink-3\)/.test(css), '图标栏页签用纸色系墨灰（白天可读）');
 assert(/#tabs \.tab\.active\{ color:var\(--zhu\); background:var\(--zhu-w\); \}/.test(css), '图标栏选中项为朱红淡底（与桌面同一套语言）');
 assert(/body\.drawer-open #tabs\{[^}]*width:min\(228px, 80vw\);[^}]*top:var\(--topdock-h, 87px\)/.test(css), '展开态宽菜单退到吸顶区下沿，不遮挡书脊');
@@ -1129,9 +1132,9 @@ assert(css.includes('.style-row .chip-btn'), '战斗风格快捷行按钮放大�
   (css.match(/var\(--[a-z0-9-]+/g) || []).forEach(m => used.add(m.slice(4)));
   (css.match(/--[a-z0-9-]+\s*:/g) || []).forEach(m => defined.add(m.replace(/\s*:$/, '')));
   // 运行时由 JS / 内联样式注入的变量不算未定义
-  const runtime = ['--topdock-h','--sheet-h','--dx','--dy','--r'];
+  const runtime = ['--topdock-h','--topbar-h','--sheet-h','--dx','--dy','--r'];
   const undef = [...used].filter(v => !defined.has(v) && !runtime.includes(v));
-  assert(undef.length === 0, 'CSS 变量全部有定义（运行时注入的 --topdock-h / --sheet-h / --dx / --dy / --r 除外）' + (undef.length?('：'+undef.join(',')):''));
+  assert(undef.length === 0, 'CSS 变量全部有定义（运行时注入的 --topdock-h / --topbar-h / --sheet-h / --dx / --dy / --r 除外）' + (undef.length?('：'+undef.join(',')):''));
 }
 
 // ============ 24. 工艺打磨：回到顶部 · 数值微光 · 御使CTA · 检索高亮 ============
