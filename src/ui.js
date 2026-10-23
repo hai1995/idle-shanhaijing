@@ -249,10 +249,10 @@ const UI = {
       }
       t.textContent = label;
     }
-    // 停止按钮只在有「可停的行动」时出现：闲置与战斗中都没有意义
-    // （战斗中点停止只会停行动，不停战斗，纯误导）
+    // 停止按钮：有「可停的行动」就出现——采集/制作等行动如此，往讨亦然
+    // （停战结束当前这一场且不再自动接战，见 game.js stopActivity）
     const bs = $('btnStop');
-    if (bs) bs.classList.toggle('hidden', !Game.activity);
+    if (bs) bs.classList.toggle('hidden', !(Game.activity || Game.combat));
     // 仪表带上的活动指示点：忙碌时转朱色，空闲时保持墨灰
     const sb = $('statusbar');
     if (sb) sb.classList.toggle('running', !!(Game.activity || Game.combat));
@@ -2241,7 +2241,7 @@ function init(){
     tabs.innerHTML = `<button id="tabExpand" class="tab-expand" type="button" title="展开 / 收起功能菜单" onclick="UI.toggleDrawer()"><span class="ex-open">≡</span><span class="ex-close">«</span></button>`
       + TABS.map((t,i)=>
       `<button class="tab ${t.id===UI.currentTab?'active':''}" data-tab="${t.id}" title="${t.label}${i<10?'（快捷键 '+((i+1)%10)+'）':''}"><span class="tab-ic">${t.icon}</span><span class="tab-tx">${t.label}</span><span class="tab-badge" data-badge="${t.id}"></span></button>`).join('')
-      + `<button class="tab tab-tool" type="button" data-tab="settings" title="设置：昼夜 / 玩法说明 / 偏好"><span class="tab-ic">${ICON('<circle cx="12" cy="12" r="3.1"/><path d="M12 2.8v2.4M12 18.8v2.4M4.1 7.4l2.1 1.2M17.8 15.4l2.1 1.2M4.1 16.6l2.1-1.2M17.8 8.6l2.1-1.2"/>')}</span><span class="tab-tx">设置</span></button>`;
+      + `<button class="tab tab-tool" type="button" data-tab="settings" title="设置：昼夜 / 玩法说明 / 偏好"><span class="tab-ic">${ICON('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>')}</span><span class="tab-tx">设置</span></button>`;
     // 设置与其他功能同为页签，走同一条切页路径（不再单独绑 onclick）
     tabs.querySelectorAll('.tab').forEach(b=>{
       b.addEventListener('click', ()=>UI.switchTab(b.dataset.tab));

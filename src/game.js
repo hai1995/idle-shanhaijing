@@ -1367,7 +1367,22 @@ if (typeof window !== 'undefined'){
   window.playerAttackInterval = playerAttackInterval; window.totalDefence = totalDefence;
   window.playerEvasion = playerEvasion; window.monsterInterval = monsterInterval;
 }
-function stopActivity(){ Game.activity = null; }
+function stopActivity(){
+  // 战斗也是一种「行动」：停战即结束当前这场，且不再自动接下一只。
+  // （此前停止按钮在战斗中隐藏，理由是「点了也停不下战斗」——现在它真能停。）
+  if (Game.combat){
+    const m = Monsters[Game.combat.monsterId];
+    Game.combat = null;
+    autoAttack = false;
+    log('⏹ 已停止往讨', 'sys', 'combat');
+    UI && UI.toast(`⏹ 已停止往讨${m ? '：' + m.name : ''}`);
+    saveGame();
+    UI && UI.afterCombatEnd && UI.afterCombatEnd(null);
+    UI && UI.refreshActivity();
+    return;
+  }
+  Game.activity = null;
+}
 
 // ---------- 闲置兜底 ----------
 // 放置游戏不该有「死档」：无行动、无战斗、队列未跑时，持续 IDLE_GRACE 秒后

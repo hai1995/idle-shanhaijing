@@ -1447,10 +1447,10 @@ assert(ST.Game.stats.seenFallbackHint === false, '一次性提示字段存在（
   ST.UI.refreshActivity();
   assert(toggleLog[toggleLog.length-1] === true, '闲置时停止按钮隐藏');
   assert(renderTargets.activityText.textContent === '空闲', '状态栏显示空闲');
-  // 战斗中同样不显示（stopActivity 不停战斗，按钮无意义）
-  ST.Game.combat = { monsterId:'shengsheng' };
+  // 战斗中也显示：停战会真的结束这一场并停止自动接战
+  ST.Game.combat = { monsterId:'shengsheng', playerHp:20, monsterHp:10, dmgOut:0, dmgIn:0, round:0, timer:0 };
   ST.UI.refreshActivity();
-  assert(toggleLog[toggleLog.length-1] === true, '战斗中也不显示停止按钮');
+  assert(toggleLog[toggleLog.length-1] === false, '战斗中同样显示停止按钮');
   // 有行动（含兜底标记）
   ST.Game.combat = null;
   ST.Game.activity = { kind:'gather', skill:'qiaocai', itemId:'gui', src:'fallback' };
@@ -1462,8 +1462,20 @@ assert(ST.Game.stats.seenFallbackHint === false, '一次性提示字段存在（
   ST.UI.refreshActivity();
   assert(!renderTargets.activityText.textContent.includes('兜底'), '手动行动不带兜底标识');
   G.stopActivity();
-  assert(uiSrc.includes("bs.classList.toggle('hidden', !Game.activity)"), '停止按钮显隐接线存在');
+  assert(uiSrc.includes("bs.classList.toggle('hidden', !(Game.activity || Game.combat))"), '停止按钮显隐接线存在（行动或战斗）');
   assert(uiSrc.includes("if (a.src === 'fallback') label += '（兜底）'"), '兜底标识接线存在');
+  // 停战：战斗中「停止」要能真的结束这一场，且不再自动接战
+  G.resetToDefault();
+  ST.Game.combat = null;
+  const started = G.startCombat('shengsheng');
+  assert(started && !!ST.Game.combat, '往讨可发起，进入战斗态');
+  ST.Game.combat.playerHp = 12;
+  G.stopActivity();
+  assert(ST.Game.combat === null, '停战后战斗结束');
+  if (typeof G.combatTick === 'function') G.combatTick(1);
+  assert(ST.Game.combat === null, '停战后不自动接战下一只');
+  assert(gameSrc.includes('if (Game.combat){') && gameSrc.includes('autoAttack = false;'), '停战分支置 autoAttack=false');
+  assert(gameSrc.includes('UI && UI.afterCombatEnd && UI.afterCombatEnd(null)'), '停战通知界面收尾（不刷著录）');
   assert(uiSrc.includes("onoff(Prefs.idleFallback!==false, '闲置兜底'"), '设置页有「闲置兜底」开关');
   assert(/Prefs\.\$\{extra\.pref\}=\$\{extra\.expr\};saveGame\(\);UI\.renderSettings\(\)/.test(uiSrc), '开关三连式（翻转/存档/就地重绘）');
   assert(uiSrc.includes("${pref?'开':'关'}"), '开关显示当前状态');
@@ -1482,7 +1494,7 @@ assert(!html.includes('btnTheme') && !html.includes('btnHelp') && !html.includes
 assert(!uiSrc.includes("$('btnTheme') && $('btnTheme').addEventListener"), '初始化不再绑定顶栏按钮');
 assert(uiSrc.includes('data-tab="settings"'), '侧边栏末尾渲染「设置」入口（本身即页签）');
 assert(!uiSrc.includes('if (b.dataset.tool) return;'), '设置入口与其他页签走同一条切页绑定');
-assert(uiSrc.includes("ICON('<circle cx=\"12\" cy=\"12\" r=\"3.1\"/>"), '设置入口带齿轮图标');
+assert(uiSrc.includes("ICON('<circle cx=\"12\" cy=\"12\" r=\"3\"/>") && uiSrc.includes('a2 2 0 0 1 0 2.83'), '设置入口带齿轮图标（非辐条太阳）');
 assert(uiSrc.includes("settings:'renderSettings'"), 'renderCurrent 分发到 renderSettings');
 assert(/function openSettings\(\)\{ UI\.switchTab\('settings'\); \}/.test(uiSrc), 'openSettings 兼容旧调用：切页而非弹窗');
 assert(/\.tab-tool\{ margin-top:auto;/.test(css), '设置入口沉底（margin-top:auto），与页签区分');
