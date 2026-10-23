@@ -189,25 +189,18 @@ const UI = {
     this.refreshCombatHud();
   },
   // 战斗中每帧就地刷新竞技场血量条/数值（不重渲染整个面板，避免滚动复位）
+  // ⚠️ 顶栏不再显示气血（征伐页的战斗面板里已有，重复一遍纯属冗余）。
   refreshCombatHud(){
     const c = Game.combat;
-    const hp = $('hpDisplay');
     if (!c){
       if (this._combatActive){
         this._combatActive = false;
         this.afterCombatEnd(this._lastMobId);
       }
-      if (hp) hp.innerHTML = `气血 <b>${playerMaxHp()}</b>/${playerMaxHp()}`;
-      if (hp) hp.classList.remove('low');
       return;
     }
     this._combatActive = true;
     this._lastMobId = c.monsterId;
-    if (hp){
-      const cur = Math.max(0, Math.ceil(c.playerHp)), max = playerMaxHp();
-      hp.innerHTML = `气血 <b>${cur}</b>/${max}`;
-      hp.classList.toggle('low', max > 0 && cur / max <= 0.3);
-    }
     if (this.currentTab !== 'taofa') return;
     const m = Monsters[c.monsterId];
     if (!m) return;
@@ -339,6 +332,7 @@ const UI = {
     const changed = this.currentTab !== tab;
     // 离开统计页立刻停掉就地刷新（不等下一次 tick）
     if (tab !== 'stats' && this._statTicker){ clearInterval(this._statTicker); this._statTicker = null; }
+    this.closeBuffPop();                 // 切页时把增益浮层收掉，免得悬在新页面上
     this.currentTab = tab;
     document.querySelectorAll('.tab').forEach(b=>{
       b.classList.toggle('active', b.dataset.tab === tab);
@@ -408,25 +402,104 @@ const UI = {
     if (next) this.switchTab(next.id);
   },
 
-  // 常驻增益摘要：无战斗临时 buff 时，显示御使异兽与生效征兆
-  passiveSummary(){
-    const parts = [], details = [];
-    const beasts = Object.values(Game.deployed).filter((v,i,a)=>a.indexOf(v)===i);
-    if (beasts.length){
-      parts.push(`🐾 御使 ${beasts.length}`);
-      beasts.forEach(id=>{
-        const b = Monsters[id]; if (!b) return;
-        const def = (typeof BEAST_BUFFS!=='undefined' && BEAST_BUFFS[id]) || null;
-        if (def && def.label) details.push(`${b.name}：${def.label}`);
+  // 增益归拢：临时增益 / 御使异兽 / 生效征兆。原先挤在仪表带上（「🐾 御使 2 · ⚡ 征兆 3」），
+  // 既占地方又读不全；现在收进书脊右上角一枚图标，点开浮层逐条列清。
+  buffSummary(){
+    const temp = [];
+    if (Game.buff && Game.buff.def){
+      temp.push({
+        name: Game.buff.def.name || '临时增益',
+        desc: buffDefText(Game.buff.def),
+        left: Math.max(0, Game.buff.remaining || 0),
       });
     }
-    const omens = Game.omens || [];
-    if (omens.length){
-      parts.push(`⚡ 征兆 ${omens.length}`);
-      omens.forEach(o=>{ const d = (typeof OMENS!=='undefined') && OMENS[o.id]; if (d) details.push(`${d.polarity==='凶'?'🔴':d.polarity==='吉'?'🟢':'🟡'}${d.type}`); });
+    const beasts = [];
+    Object.values(Game.deployed).filter((v,i,a)=>a.indexOf(v)===i).forEach(id=>{
+      const b = Monsters[id]; if (!b) return;
+      const def = (typeof BEAST_BUFFS!=='undefined' && BEAST_BUFFS[id]) ||
+                  (typeof genericBeastBuff==='function' ? genericBeastBuff(b) : null);
+      beasts.push({ name: b.name, desc: def ? buffDefText(def) : '', label: def && def.label || '' });
+    });
+    const omens = [];
+    (Game.omens || []).forEach(o=>{
+      const d = (typeof OMENS!=='undefined') && OMENS[o.id];
+      if (!d) return;
+      omens.push({
+        name: d.beast || d.type || '征兆',
+        pol: d.polarity === '凶' ? '凶' : d.polarity === '吉' ? '吉' : '中',
+        // 去掉 omenEffectText 自带的有效期括注（右侧已单列剩余时间）
+        desc: (typeof omenEffectText === 'function') ? omenEffectText(d).replace(/（[^）]*）/g, '') : (d.desc || ''),
+        left: o.until ? Math.max(0, o.until - gameTime()) : 0,
+      });
+    });
+    return { temp, beasts, omens, count: temp.length + beasts.length + omens.length };
+  },
+  // 书脊上的增益图标：有增益时亮起并带计数，没有时只是暗淡的常驻入口
+  renderBuffBtn(){
+    const btn = $('buffBtn'), n = $('buffCount');
+    if (!btn) return;
+    const s = this.buffSummary();
+    if (n){
+      n.textContent = s.count > 99 ? '99+' : String(s.count);
+      n.classList.toggle('hidden', s.count === 0);
     }
-    if (!parts.length) return '';
-    return { label: parts.join(' · '), title: details.join('；') };
+    btn.classList.toggle('on', s.count > 0);
+    btn.title = s.count ? `增益一览（${s.count} 项）` : '增益一览（当前无）';
+  },
+  // 浮层内容：分三段列清，末尾给两行合计（御使 / 征兆各自的总加成）
+  buffPopHtml(){
+    const s = this.buffSummary();
+    const bonusNames = { gatherSpeed:'采集速度', xp:'经验', farmSpeed:'田事', div:'卜筮观象', hp:'气血', def:'防御',
+      offline:'离线收益', trade:'贸易', dmg:'伤害', loot:'所获', cookQty:'烹饪并出', build:'营造', yield:'全局产出', heal:'疗愈' };
+    const fmtBonus = (obj)=>{
+      const parts = Object.entries(obj || {}).filter(([k,v])=>v > 0)
+        .map(([k,v])=>`${bonusNames[k] || k} +${k === 'def' ? v : (v*100).toFixed(0) + '%'}`);
+      return parts.length ? parts.join(' · ') : '—';
+    };
+    const item = (title, desc, extra) => `<div class="bp-item"><div class="bp-l1"><b>${esc(title)}</b>${extra || ''}</div>${desc?`<div class="bp-desc">${esc(desc)}</div>`:''}</div>`;
+    const sec = (name, n, body) => n ? `<div class="bp-sec"><h4>${name}<i>${n}</i></h4>${body}</div>` : '';
+
+    let html = `<div class="bp-head"><h3>增益一览</h3><button class="bp-x" type="button" title="关闭" onclick="UI.closeBuffPop()">✕</button></div>`;
+    if (!s.count){
+      html += '<div class="hint bp-empty">当前无增益。<br>御使异兽（著录至「通形」）或著录触发征兆后，加成会汇总在这里。</div>';
+    } else {
+      html += sec('临时增益', s.temp.length, s.temp.map(t=>
+        item(t.name, t.desc, t.left ? `<span class="bp-time">${fmtTime(t.left)}</span>` : '')).join(''));
+      html += sec('御使', s.beasts.length, s.beasts.map(b=>
+        item(b.name, b.desc || b.label)).join(''));
+      html += sec('征兆', s.omens.length, s.omens.map(o=>
+        item(o.name, o.desc, `<span class="bp-pol ${o.pol}">${o.pol}</span>${o.left?`<span class="bp-time">${fmtTime(o.left)}</span>`:''}`)).join(''));
+      const dBonus = (typeof deployedBonuses === 'function') ? fmtBonus(deployedBonuses()) : '—';
+      const oBonus = (typeof currentOmenEffects === 'function')
+        ? (currentOmenEffects().map(e=>`${e.label} ${e.pct>0?'+':''}${e.pct}%`).join(' · ') || '—') : '—';
+      html += `<div class="bp-agg"><div><span>御使合计</span><b>${esc(dBonus)}</b></div><div><span>征兆合计</span><b>${esc(oBonus)}</b></div></div>`;
+    }
+    return html;
+  },
+  openBuffPop(){
+    const btn = $('buffBtn'), pop = $('buffPop');
+    if (!btn || !pop) return;
+    pop.innerHTML = this.buffPopHtml();
+    pop.classList.remove('hidden');
+    // 贴着图标下沿、右对齐；宽度与高度都按视口收一下，窄屏不至于顶到边
+    const r = (btn.getBoundingClientRect ? btn.getBoundingClientRect() : { bottom:0, right:0 });
+    const vw = window.innerWidth || 360, vh = window.innerHeight || 640;
+    pop.style.width = Math.min(300, Math.max(240, vw - 20)) + 'px';
+    pop.style.right = Math.max(10, vw - r.right) + 'px';
+    pop.style.top = Math.round(r.bottom + 8) + 'px';
+    pop.style.maxHeight = Math.max(160, vh - r.bottom - 24) + 'px';
+    btn.classList.add('on');
+    if (btn.setAttribute) btn.setAttribute('aria-expanded', 'true');
+  },
+  closeBuffPop(){
+    const btn = $('buffBtn'), pop = $('buffPop');
+    if (pop) pop.classList.add('hidden');
+    if (btn){ if (btn.setAttribute) btn.setAttribute('aria-expanded', 'false'); btn.classList.toggle('on', this.buffSummary().count > 0); }
+  },
+  toggleBuffPop(){
+    const pop = $('buffPop');
+    if (pop && !pop.classList.contains('hidden')) this.closeBuffPop();
+    else this.openBuffPop();
   },
 
   // ---------- 顶栏 / 状态栏 ----------
@@ -458,26 +531,8 @@ const UI = {
       nt.textContent = nn;
       nt.classList.toggle('hidden', !nn);
     }
-    const hp = $('hpDisplay');
-    if (hp){
-      const cur = Game.combat ? Math.max(0, Math.ceil(Game.combat.playerHp)) : playerMaxHp();
-      const max = playerMaxHp();
-      hp.innerHTML = `气血 <b>${cur}</b>/${max}`;
-      hp.classList.toggle('low', max > 0 && cur / max <= 0.3);
-    }
-    const bd = $('buffDisplay');
-    if (bd){
-      bd.style.cursor = 'pointer';
-      if (Game.buff){
-        bd.textContent = `${Game.buff.def.name} ${Math.ceil(Game.buff.remaining)}s`;
-        bd.title = '当前临时增益 · 点击查看增益与征兆总效应';
-        bd.classList.remove('hidden');
-      } else {
-        const ps = this.passiveSummary();
-        if (ps){ bd.textContent = ps.label; bd.title = ps.title + ' · 点击查看总效应'; bd.classList.remove('hidden'); }
-        else { bd.textContent = ''; bd.title = ''; bd.classList.add('hidden'); }
-      }
-    }
+    // 增益图标处于书脊最右：这里只更新计数与明暗，内容在点开浮层时才生成。
+    this.renderBuffBtn();
   },
 };
 
@@ -1625,6 +1680,21 @@ UI.renderJisi = function(){
   </div>`;
   box.innerHTML = html;
 };
+// 增益数值的人话版：御使与临时增益共用一张键名表；防御是固定值，其余按百分比
+const BUFF_KEY_NAMES = { gatherSpeed:'采集速度', gather:'采集', xp:'经验', xpBonus:'经验', farmSpeed:'田事',
+  div:'卜筮观象', hp:'气血', def:'防御', offline:'离线收益', trade:'贸易', dmg:'伤害', loot:'所获',
+  cookQty:'烹饪并出', build:'营造', yield:'全局产出', heal:'疗愈' };
+function buffDefText(def){
+  if (!def) return '';
+  const parts = [];
+  for (const k of Object.keys(BUFF_KEY_NAMES)){
+    const v = def[k];
+    if (!v) continue;
+    parts.push(`${BUFF_KEY_NAMES[k]} +${k === 'def' ? v : Math.round(v * 100) + '%'}`);
+  }
+  if (def.kind === 'wise') parts.push('抉择类事件必出最优解');
+  return parts.join(' · ');
+}
 function omenEffectText(def){
   const map = { yield:'全局产出', gather:'采集效率', offline:'离线收益', trade:'商旅收益', fish:'渔获', build:'营造速度', wise:'抉择类事件必吉' };
   const parts = [];
@@ -2430,8 +2500,10 @@ function init(){
     if (mq.addEventListener) mq.addEventListener('change', onScheme);
     else if (mq.addListener) mq.addListener(onScheme);
   }
-  // 增益摘要点击 → 征兆总效应（顶栏精简后保留此快捷入口）
-  $('buffDisplay') && $('buffDisplay').addEventListener('click', openOmenSummary);
+  // 书脊右上角：增益图标 → 浮层（点图标开合，点空白处或 Esc 收起）
+  $('buffBtn') && $('buffBtn').addEventListener('click', (e)=>{ e.stopPropagation(); UI.toggleBuffPop(); });
+  $('buffPop') && $('buffPop').addEventListener('click', (e)=>e.stopPropagation());
+  document.addEventListener('click', ()=>{ UI.closeBuffPop(); });
   // 移动端功能总入口：悬浮按钮开合抽屉，点遮罩关闭
   $('fab') && $('fab').addEventListener('click', ()=>UI.toggleDrawer());
   $('drawerMask') && $('drawerMask').addEventListener('click', ()=>UI.closeDrawer());
@@ -2451,7 +2523,7 @@ function init(){
   $('modal') && $('modal').addEventListener('click', (e)=>{ if (e.target === $('modal')) UI.closeModal(); });
   document.addEventListener('keydown', (e)=>{
     if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
-    if (e.key === 'Escape'){ hideTip(); UI.closeDrawer(); UI.closeModal(); return; }
+    if (e.key === 'Escape'){ hideTip(); UI.closeDrawer(); UI.closeModal(); UI.closeBuffPop(); return; }
     if (e.key === 's' || e.key === 'S'){ saveGame(); UI.toast('已存档'); return; }
     if (e.key === 'q' || e.key === 'Q'){ stopActivity(); if (typeof pauseQueue==='function') pauseQueue('手动停止'); UI.refreshActivity(); UI.toast('已停止'); return; }
     const idx = '1234567890'.indexOf(e.key);

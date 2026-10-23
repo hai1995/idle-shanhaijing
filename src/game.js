@@ -225,6 +225,7 @@ function activateOmen(id){
   const mark = def.polarity === '凶' ? '🔴' : def.polarity === '吉' ? '🟢' : '🟡';
   log(`${mark} 征兆·${def.type}：${def.desc}（${def.beast}）`, def.polarity==='凶'?'bad':'gold', 'omen');
   UI && UI.toast(`${mark} 征兆·${def.type}\n${def.desc}`);
+  UI && UI.renderBuffBtn && UI.renderBuffBtn();
   saveGame();
 }
 function omenMod(key){
@@ -242,7 +243,7 @@ function tickOmens(){
   for (let i=Game.omens.length-1; i>=0; i--){
     if (Game.omens[i].until <= t){ Game.omens.splice(i,1); changed = true; }
   }
-  if (changed) saveGame();
+  if (changed){ saveGame(); UI && UI.renderBuffBtn && UI.renderBuffBtn(); }
 }
 // 禳解：消耗白菅与稻米，提前禳除凶兆
 function exorcise(){
@@ -256,6 +257,7 @@ function exorcise(){
   gainXp('jisi', 60);
   log(`🕯️ 禳解凶兆：${removed.join('、')}`, 'good', 'sys');
   UI && UI.toast(`🕯️ 已禳除：${removed.join('、')}`);
+  UI && UI.renderBuffBtn && UI.renderBuffBtn();
   saveGame();
   return true;
 }
@@ -268,6 +270,7 @@ function tickBuffs(dt){
   if (Game.buff.remaining <= 0){
     log(`⌛ ${Game.buff.def.name} 之效已过`, 'gold', 'sys');
     Game.buff = null;
+    UI && UI.renderBuffBtn && UI.renderBuffBtn();     // 书脊上的增益计数随之归零
   }
 }
 function useConsumable(itemId){
@@ -293,6 +296,7 @@ function useConsumable(itemId){
     Game.buff = { itemId, def: it.buff, remaining: it.buff.dur, dur: it.buff.dur };
     log(`🧪 服${it.name}：${it.effect||''}`, 'good', 'sys');
     UI && UI.toast(`🧪 ${it.name} 生效（${it.buff.dur}s）`);
+    UI && UI.renderBuffBtn && UI.renderBuffBtn();
     saveGame();
     return true;
   }
@@ -1136,6 +1140,7 @@ function deployBeast(beastId){
   }
   const def = BEAST_BUFFS[beastId] || genericBeastBuff(Monsters[beastId]);
   log(`🐾 御使 ${Monsters[beastId].name}：${def?def.label:''}${need===2?'（相得乃飞）':''}`, 'good', 'sys');
+  UI && UI.renderBuffBtn && UI.renderBuffBtn();
   UI && UI.toast(`🐾 御使 ${Monsters[beastId].name}${need===2?'（成对）':''}`);
   saveGame();
   return true;
@@ -1149,6 +1154,7 @@ function undeployBeast(idx){
     for (const k in Game.deployed) if (Game.deployed[k] === bid) delete Game.deployed[k];
   }
   saveGame();
+  UI && UI.renderBuffBtn && UI.renderBuffBtn();
   return true;
 }
 function tickYushi(dt){

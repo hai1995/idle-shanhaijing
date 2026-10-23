@@ -39,12 +39,19 @@
           <i class="lb">贝币</i><b id="shellCount">0</b>
         </span>
       </div>
+      <!-- 增益一览：书脊最右一枚图标，点开浮层看御使 / 征兆 / 临时增益 -->
+      <button id="buffBtn" class="buff-btn" type="button" title="增益一览" aria-haspopup="dialog" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M10 3.4 11.6 9.4 17.6 11 11.6 12.6 10 18.6 8.4 12.6 2.4 11 8.4 9.4Z"/>
+          <path d="M18.6 2.8 19.4 5.6 22.2 6.4 19.4 7.2 18.6 10 17.8 7.2 15 6.4 17.8 5.6Z"/>
+        </svg>
+        <i id="buffCount" class="bb-n hidden">0</i>
+      </button>
     </header>
 
-    <!-- 仪表带：气血 / 增益 / 当前行动 / 进度 / 停止 -->
+    <!-- 仪表带：当前行动 / 进度 / 停止（气血只在征伐页的战斗面板里，此处不再重复） -->
     <div id="statusbar">
-      <span id="hpDisplay">气血 <b>0</b>/0</span>
-      <span id="buffDisplay" class="hidden"></span>
       <span id="activityText">空闲</span>
       <div id="actionProg" class="hidden"><div id="actionProgFill"></div></div>
       <button id="btnStop" class="btn-mini" type="button">停止</button>
@@ -61,6 +68,9 @@
   <!-- 移动端功能总入口 -->
   <button id="fab" type="button" title="功能菜单">☰</button>
   <div id="drawerMask" class="hidden"></div>
+
+  <!-- 增益一览浮层（书脊右上角图标唤出，点击空白 / Esc 收起） -->
+  <div id="buffPop" class="buff-pop hidden" role="dialog" aria-label="增益一览"></div>
 
 </div>
 

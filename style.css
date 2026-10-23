@@ -245,20 +245,67 @@ html.theme-anim, html.theme-anim *{
   font-size:12.5px; color:var(--ink-2);
   box-shadow:0 1px 0 rgba(31,29,25,.04);
 }
-#hpDisplay{ white-space:nowrap; font-family:var(--f-num); font-size:13px; color:var(--ink-2); letter-spacing:.02em; }
-#hpDisplay b{ color:var(--zhu); font-size:14px; }
-#hpDisplay.low b{ color:var(--zhu-d); }
-#buffDisplay{
-  color:var(--qing-d); font-size:11.5px; white-space:nowrap; max-width:36ch;
-  overflow:hidden; text-overflow:ellipsis;
-  padding:0 8px; border-left:1px solid var(--rule); border-right:1px solid var(--rule);
-  line-height:18px;
-}
-#buffDisplay[style*="cursor: pointer"]:hover{ color:var(--zhu); }
+/* 仪表带只留「当前行动 / 进度 / 停止」：气血在征伐页的战斗面板里已有，
+   增益则收进书脊右上角一枚图标（见 .buff-btn），不再挤占这一行。 */
 #activityText{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--ink-2); }
 #activityText::before{ content:''; display:inline-block; width:5px; height:5px; margin-right:7px; vertical-align:1px;
   border-radius:50%; background:var(--ink-4); }
 #statusbar.running #activityText::before{ background:var(--zhu); box-shadow:0 0 0 3px var(--zhu-w); }
+
+/* 增益图标：书脊最右，一枚四角星。有增益时亮起、带朱色计数；没有时只是暗淡入口 */
+.buff-btn{
+  flex:0 0 auto; position:relative; width:28px; height:28px; padding:0; margin-left:2px;
+  display:grid; place-items:center;
+  color:rgba(232,228,216,.5);
+  background:transparent; border:1px solid rgba(232,228,216,.16); border-radius:2px;
+  cursor:pointer; transition:color .15s, border-color .15s, background .15s;
+}
+.buff-btn svg{ width:16px; height:16px; }
+.buff-btn:hover{ color:#F2EDDF; border-color:rgba(232,228,216,.4); }
+.buff-btn.on{ color:#E9C98A; border-color:rgba(233,201,138,.4); background:rgba(233,201,138,.1); }
+.buff-btn .bb-n{
+  position:absolute; top:-5px; right:-5px; min-width:14px; height:14px; padding:0 3px;
+  font-family:var(--f-num); font-size:9px; font-style:normal; line-height:14px;
+  color:#FCFBF6; background:var(--zhu); border-radius:7px;
+  box-shadow:0 0 0 1.5px var(--chrome);
+}
+.buff-btn .bb-n.hidden{ display:none; }
+
+/* 增益浮层：贴图标下沿弹出的窄面板（桌面浮在书脊下，手机同） */
+.buff-pop{
+  position:fixed; z-index:70; padding:12px 14px 10px;
+  background:var(--paper); color:var(--ink-2);
+  border:1px solid var(--rule); border-top:2px solid var(--zhu); border-radius:var(--r);
+  box-shadow:0 12px 36px rgba(20,18,14,.26);
+  overflow-y:auto; overscroll-behavior:contain;
+  font-size:12.5px; line-height:1.5;
+}
+.buff-pop.hidden{ display:none; }
+.buff-pop .bp-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.buff-pop .bp-head h3{ margin:0; font-family:var(--f-kai); font-size:15px; font-weight:400; letter-spacing:.06em; color:var(--ink); }
+.buff-pop .bp-x{ padding:2px 4px; font-size:12px; color:var(--ink-4); background:none; border:none; cursor:pointer; }
+.buff-pop .bp-x:hover{ color:var(--zhu); }
+.buff-pop .bp-sec{ margin-bottom:10px; }
+.buff-pop .bp-sec h4{
+  display:flex; align-items:baseline; gap:6px; margin:0 0 5px; padding-bottom:4px;
+  border-bottom:1px solid var(--rule-2);
+  font-size:11px; font-weight:400; letter-spacing:.1em; color:var(--ink-3);
+}
+.buff-pop .bp-sec h4 i{ font-style:normal; font-family:var(--f-num); font-size:10.5px; color:var(--ink-4); }
+.buff-pop .bp-item{ padding:4px 0; }
+.buff-pop .bp-l1{ display:flex; align-items:baseline; gap:6px; }
+.buff-pop .bp-l1 b{ font-size:12.5px; font-weight:600; color:var(--ink); }
+.buff-pop .bp-desc{ margin-top:1px; font-size:11.5px; color:var(--ink-3); }
+.buff-pop .bp-time{ margin-left:auto; font-family:var(--f-num); font-size:10.5px; color:var(--ink-4); white-space:nowrap; }
+.buff-pop .bp-pol{ flex:0 0 auto; padding:0 3px; font-size:10px; line-height:1.45; border-radius:2px; }
+.buff-pop .bp-pol.吉{ color:#4A6340; background:rgba(86,110,76,.14); }
+.buff-pop .bp-pol.凶{ color:#B03A2B; background:rgba(176,58,43,.14); }
+.buff-pop .bp-pol.中{ color:var(--ink-3); background:var(--rule-3); }
+.buff-pop .bp-agg{ padding-top:8px; border-top:1px solid var(--rule-2); }
+.buff-pop .bp-agg div{ display:flex; gap:8px; align-items:baseline; padding:2px 0; }
+.buff-pop .bp-agg span{ flex:0 0 58px; font-size:11px; letter-spacing:.06em; color:var(--ink-4); }
+.buff-pop .bp-agg b{ font-weight:400; color:var(--qing-d); font-size:11.5px; line-height:1.5; }
+.buff-pop .bp-empty{ padding:6px 0 2px; line-height:1.7; }
 
 #actionProg{
   flex:1 1 auto; min-width:80px; height:3px; background:var(--rule-2);
@@ -1345,7 +1392,7 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
   #topbar .stat b{ font-size:13.5px; }
   #topbar .stat .meter{ width:38px; margin-top:3px; }
   #statusbar{ gap:10px; padding:0 12px; height:34px; font-size:11.5px; }
-  #buffDisplay{ max-width:14ch; padding:0 6px; }
+  .buff-pop{ font-size:12px; }
 
   /* 导航改为左侧纸色图标栏：顶部与书脊同色连续，下部转纸色 */
   #shell{ display:block; padding-left:54px; padding-top:12px; }

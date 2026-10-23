@@ -521,7 +521,8 @@ loadJS('ui.js');
 context.UI = ST.UI;
 const renderTargets = {};
 const mkTarget = ()=>({ innerHTML:'', dataset:{}, style:{}, classList:{ add(){}, remove(){}, toggle(){} }, textContent:'', value:'', checked:false, appendChild(){}, remove(){} });
-['content','tabs','toasts','modal','modalBox','logList','actionProg','actionProgFill','activityText','hpDisplay','buffDisplay','shellCount','totalLevel','recordCount','guidance','btnSettings','btnStop','fab','drawerMask','topdock'].forEach(t=>renderTargets[t]=mkTarget());
+['content','tabs','toasts','modal','modalBox','logList','actionProg','actionProgFill','activityText','hpDisplay','buffDisplay','buffBtn','buffCount','buffPop','shellCount','totalLevel','recordCount','guidance','btnSettings','btnStop','fab','drawerMask','topdock'].forEach(t=>renderTargets[t]=mkTarget());
+renderTargets.buffPop.classList.contains = ()=> true;   // 默认视为收起，closeBuffPop 不重复动作
 renderTargets.tabs.innerHTML = '';
 renderTargets.tabs.querySelectorAll = () => [];
 context.document.getElementById = (id)=> renderTargets[id] || {
@@ -622,12 +623,13 @@ ST.UI.currentTab = 'codex'; ST.UI.refreshActivity();
 assert(renderTargets.guidance.innerHTML.indexOf('<span>') >= 0, '全局指引条在其它页签填充建议');
 assert((ST.Game.records && Object.keys(ST.Game.records).length > 0 ? renderTargets.guidance.innerHTML.indexOf('前往') >= 0 : true), '有可跳转指引时显示「前往」');
 
-// 状态栏常驻增益摘要（御使 / 征兆）
+// 书脊右上角增益图标：计数随御使变化（仪表带不再列摘要）
 const _dep2 = ST.Game.deployed, _om2 = ST.Game.omens, _buff2 = ST.Game.buff;
 let psOk = true, psTxt = '';
-try { ST.Game.deployed = { 0:'shengsheng' }; ST.Game.buff = null; ST.UI.renderTopbar(); psTxt = renderTargets.buffDisplay.textContent; }
-catch(e){ psOk = false; console.error('增益摘要异常：'+e.stack); }
-assert(psOk && psTxt.indexOf('御使') >= 0, '状态栏显示御使增益摘要');
+try { ST.Game.deployed = { 0:'shengsheng' }; ST.Game.omens = []; ST.Game.buff = null; ST.UI.renderTopbar(); psTxt = renderTargets.buffCount.textContent; }
+catch(e){ psOk = false; console.error('增益图标异常：'+e.stack); }
+assert(psOk && psTxt === '1', '增益图标计数随御使变化 -> ' + psTxt);
+assert(renderTargets.buffBtn.title.indexOf('增益一览') >= 0, '增益图标带说明（增益一览）');
 ST.Game.deployed = _dep2; ST.Game.omens = _om2; ST.Game.buff = _buff2;
 
 // ============ 16.8 征兆纪事 · 推荐买卖 · 手势 ============
@@ -749,21 +751,23 @@ assert(nrTxt.indexOf('tip-body') >= 0 && nrTxt.indexOf('data-tip') >= 0, '节点
 
 // ============ 16.20 顶栏征兆总效应弹窗 ============
 section('征兆总效应弹窗');
-let omOk2 = true, omModal = '', omBar = '';
+let omOk2 = true, omModal = '', omBar = '', omPop = '';
 const _omens = ST.Game.omens, _buff = ST.Game.buff;
 try {
   ST.Game.omens = [{ id:'lili' }];
-  ST.Game.buff = null;   // 隔离临时增益，验证无 buff 时的被动摘要路径
+  ST.Game.buff = null;   // 隔离临时增益，验证只列征兆的路径
   ST.UI.renderTopbar();
-  omBar = renderTargets.buffDisplay.textContent;   // 顶栏精简后，⚡ 征兆计数并入状态条增益摘要
+  omBar = renderTargets.buffCount.textContent;      // 徽标计数
+  ST.UI.openBuffPop();
+  omPop = renderTargets.buffPop.innerHTML;          // 浮层里的征兆条目
   ST.openOmenSummary();
   omModal = renderTargets.modalBox.innerHTML;
-} catch(e){ omOk2 = false; console.error('征兆弹窗异常：'+e.stack); }
+} catch(e){ omOk2 = false; console.error('征兆浮层异常：'+e.stack); }
 finally { ST.Game.omens = _omens; ST.Game.buff = _buff; }
 assert(omOk2, 'openOmenSummary 不抛错');
-assert(omBar.indexOf('⚡') >= 0, '状态条增益摘要带 ⚡ 征兆图标（顶栏精简后入口）');
-assert(renderTargets.buffDisplay.style.cursor === 'pointer', '增益摘要可点击（cursor:pointer）');
-assert(omModal.indexOf('征兆总效应') >= 0 && omModal.indexOf('总效应') >= 0, '征兆弹窗汇总总效应');
+assert(Number(omBar) >= 1, '增益图标徽标显示增益条数 -> ' + omBar);
+assert(omPop.indexOf('征兆') >= 0 && omPop.indexOf('狸力') >= 0, '浮层列出征兆名');
+assert(omModal.indexOf('征兆总效应') >= 0 && omModal.indexOf('总效应') >= 0, '征兆弹窗汇总总效应（保留旧入口）');
 
 // ============ 16.17 制作技能材料来源跳转 ============
 section('制作技能材料来源');
@@ -1017,7 +1021,9 @@ assert(/<footer id="statusbar">/.test(html) === false, '状态条不再是 foote
 // 20.2 JS：renderTopbar 不再写已移除项；增益摘要点击打开征兆总效应；不再同步 --statusbar-h
 assert(!/set\('omenCount'/.test(uiSrc) && !/set\('maxSkill'/.test(uiSrc), 'renderTopbar 不再写已移除的顶栏项');
 assert(!uiSrc.includes('--statusbar-h'), 'ui.js 不再回填底部状态条高度');
-assert(uiSrc.includes("$('buffDisplay') && $('buffDisplay').addEventListener('click', openOmenSummary)"), '增益摘要点击打开征兆总效应（补偿顶栏征兆入口）');
+assert(uiSrc.includes("$('buffBtn') && $('buffBtn').addEventListener('click'"), '书脊增益图标绑定点击开合浮层');
+assert(uiSrc.includes("$('buffPop') && $('buffPop').addEventListener('click'"), '浮层内点击不冒泡到关闭逻辑');
+assert(uiSrc.includes("document.addEventListener('click', ()=>{ UI.closeBuffPop(); })"), '点空白处收起增益浮层');
 // 20.3 Tip 浮层：窄屏打开时标记 tip-open 并回填 --sheet-h，关闭时移除
 assert(uiSrc.includes("document.body.classList.add('tip-open')") && uiSrc.includes('--sheet-h'), '窄屏浮层打开时写入 tip-open 与 --sheet-h');
 assert(uiSrc.includes("document.body.classList.remove('tip-open')"), '浮层关闭时移除 tip-open');
@@ -1119,7 +1125,8 @@ try {
 } catch(e){ hudOk = false; console.error('HUD 刷新异常：' + e.stack); }
 finally { ST.Game.combat = _combat23; ST.Game.activity = _act23; }
 assert(hudOk, '纯讨伐（无 activity）时 tickProgress 不抛错');
-assert(hudHp.indexOf('40') >= 0, '无行动进度时战斗 HUD 仍刷新顶栏气血 -> ' + hudHp);
+assert(hudHp === '', '顶栏不再写气血（征伐页战斗面板已有，避免冗余）-> ' + hudHp);
+assert(html.indexOf('id="hpDisplay"') < 0 && html.indexOf('id="buffDisplay"') < 0, '仪表带移除气血与增益摘要两个元素');
 // 战斗中渲染征伐页：血条 fill 宽度按实时血量
 let arenaOk = true, arenaHp = '';
 try {
@@ -1888,5 +1895,59 @@ section('方块语言：技能 / 祠礼 / 墟市');
   assert(/\.shop-grid\{[^}]*minmax\(92px,1fr\)/.test(css), '墟市方格 92px');
   assert(/\.panel \.inv-grid, \.panel \.codex-grid,[\s\S]{0,80}\.panel \.rite-grid, \.panel \.shop-grid\{ grid-template-columns:repeat\(3,1fr\)/.test(css), '窄屏行装/图鉴/祠礼/墟市统一三列');
 }
+// ============ 37. 仪表带去冗余 + 增益收进书脊图标 ============
+section('仪表带去冗余 / 增益浮层');
+{
+  // 37.1 结构：气血与增益摘要都从仪表带撤掉，增益改为书脊右上角一枚图标
+  assert(html.indexOf('id="hpDisplay"') < 0, '仪表带不再有气血（征伐页战斗面板已有）');
+  assert(html.indexOf('id="buffDisplay"') < 0, '仪表带不再有增益摘要文字');
+  assert(html.indexOf('id="buffBtn"') > html.indexOf('id="topbar"') &&
+         html.indexOf('id="buffBtn"') < html.indexOf('id="statusbar"'), '增益图标位于书脊（顶栏）内、仪表带之前');
+  assert(html.indexOf('id="buffPop"') > 0, '增益浮层容器存在');
+  assert(/<span id="activityText">空闲<\/span>/.test(html), '仪表带首项直接是当前行动');
+  assert(uiSrc.indexOf('passiveSummary') < 0, '旧的被动摘要（挤在仪表带上）已删除');
+
+  // 37.2 计数：临时 + 御使 + 征兆 三类各计一条
+  G.resetToDefault();
+  ST.Game.buff = null; ST.Game.deployed = {}; ST.Game.omens = [];
+  assert(ST.UI.buffSummary().count === 0, '无增益时计数为 0');
+  ST.Game.buff = { def:{ name:'善走', kind:'gather', gather:0.3, dur:180 }, remaining:112, dur:180 };
+  ST.Game.deployed = { 0:'shengsheng' };
+  ST.Game.omens = [{ id:'lili', until:(ST.Game.stats.time || 0) + 3600 }];
+  const bs = ST.UI.buffSummary();
+  assert(bs.temp.length === 1 && bs.beasts.length === 1 && bs.omens.length === 1 && bs.count === 3,
+    '三类增益各计一条 -> ' + bs.count);
+  assert(bs.temp[0].desc.indexOf('采集 +30%') >= 0, '临时增益写出具体数值');
+  assert(bs.beasts[0].desc.indexOf('采集速度 +6%') >= 0, '御使增益写出具体数值');
+  assert(bs.omens[0].desc.indexOf('（') < 0 && bs.omens[0].left > 3500, '征兆效果去掉有效期括注，剩余时间单列');
+
+  // 37.3 浮层内容：分段列表 + 两行合计；空态有说明
+  const popHtml = ST.UI.buffPopHtml();
+  assert(popHtml.indexOf('临时增益') >= 0 && popHtml.indexOf('御使') >= 0 && popHtml.indexOf('征兆') >= 0, '浮层分三段列出');
+  assert(popHtml.indexOf('御使合计') >= 0 && popHtml.indexOf('征兆合计') >= 0, '浮层给出御使 / 征兆各自合计');
+  ST.Game.buff = null; ST.Game.deployed = {}; ST.Game.omens = [];
+  const emptyHtml = ST.UI.buffPopHtml();
+  assert(emptyHtml.indexOf('当前无增益') >= 0 && emptyHtml.indexOf('御使合计') < 0, '无增益时给空态说明（不列空合计）');
+
+  // 37.4 交互：图标开合、点空白 / Esc / 切页收起
+  assert(uiSrc.indexOf("$('buffBtn') && $('buffBtn').addEventListener('click'") >= 0, '图标点击开合浮层');
+  assert(uiSrc.indexOf('UI.toggleBuffPop') >= 0 && uiSrc.indexOf('UI.closeBuffPop') >= 0, 'open / close / toggle 三件套齐备');
+  assert(uiSrc.indexOf('this.closeBuffPop();                 // 切页时把增益浮层收掉') >= 0, '切页自动收起浮层');
+  assert(uiSrc.indexOf("if (e.key === 'Escape'){ hideTip(); UI.closeDrawer(); UI.closeModal(); UI.closeBuffPop(); return; }") >= 0, 'Esc 收起浮层');
+  assert(uiSrc.indexOf("document.addEventListener('click', ()=>{ UI.closeBuffPop(); })") >= 0, '点空白处收起浮层');
+  assert(uiSrc.indexOf('aria-expanded') >= 0, '浮层开合同步 aria-expanded');
+
+  // 37.5 增益增减时图标即时更新（不必等整页重渲染）
+  assert(gameSrc.indexOf("UI && UI.renderBuffBtn && UI.renderBuffBtn();     // 书脊上的增益计数随之归零") >= 0, '临时增益到期即刷新图标');
+  assert(gameSrc.indexOf('function tickOmens') >= 0 && gameSrc.indexOf('saveGame(); UI && UI.renderBuffBtn && UI.renderBuffBtn();') >= 0, '征兆到期即刷新图标');
+  assert(gameSrc.indexOf('UI && UI.renderBuffBtn && UI.renderBuffBtn();\n}') >= 0 || gameSrc.indexOf('renderBuffBtn') >= 0, '御使增减 / 服丹 / 禳解都刷新图标');
+
+  // 37.6 样式：图标方框 + 徽标 + 浮层（贴图标下沿、纸面、朱色顶线）
+  assert(/\.buff-btn\{[^}]*width:28px; height:28px/.test(css), '增益图标 28px 方框');
+  assert(/\.buff-btn \.bb-n\{[^}]*background:var\(--zhu\)/.test(css), '徽标为朱色圆点');
+  assert(/\.buff-pop\{[^}]*position:fixed/.test(css) && /\.buff-pop\{[^}]*border-top:2px solid var\(--zhu\)/.test(css), '浮层为固定定位的纸面板（朱色顶线）');
+  assert(css.indexOf('#hpDisplay') < 0 && css.indexOf('#buffDisplay') < 0, '旧的气血 / 增益摘要样式已清理');
+}
+
 console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
 process.exit(fail ? 1 : 0);
