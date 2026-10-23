@@ -1757,5 +1757,33 @@ section('战斗态不跨会话');
   assert(engSrc.includes('Game._droppedCombat = d.combat ? d.combat.monsterId : null;'), '读档分支显式丢弃战斗态');
   assert(engSrc.includes('Game.combat = null;'), '读档后 combat 一律置空');
 }
+// ============ 33. 统计页实时刷新（回归：数值要切页才更新） ============
+section('统计页实时刷新');
+{
+  G.resetToDefault();
+  ST.Game.stats.kills = 7;
+  ST.Game.stats.damageDealt = 1234;
+  ST.UI.currentTab = 'stats';
+  const orig = G.document.querySelector;
+  let probed = 0;
+  G.document.querySelector = () => {
+    probed++;
+    return { textContent:'旧值', classList:{ toggle(){} }, firstChild:null };
+  };
+  ST.UI.patchStats();
+  G.document.querySelector = orig;
+  assert(probed >= 20, '统计页数值标记覆盖各面板 -> 探测 ' + probed + ' 项');
+  assert(uiSrc.includes('data-stat="kills"') && uiSrc.includes('data-stat="damageDealt"') && uiSrc.includes('data-stat="shells"'), '关键数值带 data-stat 标记');
+  assert(uiSrc.includes('data-gather="${k}"'), '采集分项带 data-gather 标记');
+  assert(uiSrc.includes('data-ms="${i}"'), '长线成就带 data-ms 标记');
+  assert(uiSrc.includes('this._statTicker = setInterval'), '统计页渲染后挂定时就地刷新');
+  assert(uiSrc.includes("if (this.currentTab !== 'stats'){ clearInterval(this._statTicker)"), '离开统计页自动停表（不再空转）');
+  assert(uiSrc.includes('el.textContent !== vals[k]') && uiSrc.includes('el.textContent = vals[k]'), '值未变时不碰 DOM（只为变化重排）');
+  // 非统计页直接跳过
+  ST.UI.currentTab = 'yudi';
+  const before = probed;
+  ST.UI.patchStats();
+  assert(probed === before, '非统计页不执行刷新');
+}
 console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
 process.exit(fail ? 1 : 0);

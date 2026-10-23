@@ -329,6 +329,8 @@ const UI = {
   // ---------- 页签切换 ----------
   switchTab(tab){
     const changed = this.currentTab !== tab;
+    // 离开统计页立刻停掉就地刷新（不等下一次 tick）
+    if (tab !== 'stats' && this._statTicker){ clearInterval(this._statTicker); this._statTicker = null; }
     this.currentTab = tab;
     document.querySelectorAll('.tab').forEach(b=>{
       b.classList.toggle('active', b.dataset.tab === tab);
@@ -1746,7 +1748,7 @@ UI.renderShichan = function(){
     </div>`;
 
   box.innerHTML = `<div class="panel shop-head">
-      <span>贝币 <b>${fmt(Game.shells)}</b></span>
+      <span>贝币 <b data-stat="shells">${fmt(Game.shells)}</b></span>
       <span>商旅等级 <b>${levelOf('shanglv')}</b></span>
       <span>售价加成 <b>×${sellMult.toFixed(2)}</b></span>
       <span class="price-trend">售价走势 ${sparkline(Game.priceHistory.map(p=>p.m), 90, 22)}</span>
@@ -2011,48 +2013,48 @@ UI.renderStats = function(){
   const box = $('content');
   if (!box) return;
   const s = Game.stats;
-  const gatherRows = Object.entries(s.gathers||{}).map(([k,v])=>`<span>${Skills[k]?Skills[k].name:k} <b>${v}</b></span>`).join('') || '<span class="hint">未采</span>';
+  const gatherRows = Object.entries(s.gathers||{}).map(([k,v])=>`<span>${Skills[k]?Skills[k].name:k} <b data-gather="${k}">${v}</b></span>`).join('') || '<span class="hint">未采</span>';
   box.innerHTML = `<div class="stat-grid">
     <div class="panel stat-panel"><h3>讨伐</h3>
       <div class="stat-rows">
-        <span>击杀 <b>${s.kills}</b></span>
-        <span>败北 <b>${s.deaths}</b></span>
-        <span>六凶 <b>${Object.keys(s.bossKills||{}).length}/7</b></span>
-        <span>造成伤害 <b>${fmt(s.damageDealt)}</b></span>
-        <span>承受伤害 <b>${fmt(s.damageTaken)}</b></span>
+        <span>击杀 <b data-stat="kills">${s.kills}</b></span>
+        <span>败北 <b data-stat="deaths">${s.deaths}</b></span>
+        <span>六凶 <b data-stat="bosses">${Object.keys(s.bossKills||{}).length}/7</b></span>
+        <span>造成伤害 <b data-stat="damageDealt">${fmt(s.damageDealt)}</b></span>
+        <span>承受伤害 <b data-stat="damageTaken">${fmt(s.damageTaken)}</b></span>
       </div></div>
     <div class="panel stat-panel"><h3>采集 / 制作</h3>
       <div class="stat-rows">
-        <span>动作总数 <b>${s.actions}</b></span>
-        <span>收获 <b>${s.harvests}</b></span>
-        <span>制作次数 <b>${s.crafts}</b></span>
-        <span>行祭 <b>${s.rites}</b></span>
-        <span>观象 <b>${s.observes}</b></span>
-        <span>卜筮 <b>${s.divines}</b></span>
+        <span>动作总数 <b data-stat="actions">${s.actions}</b></span>
+        <span>收获 <b data-stat="harvests">${s.harvests}</b></span>
+        <span>制作次数 <b data-stat="crafts">${s.crafts}</b></span>
+        <span>行祭 <b data-stat="rites">${s.rites}</b></span>
+        <span>观象 <b data-stat="observes">${s.observes}</b></span>
+        <span>卜筮 <b data-stat="divines">${s.divines}</b></span>
       </div>
       <div class="stat-rows gather-rows">${gatherRows}</div></div>
     <div class="panel stat-panel"><h3>商旅</h3>
       <div class="stat-rows">
-        <span>贝币 <b>${fmt(Game.shells)}</b></span>
-        <span>累计收入 <b>${fmt(s.totalEarned)}</b></span>
-        <span>买入 <b>${s.purchases}</b> 次</span>
-        <span>卖出 <b>${s.sales}</b> 次</span>
+        <span>贝币 <b data-stat="shells">${fmt(Game.shells)}</b></span>
+        <span>累计收入 <b data-stat="totalEarned">${fmt(s.totalEarned)}</b></span>
+        <span>买入 <b data-stat="purchases">${s.purchases}</b> 次</span>
+        <span>卖出 <b data-stat="sales">${s.sales}</b> 次</span>
       </div></div>
     <div class="panel stat-panel"><h3>著录</h3>
       <div class="stat-rows">
-        <span>已录 <b>${recordedCount()}/${Object.keys(CODEX).length}</b></span>
-        <span>山已涉 <b>${Object.keys(Game.map).length}/${WORLD.regions.reduce((s,r)=>s+r.nodes.length,0)}</b></span>
-        <span>观象处 <b>${Object.values(Game.observed).filter(Boolean).length}/${Object.keys(OBSERVE_SITES).length}</b></span>
-        <span>营造 <b>${Object.keys(Game.buildings).length}/${Object.keys(BUILDINGS).length}</b></span>
+        <span>已录 <b data-stat="recorded">${recordedCount()}/${Object.keys(CODEX).length}</b></span>
+        <span>山已涉 <b data-stat="nodes">${Object.keys(Game.map).length}/${WORLD.regions.reduce((s,r)=>s+r.nodes.length,0)}</b></span>
+        <span>观象处 <b data-stat="observed">${Object.values(Game.observed).filter(Boolean).length}/${Object.keys(OBSERVE_SITES).length}</b></span>
+        <span>营造 <b data-stat="buildings">${Object.keys(Game.buildings).length}/${Object.keys(BUILDINGS).length}</b></span>
       </div></div>
     <div class="panel stat-panel"><h3>长线成就</h3>
       <div class="stat-rows ms-rows">
-        ${(window.Milestones||[]).map(ms=>`<span class="${ms.check()?'done':''}">${ms.check()?'✔':'○'} ${esc(ms.name)}<i>${esc(ms.bonus)}</i></span>`).join('')}
+        ${(window.Milestones||[]).map((ms,i)=>`<span data-ms="${i}" class="${ms.check()?'done':''}">${ms.check()?'✔':'○'} ${esc(ms.name)}<i>${esc(ms.bonus)}</i></span>`).join('')}
       </div></div>
     <div class="panel stat-panel"><h3>时间 / 离线</h3>
       <div class="stat-rows">
-        <span>在册时长 <b>${fmtTime(s.time)}</b></span>
-        <span>本次会话 <b>${fmtTime((Date.now()-Game.startedAt)/1000)}</b></span>
+        <span>在册时长 <b data-stat="time">${fmtTime(s.time)}</b></span>
+        <span>本次会话 <b data-stat="session">${fmtTime((Date.now()-Game.startedAt)/1000)}</b></span>
         <span>离线上限 <b>${offlineCapHours()} 小时</b></span>
         <span>离线效率 <b>${Math.round(offlineEff()*100)}%</b></span>
       </div></div>
@@ -2075,6 +2077,51 @@ UI.renderStats = function(){
     </div>
   </div>`;
   this.renderLog();
+  // 统计页数值就地刷新：每 0.8 秒重写带标记的节点，不重建整页
+  // （重建会打断滚动、让日志闪一下，按钮焦点也会丢）。离开本页即自行停表。
+  if (this._statTicker) clearInterval(this._statTicker);
+  this._statTicker = setInterval(() => {
+    if (this.currentTab !== 'stats'){ clearInterval(this._statTicker); this._statTicker = null; return; }
+    UI.patchStats();
+  }, 800);
+};
+// 逐项改写统计数值；只在值真的变了才碰 DOM，避免无谓重排
+UI.patchStats = function(){
+  if (this.currentTab !== 'stats') return;
+  const s = Game.stats;
+  const totalNodes = WORLD.regions.reduce((a, r) => a + r.nodes.length, 0);
+  const vals = {
+    kills: String(s.kills), deaths: String(s.deaths),
+    bosses: Object.keys(s.bossKills || {}).length + '/7',
+    damageDealt: fmt(s.damageDealt), damageTaken: fmt(s.damageTaken),
+    actions: String(s.actions), harvests: String(s.harvests), crafts: String(s.crafts),
+    rites: String(s.rites), observes: String(s.observes), divines: String(s.divines),
+    shells: fmt(Game.shells), totalEarned: fmt(s.totalEarned),
+    purchases: String(s.purchases), sales: String(s.sales),
+    recorded: recordedCount() + '/' + Object.keys(CODEX).length,
+    nodes: Object.keys(Game.map).length + '/' + totalNodes,
+    observed: Object.values(Game.observed).filter(Boolean).length + '/' + Object.keys(OBSERVE_SITES).length,
+    buildings: Object.keys(Game.buildings).length + '/' + Object.keys(BUILDINGS).length,
+    time: fmtTime(s.time),
+    session: fmtTime((Date.now() - Game.startedAt) / 1000),
+  };
+  for (const k of Object.keys(vals)){
+    const el = document.querySelector(`[data-stat="${k}"]`);
+    if (el && el.textContent !== vals[k]) el.textContent = vals[k];
+  }
+  for (const [k, v] of Object.entries(s.gathers || {})){
+    const el = document.querySelector(`[data-gather="${k}"]`);
+    if (el && el.textContent !== String(v)) el.textContent = String(v);
+  }
+  (window.Milestones || []).forEach((ms, i) => {
+    const el = document.querySelector(`[data-ms="${i}"]`);
+    if (!el) return;
+    const ok = !!ms.check();
+    el.classList.toggle('done', ok);
+    if (el.firstChild && el.firstChild.nodeType === 3){
+      el.firstChild.nodeValue = el.firstChild.nodeValue.replace(/^[✔○]/, ok ? '✔' : '○');
+    }
+  });
 };
 UI.renderLog = function(){
   const box = $('logList');
