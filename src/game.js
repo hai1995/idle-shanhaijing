@@ -1350,6 +1350,13 @@ function settleAway(seconds){
   summary.harvests = Game.stats.harvests - beforeH;
   // 御使经验
   gainXp('yushi', 0.5 * Object.keys(Game.deployed).length * seconds * 0.5);
+  // 离线结算记账（统计页展示）：次数 / 累计时长 / 经验 / 物品件数 / 最近一次
+  const gotItems = Object.values(summary.items).reduce((a, b) => a + b, 0) + (summary.harvests || 0);
+  Game.stats.offlineCount = (Game.stats.offlineCount || 0) + 1;
+  Game.stats.offlineSec = (Game.stats.offlineSec || 0) + seconds;
+  Game.stats.offlineXp = (Game.stats.offlineXp || 0) + summary.xp;
+  Game.stats.offlineItems = (Game.stats.offlineItems || 0) + gotItems;
+  Game.stats.lastOffline = { at: Date.now(), sec: seconds, xp: summary.xp, items: gotItems, records: summary.records || 0 };
   saveGame();
   if (typeof invalidateMilestones === 'function') invalidateMilestones();   // 离线跳变：刷新成就缓存
   return summary;

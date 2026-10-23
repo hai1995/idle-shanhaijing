@@ -1785,5 +1785,43 @@ section('统计页实时刷新');
   ST.UI.patchStats();
   assert(probed === before, '非统计页不执行刷新');
 }
+// ============ 34. 日志自动清理 + 离线结算记账 ============
+section('日志 300 条上限 / 离线结算统计');
+{
+  // 34.1 日志：只留最近 300 条，渲染上限 300，取消手动清空
+  ST.UI.currentTab = 'yudi';
+  ST.UI.logEntries = [];
+  for (let i = 0; i < 350; i++) ST.UI.log('条目 ' + i, 'sys', 'sys');
+  assert(ST.UI.logEntries.length === 300, '日志内存只留最近 300 条 -> ' + ST.UI.logEntries.length);
+  assert(ST.UI.logEntries[0].msg === '条目 349', '最新一条在最前（350 号已入列）');
+  assert(ST.UI.logEntries[299].msg === '条目 50', '最旧的 50 条被自动丢弃');
+  assert(uiSrc.includes('slice(0, 300)'), '日志区渲染上限 300 条');
+  assert(!uiSrc.includes('UI.logEntries=[];UI.renderLog()'), '日志「清空」按钮已移除（队列页的清空不在此列）');
+
+  // 34.2 离线结算记账
+  G.resetToDefault();
+  ST.Game.node = 'nanshan-1-01';
+  ST.Game.activity = { kind:'gather', skill:'qiaocai', itemId:'gui', src:'manual' };
+  const s1 = G.settleAway(3600);
+  assert(!!s1 && s1.seconds === 3600, '离线一小时会结算');
+  assert(ST.Game.stats.offlineCount === 1, '离线结算计 1 次');
+  assert(ST.Game.stats.offlineSec === 3600, '累计离线 1 小时');
+  assert(ST.Game.stats.offlineXp > 0, '累计离线经验 > 0 -> ' + ST.Game.stats.offlineXp);
+  assert(ST.Game.stats.offlineItems > 0, '累计离线所得件数 > 0 -> ' + ST.Game.stats.offlineItems);
+  const lo = ST.Game.stats.lastOffline;
+  assert(lo && lo.sec === 3600 && lo.at > 0 && typeof lo.xp === 'number', '记录「上次离线」明细');
+  G.settleAway(1800);
+  assert(ST.Game.stats.offlineCount === 2 && ST.Game.stats.offlineSec === 5400, '再次离线累计（2 次 / 1.5 小时）');
+  const c0 = ST.Game.stats.offlineCount;
+  assert(G.settleAway(5) === null && ST.Game.stats.offlineCount === c0, '不足 30 秒不结算也不记账');
+
+  // 34.3 统计页展示
+  ST.UI.currentTab = 'stats';
+  ST.UI.renderStats();
+  const html = renderTargets.content.innerHTML;
+  assert(html.includes('离线结算') && html.includes('累计离线') && html.includes('上次离线'), '统计页有离线结算一栏');
+  assert(html.includes('data-stat="offlineCount"') && html.includes('data-stat="lastOffline"'), '离线数据带刷新标记');
+  assert(uiSrc.includes('function lastOfflineText()'), '上次离线有可读摘要（多久以前 · 离线多长 · 得多少经验）');
+}
 console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
 process.exit(fail ? 1 : 0);

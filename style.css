@@ -489,6 +489,10 @@ html.theme-anim, html.theme-anim *{
 input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
 .btn-group{ display:inline-flex; gap:2px; }
 
+/* 统计页 · 上次离线：一行长摘要，值用次级色且不加粗，避免与列名抢视线 */
+.stat-rows .off-last{ display:flex; gap:8px; align-items:baseline; }
+.stat-rows .off-last b{ font-weight:400; color:var(--ink-3); font-size:12px; text-align:right; }
+
 /* ===== 设置页（原为弹窗，现与其余功能并列成一个页签） ===== */
 .settings-panel{ max-width:1000px; }
 .set-grid{ display:grid; grid-template-columns:1fr 1fr; gap:0 32px; align-items:start; margin-top:6px; }

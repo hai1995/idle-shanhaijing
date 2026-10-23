@@ -33,6 +33,13 @@ function fmt(n){
   if (n >= 1e4) return (n/1e3).toFixed(1)+'K';
   return String(Math.floor(n));
 }
+// 上次离线结算的一句话摘要：多久以前 · 离线多长 · 得多少经验
+function lastOfflineText(){
+  const lo = (typeof Game !== 'undefined' && Game.stats) ? Game.stats.lastOffline : null;
+  if (!lo) return '尚未结算';
+  const ago = Math.max(0, (Date.now() - lo.at) / 1000);
+  return `${fmtTime(ago)}前 · 离线 ${fmtTime(lo.sec)} · +${fmt(lo.xp)} 经验`;
+}
 function fmtTime(sec){
   sec = Math.max(0, Math.floor(sec||0));
   const h = Math.floor(sec/3600), m = Math.floor(sec%3600/60), s = sec%60;
@@ -95,7 +102,8 @@ const UI = {
   // ---------- 基础 ----------
   log(msg, color, cat){
     this.logEntries.unshift({ msg, color, cat: cat||'sys', t: Date.now() });
-    if (this.logEntries.length > 200) this.logEntries.length = 200;
+    // 只留最近 300 条：日志是回溯用的，留太多既费内存又拖慢重绘
+    if (this.logEntries.length > 300) this.logEntries.length = 300;
     if (this.currentTab === 'stats') this.renderLog();
   },
   toast(text){
@@ -2057,6 +2065,13 @@ UI.renderStats = function(){
         <span>本次会话 <b data-stat="session">${fmtTime((Date.now()-Game.startedAt)/1000)}</b></span>
         <span>离线上限 <b>${offlineCapHours()} 小时</b></span>
         <span>离线效率 <b>${Math.round(offlineEff()*100)}%</b></span>
+      </div>
+      <div class="stat-rows off-rows">
+        <span>离线结算 <b data-stat="offlineCount">${s.offlineCount || 0}</b> 次</span>
+        <span>累计离线 <b data-stat="offlineSec">${fmtTime(s.offlineSec || 0)}</b></span>
+        <span>离线经验 <b data-stat="offlineXp">${fmt(s.offlineXp || 0)}</b></span>
+        <span>离线所得 <b data-stat="offlineItems">${fmt(s.offlineItems || 0)}</b> 件</span>
+        <span class="off-last">上次离线 <b data-stat="lastOffline">${lastOfflineText()}</b></span>
       </div></div>
     <div class="panel stat-panel save-panel"><h3>存档</h3>
       <div class="stat-rows">
@@ -2071,7 +2086,6 @@ UI.renderStats = function(){
       <div class="filter-row">
         ${[['all','全部'],['skill','技能'],['combat','讨伐'],['trade','商旅'],['omen','征兆'],['sys','系统']].map(([k,v])=>
           `<button class="chip-btn ${this.logFilter===k?'on':''}" onclick="UI.logFilter='${k}';UI.renderLog()">${v}</button>`).join('')}
-        <button class="chip-btn" onclick="UI.logEntries=[];UI.renderLog()">清空</button>
       </div>
       <div class="log-list" id="logList"></div>
     </div>
@@ -2104,6 +2118,11 @@ UI.patchStats = function(){
     buildings: Object.keys(Game.buildings).length + '/' + Object.keys(BUILDINGS).length,
     time: fmtTime(s.time),
     session: fmtTime((Date.now() - Game.startedAt) / 1000),
+    offlineCount: String(s.offlineCount || 0),
+    offlineSec: fmtTime(s.offlineSec || 0),
+    offlineXp: fmt(s.offlineXp || 0),
+    offlineItems: fmt(s.offlineItems || 0),
+    lastOffline: lastOfflineText(),
   };
   for (const k of Object.keys(vals)){
     const el = document.querySelector(`[data-stat="${k}"]`);
@@ -2126,7 +2145,7 @@ UI.patchStats = function(){
 UI.renderLog = function(){
   const box = $('logList');
   if (!box) return;
-  const rows = this.logEntries.filter(e=>this.logFilter==='all'||e.cat===this.logFilter).slice(0,80);
+  const rows = this.logEntries.filter(e=>this.logFilter==='all'||e.cat===this.logFilter).slice(0, 300);
   box.innerHTML = rows.map(e=>`<div class="log-row" style="color:${LOG_COLORS[e.color]||'inherit'}">${esc(e.msg)}</div>`).join('')
     || '<div class="hint">暂无记录</div>';
 };
