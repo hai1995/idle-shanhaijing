@@ -818,14 +818,21 @@ UI.renderYudi = function(){
         const chUnlocked = chRegions.some(r=>regionUnlocked(r));
         return `<div class="chapter-block ${chUnlocked?'':'ch-locked'}">
           <div class="chapter-head ${chUnlocked?'':'lock'}"><b>${esc(ch.name)}</b><span>${esc(ch.sub)}</span></div>
+          <div class="tile-grid region-grid">
           ${chRegions.map(r=>{
             const un = regionUnlocked(r);
             const done = r.nodes.filter(n=>Game.map[n.id]).length;
-            return `<div class="region-item ${r.regionId===this.selRegion?'on':''} ${un?'':'lock'}" onclick="UI.selRegion='${r.regionId}';UI.selNode=null;UI.renderYudi()">
-              <b>${esc(r.regionName)}</b>
-              <span class="sub">${un ? `已涉 ${done}/${r.nodes.length} 山` : `🔒 需舆地 ${r.unlockLevel} 级`}</span>
+            const full = done >= r.nodes.length;
+            // 方块：山系名 + 涉山进度；未解锁只留一把锁与所需等级
+            return `<div class="tile region-tile ${r.regionId===this.selRegion?'on':''} ${un?'':'lock'} ${full?'full':''}"
+                title="${esc(r.regionName)}${un?` · 已涉 ${done}/${r.nodes.length} 山`:` · 需舆地 ${r.unlockLevel} 级`}"
+                onclick="UI.selRegion='${r.regionId}';UI.selNode=null;UI.renderYudi()">
+              <span class="rg-name">${esc(r.regionName)}</span>
+              <span class="rg-sub">${un ? `${done}/${r.nodes.length} 山` : `🔒 ${r.unlockLevel} 级`}</span>
+              ${un && done > 0 ? `<span class="rg-bar"><i style="width:${(done/r.nodes.length*100).toFixed(0)}%"></i></span>` : ''}
             </div>`;
           }).join('')}
+          </div>
         </div>`;
       }).join('')}
       </div>
@@ -834,22 +841,27 @@ UI.renderYudi = function(){
     <div class="panel nodes">
       <h3>${esc(region.regionName)} · 诸山</h3>
       <div class="node-list">
+      <div class="tile-grid node-grid">
       ${nodes.map(n=>{
         const un = nodeUnlocked(n);
         const visited = !!Game.map[n.id];
         const cur = Game.node === n.id;
         const reason = recNodes[n.id];
-        return `<div class="node-item ${this.selNode===n.id?'on':''} ${un?'':'lock'} ${cur?'here':''} ${reason?'rec '+reason:''}"
+        const rp = nodeRecordProgress(n.id);
+        const done = rp.total > 0 && rp.done === rp.total;
+        // 方块：山名 + 著录进度；角上挂「在 / 御 / 荐 / ⚠」
+        return `<div class="tile node-tile ${this.selNode===n.id?'on':''} ${un?'':'lock'} ${cur?'here':''} ${reason?'rec '+reason:''}"
+             title="${esc(n.name)}${rp.total?` · 已著录 ${rp.done}/${rp.total} 种`:''}${!un?' · '+esc(nodeLockReason(n)):''}"
              onclick="UI.selNode='${n.id}';UI.renderYudi()">
-          <span class="nname">${esc(n.name)}</span>
-          <span class="nlv">${visited?'✓':''}${n.unlockLevel}</span>
-          ${n.hazard?'<span class="haz" title="'+esc(n.hazard.detail||n.hazard.type)+'">⚠</span>':''}
-          ${reason==='tame'?'<span class="rec-tag tame" title="可御使的异兽在此">御</span>':''}
-          ${reason==='explore'?'<span class="rec-tag" title="尚未涉足，可前往探索">荐</span>':''}
-          ${cur?'<span class="here-tag">在</span>':''}
-          ${(function(){ const p = nodeRecordProgress(n.id); return p.total>0?`<span class="np ${p.done===p.total?'done':''}" title="已著录 ${p.done}/${p.total} 种">录 ${p.done}/${p.total}</span>`:''; })()}
+          ${n.hazard?`<span class="nt-haz" title="${esc(n.hazard.detail||n.hazard.type)}">⚠</span>`:''}
+          ${cur?'<span class="nt-mark here">在</span>'
+            : reason==='tame'?'<span class="nt-mark tame" title="可御使的异兽在此">御</span>'
+            : reason==='explore'?'<span class="nt-mark" title="尚未涉足，可前往探索">荐</span>':''}
+          <span class="nt-name">${visited?'<i>✓</i>':''}${esc(n.name)}</span>
+          <span class="nt-tag ${done?'done':''}">${rp.total>0?`录 ${rp.done}/${rp.total}`:(un?`Lv ${n.unlockLevel}`:`需 ${n.unlockLevel}`)}</span>
         </div>`;
       }).join('')}
+      </div>
       </div>
     </div>
     <div class="panel node-detail">
@@ -1451,17 +1463,24 @@ UI.renderYushi = function(){
     <div class="bonus-line">当前增益：${bonusText}</div>
   </div>
   <div class="panel deploy-panel"><h3>可御使之异兽（著录至「通形」）</h3>
-    <div class="beast-grid">
+    <div class="tile-grid beast-grid">
     ${deployableBeasts().map(b=>{
       const rec = Game.records[b.id];
       const def = BEAST_BUFFS[b.id]||{};
       const scale = 0.6 + 0.1*rec.tier;
       const inSlot = Object.values(Game.deployed).includes(b.id);
-      return `<div class="beast-card" data-tip data-tip-title="${esc(b.name)}">
-        <div class="bc-head"><b>${esc(b.name)}</b>${elBadge(b.el)}<span class="tier">${TUNING.MASTERY.NAMES[rec.tier]}</span></div>
-        <div class="bc-foot"><span class="rec">著录 ${rec.count}</span>
-          <button class="btn small ${inSlot?'':'primary'}" ${inSlot?'disabled':''} onclick="deployBeast('${b.id}');UI.renderYushi()">${inSlot?'在槽':'御使'}</button></div>
-        <span class="tip-body hidden"><div class="bc-sub">${esc(def.label||'')}（按著录阶 ×${scale.toFixed(1)}）</div></span>
+      // 方块：图标 + 名 + 著录阶，点按即御使（在槽的只读不点）；
+      // 增益幅度与著录次数进浮层
+      return `<div class="tile deploy-tile ${inSlot?'inslot':''}" data-tip data-tip-title="${esc(b.name)}"
+        role="button" tabindex="0" onclick="${inSlot?'':`deployBeast('${b.id}');UI.renderYushi()`}">
+        <span class="tile-ic">${CAT_EMOJI[b.category]||'🐾'}</span>
+        <span class="tile-nm">${esc(b.name)}</span>
+        <span class="tile-tag">${TUNING.MASTERY.NAMES[rec.tier]} · 录${rec.count}</span>
+        ${inSlot?'<span class="tile-more" title="已在御使槽中">✓</span>':''}
+        <span class="tip-body hidden">
+          <div class="bc-sub">${esc(def.label||'')}（按著录阶 ×${scale.toFixed(1)}）</div>
+          <div class="bc-sub">著录 ${rec.count} 次${Monsters[b.id]&&Monsters[b.id].pair?' · 成对，占两槽':''}</div>
+        </span>
       </div>`;
     }).join('') || `<div class="hint">尚无达标异兽——往讨异兽并累积著录度<br><button class="btn small" style="margin-top:10px" onclick="UI.switchTab('taofa')">⚔️ 去征伐</button></div>`}
     </div>
@@ -1662,16 +1681,22 @@ UI.renderJisi = function(){
       }).join('');
       return `<div class="filter-row">${chips}</div>`;
     })()}
-    <div class="omen-grid">
+    <div class="tile-grid omen-grid">
     ${omenList.map(([id,def])=>{
       const active = Game.omens.find(o=>o.id===id);
       const ever = !!Game.stats.omens[id];
       const mark = def.polarity==='凶'?'凶':def.polarity==='吉'?'吉':'中';
-      return `<div class="omen-card ${active?'active':''} ${def.polarity}" data-tip data-tip-title="${esc(def.beast)}">
-        <div class="oc-head"><b>${esc(def.beast)}</b><span class="pol ${def.polarity}">${mark}</span>
-          ${active?`<span class="left">余 ${fmtTime(active.until-gameTime())}</span>`:''}</div>
-        <div class="oc-effect">${omenEffectText(def)}</div>
-        <span class="tip-body hidden"><div class="oc-desc">${esc(def.desc)}</div>${ever?'<div class="hint">已曾出现</div>':'<div class="hint">尚未出现</div>'}</span>
+      // 方块：印记字（吉/凶/中）+ 异兽名 + 征兆类型；生效中高亮并在角标显示剩余
+      return `<div class="tile omen-tile ${active?'active':''} ${def.polarity}" data-tip data-tip-title="${esc(def.beast)}">
+        <span class="tile-seal">${mark}</span>
+        <span class="tile-nm">${esc(def.beast)}</span>
+        <span class="tile-tag">${esc(def.type)}</span>
+        ${active?`<span class="tile-more ot-left" title="生效中，余 ${fmtTime(active.until-gameTime())}">${fmtTime(active.until-gameTime())}</span>`:''}
+        <span class="tip-body hidden">
+          <div class="oc-effect">${omenEffectText(def)}</div>
+          <div class="oc-desc">${esc(def.desc)}</div>
+          ${ever?'<div class="hint">已曾出现</div>':'<div class="hint">尚未出现</div>'}
+        </span>
       </div>`;
     }).join('')}
     ${omenList.length ? '' : `<div class="empty-note">${omenFilter==='seen'
@@ -1731,15 +1756,21 @@ function openOmenSummary(){
   } else {
     const agg = (typeof currentOmenEffects==='function') ? currentOmenEffects() : [];
     body = `<div class="omen-summary">总效应：${agg.length?agg.map(e=>`${e.label} ${e.pct>0?'+':''}${e.pct}%`).join(' · '):'—'}</div>`
-      + '<div class="omen-grid">'
+      + '<div class="tile-grid omen-grid">'
       + omens.map(o=>{
           const d = OMENS[o.id]; if (!d) return '';
           const left = o.until ? fmtTime(o.until - gameTime()) : '常驻';
           const mark = d.polarity==='凶'?'凶':d.polarity==='吉'?'吉':'中';
-          return `<div class="omen-card ${d.polarity}">
-            <div class="oc-head"><b>${esc(d.beast||d.type)}</b><span class="pol ${d.polarity}">${mark}</span><span class="left">余 ${left}</span></div>
-            <div class="oc-desc">${esc(d.desc||'')}</div>
-            <div class="oc-effect">${omenEffectText(d)}</div></div>`;
+          return `<div class="tile omen-tile active ${d.polarity}" data-tip data-tip-title="${esc(d.beast||d.type)}">
+            <span class="tile-seal">${mark}</span>
+            <span class="tile-nm">${esc(d.beast||d.type)}</span>
+            <span class="tile-tag">${esc(d.type||'')}</span>
+            <span class="tile-more ot-left" title="余 ${left}">${left}</span>
+            <span class="tip-body hidden">
+              <div class="oc-desc">${esc(d.desc||'')}</div>
+              <div class="oc-effect">${omenEffectText(d)}</div>
+            </span>
+          </div>`;
         }).join('')
       + '</div>';
   }
@@ -1820,16 +1851,24 @@ UI.renderShichan = function(){
     if (this.invSort==='qty') return b[1]-a[1];
     return 0;
   });
-  let sell = `<div class="sell-grid">`;
+  let sell = `<div class="tile-grid sell-grid">`;
   sell += inv.map(([id,q])=>{
     const it = Items[id];
     const v = sellValue(id, q);
-    return `<div class="sell-card ${rarityClass(it)}">
-      <span class="sc-icon">${it.icon}</span>
-      <span class="sc-name">${esc(it.name)}×${q}</span>
-      <span class="sc-val">${v} 贝</span>
-      <button class="btn small" onclick="sellItem('${id}',1);UI.renderShichan()">售 1</button>
-      <button class="btn small" onclick="sellItem('${id}',${q});UI.renderShichan()">全售</button>
+    const unit = sellValue(id, 1);
+    // 方块：图标 + 名 + 整摞售价，点按售 1，右上角「全」售清；
+    // 单价 / 持有明细进浮层
+    return `<div class="tile sell-tile" data-tip data-tip-title="${esc(it.name)}"
+      role="button" tabindex="0" onclick="sellItem('${id}',1);UI.renderShichan()">
+      <span class="tile-ic">${it.icon}</span>
+      <span class="tile-nm">${esc(it.name)}</span>
+      <span class="tile-tag">${fmt(v)} 贝</span>
+      <button class="tile-more" type="button" title="全售 ${q} 件，得 ${fmt(v)} 贝"
+        onclick="event.stopPropagation();sellItem('${id}',${q});UI.renderShichan()">全</button>
+      <span class="tip-body hidden">
+        <div class="bc-sub">持有 ×${q} · 单价 ${fmt(unit)} 贝</div>
+        <div class="bc-sub">售 1 得 ${fmt(unit)} 贝 · 全售得 ${fmt(v)} 贝</div>
+      </span>
     </div>`;
   }).join('') || '<div class="hint">行囊空空</div>';
   sell += `</div>`;
@@ -1924,18 +1963,24 @@ UI.renderYing = function(){
   if (!box) return;
   box.innerHTML = `<div class="panel">
     <h3>营造（营邑）</h3>
-    <div class="building-grid">
+    <div class="tile-grid building-grid">
     ${Object.values(BUILDINGS).map(b=>{
       const done = !!Game.buildings[b.id];
       const lvOk = levelOf('yingyi') >= b.lvl;
       const afford = canAfford(b.cost);
-      return `<div class="building-card ${done?'done':''}">
-        <div class="rc-head"><span class="rc-icon">🏗️</span><b>${esc(b.name)}</b><span class="rc-lvl">营邑 ${b.lvl}</span></div>
-        ${b.desc?`<div class="rc-sub">${esc(b.desc)}</div>`:''}
-        <div class="rc-cost">${costChips(b.cost)}</div>
-        <div class="rc-foot"><button class="btn small ${done?'':(lvOk&&afford?'primary':'')}" ${done||!(lvOk&&afford)?'disabled':''}
-          onclick="buildStructure('${b.id}');UI.renderYing()">${done?'已成':'营造'}</button>
-          ${!lvOk?`<span class="hint">需营邑 ${b.lvl} 级</span>`:''}</div>
+      const can = !done && lvOk && afford;
+      // 方块：印记字 + 建筑名 + 营造等级，点按即营造；材料与效用进浮层
+      return `<div class="tile build-tile ${done?'done':''} ${can?'':'lock'}" data-tip data-tip-title="${esc(b.name)}"
+        role="button" tabindex="0" onclick="${can?`buildStructure('${b.id}');UI.renderYing()`:''}">
+        <span class="tile-seal">${esc(b.name.slice(0,1))}</span>
+        <span class="tile-nm">${esc(b.name)}</span>
+        <span class="tile-tag">${done?'已成':'营邑 '+b.lvl}</span>
+        ${done?'<span class="tile-more bm-done" title="已经营造完毕">✓</span>':''}
+        <span class="tip-body hidden">
+          ${b.desc?`<div class="rc-sub">${esc(b.desc)}</div>`:''}
+          <div class="rc-cost">${costChips(b.cost)}</div>
+          ${done?'<div class="hint">已经营造完毕</div>':`${lvOk?'':'<div class="hint">需营邑 '+b.lvl+' 级</div>'}${afford?'':'<div class="hint">材料不足</div>'}`}
+        </span>
       </div>`;
     }).join('')}
     </div>
@@ -2033,16 +2078,16 @@ UI.renderPack = function(){
         <span>五行 <b>${playerElement()}</b></span>
         <span>DPS <b>${playerDpsEstimate().toFixed(1)}</b></span>
       </div>
-      <div class="gear-grid">
+      <div class="tile-grid gear-grid">
       ${slots.map(slot=>{
         const g = Game.gear[slot];
-        return `<div class="gear-slot ${g?'':'empty'}">
-          <div class="gs-label">${GearSlotLabels[slot]}</div>
-          ${g?`<div class="gs-item ${rarityClass(g)}" onclick="showItemDetail('${g.id}')">
-                 <span class="gs-icon">${g.icon}</span><b>${esc(g.name)}</b>
-                 <span class="gs-sub">${gearSubText(g)}</span></div>
-               <button class="btn tiny" onclick="unequip('${slot}',false);UI.renderPack()">脱</button>`
-             :'<div class="gs-empty">空</div>'}
+        return `<div class="tile gear-tile ${g?'':'empty'} ${g?rarityClass(g):''}"
+             ${g?`title="${esc(g.name)} · ${esc(gearSubText(g))}" onclick="showItemDetail('${g.id}')"`:`title="${GearSlotLabels[slot]}·空"`}>
+          <span class="gt-label">${GearSlotLabels[slot]}</span>
+          ${g?`<span class="tile-ic">${g.icon}</span>
+               <span class="tile-nm">${esc(g.name)}</span>
+               <button class="tile-more" type="button" title="卸下" onclick="event.stopPropagation();unequip('${slot}',false);UI.renderPack()">脱</button>`
+             :`<span class="gt-empty">空</span>`}
         </div>`;
       }).join('')}
       </div>

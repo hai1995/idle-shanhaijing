@@ -615,7 +615,7 @@ assert(qN > 0 && ST.Game.queue.length > 0, '快速挂机排入了任务');
 ST.Game.queue = _q; ST.Game.queueRunning = _qr; ST.Game.fallback = _fb; ST.Game.queueLoop = _loop;
 ST.UI.currentTab = 'yudi'; ST.UI.renderYudi();
 // 推荐节点高亮：节点模板含 rec 类
-assert(renderTargets.content.innerHTML.indexOf('node-item') >= 0, '舆地页渲染节点');
+assert(renderTargets.content.innerHTML.indexOf('node-tile') >= 0, '舆地页渲染诸山方块');
 // 页签角标刷新不抛错
 let tbOk = true; try { G.refreshTabBadges(); } catch(e){ tbOk = false; console.error('刷新角标异常：'+e.stack); }
 assert(tbOk, '页签角标刷新不抛错');
@@ -999,8 +999,10 @@ ST.UI.currentTab = 'jisi'; ST.UI.renderJisi();
 assert(tipCount(renderTargets.content.innerHTML) >= 3, '祠祀页含多个浮层锚点（祠礼/征兆详情入浮层）');
 ST.UI.currentTab = 'ying'; ST.UI.renderYing();
 { const yingTxt = renderTargets.content.innerHTML;
-  assert(yingTxt.indexOf('building-grid') >= 0 && yingTxt.indexOf('rc-sub') >= 0 && yingTxt.indexOf('chip cost') >= 0, '营造卡直陈说明与材料（不再藏于浮层）');
-  assert(yingTxt.indexOf('data-tip') < 0, '营造卡不再需要浮层锚点'); }
+  assert(yingTxt.indexOf('tile-grid building-grid') >= 0 && yingTxt.indexOf('tile-seal') >= 0, '营造页为小方卡（印记字 + 营造等级）');
+  assert(tipCount(yingTxt) >= 3, '营造卡含多个浮层锚点（说明/材料/欠缺进浮层）');
+  assert(yingTxt.indexOf('rc-sub') >= 0 && yingTxt.indexOf('chip cost') >= 0, '营造卡浮层直陈说明与材料');
+  assert(uiSrc.includes("buildStructure('${b.id}');UI.renderYing()"), '营造卡点按即营造'); }
 assert(css.includes('#tipLayer'), 'CSS 含浮层样式');
 assert(css.includes('sheet-in') && css.includes('bottom:0 !important'), '窄屏浮层为底部抽屉形态');
 assert(css.includes('tip-in'), '宽屏浮层为气泡形态');
@@ -1008,7 +1010,7 @@ assert(css.includes('tip-in'), '宽屏浮层为气泡形态');
 assert(uiSrc.includes('touchJustNow') && uiSrc.includes('lastTouchAt'), 'ui.js 区分触屏点按与鼠标悬停（防止点按开层即被关）');
 // 网格密度：改为正比例方块后，列宽由 minmax 控制（一屏能扫更多）
 assert(/\.tile-grid\{[^}]*minmax\(104px,1fr\)/.test(css), '方块网格列宽 104px（桌面最多十列）');
-assert(/\.skill-grid\{[^}]*minmax\(92px,1fr\)/.test(css) && /\.beast-grid\{[^}]*minmax\(92px,1fr\)/.test(css), '技能与征伐方格 92px');
+assert(/\.skill-grid\{[^}]*minmax\(92px,1fr\)/.test(css) && /\.beast-grid\{[^}]*minmax\(104px,1fr\)/.test(css), '技能方格 92px、征伐/御使方格 104px');
 assert(/\.skill-grid\{ grid-template-columns:repeat\(3,1fr\); gap:6px; \}/.test(css), '窄屏技能三列');
 
 // ============ 20. 状态条上移 + 顶栏精简 + 悬浮按钮避让抽屉 ============
@@ -1896,6 +1898,48 @@ section('方块语言：技能 / 祠礼 / 墟市');
   assert(uiSrc.includes("event.stopPropagation();buyItem(${idx},10)"), '商品方块右上 ×10 买十份');
   assert(/\.shop-grid\{[^}]*minmax\(92px,1fr\)/.test(css), '墟市方格 92px');
   assert(/\.panel \.inv-grid, \.panel \.codex-grid,[\s\S]{0,80}\.panel \.rite-grid, \.panel \.shop-grid\{ grid-template-columns:repeat\(3,1fr\)/.test(css), '窄屏行装/图鉴/祠礼/墟市统一三列');
+}
+// ============ 41. 方块语言补完：御使 / 征兆 / 廛市出售 / 营造 ============
+section('方块语言补完：御使 / 征兆 / 出售 / 营造');
+{
+  // 41.1 御使：beast-card → deploy-tile，点按即御使，在槽只读描边
+  assert(uiSrc.includes('class="tile deploy-tile') && uiSrc.includes("deployBeast('${b.id}');UI.renderYushi()"), '御使异兽改为方块（点按即御使）');
+  assert(css.includes('.deploy-tile.inslot{'), '在槽异兽只读描边');
+  assert(uiSrc.indexOf('beast-card') < 0, '御使页不再用旧行状卡');
+
+  // 41.2 征兆：omen-card → omen-tile，印记字按吉凶中着色，生效中描金 + 角标倒计时
+  assert(uiSrc.includes('class="tile omen-tile ${active?') , '征兆改为方块');
+  assert(css.includes('.omen-tile.吉 .tile-seal{ background:var(--tai); }'), '吉兆印记青色');
+  assert(css.includes('.omen-tile.凶 .tile-seal{ background:var(--zhu); }'), '凶兆印记朱色');
+  assert(uiSrc.indexOf('omen-card') < 0, '征兆页与总效应弹窗不再用旧行状卡');
+  assert(uiSrc.includes('tile-grid omen-grid'), '征兆总效应弹窗同步方块化');
+
+  // 41.3 廛市出售：sell-card → sell-tile，点按售 1、右上「全」售清，售价金色
+  assert(uiSrc.includes('class="tile sell-tile') && uiSrc.includes("sellItem('${id}',1);UI.renderShichan()"), '出售方块点按售 1');
+  assert(uiSrc.includes("event.stopPropagation();sellItem('${id}',${q});UI.renderShichan()"), '出售方块右上「全」售清');
+  assert(css.includes('.sell-tile .tile-tag{ color:var(--jin); }'), '出售方块售价用金色');
+  assert(uiSrc.indexOf('sell-card') < 0, '廛市出售不再用旧行状卡');
+
+  // 41.4 营造：building-card → build-tile，点按即营造，已成描青 + ✓ 角标
+  assert(uiSrc.includes('class="tile build-tile') && uiSrc.includes("buildStructure('${b.id}');UI.renderYing()"), '营造改为方块（点按即营造）');
+  assert(css.includes('.build-tile.done{'), '已成建筑描青');
+  assert(uiSrc.indexOf('building-card') < 0, '营造页不再用旧行状卡');
+
+  // 41.5 窄屏统一三列
+  assert(/\.panel \.region-grid, \.panel \.node-grid,\s*\.panel \.gear-grid, \.panel \.inv-grid, \.panel \.sell-grid,\s*\.panel \.omen-grid, \.panel \.building-grid\{ grid-template-columns:repeat\(3,1fr\)/.test(css), '窄屏舆地/装备/行囊/出售/征兆/营造统一三列');
+
+  // 41.6 运行时渲染：四页都产出 tile
+  ST.Game.records['gui'] = Object.assign({}, ST.Game.records['gui'], { count:5, tier:4 });
+  ST.UI.currentTab = 'yushi'; ST.UI.renderYushi();
+  assert(renderTargets.content.innerHTML.indexOf('deploy-tile') >= 0, '御使页渲染 deploy-tile');
+  ST.UI.currentTab = 'jisi'; ST.UI.renderJisi();
+  assert(renderTargets.content.innerHTML.indexOf('omen-tile') >= 0, '祠祀页渲染 omen-tile');
+  ST.UI.currentTab = 'ying'; ST.UI.renderYing();
+  assert(renderTargets.content.innerHTML.indexOf('build-tile') >= 0, '营造页渲染 build-tile');
+  { const anyIt = Object.keys(ST.Items).find(id=>(ST.Items[id]||{}).value>0);
+    ST.Game.inventory[anyIt] = (ST.Game.inventory[anyIt]||0)+1;
+    ST.UI.currentTab = 'shichan'; ST.UI.renderShichan();
+    assert(renderTargets.content.innerHTML.indexOf('sell-tile') >= 0, '廛市渲染 sell-tile'); }
 }
 // ============ 37. 仪表带去冗余 + 增益收进书脊图标 ============
 section('仪表带去冗余 / 增益浮层');

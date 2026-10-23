@@ -99,8 +99,9 @@
 [data-theme="night"] ::-webkit-scrollbar-thumb{ background:rgba(236,230,216,.2); }
 [data-theme="night"] ::-webkit-scrollbar-thumb:hover{ background:rgba(236,230,216,.34); }
 [data-theme="night"] .tab:hover,
-[data-theme="night"] .region-item:hover,
-[data-theme="night"] .node-item:hover{ background:rgba(236,230,216,.055); }
+[data-theme="night"] .region-tile:hover,
+[data-theme="night"] .node-tile:hover,
+[data-theme="night"] .gear-tile:hover{ background:rgba(236,230,216,.055); }
 [data-theme="night"] #tipLayer{ border-color:rgba(236,230,216,.22); }
 [data-theme="night"] .fx-float{ text-shadow:0 1px 0 rgba(0,0,0,.5), 0 0 12px rgba(0,0,0,.4); }
 
@@ -586,17 +587,23 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
   }
 }
 
-.region-item{
-  padding:8px 10px; border:1px solid transparent; border-left:2px solid transparent;
-  border-radius:1px; margin-bottom:2px; cursor:pointer; background:transparent;
-  transition:background .14s, border-color .14s;
+/* 山系：小方卡。名在上、涉山进度在下，底部一条细进度线 */
+.region-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(78px,1fr)); gap:6px; padding:2px 0 4px; }
+.region-tile{ aspect-ratio:1/1; gap:2px; padding:8px 5px 9px; }
+.region-tile .rg-name{
+  font-size:12px; font-weight:600; color:var(--ink); letter-spacing:.02em;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;
 }
-.region-item:hover{ background:rgba(31,29,25,.04); }
-.region-item b{ font-size:13px; font-weight:600; color:var(--ink); }
-.region-item.on{ background:var(--paper-3); border-color:var(--rule); border-left-color:var(--zhu); }
-.region-item.on b{ color:var(--zhu); }
-.region-item.lock{ opacity:.45; }
-.region-item .sub{ display:block; font-size:10.5px; color:var(--ink-4); margin-top:1px; letter-spacing:.02em; }
+.region-tile .rg-sub{ font-family:var(--f-num); font-size:9.5px; color:var(--ink-4); letter-spacing:0; }
+.region-tile.on{ border-color:var(--zhu); background:var(--zhu-w); }
+.region-tile.on .rg-name{ color:var(--zhu-d); }
+.region-tile.full .rg-sub{ color:var(--tai); }
+.region-tile.lock{ border-style:dashed; }
+.region-tile.lock .rg-name{ color:var(--ink-3); }
+.region-tile .rg-bar{
+  position:absolute; left:0; right:0; bottom:0; height:2px; background:var(--rule-2); overflow:hidden;
+}
+.region-tile .rg-bar i{ display:block; height:100%; background:var(--zhu); opacity:.7; }
 .region-summary{
   margin-top:12px; padding-top:10px; border-top:1px solid var(--rule-2);
   font-family:var(--f-song); font-size:12px; line-height:1.95; color:var(--ink-3);
@@ -663,23 +670,30 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
 .ab-kv .ab-row b{ font-family:var(--f-num); font-weight:600; color:var(--ink-2); }
 .ab-note{ margin:10px 0 0; padding-top:8px; border-top:1px solid var(--rule-2); }
 
+/* 诸山：小方卡（与征伐 / 制作同一套方块语言），一屏扫过一片山 */
 .node-list{ max-height:min(62vh, 560px); overflow-y:auto; margin:-4px -6px 0; padding:0 6px; }
-.node-item{
-  display:flex; align-items:center; gap:6px; padding:6px 8px;
-  border-radius:1px; cursor:pointer; font-size:12.5px; line-height:1.5;
-  border-left:2px solid transparent; transition:background .12s;
+.node-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(80px,1fr)); gap:6px; }
+.node-tile{ aspect-ratio:1/1; gap:2px; padding:9px 5px 8px; }
+.node-tile .nt-name{
+  font-size:12px; color:var(--ink); max-width:100%;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
-.node-item:hover{ background:rgba(31,29,25,.045); }
-.node-item.on{ background:var(--paper-3); border-left-color:var(--zhu); box-shadow:inset 0 0 0 1px var(--rule-2); }
-.node-item.lock{ opacity:.42; }
-.node-item.rec{ box-shadow:inset 0 0 0 1px rgba(46,82,105,.28); background:var(--qing-w); }
-.node-item.rec.tame{ box-shadow:inset 0 0 0 1px rgba(176,58,43,.3); background:var(--zhu-w); }
-.node-item.here{ color:var(--tai); font-weight:700; }
-.node-item .nlv{ margin-left:auto; font-family:var(--f-num); font-size:11px; color:var(--ink-4); }
-.node-item .haz{ color:var(--zhu); font-size:11px; }
-.nname{ flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.node-item .np{ margin-left:auto; font-family:var(--f-num); font-size:10.5px; color:var(--ink-4); padding:0 4px; }
-.node-item .nlv + .np{ margin-left:2px; }
+.node-tile .nt-name i{ font-style:normal; color:var(--tai); margin-right:1px; }
+.node-tile .nt-tag{ font-family:var(--f-num); font-size:9.5px; color:var(--ink-4); letter-spacing:0; }
+.node-tile .nt-tag.done{ color:var(--tai); }
+.node-tile.on{ border-color:var(--zhu); background:var(--zhu-w); }
+.node-tile.on .nt-name{ color:var(--zhu-d); font-weight:600; }
+.node-tile.lock{ opacity:.5; border-style:dashed; }
+.node-tile.rec{ border-color:rgba(46,82,105,.45); background:var(--qing-w); }
+.node-tile.rec.tame{ border-color:rgba(176,58,43,.45); background:var(--zhu-w); }
+.node-tile.here .nt-name{ color:var(--tai); font-weight:700; }
+.node-tile .nt-haz{ position:absolute; top:3px; left:4px; font-size:9.5px; color:var(--zhu); }
+.node-tile .nt-mark{
+  position:absolute; top:2px; right:3px; padding:0 3px; border-radius:2px;
+  font-size:9px; line-height:1.5; color:#FCFBF6; background:var(--qing);
+}
+.node-tile .nt-mark.tame{ background:var(--zhu); }
+.node-tile .nt-mark.here{ background:var(--tai); }
 .rec-tag{
   font-size:9.5px; line-height:1.5; color:#fff; border-radius:1px; padding:0 4px; margin-left:2px;
   background:var(--qing); letter-spacing:.04em;
@@ -945,8 +959,11 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
 .attr-row b{ color:var(--ink); font-family:var(--f-num); }
 .prefs-row{ margin-top:10px; font-size:12px; color:var(--ink-3); }
 
-/* 征伐目标：与制作页同一套方块语言。191 只异兽平铺时，靠图标与边框色扫读 */
-.beast-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(92px,1fr)); gap:6px; }
+/* 征伐目标 / 可御使异兽：与制作页同一套方块语言。191 只异兽平铺时，靠图标与边框色扫读 */
+.beast-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(104px,1fr)); gap:6px; }
+/* 御使槽中的异兽：只读态，描边提示已在槽 */
+.deploy-tile.inslot{ border-color:rgba(86,110,76,.5); background:rgba(86,110,76,.05); cursor:default; }
+.deploy-tile.inslot .tile-ic{ opacity:.75; }
 .beast-tile .bt-el{
   position:absolute; top:3px; left:3px; padding:1px 3px; border-radius:2px;
   font-size:9.5px; line-height:1.25; font-family:var(--f-num);
@@ -1113,13 +1130,12 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
   font-family:var(--f-kai); font-size:19px; line-height:1; color:#FCFBF6;
   background:var(--zhu); border-radius:2px;
 }
-.omen-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(184px,1fr)); gap:8px; }
-.omen-card{ background:var(--paper-2); border:1px solid var(--rule); border-radius:var(--r); padding:9px 11px; }
-.omen-card.active{ border-color:rgba(156,118,40,.55); background:rgba(156,118,40,.06); }
-.oc-head{ display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; }
-.oc-head .left{ margin-left:auto; font-family:var(--f-num); font-size:10.5px; color:var(--ink-4); }
-.pol{ font-size:9.5px; padding:1px 5px; border-radius:1px; color:#fff; letter-spacing:.08em; }
-.pol.吉{ background:var(--tai); } .pol.凶{ background:var(--zhu); } .pol.中{ background:var(--jin); }
+/* 征兆方块：印记字按吉凶中着色（凶即朱、吉青、中金），生效中整卡描金 */
+.omen-tile .tile-seal{ background:var(--jin); }
+.omen-tile.吉 .tile-seal{ background:var(--tai); }
+.omen-tile.凶 .tile-seal{ background:var(--zhu); }
+.omen-tile.active{ border-color:rgba(156,118,40,.55); background:rgba(156,118,40,.06); }
+.omen-tile .ot-left{ font-variant-numeric:tabular-nums; color:var(--jin); }
 .oc-desc{ font-size:11.5px; color:var(--ink-3); margin:5px 0; line-height:1.7; }
 .oc-effect{ font-size:11px; color:var(--qing); line-height:1.65; }
 .exo-row,.div-row{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:12px; }
@@ -1139,23 +1155,12 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
 .shop-head b.gold{ color:var(--jin); }
 /* 墟市：商品方块（点按买一份，右上 ×10） */
 .shop-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(92px,1fr)); gap:6px; }
-/* 营造：建筑卡（此前缺此栅格定义，卡片会拉成一整条） */
-.building-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(196px,1fr)); gap:10px; }
-/* 商货卡：价格一行、按钮一行都不折行；价格靠左、按钮靠右 */
-.sc-head{ display:flex; align-items:center; gap:6px; font-size:12.5px; margin-bottom:8px; font-weight:600; }
-.sc-head .rc-icon{ font-size:15px; }
-.shop-card .rc-cost{
-  white-space:nowrap; margin:0 auto 0 0; font-family:var(--f-num); font-size:11.5px; color:var(--ink-3);
-}
-.shop-card .rc-foot .btn.small{ padding:4px 9px; }
-.sell-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(238px,1fr)); gap:8px; }
-.sell-card{
-  display:flex; align-items:center; gap:9px; font-size:12px;
-  background:var(--paper-2); border:1px solid var(--rule); border-radius:var(--r);
-  padding:7px 11px; border-left:2px solid var(--rule);
-}
-.sell-card .sc-name{ flex:1; min-width:0; }
-.sell-card .sc-val{ font-family:var(--f-num); color:var(--jin); font-size:11px; }
+/* 营造：建筑方块（点按营造，右上 ✓ 表已成；材料与效用进浮层） */
+.build-tile.done{ border-color:rgba(86,110,76,.5); }
+.build-tile.done .tile-seal{ background:var(--tai); }
+.build-tile .bm-done{ color:var(--tai); }
+/* 廛市出售方块：售价用金色数字 */
+.sell-tile .tile-tag{ color:var(--jin); }
 .sell-toolbar{ margin-bottom:12px; }
 .trade-tip{ background:rgba(156,118,40,.05); border:1px solid rgba(156,118,40,.28); }
 .trade-tip h3{ color:var(--jin); }
@@ -1195,20 +1200,17 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
    行装
    ========================================================================== */
 .pack-wrap{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.15fr); gap:14px; align-items:start; }
-.gear-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(132px,1fr)); gap:8px; margin-top:12px; }
-.gear-slot{
-  border:1px solid var(--rule-2); border-radius:var(--r); padding:8px;
-  text-align:center; background:var(--paper-3); min-height:88px;
-  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+/* 装备槽：与行囊同一套方块，空槽用虚线框（不压灰，免得整页发暗） */
+.gear-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(92px,1fr)); gap:6px; margin-top:12px; }
+.gear-tile{ aspect-ratio:1/1; gap:3px; padding:10px 6px 8px; }
+.gear-tile.empty{ background:transparent; border-style:dashed; }
+.gear-tile .gt-label{
+  position:absolute; top:3px; left:4px; font-size:9px; letter-spacing:.1em;
+  color:var(--ink-4);
 }
-.gear-slot.empty{ background:transparent; border-style:dashed; }
-.gs-label{ font-size:10px; color:var(--ink-4); letter-spacing:.14em; margin-bottom:4px; }
-.gs-item{ cursor:pointer; transition:color .15s; }
-.gs-item:hover{ color:var(--zhu); }
-.gs-item b{ display:block; font-size:12px; }
-.gs-icon{ font-size:19px; display:block; line-height:1.3; }
-.gs-sub{ display:block; font-size:9.5px; color:var(--ink-4); }
-.gs-empty{ color:var(--ink-4); font-size:11.5px; }
+.gear-tile .tile-ic{ font-size:24px; }
+.gear-tile .tile-nm{ font-size:11.5px; }
+.gear-tile .gt-empty{ font-size:11.5px; color:var(--ink-4); }
 
 .inv-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(112px,1fr)); gap:8px; }
 .inv-card{
@@ -1571,6 +1573,10 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
   /* 提高特异性：后面那组 .inv-grid/.codex-grid 的 minmax(140px) 会覆盖同权重规则 */
   .panel .inv-grid, .panel .codex-grid,
   .panel .rite-grid, .panel .shop-grid{ grid-template-columns:repeat(3,1fr); gap:6px; }
+  /* 舆地：山系三列、诸山三列；装备 / 行囊 / 廛市出售 / 征兆 / 营造同宽 */
+  .panel .region-grid, .panel .node-grid,
+  .panel .gear-grid, .panel .inv-grid, .panel .sell-grid,
+  .panel .omen-grid, .panel .building-grid{ grid-template-columns:repeat(3,1fr); gap:6px; }
   .farm-grid,.mini-grid,.shop-grid,.sell-grid,.inv-grid,.gear-grid,.omen-grid,.rite-grid,.stat-grid{
     grid-template-columns:repeat(auto-fill,minmax(min(140px,100%),1fr));
   }
