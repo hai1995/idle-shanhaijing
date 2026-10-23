@@ -161,6 +161,9 @@ addItem(
   I('seed_tu','稌籽','seed',  { value:3,  lvl:1, icon:'🌾', grow:10, crop:'tu',  skill:'puyi', py:'tú' }),
   I('seed_dao','稻秧','seed', { value:6,  lvl:3, icon:'🌾', grow:14, crop:'dao', skill:'puyi' }),
   I('seed_jian','菅苗','seed',{ value:10, lvl:5, icon:'🌿', grow:18, crop:'jian',skill:'puyi', py:'jiān' }),
+  // 黍：原文仅东次三经祠礼「用一牡羊，米用黍」用到，故种子上架等级压在 70——
+  // 此前只有黍米、没有黍籽，也没有任何其它来源，导致该祠礼永远做不出（断链）。
+  I('seed_shu','黍籽','seed',{ value:8,  lvl:70, icon:'🌾', grow:16, crop:'shu', skill:'puyi', py:'shǔ' }),
   I('tu','稌米','crop',   { value:4,  xp:14, lvl:1, icon:'🍚', note:'糈用稌米', py:'tú' }),
   I('shu','黍米','crop',  { value:6,  xp:16, lvl:71, icon:'🌾', note:'米用黍——东次三经祠礼糈', py:'shǔ' }),
   I('dao','稻米','crop',  { value:7,  xp:22, lvl:3, icon:'🍚' }),
@@ -660,6 +663,12 @@ addItem(
   I('rite_bs1','北次一·瘗礼','rite', { value:0, icon:'🕯️', note:'人面蛇身之神：毛用一雄鸡、彘瘗，吉玉用一珪，瘗而不糈' }),
   I('rite_bs2','北次二·投礼','rite', { value:0, icon:'🕯️', note:'蛇身人面之神：毛用一雄鸡、彘瘗，一璧一珪，投而不糈' }),
   I('rite_bs3','北次三·神祇礼','rite',{ value:0, icon:'🕯️', note:'北次三经神祇各异：廿神一藻茝瘗／十四神皆玉不瘗／十神皆用一璧瘗' }),
+  // 东山三套祠礼（终末章；东次四经「无神之域」故不入）
+  // ⚠️ 这三条物品曾漏定义：配方与 RITES 都在，唯独 Items 无对应项，
+  // 结果制作/行祭时 `Items[out].name` 抛 TypeError——材料已扣、界面中断。
+  I('rite_ds1','犬祈鱼䎶','rite',{ value:0, icon:'🕯️', note:'东山首经·人身龙首之神：毛用一犬祈，䎶用鱼（以鱼血涂祭器）' }),
+  I('rite_ds2','鸡祈璧瘗','rite',{ value:0, icon:'🕯️', note:'东次二经·兽身人面载觡之神：毛用一鸡祈，婴用一璧瘗' }),
+  I('rite_ds3','牡羊黍米','rite',{ value:0, icon:'🕯️', note:'东次三经·人身羊角之神：用一牡羊，米用黍——是神见则风雨水为败' }),
 );
 // ---- 西山新制成品 ----
 addItem(
@@ -923,6 +932,7 @@ const ShopStock = [
   { itemId:'seed_dao',  qty:5, cost:45,  lvl:3,  cat:'seed' },
   { itemId:'seed_jian', qty:5, cost:80,  lvl:5,  cat:'seed' },
   { itemId:'seed_ji',   qty:5, cost:260, lvl:66, cat:'seed', note:'稷——西次三经祠礼「糈用稷米」' },
+  { itemId:'seed_shu',  qty:5, cost:300, lvl:70, cat:'seed', note:'黍——东次三经祠礼「米用黍」' },
   { itemId:'baiquan',   qty:1, cost:600, lvl:25, cat:'beast', note:'三经祠礼「用一白狗祈」所需' },
   { itemId:'xiongji',   qty:1, cost:400, lvl:67, cat:'beast', note:'西次二经十辈神「毛一雄鸡」' },
   { itemId:'baiji',     qty:1, cost:1200,lvl:69, cat:'beast', note:'西次四经「用一白鸡祈」所需' },

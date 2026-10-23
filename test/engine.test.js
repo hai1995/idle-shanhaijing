@@ -1570,5 +1570,70 @@ section('五行宜用属性方向');
   assert(!advice.includes('宜用「土」属'), '竞技场提示不指向土');
 }
 
+// ============ 29. 数据引用完备性（回归：东山三礼漏物品、黍米无种子） ============
+section('数据引用完备性：配方产物 / 祠礼物品 / 作物种子 / 材料可达');
+// 29.1 每条配方产物必须有物品定义——曾出现 rite_ds1/2/3 有配方无物品，
+// 制作时 `Items[out].name` 抛 TypeError，材料已扣而界面中断。
+{
+  const bad = ST.Recipes.filter(r => !ST.Items[r.out]).map(r => r.out);
+  assert(bad.length === 0, '所有配方产物都有物品定义' + (bad.length ? ' -> 缺 ' + bad.join(', ') : ''));
+  const badCost = [...new Set(ST.Recipes.flatMap(r => (r.cost||[]).map(x => x[0])))].filter(id => !ST.Items[id]);
+  assert(badCost.length === 0, '所有配方材料都有物品定义 -> ' + (badCost.join(',') || '无缺失'));
+}
+// 29.2 祠礼表 ↔ 祠器物品 ↔ 配方 三方一致
+{
+  const ids = Object.keys(ST.RITES);
+  const noItem = ids.filter(k => !ST.Items[k]);
+  const noRecipe = ids.filter(k => !ST.Recipes.some(r => r.type === 'rite' && r.out === k));
+  assert(noItem.length === 0, '每套祠礼都有祠器物品（东山三礼曾缺）-> ' + (noItem.join(',') || '齐全'));
+  assert(noRecipe.length === 0, '每套祠礼都有对应配方 -> ' + (noRecipe.join(',') || '齐全'));
+  assert(ids.length === 16, '祠礼共十六套（含常祭）-> ' + ids.length);
+  assert(!!ST.Items.rite_ds1 && !!ST.Items.rite_ds2 && !!ST.Items.rite_ds3, '东山三套祠器各有其名（犬祈鱼䎶 / 鸡祈璧瘗 / 牡羊黍米）');
+}
+// 29.3 每种嘉谷都必须有种子，否则该作物永远拿不到
+{
+  const crops = Object.values(ST.Items).filter(it => it.type === 'crop');
+  const noSeed = crops.filter(c => !Object.values(ST.Items).some(s => s.crop === c.id));
+  assert(noSeed.length === 0, '每种嘉谷都有对应种子（黍米曾无种）-> ' + (noSeed.map(c => c.name).join(',') || '全有'));
+  assert(ST.Items.seed_shu && ST.Items.seed_shu.crop === 'shu', '黍籽可种出黍米');
+  assert((ST.ShopStock || []).some(s => s.itemId === 'seed_shu'), '黍籽可在墟市购得');
+}
+// 29.4 可达性：凡被配方/养成消耗的物品，必须至少有一条获取途径
+{
+  const src = new Set();
+  Object.values(ST.Items).forEach(it => { if (it.node) src.add(it.id); if (it.crop) src.add(it.crop); });
+  Object.values(ST.Monsters).forEach(m => {
+    (m.loot || []).forEach(([id]) => src.add(id));
+    if (m.drop) src.add(m.drop);
+    if (m.riteDrop) src.add(m.riteDrop);
+  });
+  ST.Recipes.forEach(r => src.add(r.out));
+  (ST.ShopStock || []).forEach(s => src.add(s.itemId));
+  Object.values(ST.GROW_SITES || {}).forEach(v => {
+    (v.cost || []).forEach(([id]) => src.add(id));
+    Object.keys(v.reward || {}).forEach(id => src.add(id));
+  });
+  // 观瑞之赐写在 game.js 观瑞分支（丹穴→凤皇羽 / 南禺→鹓雏羽），不在数据表内
+  ['fenghuangyu', 'yuanchuyu'].forEach(id => src.add(id));
+  const need = new Set();
+  ST.Recipes.forEach(r => (r.cost || []).forEach(([id]) => need.add(id)));
+  Object.values(ST.GROW_SITES || {}).forEach(v => (v.cost || []).forEach(([id]) => need.add(id)));
+  const dead = [...need].filter(id => !src.has(id)).map(id => (ST.Items[id] || {}).name || id);
+  assert(dead.length === 0, '所有消耗品都有获取途径 -> ' + (dead.join(',') || '无死链'));
+  assert(src.has('shu'), '黍米已有来源（种子可种）');
+}
+// 29.5 东山三礼真正可施行：不抛错，且给出该山系产出增益
+{
+  ST.Game.activity = null; ST.Game.combat = null;
+  for (const id of ['rite_ds1', 'rite_ds2', 'rite_ds3']){
+    const rec = ST.Recipes.find(r => r.type === 'rite' && r.out === id);
+    rec.cost.forEach(([iid, q]) => { ST.Game.inventory[iid] = (ST.Game.inventory[iid] || 0) + q; });
+    let ok = true;
+    try { ok = G.performRite(id); } catch (e) { ok = false; }
+    const region = ST.RITES[id].regionId;
+    assert(ok && (ST.Game.rites || {})[region] > 0, `${ST.Items[id].name} 行祭成功并给 ${region} 增益`);
+  }
+}
+
 console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
 process.exit(fail ? 1 : 0);
