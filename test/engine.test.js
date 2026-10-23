@@ -1464,12 +1464,14 @@ assert(ST.Game.stats.seenFallbackHint === false, '一次性提示字段存在（
   G.stopActivity();
   assert(uiSrc.includes("bs.classList.toggle('hidden', !Game.activity)"), '停止按钮显隐接线存在');
   assert(uiSrc.includes("if (a.src === 'fallback') label += '（兜底）'"), '兜底标识接线存在');
-  assert(uiSrc.includes('<div class="form-row"><span>闲置兜底</span>'), '设置页有「闲置兜底」开关');
-  assert(uiSrc.includes('Prefs.idleFallback=Prefs.idleFallback===false;saveGame();openSettings()'), '开关三连式（翻转/存档/重绘）');
-  assert(uiSrc.includes('${Prefs.idleFallback!==false?\'开\':\'关\'}'), '开关显示当前状态');
-  // 设置页渲染冒烟
-  ST.openSettings();
-  assert(renderTargets.modalBox.innerHTML.includes('闲置兜底'), '设置弹窗渲染出该开关');
+  assert(uiSrc.includes("onoff(Prefs.idleFallback!==false, '闲置兜底'"), '设置页有「闲置兜底」开关');
+  assert(/Prefs\.\$\{extra\.pref\}=\$\{extra\.expr\};saveGame\(\);UI\.renderSettings\(\)/.test(uiSrc), '开关三连式（翻转/存档/就地重绘）');
+  assert(uiSrc.includes("${pref?'开':'关'}"), '开关显示当前状态');
+  // 设置页渲染冒烟：写进主内容区，不弹窗
+  ST.UI.currentTab = 'settings';
+  ST.UI.renderSettings();
+  assert(renderTargets.content.innerHTML.includes('闲置兜底'), '设置页在主内容区渲染出该开关');
+  assert(!renderTargets.modalBox.innerHTML.includes('闲置兜底'), '设置不再走弹窗');
 }
 
 // ============ 27. 顶栏收敛 + 征伐页渲染性能 ============
@@ -1478,17 +1480,19 @@ section('顶栏收敛与征伐页性能');
 assert(!html.includes('btnTheme') && !html.includes('btnHelp') && !html.includes('btnSettings'),
   'index.html 顶栏三按钮全部移除');
 assert(!uiSrc.includes("$('btnTheme') && $('btnTheme').addEventListener"), '初始化不再绑定顶栏按钮');
-assert(uiSrc.includes('data-tool="settings"'), '侧边栏末尾渲染「设置」入口');
-assert(uiSrc.includes('if (b.dataset.tool) return;'), '设置入口不参与切页绑定（避免 switchTab(undefined)）');
-assert(uiSrc.includes('onclick="openSettings()"') && uiSrc.includes("ICON('<circle cx=\"12\" cy=\"12\" r=\"3.1\"/>"), '设置入口带齿轮图标并直达弹窗');
+assert(uiSrc.includes('data-tab="settings"'), '侧边栏末尾渲染「设置」入口（本身即页签）');
+assert(!uiSrc.includes('if (b.dataset.tool) return;'), '设置入口与其他页签走同一条切页绑定');
+assert(uiSrc.includes("ICON('<circle cx=\"12\" cy=\"12\" r=\"3.1\"/>"), '设置入口带齿轮图标');
+assert(uiSrc.includes("settings:'renderSettings'"), 'renderCurrent 分发到 renderSettings');
+assert(/function openSettings\(\)\{ UI\.switchTab\('settings'\); \}/.test(uiSrc), 'openSettings 兼容旧调用：切页而非弹窗');
 assert(/\.tab-tool\{ margin-top:auto;/.test(css), '设置入口沉底（margin-top:auto），与页签区分');
 assert(/\.tab-tool\{[^}]*border-top:1px solid var\(--rule-2\)/.test(css), '设置入口与导航之间有一道细线');
 // 27.2 设置弹窗接管昼夜与玩法说明
-assert(uiSrc.includes('<div class="form-row"><span>昼夜</span>'), '设置弹窗含「昼夜」一行');
+assert(uiSrc.includes('<div class="form-row"><span>昼夜</span>'), '设置页含「昼夜」一行');
 assert(uiSrc.includes("onclick=\"setTheme('day')\"") && uiSrc.includes("onclick=\"setTheme('night')\""), '昼夜两态可点选');
 assert(uiSrc.includes("function setTheme(t){") && uiSrc.includes('UI.applyTheme(t, true)'), 'setTheme 走 applyTheme 并持久化');
 assert(uiSrc.includes("de.classList.add('theme-anim')"), '切换昼夜保留柔和过渡（theme-anim）');
-assert(uiSrc.includes('onclick="UI.closeModal();openHelp()"'), '玩法说明入口仍在设置内');
+assert(uiSrc.includes('onclick="openHelp()"'), '玩法说明入口仍在设置内');
 assert(!/\.theme-toggle|\.icon-btn/.test(css), '顶栏图标样式已清理，不留死规则');
 // 27.3 征伐页：竞技场与列表拆开渲染
 assert(typeof G.taofaArenaHtml === 'function' && typeof G.taofaListHtml === 'function', '渲染拆为竞技场 / 目标列表两个纯函数');

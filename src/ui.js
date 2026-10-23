@@ -385,7 +385,7 @@ const UI = {
     if (typeof hideTip === 'function') hideTip();   // 重渲染后锚点已销毁，浮层随之关闭
     const fn = { yudi:'renderYudi', skills:'renderSkills', taofa:'renderTaofa', yushi:'renderYushi',
       codex:'renderCodex', jisi:'renderJisi', shichan:'renderShichan', ying:'renderYing',
-      queue:'renderQueue', pack:'renderPack', stats:'renderStats' }[this.currentTab];
+      queue:'renderQueue', pack:'renderPack', stats:'renderStats', settings:'renderSettings' }[this.currentTab];
     if (fn && this[fn]) this[fn]();
     this.renderTopbar();
     this.refreshActivity();
@@ -471,40 +471,76 @@ const UI = {
   },
 };
 
-// ---------- 设置 ----------
-function openSettings(){
+// ---------- 设置（独立页签，不弹窗） ----------
+// 早先是 modal；设置项一多，弹窗滚动局促，且每改一项都要「关掉再开」刷新选中态。
+// 现在做成与其余功能并列的一页：改任何开关就地重绘本页，顶栏/侧栏状态照常。
+UI.renderSettings = function(){
+  const c = $('content');
+  if (!c) return;
   const opts = ['full','light','off'].map(v=>
     `<button class="btn ${Prefs.fxLevel===v?'on':''}" onclick="setFx('${v}')">${{full:'完整',light:'精简',off:'关闭'}[v]}</button>`).join('');
-  UI.modal(`
+  const onoff = (pref, label, extra) =>
+    `<div class="form-row"><span>${label}</span>
+      <button class="btn ${pref?'on':''}" onclick="Prefs.${extra.pref}=${extra.expr};saveGame();UI.renderSettings()${extra.after||''}">${pref?'开':'关'}</button></div>`;
+  c.innerHTML = `
+  <div class="panel settings-panel">
     <h3>设置</h3>
-    <div class="form-row"><span>昼夜</span><span class="btn-group">
-      <button class="btn theme-opt ${UI.theme!=='night'?'on':''}" onclick="setTheme('day')">☀ 白昼</button>
-      <button class="btn theme-opt ${UI.theme==='night'?'on':''}" onclick="setTheme('night')">☾ 黑夜</button>
-    </span></div>
-    <div class="form-row"><span>游戏昵称</span>
-      <input type="text" id="nickInput" maxlength="12" value="${esc(Game.nickname||'')}" placeholder="未设置（最多 12 字）">
-      <button class="btn" onclick="saveNickname()">保存</button></div>
-    <div class="form-row"><span>动效强度</span><span class="btn-group">${opts}</span></div>
-    <div class="form-row"><span>自动进食阈值</span>
-      <input type="range" min="10" max="80" value="${Math.round(Prefs.autoEat*100)}" oninput="Prefs.autoEat=this.value/100" onchange="saveGame()">
-      <b>${Math.round(Prefs.autoEat*100)}%</b></div>
-    <div class="form-row"><span>战败自动复讨</span>
-      <button class="btn ${Prefs.autoRevive?'on':''}" onclick="Prefs.autoRevive=!Prefs.autoRevive;saveGame();openSettings()">${Prefs.autoRevive?'开':'关'}</button></div>
-    <div class="form-row"><span>自动装备更优</span>
-      <button class="btn ${Prefs.autoEquip?'on':''}" onclick="Prefs.autoEquip=!Prefs.autoEquip;saveGame();openSettings()">${Prefs.autoEquip?'开':'关'}</button></div>
-    <div class="form-row"><span>闲置兜底</span>
-      <button class="btn ${Prefs.idleFallback!==false?'on':''}" onclick="Prefs.idleFallback=Prefs.idleFallback===false;saveGame();openSettings()">${Prefs.idleFallback!==false?'开':'关'}</button></div>
-    <div class="form-row"><span>新手指引</span>
-      <button class="btn" onclick="UI.closeModal();showTutorial()">重看指引</button></div>
-    <div class="form-row"><span>常驻指引条</span>
-      <button class="btn ${Prefs.hideHint?'':'on'}" onclick="Prefs.hideHint=!Prefs.hideHint;saveGame();openSettings();UI.refreshActivity();if(UI.currentTab==='yudi'&&UI.renderYudi)UI.renderYudi()">${Prefs.hideHint?'关':'开'}</button></div>
-    <div class="form-row"><span>玩法说明</span>
-      <button class="btn" onclick="UI.closeModal();openHelp()">查看说明</button></div>
-    <div class="form-row"><span>快捷键</span><span class="hint">1–9 切页 · S 立即存档 · Q 停止 · Esc 关闭弹窗</span></div>
-    <p class="hint">游戏每 5 秒自动存档（浏览器本地）；【统计】页可导出 / 导入 / 重置。</p>
-    <div class="modal-btns"><button class="btn" onclick="UI.closeModal()">关闭</button></div>
-  `);
-}
+    <p class="hint">改动作即存（每 5 秒自动写入本地存档）；存档的导出 / 导入 / 重置在「统计」页。</p>
+    <div class="set-grid">
+      <div>
+        <section class="set-sec">
+          <h4>外观</h4>
+          <div class="form-row"><span>昼夜</span><span class="btn-group">
+            <button class="btn ${this.theme!=='night'?'on':''}" onclick="setTheme('day')">☀ 白昼</button>
+            <button class="btn ${this.theme==='night'?'on':''}" onclick="setTheme('night')">☾ 黑夜</button>
+          </span></div>
+          <div class="form-row"><span>动效强度</span><span class="btn-group">${opts}</span></div>
+          <div class="form-row"><span>常驻指引条</span>
+            <button class="btn ${Prefs.hideHint?'':'on'}" onclick="Prefs.hideHint=!Prefs.hideHint;saveGame();UI.renderSettings();UI.refreshActivity()">${Prefs.hideHint?'关':'开'}</button></div>
+        </section>
+        <section class="set-sec">
+          <h4>偏好</h4>
+          <div class="form-row"><span>游戏昵称</span>
+            <input type="text" id="nickInput" maxlength="12" value="${esc(Game.nickname||'')}" placeholder="未设置（最多 12 字）">
+            <button class="btn" onclick="saveNickname()">保存</button></div>
+          <div class="form-row"><span>自动进食</span>
+            <input type="range" min="10" max="80" value="${Math.round(Prefs.autoEat*100)}" oninput="Prefs.autoEat=this.value/100" onchange="saveGame()">
+            <b>${Math.round(Prefs.autoEat*100)}%</b></div>
+          ${onoff(Prefs.autoRevive, '战败自动复讨', {pref:'autoRevive', expr:'!Prefs.autoRevive'})}
+          ${onoff(Prefs.autoEquip, '自动装备更优', {pref:'autoEquip', expr:'!Prefs.autoEquip'})}
+          ${onoff(Prefs.idleFallback!==false, '闲置兜底', {pref:'idleFallback', expr:'Prefs.idleFallback===false'})}
+        </section>
+      </div>
+      <div>
+        <section class="set-sec">
+          <h4>指引</h4>
+          <div class="form-row"><span>新手指引</span>
+            <button class="btn" onclick="showTutorial()">重看指引</button>
+            <span class="hint">六步：舆地 → 技能 → 征伐 → 行装 → 行动 → 统计</span></div>
+          <div class="form-row"><span>玩法说明</span>
+            <button class="btn" onclick="openHelp()">查看说明</button>
+            <span class="hint">著录阶位 / 御使 / 五行 / 征兆 / 祠祀 / 离线</span></div>
+        </section>
+        <section class="set-sec">
+          <h4>存档</h4>
+          <div class="form-row"><span>自动存档</span><b>每 5 秒</b><span class="hint">写入浏览器本地</span></div>
+          <div class="form-row"><span>手动管理</span>
+            <button class="btn" onclick="UI.switchTab('stats')">前往统计页</button>
+            <span class="hint">导出 / 导入 / 重置</span></div>
+        </section>
+        <section class="set-sec">
+          <h4>快捷键</h4>
+          <div class="form-row"><span>切页</span><b>1–9</b><span class="hint">按侧栏顺序</span></div>
+          <div class="form-row"><span>立即存档</span><b>S</b></div>
+          <div class="form-row"><span>停止行动</span><b>Q</b></div>
+          <div class="form-row"><span>关闭弹层</span><b>Esc</b></div>
+        </section>
+      </div>
+    </div>
+  </div>`;
+};
+// 兼容旧调用点（侧栏入口、setTheme / setFx / saveNickname 的刷新）：一律切到设置页
+function openSettings(){ UI.switchTab('settings'); }
 function setFx(v){ Prefs.fxLevel = v; saveGame(); openSettings(); }
 // 昼夜切换（设置内两态按钮）：带一次柔和过渡，与旧顶栏按钮同一套动画
 function setTheme(t){
@@ -2205,9 +2241,9 @@ function init(){
     tabs.innerHTML = `<button id="tabExpand" class="tab-expand" type="button" title="展开 / 收起功能菜单" onclick="UI.toggleDrawer()"><span class="ex-open">≡</span><span class="ex-close">«</span></button>`
       + TABS.map((t,i)=>
       `<button class="tab ${t.id===UI.currentTab?'active':''}" data-tab="${t.id}" title="${t.label}${i<10?'（快捷键 '+((i+1)%10)+'）':''}"><span class="tab-ic">${t.icon}</span><span class="tab-tx">${t.label}</span><span class="tab-badge" data-badge="${t.id}"></span></button>`).join('')
-      + `<button class="tab tab-tool" type="button" data-tool="settings" title="设置：昼夜 / 玩法说明 / 偏好" onclick="openSettings()"><span class="tab-ic">${ICON('<circle cx="12" cy="12" r="3.1"/><path d="M12 2.8v2.4M12 18.8v2.4M4.1 7.4l2.1 1.2M17.8 15.4l2.1 1.2M4.1 16.6l2.1-1.2M17.8 8.6l2.1-1.2"/>')}</span><span class="tab-tx">设置</span></button>`;
+      + `<button class="tab tab-tool" type="button" data-tab="settings" title="设置：昼夜 / 玩法说明 / 偏好"><span class="tab-ic">${ICON('<circle cx="12" cy="12" r="3.1"/><path d="M12 2.8v2.4M12 18.8v2.4M4.1 7.4l2.1 1.2M17.8 15.4l2.1 1.2M4.1 16.6l2.1-1.2M17.8 8.6l2.1-1.2"/>')}</span><span class="tab-tx">设置</span></button>`;
+    // 设置与其他功能同为页签，走同一条切页路径（不再单独绑 onclick）
     tabs.querySelectorAll('.tab').forEach(b=>{
-      if (b.dataset.tool) return;             // 工具入口（设置）自带 onclick，不参与切页
       b.addEventListener('click', ()=>UI.switchTab(b.dataset.tab));
     });
     scrollActiveTabIntoView();
