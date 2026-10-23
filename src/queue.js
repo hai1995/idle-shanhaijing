@@ -386,6 +386,7 @@ function onQueueEntryDone(e){
       Game.queueRunning = false;
       applyFallback();
       saveGame();
+      refreshQueuePage();          // 队列自然收官：按钮回到「启动」
       return;
     }
   } else {
@@ -393,6 +394,11 @@ function onQueueEntryDone(e){
   }
   ensureQueueActivity();
   saveGame();
+  refreshQueuePage();              // 正停在队列页时，「当前」标记与完成轮数立刻跟上
+}
+// 队列页就地补绘（仅当玩家正停在该页）
+function refreshQueuePage(){
+  if (typeof UI !== 'undefined' && UI.currentTab === 'queue' && UI.renderQueue) UI.renderQueue();
 }
 
 // ---------- 导出 ----------

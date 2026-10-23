@@ -162,6 +162,7 @@ const UI = {
   cropGrown(slot, crop){
     const el = document.querySelector(`[data-plot="${slot}"]`);
     this.floatText(el, `🌾 ${crop.name}`, '#4A7C59');
+    if (this.currentTab === 'skills') this.patchFarms();   // 收获后卡片即刻翻面
   },
   forgeShow(item, opts){
     if (Prefs.fxLevel === 'off') return false;
@@ -447,6 +448,9 @@ const UI = {
     }
     btn.classList.toggle('on', s.count > 0);
     btn.title = s.count ? `增益一览（${s.count} 项）` : '增益一览（当前无）';
+    // 浮层开着就连带刷新：增益 / 征兆到期时展开层的内容要跟上（倒计时尤其）
+    const pop = $('buffPop');
+    if (pop && !pop.classList.contains('hidden')) pop.innerHTML = this.buffPopHtml();
   },
   // 浮层内容：分三段列清，末尾给两行合计（御使 / 征兆各自的总加成）
   buffPopHtml(){
@@ -1150,37 +1154,42 @@ UI.renderSkills = function(){
   <div class="panel farm-panel">
     <h3>圃艺 · 田地</h3>
     <div class="tile-grid farm-grid">
-    ${Array.from({length:TUNING.FARM_PLOTS}, (_,i)=>{
-      const slot = 'p'+i;
-      const f = Game.farms[slot];
-      if (f){
-        const seed = Items[f.seedId] || { name:'嘉种', icon:'🌱' };
-        const pct = Math.max(0, Math.min(100, (1 - f.remain/f.grow)*100));
-        const left = fmtTime(f.remain/Math.max(0.1,farmSpeedMult()));
-        // 方块：作物图标 + 名 + 贴底细进度条 + 剩余时间；成熟自动收获
-        return `<div class="tile farm-tile growing ${pct>=100?'ripe':''}" data-plot="${slot}" data-tip data-tip-title="${esc(seed.name)}">
-          <span class="tile-ic">${pct>=100?'🌾':pct>50?'🌿':'🌱'}</span>
-          <span class="tile-nm">${esc(seed.name)}</span>
-          <span class="ft-bar"><i style="width:${pct.toFixed(0)}%"></i></span>
-          <span class="tile-tag">${left}</span>
-          <span class="tip-body hidden">
-            <div class="rc-sub">${esc(seed.name)} · 田 ${i+1}</div>
-            <div class="rc-sub">${pct>=100?'即将成熟，自动收获':'成长 '+pct.toFixed(0)+'% · 余 '+left}</div>
-            <div class="hint">成熟即收，无需看管；偶尔回赠种子</div>
-          </span>
-        </div>`;
-      }
-      // 空田：方卡点按开择种浮层（下拉框在方块里既丑又难点）
-      return `<div class="tile farm-tile empty" data-plot="${slot}" role="button" tabindex="0" onclick="UI.seedMenu('${slot}')">
-        <span class="tile-ic">➕</span>
-        <span class="tile-nm">择种</span>
-        <span class="tile-tag">田 ${i+1}</span>
-      </div>`;
-    }).join('')}
+    ${farmTilesHtml()}
     </div>
   </div>`;
   box.innerHTML = html;
 };
+
+// 田地方块 HTML（整页渲染与就地补绘共用）
+function farmTilesHtml(){
+  return Array.from({length:TUNING.FARM_PLOTS}, (_,i)=>{
+    const slot = 'p'+i;
+    const f = Game.farms[slot];
+    if (f){
+      const seed = Items[f.seedId] || { name:'嘉种', icon:'🌱' };
+      const pct = Math.max(0, Math.min(100, (1 - f.remain/f.grow)*100));
+      const left = fmtTime(f.remain/Math.max(0.1,farmSpeedMult()));
+      // 方块：作物图标 + 名 + 贴底细进度条 + 剩余时间；成熟自动收获
+      return `<div class="tile farm-tile growing ${pct>=100?'ripe':''}" data-plot="${slot}" data-tip data-tip-title="${esc(seed.name)}">
+        <span class="tile-ic">${pct>=100?'🌾':pct>50?'🌿':'🌱'}</span>
+        <span class="tile-nm">${esc(seed.name)}</span>
+        <span class="ft-bar"><i style="width:${pct.toFixed(0)}%"></i></span>
+        <span class="tile-tag">${left}</span>
+        <span class="tip-body hidden">
+          <div class="rc-sub">${esc(seed.name)} · 田 ${i+1}</div>
+          <div class="rc-sub">${pct>=100?'即将成熟，自动收获':'成长 '+pct.toFixed(0)+'% · 余 '+left}</div>
+          <div class="hint">成熟即收，无需看管；偶尔回赠种子</div>
+        </span>
+      </div>`;
+    }
+    // 空田：方卡点按开择种浮层（下拉框在方块里既丑又难点）
+    return `<div class="tile farm-tile empty" data-plot="${slot}" role="button" tabindex="0" onclick="UI.seedMenu('${slot}')">
+      <span class="tile-ic">➕</span>
+      <span class="tile-nm">择种</span>
+      <span class="tile-tag">田 ${i+1}</span>
+    </div>`;
+  }).join('');
+}
 
 // 择种浮层：方卡点按后列出行囊可用嘉种；未持有 / 未达等级的置灰并说明原因
 UI.seedMenu = function(slot){
@@ -1204,6 +1213,38 @@ UI.seedMenu = function(slot){
 };
 UI.pickSeed = function(slot, id){
   if (plantSeed(slot, id)){ this.closeModal(); this.renderSkills(); }
+};
+// 田地就地补绘：收获 / 植入后卡片还显示着旧状态，切页才变是不合理的
+UI.patchFarms = function(){
+  if (this.currentTab !== 'skills') return;
+  const grid = document.querySelector('#content .farm-grid');
+  if (grid) grid.innerHTML = farmTilesHtml();
+};
+// 每秒轻量跟进：只改进度条宽度、剩余时间与成熟态，不重建 DOM（不打断悬停浮层）
+UI.patchFarmsProgress = function(){
+  if (this.currentTab !== 'skills') return;
+  document.querySelectorAll('#content .farm-tile.growing').forEach(el=>{
+    const f = Game.farms[el.dataset.plot];
+    if (!f) return;                                   // 刚收获的交给 patchFarms 整块重绘
+    const pct = Math.max(0, Math.min(100, (1 - f.remain/f.grow)*100));
+    const ripe = pct >= 100;
+    el.classList.toggle('ripe', ripe);
+    const ic = el.querySelector('.tile-ic');
+    if (ic) ic.textContent = ripe ? '🌾' : pct > 50 ? '🌿' : '🌱';
+    const bar = el.querySelector('.ft-bar i');
+    if (bar) bar.style.width = pct.toFixed(0) + '%';
+    const tag = el.querySelector('.tile-tag');
+    if (tag) tag.textContent = fmtTime(f.remain/Math.max(0.1,farmSpeedMult()));
+  });
+};
+// 征兆就地补绘：有征兆到期 / 新触发时，祠祀页的 active 态、总效应、禳解行要立刻跟上
+UI.patchOmens = function(){
+  if (this.currentTab !== 'jisi') return;
+  const panel = document.querySelector('#content .omen-panel');
+  if (!panel) return;
+  const keepY = window.scrollY || 0;
+  panel.innerHTML = omenPanelHtml();
+  if (keepY > 0 && window.scrollTo) window.scrollTo(0, keepY);
 };
 
 // 五行克制提示：pe=敌方属性，me=我方属性；被克/相持时给出宜用属性（克敌方的属性）与一键切换
@@ -1656,17 +1697,57 @@ function showCodexDetail(id){
 window.showCodexDetail = showCodexDetail;
 
 // ================= 祠祀 =================
-UI.renderJisi = function(){
-  const box = $('content');
-  if (!box) return;
+// 征兆面板 HTML（整页渲染与就地补绘共用）：总效应 / 分档 chips / 方块网格 / 禳解行
+function omenPanelHtml(){
   const xiong = Game.omens.filter(o=>OMENS[o.id]&&OMENS[o.id].polarity==='凶');
-  // 征兆分档：「已现」为空是常态，需要有落空的说明而不是一块空网格
-  const omenFilter = this.omenFilter || 'all';
+  const omenFilter = UI.omenFilter || 'all';
+  // 42 条征兆一次铺开会淹没重点：按吉凶分档，并单列「已现」
+  const count = { all:0, 吉:0, 凶:0, 中:0, seen:0 };
+  Object.values(OMENS).forEach(d=>{ count.all++; if (count[d.polarity] != null) count[d.polarity]++; });
+  count.seen = Game.omens.length;
+  const label = { all:'全部', 吉:'吉兆', 凶:'凶兆', 中:'中兆', seen:'已现' };
+  const chips = ['all','吉','凶','中','seen'].map(k=>{
+    const n = k==='all' ? count.all : count[k];
+    return `<button class="chip-btn ${omenFilter===k?'on':''}" onclick="UI.omenFilter='${k}';UI.renderJisi()">${label[k]} ${n}</button>`;
+  }).join('');
   const omenList = Object.entries(OMENS).filter(([id,def])=>{
     if (omenFilter === 'all') return true;
     if (omenFilter === 'seen') return Game.omens.some(o=>o.id === id);
     return def.polarity === omenFilter;
   });
+  return `${Game.omens.length?`<div class="omen-summary">当前总效应：${currentOmenEffects().map(e=>`${e.label} ${e.pct>0?'+':''}${e.pct}%`).join(' · ')}</div>`:''}
+    <div class="filter-row">${chips}</div>
+    <div class="tile-grid omen-grid">
+    ${omenList.map(([id,def])=>{
+      const active = Game.omens.find(o=>o.id===id);
+      const ever = !!Game.stats.omens[id];
+      const mark = def.polarity==='凶'?'凶':def.polarity==='吉'?'吉':'中';
+      // 方块：印记字（吉/凶/中）+ 异兽名 + 征兆类型；生效中高亮并在角标显示剩余
+      return `<div class="tile omen-tile ${active?'active':''} ${def.polarity}" data-tip data-tip-title="${esc(def.beast)}">
+        <span class="tile-seal">${mark}</span>
+        <span class="tile-nm">${esc(def.beast)}</span>
+        <span class="tile-tag">${esc(def.type)}</span>
+        ${active?`<span class="tile-more ot-left" title="生效中，余 ${fmtTime(active.until-gameTime())}">${fmtTime(active.until-gameTime())}</span>`:''}
+        <span class="tip-body hidden">
+          <div class="oc-effect">${omenEffectText(def)}</div>
+          <div class="oc-desc">${esc(def.desc)}</div>
+          ${ever?'<div class="hint">已曾出现</div>':'<div class="hint">尚未出现</div>'}
+        </span>
+      </div>`;
+    }).join('')}
+    ${omenList.length ? '' : `<div class="empty-note">${omenFilter==='seen'
+      ? '尚无生效征兆。首次著录异兽时，可能触发原文所记的「见则 …」吉凶之兆。'
+      : '此档暂无征兆。'}</div>`}
+    </div>
+    <div class="exo-row">
+      <span class="hint">禳解（白菅×3 + 稻米×3）可提前禳除当前凶兆：</span>
+      <button class="btn ${xiong.length?'primary':''}" ${xiong.length?'':'disabled'} onclick="exorcise();UI.renderJisi()">
+        禳解 ${xiong.length?`（${xiong.map(o=>OMENS[o.id].type).join('、')}）`:''}</button>
+    </div>`;
+}
+UI.renderJisi = function(){
+  const box = $('content');
+  if (!box) return;
   let html = `<div class="panel rite-panel"><h3>祠礼（据原文祠礼格式）</h3>
     <div class="rite-grid">
     ${Object.entries(RITES).map(([id,def])=>{
@@ -1696,47 +1777,7 @@ UI.renderJisi = function(){
   </div>
 
   <div class="panel omen-panel"><h3>征兆（原文「见则X」）</h3>
-    ${Game.omens.length?`<div class="omen-summary">当前总效应：${currentOmenEffects().map(e=>`${e.label} ${e.pct>0?'+':''}${e.pct}%`).join(' · ')}</div>`:''}
-    ${(()=>{
-      // 42 条征兆一次铺开会淹没重点：按吉凶分档，并单列「已现」
-      const count = { all:0, 吉:0, 凶:0, 中:0, seen:0 };
-      Object.values(OMENS).forEach(d=>{ count.all++; if (count[d.polarity] != null) count[d.polarity]++; });
-      count.seen = Game.omens.length;
-      const cur = this.omenFilter || 'all';
-      const label = { all:'全部', 吉:'吉兆', 凶:'凶兆', 中:'中兆', seen:'已现' };
-      const chips = ['all','吉','凶','中','seen'].map(k=>{
-        const n = k==='all' ? count.all : count[k];
-        return `<button class="chip-btn ${cur===k?'on':''}" onclick="UI.omenFilter='${k}';UI.renderJisi()">${label[k]} ${n}</button>`;
-      }).join('');
-      return `<div class="filter-row">${chips}</div>`;
-    })()}
-    <div class="tile-grid omen-grid">
-    ${omenList.map(([id,def])=>{
-      const active = Game.omens.find(o=>o.id===id);
-      const ever = !!Game.stats.omens[id];
-      const mark = def.polarity==='凶'?'凶':def.polarity==='吉'?'吉':'中';
-      // 方块：印记字（吉/凶/中）+ 异兽名 + 征兆类型；生效中高亮并在角标显示剩余
-      return `<div class="tile omen-tile ${active?'active':''} ${def.polarity}" data-tip data-tip-title="${esc(def.beast)}">
-        <span class="tile-seal">${mark}</span>
-        <span class="tile-nm">${esc(def.beast)}</span>
-        <span class="tile-tag">${esc(def.type)}</span>
-        ${active?`<span class="tile-more ot-left" title="生效中，余 ${fmtTime(active.until-gameTime())}">${fmtTime(active.until-gameTime())}</span>`:''}
-        <span class="tip-body hidden">
-          <div class="oc-effect">${omenEffectText(def)}</div>
-          <div class="oc-desc">${esc(def.desc)}</div>
-          ${ever?'<div class="hint">已曾出现</div>':'<div class="hint">尚未出现</div>'}
-        </span>
-      </div>`;
-    }).join('')}
-    ${omenList.length ? '' : `<div class="empty-note">${omenFilter==='seen'
-      ? '尚无生效征兆。首次著录异兽时，可能触发原文所记的「见则 …」吉凶之兆。'
-      : '此档暂无征兆。'}</div>`}
-    </div>
-    <div class="exo-row">
-      <span class="hint">禳解（白菅×3 + 稻米×3）可提前禳除当前凶兆：</span>
-      <button class="btn ${xiong.length?'primary':''}" ${xiong.length?'':'disabled'} onclick="exorcise();UI.renderJisi()">
-        禳解 ${xiong.length?`（${xiong.map(o=>OMENS[o.id].type).join('、')}）`:''}</button>
-    </div>
+    ${omenPanelHtml()}
   </div>
 
   <div class="panel div-panel"><h3>卜筮</h3>
@@ -1836,14 +1877,7 @@ function sparkline(vals, w, h){
 UI.renderShichan = function(){
   const box = $('content');
   if (!box) return;
-  const sellMult = tradeMult();
-  // 记录售价加成走势（tradeMult 随商旅/营造/御使/征兆变化）
-  if (!Game.priceHistory) Game.priceHistory = [];
-  const _lm = Game.priceHistory[Game.priceHistory.length - 1];
-  if (!_lm || Math.abs(_lm.m - sellMult) > 1e-3){
-    Game.priceHistory.push({ t: Date.now(), m: +sellMult.toFixed(3) });
-    if (Game.priceHistory.length > 24) Game.priceHistory.shift();
-  }
+  const sellMult = tradeMult();   // 售价走势由 onSecond 采样，此处只读（渲染无副作用）
   let buy = '';
   for (const cat of SHOP_CATS){
     const items = ShopStock.filter(s=>s.cat===cat.id);
@@ -2720,6 +2754,15 @@ function init(){
   document.addEventListener('keydown', (e)=>{
     if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
     if (e.key === 'Escape'){ hideTip(); UI.closeDrawer(); UI.closeModal(); UI.closeBuffPop(); return; }
+    // 键盘可达：方卡都带 role=button，聚焦后回车 / 空格即等于点按
+    if (e.key === 'Enter' || e.key === ' '){
+      const el = document.activeElement;
+      if (el && el.getAttribute && el.getAttribute('role') === 'button' && el.onclick){
+        e.preventDefault();
+        el.click();
+        return;
+      }
+    }
     if (e.key === 's' || e.key === 'S'){ saveGame(); UI.toast('已存档'); return; }
     if (e.key === 'q' || e.key === 'Q'){ stopActivity(); if (typeof pauseQueue==='function') pauseQueue('手动停止'); UI.refreshActivity(); UI.toast('已停止'); return; }
     const idx = '1234567890'.indexOf(e.key);

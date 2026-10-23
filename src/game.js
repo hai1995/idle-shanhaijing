@@ -226,6 +226,7 @@ function activateOmen(id){
   log(`${mark} 征兆·${def.type}：${def.desc}（${def.beast}）`, def.polarity==='凶'?'bad':'gold', 'omen');
   UI && UI.toast(`${mark} 征兆·${def.type}\n${def.desc}`);
   UI && UI.renderBuffBtn && UI.renderBuffBtn();
+  if (UI && UI.patchOmens) UI.patchOmens();     // 正在祠祀页时，新征兆即刻上格
   saveGame();
 }
 function omenMod(key){
@@ -243,7 +244,7 @@ function tickOmens(){
   for (let i=Game.omens.length-1; i>=0; i--){
     if (Game.omens[i].until <= t){ Game.omens.splice(i,1); changed = true; }
   }
-  if (changed){ saveGame(); UI && UI.renderBuffBtn && UI.renderBuffBtn(); }
+  if (changed){ saveGame(); UI && UI.renderBuffBtn && UI.renderBuffBtn(); if (UI && UI.patchOmens) UI.patchOmens(); }
 }
 // 禳解：消耗白菅与稻米，提前禳除凶兆
 function exorcise(){
@@ -1234,7 +1235,15 @@ function stepGame(dt){
 let saveTick = 0;
 let idleSeconds = 0;            // 持续闲置秒数（兜底行动计时）
 function onSecond(){
-  if (Object.keys(Game.farms).length) farmTick(1);
+  if (Object.keys(Game.farms).length){ farmTick(1); if (UI && UI.patchFarmsProgress) UI.patchFarmsProgress(); }
+  // 售价走势采样：倍率随商旅/营造/御使/征兆而变，倍率一变或每满 60 秒留一个点，
+  // 挂机时也有轨迹可看（渲染时只读，不再有采样副作用）
+  if (!Game.priceHistory) Game.priceHistory = [];
+  { const _tm = tradeMult(), _pm = Game.priceHistory[Game.priceHistory.length-1];
+    if (!_pm || Math.abs(_pm.m - _tm) > 1e-3 || Date.now() - _pm.t > 60*1000){
+      Game.priceHistory.push({ t: Date.now(), m: +_tm.toFixed(3) });
+      if (Game.priceHistory.length > 24) Game.priceHistory.shift();
+    } }
   Game.stats.time++;
   tickOmens();
   checkMilestoneToast();

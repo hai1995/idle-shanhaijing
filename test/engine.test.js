@@ -2114,6 +2114,34 @@ section('田地：小方卡 + 择种浮层');
     const modalHtml = renderTargets.modalBox.innerHTML || '';
     assert(modalHtml.indexOf('seed-row') >= 0 && modalHtml.indexOf('持有') >= 0, '择种浮层列出种子与持有数'); }
 }
+// ============ 43. 实时性完善：田地 / 征兆 / 增益浮层 / 走势 / 队列 / 键盘 ============
+section('实时性：状态变化即刻上屏');
+{
+  // 43.1 田地：收获就地补绘 + 每秒进度跟进
+  assert(uiSrc.includes('UI.patchFarms = function()') && uiSrc.includes('farmTilesHtml()'), '田地收获后就地补绘（不靠切页）');
+  assert(uiSrc.includes('UI.patchFarmsProgress = function()'), '田地每秒轻量跟进（进度条 / 剩余 / 成熟态）');
+  assert(gameSrc.includes('UI.patchFarmsProgress'), '主循环挂接田地进度跟进');
+  assert(uiSrc.includes("if (this.currentTab === 'skills') this.patchFarms()"), '收获飘字后即时翻面');
+
+  // 43.2 征兆：到期 / 新触发就地补绘
+  assert(uiSrc.includes('UI.patchOmens = function()') && uiSrc.includes('omenPanelHtml()'), '征兆面板可整块补绘');
+  assert((gameSrc.match(/if \(UI && UI\.patchOmens\) UI\.patchOmens\(\);/g)||[]).length === 2, '征兆到期与激活两处都补绘');
+
+  // 43.3 增益浮层展开时连带刷新（倒计时尤其）
+  assert(uiSrc.includes("if (pop && !pop.classList.contains('hidden')) pop.innerHTML = this.buffPopHtml();"), '增益浮层展开时内容跟随刷新');
+
+  // 43.4 售价走势：秒级采样，挂机也有轨迹；渲染只读无副作用
+  assert(gameSrc.includes("Date.now() - _pm.t > 60*1000"), '售价走势按 60 秒间隔采样');
+  assert(!/renderShichan[\s\S]{0,300}priceHistory\.push/.test(uiSrc), '渲染时不再采样（无副作用）');
+
+  // 43.5 队列：任务达成 / 自然收官即刷新队列页
+  const qSrc = readText('src/queue.js');
+  assert(qSrc.includes('function refreshQueuePage()') && qSrc.includes("UI.currentTab === 'queue'"), '队列任务达成即补绘队列页');
+  assert((qSrc.match(/refreshQueuePage\(\)/g)||[]).length >= 3, '两个出口都刷新（推进与自然收官）');
+
+  // 43.6 键盘可达：Enter / 空格激活聚焦的方卡
+  assert(uiSrc.includes("el.getAttribute('role') === 'button' && el.onclick"), '回车 / 空格可激活聚焦方卡');
+}
 
 console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
 process.exit(fail ? 1 : 0);
