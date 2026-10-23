@@ -1149,32 +1149,61 @@ UI.renderSkills = function(){
 
   <div class="panel farm-panel">
     <h3>圃艺 · 田地</h3>
-    <div class="farm-grid">
+    <div class="tile-grid farm-grid">
     ${Array.from({length:TUNING.FARM_PLOTS}, (_,i)=>{
       const slot = 'p'+i;
       const f = Game.farms[slot];
-      const seeds = Object.values(Items).filter(s=>s.crop && levelOf('puyi')>= (s.lvl||1) && (Game.inventory[s.id]||0)>0);
       if (f){
-        const seed = Items[f.seedId];
+        const seed = Items[f.seedId] || { name:'嘉种', icon:'🌱' };
         const pct = Math.max(0, Math.min(100, (1 - f.remain/f.grow)*100));
-        return `<div class="plot" data-plot="${slot}">
-          <div class="plot-crop">${pct>=100?'🌾':pct>50?'🌿':'🌱'}</div>
-          <div class="plot-name">${esc(seed.name)}</div>
-          <div class="xpbar"><div class="fill" style="width:${pct.toFixed(0)}%"></div></div>
-          <div class="plot-left">${fmtTime(f.remain/Math.max(0.1,farmSpeedMult()))}</div>
+        const left = fmtTime(f.remain/Math.max(0.1,farmSpeedMult()));
+        // 方块：作物图标 + 名 + 贴底细进度条 + 剩余时间；成熟自动收获
+        return `<div class="tile farm-tile growing ${pct>=100?'ripe':''}" data-plot="${slot}" data-tip data-tip-title="${esc(seed.name)}">
+          <span class="tile-ic">${pct>=100?'🌾':pct>50?'🌿':'🌱'}</span>
+          <span class="tile-nm">${esc(seed.name)}</span>
+          <span class="ft-bar"><i style="width:${pct.toFixed(0)}%"></i></span>
+          <span class="tile-tag">${left}</span>
+          <span class="tip-body hidden">
+            <div class="rc-sub">${esc(seed.name)} · 田 ${i+1}</div>
+            <div class="rc-sub">${pct>=100?'即将成熟，自动收获':'成长 '+pct.toFixed(0)+'% · 余 '+left}</div>
+            <div class="hint">成熟即收，无需看管；偶尔回赠种子</div>
+          </span>
         </div>`;
       }
-      return `<div class="plot empty" data-plot="${slot}">
-        <div class="plot-crop">➕</div>
-        <select onchange="plantSeed('${slot}', this.value); UI.renderSkills()">
-          <option value="">择种……</option>
-          ${seeds.map(s=>`<option value="${s.id}">${esc(s.name)}（${Game.inventory[s.id]}）</option>`).join('')}
-        </select>
+      // 空田：方卡点按开择种浮层（下拉框在方块里既丑又难点）
+      return `<div class="tile farm-tile empty" data-plot="${slot}" role="button" tabindex="0" onclick="UI.seedMenu('${slot}')">
+        <span class="tile-ic">➕</span>
+        <span class="tile-nm">择种</span>
+        <span class="tile-tag">田 ${i+1}</span>
       </div>`;
     }).join('')}
     </div>
   </div>`;
   box.innerHTML = html;
+};
+
+// 择种浮层：方卡点按后列出行囊可用嘉种；未持有 / 未达等级的置灰并说明原因
+UI.seedMenu = function(slot){
+  const lv = levelOf('puyi');
+  const seeds = Object.values(Items).filter(s=>s.crop).sort((a,b)=>(a.lvl||1)-(b.lvl||1));
+  if (!seeds.length){ this.toast('此地无嘉种可植'); return; }
+  const rows = seeds.map(s=>{
+    const have = Game.inventory[s.id]||0;
+    const lvOk = lv >= (s.lvl||1);
+    const ok = have > 0 && lvOk;
+    return `<button type="button" class="seed-row ${ok?'':'lock'}" ${ok?`onclick="UI.pickSeed('${slot}','${s.id}')"`:'disabled'}>
+      <span class="sr-ic">${s.icon||'🌱'}</span>
+      <span class="sr-nm">${esc(s.name)}</span>
+      <span class="sr-meta">${lvOk?`持有 <b>${have}</b>`:`需圃艺 ${s.lvl} 级`}</span>
+    </button>`;
+  }).join('');
+  this.modal(`<h3>择种 · 田 ${parseInt(slot.slice(1))+1}</h3>
+    <p class="hint">点选即植入此田，消耗一枚种子；成熟自动收获，偶尔回赠种子。</p>
+    <div class="seed-list">${rows}</div>
+    <div class="modal-btns"><button class="btn ghost" onclick="UI.closeModal()">再想想</button></div>`);
+};
+UI.pickSeed = function(slot, id){
+  if (plantSeed(slot, id)){ this.closeModal(); this.renderSkills(); }
 };
 
 // 五行克制提示：pe=敌方属性，me=我方属性；被克/相持时给出宜用属性（克敌方的属性）与一键切换

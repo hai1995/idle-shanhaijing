@@ -885,16 +885,30 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
 .rc-xp{ font-size:11px; color:var(--ink-4); margin-right:auto; }
 .rc-sub{ font-size:11.5px; color:var(--ink-3); margin-bottom:7px; }
 
-.farm-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(136px,1fr)); gap:10px; }
-.plot{
-  background:var(--paper-3); border:1px dashed var(--rule); border-radius:var(--r);
-  padding:12px 10px; text-align:center; transition:border-color .15s;
+/* 田地：与其他页同一套方块。虚线空田点按开择种浮层；生长田贴底一条细进度 */
+.farm-grid{ gap:8px; }
+.farm-tile.empty{ border-style:dashed; }
+.farm-tile.empty .tile-ic{ font-size:24px; color:var(--ink-4); }
+.farm-tile.growing{ border-style:solid; }
+.farm-tile.growing.ripe{ border-color:rgba(156,118,40,.55); background:rgba(156,118,40,.06); }
+.ft-bar{ width:100%; height:3px; margin-top:auto; background:var(--rule-2); border-radius:2px; overflow:hidden; }
+.ft-bar i{ display:block; height:100%; background:var(--tai); transition:width .3s; }
+.farm-tile.ripe .ft-bar i{ background:var(--jin); }
+/* 择种浮层：种子一行一条，未持有 / 未达级置灰 */
+.seed-list{ display:grid; gap:6px; margin:12px 0; max-height:46vh; overflow:auto; }
+.seed-row{
+  display:flex; align-items:center; gap:10px; padding:9px 11px; text-align:left;
+  font-family:inherit; font-size:13px; color:var(--ink); cursor:pointer;
+  background:var(--paper-2); border:1px solid var(--rule); border-radius:var(--r);
+  transition:border-color .12s, background .12s;
 }
-.plot:hover{ border-color:var(--ink-4); }
-.plot.empty select{ font-family:inherit; font-size:12px; width:100%; margin-top:6px; padding:4px; border:1px solid var(--rule); border-radius:var(--r); background:#fff; }
-.plot-crop{ font-size:24px; line-height:1.2; }
-.plot-name{ font-size:12px; margin:3px 0; font-weight:600; }
-.plot-left{ font-family:var(--f-num); font-size:10.5px; color:var(--ink-4); margin-top:4px; }
+.seed-row:hover{ border-color:var(--ink-4); background:var(--paper-3); }
+.seed-row.lock{ opacity:.5; cursor:not-allowed; }
+.seed-row.lock:hover{ border-color:var(--rule); background:var(--paper-2); }
+.seed-row .sr-ic{ font-size:18px; flex:0 0 auto; }
+.seed-row .sr-nm{ flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.seed-row .sr-meta{ flex:0 0 auto; font-family:var(--f-num); font-size:11px; color:var(--ink-4); }
+.seed-row .sr-meta b{ color:var(--zhu); }
 
 /* ==========================================================================
    章节 / 特殊节点 / 神话
@@ -1573,11 +1587,12 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
   /* 提高特异性：后面那组 .inv-grid/.codex-grid 的 minmax(140px) 会覆盖同权重规则 */
   .panel .inv-grid, .panel .codex-grid,
   .panel .rite-grid, .panel .shop-grid{ grid-template-columns:repeat(3,1fr); gap:6px; }
-  /* 舆地：山系三列、诸山三列；装备 / 行囊 / 廛市出售 / 征兆 / 营造同宽 */
+  /* 舆地：山系三列、诸山三列；装备 / 行囊 / 廛市出售 / 征兆 / 营造 / 田地同宽 */
   .panel .region-grid, .panel .node-grid,
   .panel .gear-grid, .panel .inv-grid, .panel .sell-grid,
-  .panel .omen-grid, .panel .building-grid{ grid-template-columns:repeat(3,1fr); gap:6px; }
-  .farm-grid,.mini-grid,.shop-grid,.sell-grid,.inv-grid,.gear-grid,.omen-grid,.rite-grid,.stat-grid{
+  .panel .omen-grid, .panel .building-grid,
+  .panel .farm-grid{ grid-template-columns:repeat(3,1fr); gap:6px; }
+  .mini-grid,.shop-grid,.inv-grid,.gear-grid,.omen-grid,.rite-grid,.stat-grid{
     grid-template-columns:repeat(auto-fill,minmax(min(140px,100%),1fr));
   }
   .codex-grid{ grid-template-columns:repeat(auto-fill,minmax(min(92px,100%),1fr)); }

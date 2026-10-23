@@ -1926,7 +1926,7 @@ section('方块语言补完：御使 / 征兆 / 出售 / 营造');
   assert(uiSrc.indexOf('building-card') < 0, '营造页不再用旧行状卡');
 
   // 41.5 窄屏统一三列
-  assert(/\.panel \.region-grid, \.panel \.node-grid,\s*\.panel \.gear-grid, \.panel \.inv-grid, \.panel \.sell-grid,\s*\.panel \.omen-grid, \.panel \.building-grid\{ grid-template-columns:repeat\(3,1fr\)/.test(css), '窄屏舆地/装备/行囊/出售/征兆/营造统一三列');
+  assert(/\.panel \.region-grid, \.panel \.node-grid,\s*\.panel \.gear-grid, \.panel \.inv-grid, \.panel \.sell-grid,\s*\.panel \.omen-grid, \.panel \.building-grid,\s*\.panel \.farm-grid\{ grid-template-columns:repeat\(3,1fr\)/.test(css), '窄屏舆地/装备/行囊/出售/征兆/营造/田地统一三列');
 
   // 41.6 运行时渲染：四页都产出 tile
   ST.Game.records['gui'] = Object.assign({}, ST.Game.records['gui'], { count:5, tier:4 });
@@ -2088,6 +2088,31 @@ section('叙录 / 关于本作');
   // 39.4 版本印记集中一处，不散落各处硬编码
   assert(gameDataSrc.includes('const GAME_META = {'), '版本印记集中在 GAME_META 常量');
   assert(gameDataSrc.includes('window.GAME_META = GAME_META;'), 'GAME_META 已导出到 window');
+}
+// ============ 42. 田地方块化：小方卡 + 择种浮层 ============
+section('田地：小方卡 + 择种浮层');
+{
+  assert(uiSrc.includes('class="tile farm-tile growing') && uiSrc.includes('class="tile farm-tile empty'), '田地改为小方卡（生长 / 空田两态）');
+  assert(uiSrc.includes('UI.seedMenu = function(slot)') && uiSrc.includes('UI.pickSeed = function(slot, id)'), '空田点按开择种浮层');
+  assert(!/farm-panel[\s\S]{0,2000}?<select/.test(uiSrc), '田地不再用下拉框择种');
+  assert(css.includes('.farm-tile.empty{ border-style:dashed; }'), '空田虚线框');
+  assert(css.includes('.ft-bar{'), '生长田贴底细进度条');
+  assert(/\.panel \.farm-grid\{ grid-template-columns:repeat\(3,1fr\)/.test(css), '窄屏田地三列');
+  assert(css.includes('.seed-row{'), '择种浮层行样式');
+  assert(uiSrc.includes('data-plot="${slot}" data-tip'), '生长田卡保留飘字锚点');
+  // 运行时：空田渲染为点按方卡；pickSeed 正常植入
+  ST.Game.farms = {};
+  ST.UI.currentTab = 'skills'; ST.UI.renderSkills();
+  { const t = renderTargets.content.innerHTML;
+    assert(t.indexOf('farm-tile empty') >= 0 && t.indexOf("UI.seedMenu('p") >= 0, '空田渲染为点按开浮层的方卡');
+    assert(t.indexOf('<select') < 0, '田地渲染产物无下拉框'); }
+  ST.Game.inventory['seed_tu'] = (ST.Game.inventory['seed_tu']||0)+1;
+  ST.UI.pickSeed('p1', 'seed_tu');
+  assert(ST.Game.farms['p1'] && ST.Game.farms['p1'].seedId==='seed_tu', 'pickSeed 植入成功');
+  // 择种浮层：未持有置灰并说明
+  { ST.UI.seedMenu('p2');
+    const modalHtml = renderTargets.modalBox.innerHTML || '';
+    assert(modalHtml.indexOf('seed-row') >= 0 && modalHtml.indexOf('持有') >= 0, '择种浮层列出种子与持有数'); }
 }
 
 console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
