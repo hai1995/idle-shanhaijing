@@ -1,0 +1,10 @@
+# 依赖
+node_modules/
+
+# 构建产物（`node scripts/build-standalone.js` 生成，不入库）
+idle-shanhaijing-standalone.html
+
+# 打包与系统文件
+*.zip
+.DS_Store
+Thumbs.db

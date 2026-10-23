@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1E1C18">
+<meta name="description" content="《山海经》题材的纯前端放置挂机游戏：巡行山海，著录万物。">
+<title>山海经 · 著录</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='2' fill='%23B03A2B'/><text x='16' y='23' font-size='19' text-anchor='middle' fill='%23FCFBF6' font-family='KaiTi,STKaiti,serif'>山</text></svg>">
+<!-- 昼夜：在首屏绘制前定好主题，避免由亮转暗的闪烁 -->
+<script>
+(function(){
+  try{
+    var t = localStorage.getItem('shj-theme');
+    if(!t && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) t = 'night';
+    if(t === 'night') document.documentElement.dataset.theme = 'night';
+  }catch(e){}
+})();
+</script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body onload="init()">
+<div id="app">
+
+  <!-- 吸顶：墨色书脊（顶栏）+ 纸质仪表带（状态条）+ 全局指引条 -->
+  <div id="topdock">
+    <header id="topbar">
+      <div class="left">
+        <span class="seal" aria-hidden="true"><i>山</i><i>海</i></span>
+        <span class="title"><b>山海经</b><i>著录</i><small>南山经</small><b id="nickTag" class="hidden"></b></span>
+        <span class="stat" data-s="级" title="总等级：二十六门技艺之和">
+          <i class="lb">总等级</i><b id="totalLevel">0</b>
+        </span>
+        <span class="stat" data-s="录" title="已著录条目 / 全图鉴条目">
+          <i class="lb">已录</i><b id="recordCount">0/0</b>
+          <span class="meter" aria-hidden="true"><i id="recordMeter"></i></span>
+        </span>
+        <span class="stat" data-s="贝" title="贝币">
+          <i class="lb">贝币</i><b id="shellCount">0</b>
+        </span>
+      </div>
+    </header>
+
+    <!-- 仪表带：气血 / 增益 / 当前行动 / 进度 / 停止 -->
+    <div id="statusbar">
+      <span id="hpDisplay">气血 <b>0</b>/0</span>
+      <span id="buffDisplay" class="hidden"></span>
+      <span id="activityText">空闲</span>
+      <div id="actionProg" class="hidden"><div id="actionProgFill"></div></div>
+      <button id="btnStop" class="btn-mini" type="button">停止</button>
+    </div>
+    <div id="guidance" class="hint-banner hidden"></div>
+  </div>
+
+  <!-- 侧边导航 + 主内容：PC 侧边栏常驻，移动端由左侧图标栏唤出抽屉 -->
+  <div id="shell">
+    <nav id="tabs"><!-- 各页签由 JS 渲染 --></nav>
+    <main id="content"><!-- 各页由 JS 渲染 --></main>
+  </div>
+
+  <!-- 移动端功能总入口 -->
+  <button id="fab" type="button" title="功能菜单">☰</button>
+  <div id="drawerMask" class="hidden"></div>
+
+</div>
+
+<!-- 浮动提示层 -->
+<div id="toasts"></div>
+<div id="modal" class="hidden"><div id="modalBox"></div></div>
+
+<!-- 长页回到顶部（滚动后浮现） -->
+<button id="btnTop" class="to-top" type="button" aria-label="回到顶部" title="回到顶部">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 14l6-6 6 6"/></svg>
+</button>
+
+<script src="src/nanshanData.js"></script>
+<script src="src/xishanData.js"></script>
+<script src="src/beishanData.js"></script>
+<script src="src/dongshanData.js"></script>
+<script src="src/gameData.js"></script>
+<script src="src/engine.js"></script>
+<script src="src/game.js"></script>
+<script src="src/queue.js"></script>
+<script src="src/interact.js"></script>
+<script src="src/fx.js"></script>
+<script src="src/ui.js"></script>
+</body>
+</html>
