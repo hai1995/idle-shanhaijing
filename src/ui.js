@@ -1179,7 +1179,7 @@ function taofaArenaHtml(){
         <div class="f-hp"><div class="fill enemy" style="width:${Math.max(0,c.monsterHp/m.hp*100)}%"></div></div>
         <div class="f-sub">${fmt(Math.max(0,c.monsterHp))} / ${fmt(m.hp)}</div>`:`<div class="f-name">待机</div>
         <div class="f-hp"><div class="fill enemy" style="width:0%"></div></div>
-        <div class="f-empty">下方「讨伐目标」中择一只异兽，点「往讨」开战</div>`}
+        <div class="f-empty">点下方「讨伐目标」中的任一方块即可开战</div>`}
       </div>
     </div>
     ${c&&m?wuxingAdvice(m.el, playerElement()):''}
@@ -1247,16 +1247,26 @@ function taofaListHtml(){
       const thTag = (x===pick && th.level==='recommend')
         ? `<span class="bc-pick" title="当前可讨伐中经验效率最高，且胜算充足">✔ 宜讨</span>`
         : `${x===pick?'<span class="bc-pick" title="当前可讨伐中经验效率最高">宜讨</span>':''}<span class="th ${th.level}">${th.label}</span>`;
-      // 紧凑卡：名称（附注音）+ 五行 + 威胁 + 一句属性 + 往讨；形态 / 掉落 / 产地入浮层
-      return `<div class="beast-card ${th.level}${x===pick?' pick':''}" data-bid="${x.id}" data-tip data-tip-title="${esc(x.name)}">
-        <div class="bc-head">${nameTag(x.name, x.py||'')}${elBadge(x.el)}${thTag}</div>
-        <div class="bc-sub"><span class="bc-attr">气血 ${fmt(x.hp)} · 攻 ${fmt(x.atk)} · 防 ${fmt(x.def)} · 经验 ${fmt(x.xp)}</span>${counterEl?`<button class="el-hint" title="切祝术主五行为${counterEl}（${counterEl}克${x.el}，伤害 ×${TUNING.WUXING.KE}）" onclick="setCombatStyle('zhu');setZhuEl('${counterEl}');UI.renderTaofa()">宜用${counterEl}属 ⚡</button>`:''}</div>
-        <div class="bc-foot">
-          <span class="rec">著录 ${rec.count}</span>${decayTag}
-          <button class="btn small ${un&&lvOk?'primary':''}" ${un&&lvOk?'':'disabled'}
-            onclick="startCombat('${x.id}', {focus:true})">${un&&lvOk?'往讨':'🔒'}</button>
-        </div>
-        <span class="tip-body hidden">${x.form?`<div class="bc-sub">${esc(x.form)}</div>`:''}<div class="bc-sub drop-line">📍 ${esc(node?node.name:'')}${drops?` · 掉落 ${esc(drops)}`:''}</div></span>
+      // 方块：图标 + 名 + 「录 n · Lv n」，五行与宜讨做角标，威胁改边框色；
+      // 气血/攻防/经验/掉落/产地/形态全进浮层——一屏能扫过整片山系
+      return `<div class="tile beast-tile ${th.level}${x===pick?' pick':''}${(!un||!lvOk)?' lock':''}"
+        data-bid="${x.id}" data-tip data-tip-title="${esc(x.name)}"
+        role="button" tabindex="0" onclick="UI.tryHunt('${x.id}')">
+        ${x.el?`<span class="bt-el el-${x.el}">${x.el}</span>`:''}
+        <span class="tile-ic">${CAT_EMOJI[x.category]||'🐾'}</span>
+        <span class="tile-nm">${esc(x.name)}</span>
+        <span class="tile-tag"><i class="bt-rec">录 ${rec.count}</i> · Lv ${x.needLvl||1}</span>
+        ${counterEl?`<button class="bt-el-hint" type="button" title="一键切到${counterEl}属（${counterEl}克${x.el}，伤害 ×${TUNING.WUXING.KE}）"
+          onclick="event.stopPropagation();setCombatStyle('zhu');setZhuEl('${counterEl}');UI.renderTaofa()">宜${counterEl}</button>`:''}
+        ${x===pick?'<span class="bt-pick">宜讨</span>':''}
+        ${decayTag?`<span class="bt-decay" title="连续讨伐 ${streakN} 次，经验递减；换一只异兽即恢复全额">×${mobStreakMult(x.id).toFixed(2)}</span>`:''}
+        <span class="tip-body hidden">
+          ${x.form?`<div class="bc-sub">${esc(x.form)}</div>`:''}
+          <div class="bc-sub">气血 ${fmt(x.hp)} · 攻 ${fmt(x.atk)} · 防 ${fmt(x.def)} · 经验 ${fmt(x.xp)}</div>
+          <div class="bc-sub drop-line">📍 ${esc(node?node.name:'')}${drops?` · 掉落 ${esc(drops)}`:''}</div>
+          ${counterEl?`<div class="bc-sub">宜用 ${counterEl} 属（${counterEl}克${x.el}，伤害 ×${TUNING.WUXING.KE}）</div>`:''}
+          <div class="bc-sub">${th.label}${(!un||!lvOk)?' · 尚不可讨':''}</div>
+        </span>
       </div>`;
     }).join('');
     list += `</div>`;
@@ -1294,26 +1304,34 @@ UI.afterCombatEnd = function(id){
 
 // 单张卡补数据：战斗结束只更新刚打的那只（著录数、连杀递减标签），
 // 其余 190 张卡的 DOM 一点不动——这是「连战不卡」的关键
+// 方块点按 = 往讨；不可讨时说明原因（山系未解锁 / 等级不够）
+UI.tryHunt = function(id){
+  const x = Monsters[id];
+  if (!x) return;
+  const node = nodeOf(x.nodeId);
+  if (node && !nodeUnlocked(node)){ UI.toast('🔒 ' + nodeLockReason(node)); return; }
+  const need = x.needLvl || 1;
+  if (levelOf('taofa') < need){ UI.toast(`🔒 需讨伐 ${need} 级方可言 ${x.name}`); return; }
+  startCombat(id, { focus: true });
+};
 UI.patchBeastCard = function(id){
   const x = Monsters[id];
   if (!x) return;
-  const card = document.querySelector(`.beast-card[data-bid="${id}"]`);
+  const card = document.querySelector(`.beast-tile[data-bid="${id}"]`);
   if (!card) return;
   const rec = Game.records[id] || { count:0 };
-  const recEl = card.querySelector('.rec');
-  if (recEl) recEl.textContent = `著录 ${rec.count}`;
-  const foot = card.querySelector('.bc-foot');
-  if (!foot) return;
+  const recEl = card.querySelector('.bt-rec');
+  if (recEl) recEl.textContent = `录 ${rec.count}`;
   const n = (Game.mobStreak && Game.mobStreak[id]) || 0;
   const mult = (typeof mobStreakMult === 'function') ? mobStreakMult(id) : 1;
-  let tag = foot.querySelector('.bc-decay');
+  let tag = card.querySelector('.bt-decay');
   if (!x.boss && n > 0 && mult < 1){
     if (!tag){
       tag = document.createElement('span');
-      tag.className = 'bc-decay';
-      foot.insertBefore(tag, foot.children[1] || null);
+      tag.className = 'bt-decay';
+      card.appendChild(tag);
     }
-    tag.textContent = `经验 ×${mult.toFixed(2)}`;
+    tag.textContent = `×${mult.toFixed(2)}`;
     tag.title = `连续讨伐 ${n} 次，经验递减；换一只异兽即恢复全额`;
   } else if (tag){
     tag.remove();

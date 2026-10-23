@@ -1288,9 +1288,9 @@ assert(ST.Game.mobStreak.shengsheng === 5, '读档恢复 mobStreak');
 }
 // 24.8 UI：连杀提示接入异兽卡 + 样式
 assert(uiSrc.includes('const streakN = (Game.mobStreak && Game.mobStreak[x.id]) || 0;'), '征伐页计算连杀次数');
-assert(uiSrc.includes('<span class="bc-decay" title="连续讨伐 ${streakN} 次'), '递减标签带悬浮说明');
-assert(uiSrc.includes('<span class="rec">著录 ${rec.count}</span>${decayTag}'), '递减标签插入异兽卡页脚');
-assert(/\.bc-decay\{/.test(css), '递减标签有样式（灰墨细框，与朱色宜讨区分）');
+assert(uiSrc.includes('<span class="bt-decay" title="连续讨伐 ${streakN} 次'), '递减标签带悬浮说明');
+assert(uiSrc.includes('<i class="bt-rec">录 ${rec.count}</i>') && uiSrc.includes('class="bt-decay"'), '递减标签挂在方块上（著录数同行）');
+assert(/\.beast-tile \.bt-decay\{/.test(css), '递减标签有样式（朱色小字，与宜讨角标区分）');
 
 // ============ 25. 方国贸易深化：动态求购订单 ============
 section('方国贸易深化：动态求购订单');
@@ -1525,7 +1525,7 @@ assert(/\.beast-card\{ contain:layout style paint; content-visibility:auto/.test
   ST.Game.activity = null; ST.Game.combat = null;
   ST.UI.currentTab = 'taofa'; ST.UI.renderTaofa();
   const h = renderTargets.content.innerHTML;
-  assert(h.includes('id="arenaBox"') && h.includes('beast-card'), '整页渲染输出竞技场与目标卡');
+  assert(h.includes('id="arenaBox"') && h.includes('beast-tile'), '整页渲染输出竞技场与目标方块');
   assert((h.match(/id="arenaBox"/g) || []).length === 1, '竞技场容器唯一（不重复嵌套）');
   const before = renderTargets.content.innerHTML;
   let arenaOk = true;
@@ -1570,11 +1570,12 @@ section('五行宜用属性方向');
   ST.UI.currentTab = 'taofa'; ST.UI.renderTaofa();
   const h = renderTargets.content.innerHTML;
   const i0 = h.indexOf('data-bid="shengsheng"');
-  const i1 = h.indexOf('class="beast-card', i0 + 10);
+  const i1 = h.indexOf('class="tile beast-tile', i0 + 10);
   const card = h.slice(i0, i1 > i0 ? i1 : i0 + 1200);   // 只取这一张卡，不卷进邻卡
   assert(ST.Monsters.shengsheng.el === '木', '狌狌为木属（用真实数据校验）');
-  assert(card.includes('宜用金属'), '木敌卡片标注「宜用金属」');
-  assert(!card.includes('宜用土属'), '不再把「敌方所克」的土当成宜用');
+  assert(card.includes('宜金'), '木敌方块有「宜金」一键切换角标');
+  assert(card.includes('宜用 金 属'), '浮层写清「宜用 金 属」');
+  assert(!card.includes('宜土'), '不再把「敌方所克」的土当成宜用');
   assert(card.includes('金克木'), '悬浮说明写清克制方向（金克木）');
   assert(!uiSrc.includes('const counterEl = (x.el && TUNING.KE_MAP[x.el])'), '卡片不再直取 KE_MAP[敌方]');
   assert(uiSrc.includes("const counterEl = x.el ? (counterOf(x.el) || '') : '';"), '卡片改用 counterOf 反查');
