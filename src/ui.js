@@ -2316,6 +2316,14 @@ function init(){
     if (idx >= 0 && TABS[idx]) UI.switchTab(TABS[idx].id);
   });
   UI.renderCurrent();
+  // 上次在战斗中关掉页面：战斗态不再跨会话恢复（否则会卡在「往讨：X」）。
+  // 这里补一句说明，免得玩家以为「还在打」却看不到动画。
+  if (Game._droppedCombat){
+    const mm = (typeof Monsters !== 'undefined') && Monsters[Game._droppedCombat];
+    UI.toast(`⏹ 上次往讨已中止${mm ? '：' + mm.name : ''}\n可前往征伐页重新开战`);
+    log('⏹ 上次往讨已中止（战斗不跨会话保留）', 'sys', 'combat');
+    delete Game._droppedCombat;
+  }
   try { if (!localStorage.getItem(TUT_KEY) && Object.keys(Game.records).length === 0) showTutorial(); } catch(e){}
   setInterval(gameLoop, 250);
 }

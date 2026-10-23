@@ -80,7 +80,7 @@ function saveGame(){
     skills:Game.skills, gear:Game.gear, records:Game.records, map:Game.map, observed:Game.observed,
     buildings:Game.buildings, deployed:Game.deployed, omens:Game.omens, rites:Game.rites, recentLoot:Game.recentLoot||[],
     omenImmune:Game.omenImmune||{}, danmu:Game.danmu||{stage:0,done:0}, grow:Game.grow||{}, buff:Game.buff,
-    farms:Game.farms, node:Game.node, activity:Game.activity||null, combat:Game.combat||null,
+    farms:Game.farms, node:Game.node, activity:Game.activity||null,
     stats:Game.stats, startedAt:Game.startedAt, prefs:Prefs,
     queue:Game.queue||[], queueIdx:Game.queueIdx||0, queueRound:Game.queueRound||0,
     queueRunning:!!Game.queueRunning, queueLoop:Game.queueLoop!==false, fallback:Game.fallback||null,
@@ -119,7 +119,11 @@ function loadGame(){
     Game.nickname = typeof d.nickname === 'string' ? d.nickname.slice(0, 12) : '';
     Game.stats = Object.assign({}, dflt.stats, d.stats || {});
     Game.activity = d.activity || null;
-    Game.combat = d.combat || null;
+    // ⚠️ 战斗不跨会话恢复：驱动战斗的 autoAttack 是运行时变量，读档后必为 false，
+    // 恢复 combat 只会让状态栏停在「往讨：X」而战斗循环永不推进（表现为卡战斗页、
+    // 无动画、统计不涨）。战斗是瞬时行为，离线收益另走采集/队列结算。
+    Game._droppedCombat = d.combat ? d.combat.monsterId : null;
+    Game.combat = null;
     Game.startedAt = d.startedAt || Date.now();
     if (d.prefs) Object.assign(Prefs, d.prefs);
     // 行动队列

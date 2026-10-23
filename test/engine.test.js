@@ -1733,5 +1733,29 @@ section('山志异兽：记录不串山 / 无实体如实标注');
   assert(ST.Items && Object.keys(ST.Monsters).length >= 194, '异兽表含新增四兽（总 ' + Object.keys(ST.Monsters).length + '）');
 }
 
+// ============ 32. 战斗态不跨会话（回归：重进游戏卡在「往讨：X」不动） ============
+section('战斗态不跨会话');
+{
+  G.resetToDefault();
+  ST.Game.combat = null;
+  const ok = G.startCombat('shengsheng');
+  assert(ok && !!ST.Game.combat, '开战后进入战斗态');
+  G.saveGame();
+  const raw = JSON.parse(ST.localStorage.getItem('shj_zhulu_save_v1'));
+  assert(raw && raw.combat === undefined, '存档不再写入战斗态（combat 字段已移除）');
+  assert(raw && raw.activity === null || raw.activity === undefined, '行动态仍按原样保存');
+
+  // 造一份含 combat 的旧档：读档必须丢弃，而不是恢复成「不会推进的战斗」
+  raw.combat = { monsterId:'shengsheng', monsterHp:8, playerHp:20, round:0, timer:0, maxtemp:0, style:'attack' };
+  ST.localStorage.setItem('shj_zhulu_save_v1', JSON.stringify(raw));
+  G.loadGame();
+  assert(ST.Game.combat === null, '旧档里的战斗态被丢弃（不再卡死）');
+  assert(ST.Game._droppedCombat === 'shengsheng', '记下被中止的目标，供首屏提示');
+  ST.UI.refreshActivity();
+  assert(renderTargets.activityText.textContent === '空闲', '读档后状态栏回到空闲');
+  assert(uiSrc.includes('上次往讨已中止'), '首屏给出「上次往讨已中止」提示');
+  assert(engSrc.includes('Game._droppedCombat = d.combat ? d.combat.monsterId : null;'), '读档分支显式丢弃战斗态');
+  assert(engSrc.includes('Game.combat = null;'), '读档后 combat 一律置空');
+}
 console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
 process.exit(fail ? 1 : 0);
