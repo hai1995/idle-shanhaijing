@@ -653,7 +653,7 @@ window.openHelp = openHelp;
 const TUT_KEY = 'shj_tut_done_v1';
 const TUT_STEPS = [
   { tab:'yudi',   icon:'🗺️', title:'受命著录',
-    body:`你是一名<b>著录者</b>，奉命巡行山海，把山川万物逐条录于竹简。\n游戏进度，即一部正在写成的《山海经》。\n\n先从「舆地」开始——选择山系、点选某座山<b>前往</b>，才能在此采集、讨伐、祠祀。` },
+    body:`你是一名<b>著录者</b>，奉命巡行山海，把山川万物逐条录于竹简。\n游戏进度，即一部正在写成的《山海经》。\n\n先从「舆地」开始——选择山系、点选某座山，再点其中任一动作（采集 / 观象 / 讨伐 / 祠礼），即动身前往此地。` },
   { tab:'skills', icon:'📜', title:'技艺修行',
     body:`采集、制作、讨伐、御使……共 <b>26 门技艺</b>，行动即长经验（九阶八十一）。\n技能越高，产出越丰，亦能解锁更高「舆地」等级的山川。\n切到「技能」可查看每一门技艺的进度。` },
   { tab:'taofa',  icon:'⚔️', title:'往讨异兽',
@@ -727,7 +727,7 @@ function nodeRecordProgress(nodeId){
 function nextHint(){
   const recCount = Object.keys(Game.records).length;
   if (recCount === 0)
-    return { icon:'🧭', tab:'yudi', text:'先从「舆地」选山、点「前往」，再樵采 / 采玉 / 渔 / 采药，开启著录。' };
+    return { icon:'🧭', tab:'yudi', text:'先从「舆地」选山，点其中一项采集或讨伐即动身前往，开启著录。' };
   // 已可御使却尚未入槽的异兽
   const ready = (typeof deployableBeasts === 'function' ? deployableBeasts() : [])
     .find(m=>!Object.values(Game.deployed).includes(m.id));
@@ -892,12 +892,12 @@ UI.renderYudi = function(){
       ${!un?`<div class="lock-note">🔒 ${esc(nodeLockReason(sel))}</div>`:''}
       ${rp.total>0?`<div class="node-prog">已著录 <b>${rp.done}</b>/${rp.total} 种<span class="prog-line"><i style="width:${(rp.total?rp.done/rp.total*100:0).toFixed(0)}%"></i></span>${rp.done===rp.total?'<em>此山录毕</em>':''}</div>`:''}
       <div class="actions">
-        ${un && !here ? `<button class="btn primary" onclick="travelTo('${sel.id}')">前往${esc(sel.name)}</button>` : ''}
         ${un ? gatherButtonsForNode(sel) : ''}
         ${observeButtonForNode(sel)}
         ${audienceButtonForNode(sel)}
         ${growButtonForNode(sel)}
         ${combatButtonsForNode(sel)}
+        ${un && !here && !nodeHasUsableAction(sel) ? `<button class="btn" onclick="travelTo('${sel.id}')">涉足此山</button>` : ''}
       </div>
       <div class="nd-body">
         ${sel.terrain?`<p class="nd-terrain">${esc(sel.terrain)}</p>`:''}
@@ -912,6 +912,21 @@ UI.renderYudi = function(){
     </div></div>`;
   box.innerHTML = html;
 };
+// 此山是否有「现在就能点的动作」。
+// 前往按钮取消后，动作按钮本身兼管「走一趟」（采集/观象/谒见/灌木/讨伐都会先 travelTo），
+// 所以只有当一样都点不了时，才补一枚「涉足此山」——否则那 58 座只载原文的山永远涉不了。
+function nodeHasUsableAction(node){
+  for (const it of Object.values(Items)){
+    if (!it.skill) continue;
+    const nodes = it.nodes || (it.node ? [it.node] : []);
+    if (nodes.includes(node.id) && levelOf(it.skill) >= it.lvl) return true;
+  }
+  if (Object.values(OBSERVE_SITES).some(s=>s.nodeId === node.id)) return true;
+  if (typeof AUDIENCE_SITES !== 'undefined' && AUDIENCE_SITES[node.id]) return true;
+  if (Object.values(GROW_SITES).some(s=>s.nodeId === node.id && canAfford(s.cost))) return true;
+  if (Object.values(Monsters).some(m=>m.nodeId === node.id && levelOf('taofa') >= (m.needLvl||1))) return true;
+  return false;
+}
 function gatherButtonsForNode(node){
   const out = [];
   for (const it of Object.values(Items)){

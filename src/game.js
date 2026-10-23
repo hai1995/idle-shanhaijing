@@ -511,7 +511,7 @@ function startObserve(siteId){
   if (!site) return false;
   const n = nodeOf(site.nodeId);
   if (!n || !nodeUnlocked(n)){ UI && UI.toast('🔒 ' + (n ? nodeLockReason(n) : '此地不明')); return false; }
-  if (Game.node !== site.nodeId){ UI && UI.toast(`需先往${n.name}`); return false; }
+  if (Game.node !== site.nodeId && !travelTo(site.nodeId)) return false;   // 动作即动身
   Game.activity = { kind:'observe', siteId, nodeId:site.nodeId, src:'manual' };
   if (typeof pauseQueue === 'function') pauseQueue('观象');
   activityProgress = 0;
@@ -551,7 +551,7 @@ function startAudience(nodeId){
   if (!site) return false;
   const n = nodeOf(nodeId);
   if (!n || !nodeUnlocked(n)){ UI && UI.toast('🔒 ' + (n ? nodeLockReason(n) : '此地不明')); return false; }
-  if (Game.node !== nodeId){ UI && UI.toast(`需先往${n.name}`); return false; }
+  if (Game.node !== nodeId && !travelTo(nodeId)) return false;              // 动作即动身
   Game.activity = { kind:'audience', nodeId, src:'manual' };
   if (typeof pauseQueue === 'function') pauseQueue('谒见');
   activityProgress = 0;
@@ -600,7 +600,7 @@ function startGrow(siteId){
   if (!site) return false;
   const n = nodeOf(site.nodeId);
   if (!n || !nodeUnlocked(n)){ UI && UI.toast('🔒 ' + (n ? nodeLockReason(n) : '此地不明')); return false; }
-  if (Game.node !== site.nodeId){ UI && UI.toast(`需先往${n.name}`); return false; }
+  if (Game.node !== site.nodeId && !travelTo(site.nodeId)) return false;   // 动作即动身
   const st = growState(siteId);
   if ((st.stage||0) >= site.stages){ UI && UI.toast(site.name + '已成，先取其实'); return false; }
   if (!canAfford(site.cost)){ UI && UI.toast(siteId==='mishan' ? '需玉膏以灌' : '资材不足，需先备料'); return false; }
@@ -1050,6 +1050,8 @@ function startCombat(monsterId, opts){
   const node = nodeOf(m.nodeId);
   if (!node || !nodeUnlocked(node)){ UI && UI.toast('🔒 ' + (node ? nodeLockReason(node) : '此地不明')); return false; }
   if (m.needLvl && levelOf('taofa') < m.needLvl){ UI && UI.toast(`🔒 需讨伐 ${m.needLvl} 级方可言 ${m.name}`); return false; }
+  // 往讨即动身：舆地页的「前往」按钮已取消，动作本身兼管走一趟（初至记录 / 舆地与巡历经验）
+  if (Game.node !== m.nodeId) travelTo(m.nodeId);
   Game.activity = null;
   if (typeof pauseQueue === 'function') pauseQueue('往讨');
   let style = combatMode();

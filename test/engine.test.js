@@ -1949,5 +1949,67 @@ section('仪表带去冗余 / 增益浮层');
   assert(css.indexOf('#hpDisplay') < 0 && css.indexOf('#buffDisplay') < 0, '旧的气血 / 增益摘要样式已清理');
 }
 
+// ============ 38. 取消「前往」按钮；动作本身兼管动身 ============
+section('取消前往 / 动作即动身');
+{
+  G.resetToDefault();
+  // ⚠️ gainXp 会由累计 xp 反推 level；只改 level 不补 xp，下一次得经验就会被拉回 1~2 级
+  const boost = (id, lv) => { const s = ST.Game.skills[id]; if (s){ s.xp = ST.xpForLevel(lv) + 1; s.level = ST.levelFromXp(s.xp).level; } };
+  ['yudi','lvxian','taofa','qiaocai','caiyu','yu','caiyao','zhulu','yushi'].forEach(k => boost(k, 80));
+  const nodes = ST.WORLD.regions.flatMap(r => r.nodes);
+
+  // 38.1 节点详情不再渲染「前往 X」，只在无可动之事时留一枚「涉足此山」
+  assert(uiSrc.indexOf("前往${esc(sel.name)}") < 0, '节点详情已无「前往 + 山名」按钮');
+  assert(/un && !here && !nodeHasUsableAction\(sel\)/.test(uiSrc), '「涉足此山」仅在「不在此山且无可用动作」时渲染');
+  assert(/travelTo\('\$\{sel\.id\}'\)/.test(uiSrc), '兜底入口仍调用 travelTo（移动到该山）');
+
+  // 38.2 判定：只载原文的山「无可动之事」；有产出 / 异兽的山「有事可做」
+  const emptyNode = nodes.find(n => n.id === 'nanshan-2-04');    // 羽山：无产出、无异兽
+  const busyNode = nodes.find(n => n.id === 'nanshan-1-02');  // 堂庭之山：有采集与白猿
+  assert(!!emptyNode && G.nodeHasUsableAction(emptyNode) === false, '只载原文、无产无兽的山 = 无可动之事');
+  assert(!!busyNode && G.nodeHasUsableAction(busyNode) === true, '有产出 / 异兽的山 = 有事可做');
+
+  // 38.3 讨伐即动身：不在该山也直接前往，并计入「山已涉」
+  const beast = Object.values(ST.Monsters).find(m => m.nodeId !== 'nanshan-1-01');
+  ST.Game.node = 'nanshan-1-01'; ST.Game.combat = null;
+  boost('taofa', 80);
+  const okC = G.startCombat(beast.id);
+  assert(okC && ST.Game.node === beast.nodeId, '点「讨伐」自动前往其所在山 -> ' + ST.Game.node);
+  assert(ST.Game.map[beast.nodeId] === true, '抵达即计入「山已涉」');
+  ST.Game.combat = null; ST.Game.activity = null;
+
+  // 38.4 采集：沿用既有自动前往
+  const gItem = Object.values(ST.Items).find(it => it.skill && (it.nodes || [it.node])[0] !== 'nanshan-1-01');
+  boost(gItem.skill, 80);
+  ST.Game.node = 'nanshan-1-01';
+  const okG = G.startActivity('gather', gItem.id);
+  assert(okG && ST.Game.node === (gItem.nodes || [gItem.node])[0], '点「采集」自动前往产出地 -> ' + ST.Game.node);
+  ST.Game.activity = null;
+
+  // 38.5 观象 / 谒见：不再挡回去，直接动身
+  const oid2 = Object.keys(ST.OBSERVE_SITES)[0];
+  boost('yudi', 80); boost('lvxian', 80);
+  ST.Game.node = 'nanshan-1-01';
+  assert(G.startObserve(oid2) === true && ST.Game.node === ST.OBSERVE_SITES[oid2].nodeId,
+    '点「观象」自动前往，不再提示「需先往 X」 -> ' + ST.Game.node);
+  ST.Game.activity = null;
+
+  const aid2 = Object.keys(ST.AUDIENCE_SITES)[0];
+  boost('yudi', 80); boost('lvxian', 80);
+  ST.Game.node = 'nanshan-1-01';
+  assert(G.startAudience(aid2) === true && ST.Game.node === aid2,
+    '点「谒见」自动前往，不再提示「需先往 X」 -> ' + ST.Game.node);
+  ST.Game.activity = null;
+
+  // 38.6 灌木：补料后抵达所在山
+  const gid2 = Object.keys(ST.GROW_SITES)[0];
+  ST.Game.inventory.yugao = 3;
+  boost('yudi', 80); boost('lvxian', 80);
+  ST.Game.node = 'nanshan-1-01';
+  assert(G.startGrow(gid2) === true && ST.Game.node === ST.GROW_SITES[gid2].nodeId,
+    '点「灌木」自动前往 -> ' + ST.Game.node);
+  ST.Game.activity = null;
+}
+
 console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
 process.exit(fail ? 1 : 0);
