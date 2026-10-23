@@ -1635,5 +1635,61 @@ section('数据引用完备性：配方产物 / 祠礼物品 / 作物种子 / �
   }
 }
 
+// ============ 30. 征兆可触发性（回归：42 条里曾有 20 条挂在并不存在的异兽 id 上） ============
+section('征兆可触发：兆必有兽 / 兆必能应');
+// 30.1 每条征兆都得有触发源：怪物 omen 字段，或观瑞 / 谒见的显式触发
+{
+  const noSource = [];
+  Object.entries(ST.OMENS).forEach(([k, o]) => {
+    const byMonster = Object.values(ST.Monsters).some(m => m.omen === k);
+    const byObserve = k === 'fenghuang';    // 观瑞丹穴 / 南禺 → doObserve 显式 activateOmen
+    const byAudience = k === 'tianshen';    // 谒见槐江天神 → doAudience 显式 activateOmen
+    if (!byMonster && !byObserve && !byAudience) noSource.push(k + '(' + o.beast + ')');
+  });
+  assert(noSource.length === 0, '每条征兆都有触发源 -> ' + (noSource.join(' ') || '无死兆'));
+  assert(ST._omenLinks >= 20, '征兆挂接补足 20 条（旧 IDS 命名与 ds_ 前缀脱节）-> ' + ST._omenLinks);
+  assert(Object.keys(ST.OMENS).length === 42, '征兆仍为 42 条');
+}
+// 30.2 「有兆无兽」的四座山已补上实体（北山山𤟤 / 酸与，西山未名鸟，东山未名兽）
+{
+  assert(!!ST.Monsters.shanhui && ST.Monsters.shanhui.omen === 'omen_beishan-1-19', '山𤟤 有实体并挂「天下大风」兆');
+  assert(!!ST.Monsters.suanyu && ST.Monsters.suanyu.omen === 'omen_beishan-3-10', '酸与 有实体并挂「有恐」兆');
+  assert(!!ST.Monsters.xiaomian && ST.Monsters.xiaomian.name === '鸮面鸟', '未名鸟以形得名「鸮面鸟」');
+  assert(!!ST.Monsters.kuafushou && ST.Monsters.kuafushou.name === '彘毛兽', '未名兽以形得名「彘毛兽」');
+  assert(ST.Monsters.xiaomian.faunaName === '（未名鸟）', '保留原文 fauna 名以便山志对照');
+  // 同名异兽按节点区分：北山「肥遗」（彭毗之山）不得与西山「肥遗」（太华之山）混淆
+  const feiyiNorth = Object.values(ST.Monsters).find(m => m.name === '肥遗' && m.nodeId === 'beishan-1-21');
+  const feiyiWest = Object.values(ST.Monsters).find(m => m.name === '肥遗' && m.nodeId === 'xishan-1-07');
+  assert(!!feiyiNorth && feiyiNorth.omen === 'omen_beishan-1-21', '北山肥遗挂自己的征兆');
+  assert(!!feiyiWest && !feiyiWest.omen, '西山肥遗不误挂北山征兆');
+}
+// 30.3 端到端：逐条著录该兽，征兆必须真的点亮
+{
+  G.resetToDefault();
+  const dead = [];
+  Object.entries(ST.OMENS).forEach(([k]) => {
+    if (k === 'fenghuang' || k === 'tianshen') return;
+    const m = Object.values(ST.Monsters).find(x => x.omen === k);
+    if (!m) { dead.push(k + '(无怪)'); return; }
+    G.recordObject(m.id, 1);
+    if (!ST.Game.stats.omens[k]) dead.push(k + '(未点亮)');   // dur=0 的被动兆只记 stats
+  });
+  assert(dead.length === 0, '著录对应异兽即可点亮其兆 -> ' + (dead.join(' ') || '40 条全部应验'));
+}
+// 30.4 观瑞与谒见两条特殊路径
+{
+  G.resetToDefault();
+  G.doObserve('danxue');
+  assert(!!ST.Game.stats.omens.fenghuang, '观瑞丹穴（凤皇）→ 天下安宁');
+  ST.Game.node = 'xishan-3-07';
+  G.doAudience('xishan-3-07');
+  assert(!!ST.Game.stats.omens.tianshen, '谒见槐江天神 → 有兵之兆');
+  // 钟山谒见不得误触鵕鸟 / 大鹗之兆（那两条归击杀）
+  G.resetToDefault();
+  ST.Game.node = 'xishan-3-05';
+  G.doAudience('xishan-3-05');
+  assert(!ST.Game.stats.omens.junniao && !ST.Game.stats.omens.dae, '谒见钟山不误触化鸟之兆');
+}
+
 console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
 process.exit(fail ? 1 : 0);

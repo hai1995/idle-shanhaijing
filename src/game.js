@@ -567,6 +567,14 @@ function doAudience(nodeId){
       gainXp('zhulu', 60);
       log(`🕯️ 谒见${d.name}：${d.form || d.note || '神祇入录'}`, 'gold', 'skill');
       UI && UI.toast(`🕯️ 谒见 ${d.name}`);
+      // 神祇之兆：「天神（槐江）见则其邑有兵」——初见神祇即应兆。
+      // 比对前先去掉括注（神祇名为「（天神）」、兆名为「天神（槐江）」），
+      // 且只认「兆名以该神名开头」的条目，免得钟山谒见误触鼓/钦䲹的化鸟之兆
+      // （那两条由击杀鵕鸟 / 大鹗触发）。
+      const clean = s => String(s || '').replace(/[（）()]/g, '');
+      const me = clean(d.name);
+      const hit = Object.keys(OMENS).find(k => OMENS[k].node === nodeId && clean(OMENS[k].beast).indexOf(me) === 0);
+      if (hit) activateOmen(hit);
     }
   }
   gainXp('jisi', 200 + (n ? n.unlockLevel*4 : 0));

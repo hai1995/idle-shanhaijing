@@ -1121,6 +1121,19 @@ const FAUNA_META = {
   '当康':    { id:'ds_dangkang',el:'金', drop:'ds_dangkang_r' },
   '合窳':    { id:'ds_hey',     el:'土', drop:'ds_hey_r', man:true },
   '蜚':      { id:'ds_fei',     el:'木', drop:'ds_fei_r' },
+
+  // ===== 补：四只「有兆无兽」的异兽 =====
+  // 这四座山的原文都写明「见则 X」，征兆表（OMENS）早已生成，但异兽本身没有实体，
+  // 而征兆靠「首次著录该兽」触发（recordObject → Monsters[id].omen），
+  // 于是这 4 条征兆永远收集不到（42 条里死 4 条）。这里补上实体，征兆随之复活。
+  '山𤟤':  { id:'shanhui',  el:'土', drop:'shoupi',  py:'shān huī',
+              note:'其状如犬而人面，见则天下大风——北山「大风」之兆由此兽而起' },
+  '酸与':  { id:'suanyu',   el:'火', drop:'niaoyu',  py:'suān yǔ',
+              note:'其状如蛇而四翼、六目、三足，见则其邑有恐' },
+  '（未名鸟）': { id:'xiaomian', el:'火', drop:'niaoyu', display:'鸮面鸟',
+              note:'其状如鸮而人面，蜼身犬尾，见则其邑大旱（原文未载其名，姑以形称之）' },
+  '（未名兽）': { id:'kuafushou', el:'木', drop:'shoupi', display:'彘毛兽',
+              note:'其状如夸父而彘毛，见则天下大水（原文未载其名）' },
 };
 
 // 东山经异兽掉落物（自研；形态/效果以原文为准，数值与节点等次挂钩）
@@ -1197,7 +1210,7 @@ function addMonster(m){ Monsters[m.id] = m; }
         if (meta.riteDrop) loot.push([meta.riteDrop, 0.6, 1]);       // 祠牲（牛羊豕）
         if (meta.hunt) loot.push(['xi', 0.25, 1]);                   // 可猎之兽兼得祭「牺」
         addMonster({
-          id, name: f.name, py: (Items[meta.drop]||{}).py || meta.py || '',
+          id, name: meta.display || f.name, faunaName: f.name, py: (Items[meta.drop]||{}).py || meta.py || '',
           el: meta.el, nodeId: node.id, regionId: region.regionId,
           needLvl: node.unlockLevel, hazardNode: !!node.hazard,
           hp: st.hp, atk: st.atk, def: st.def, xp: st.xp,
@@ -1268,6 +1281,32 @@ function addMonster(m){ Monsters[m.id] = m; }
       }
     }
   }
+})();
+
+// ---------- 征兆挂接：让「见则 X」的征兆真正挂到异兽身上 ----------
+// 征兆触发链路是 recordObject(怪id) → Monsters[id].omen → activateOmen(key)。
+// 但 OMENS 的 key 早期由手写 IDS 表给出（'zhi' / 'taohuang' / 'fei' …），后来
+// 东山、北山异兽 id 统一加了 ds_ 前缀或按同名加了序号，两套命名脱节——42 条征兆里
+// 有 20 条挂在一个并不存在的 id 上，玩家永远收集不到。
+// 修法不猜 key：以「同节点 + 同异兽名」反查实体（同名异兽分处两经，「北山肥遗」
+// 与「西山肥遗」只能靠节点区分）。已有正确 omen 的（文鳐鱼、鵕鸟、大鹗）不覆盖。
+// ⚠️ 观瑞（凤皇 / 鹓雏）与谒见神祇不走此路，由各自流程显式触发。
+(function linkOmens(){
+  const norm = s => String(s || '').replace(/（[^）]*）/g, '').trim();
+  const ALIAS = {
+    '（鸮面人面鸟）': '（未名鸟）', '（夸父状彘毛之兽）': '（未名兽）',
+    '鵕鸟（鼓所化）': '鵕鸟', '大鹗（钦䲹所化）': '大鹗',
+  };
+  const byNodeName = {};
+  Object.values(Monsters).forEach(m => { byNodeName[m.nodeId + '|' + (m.faunaName || m.name)] = m; });
+  let linked = 0;
+  for (const [key, o] of Object.entries(OMENS)){
+    if (!o.node || !o.beast) continue;
+    const want = ALIAS[o.beast] || o.beast;
+    const m = byNodeName[o.node + '|' + want] || byNodeName[o.node + '|' + norm(want)];
+    if (m && !m.omen){ m.omen = key; linked++; }
+  }
+  if (typeof window !== 'undefined') window._omenLinks = linked;
 })();
 
 // ---------- 六凶 BOSS（后羿所诛六凶 + 刑天） ----------
