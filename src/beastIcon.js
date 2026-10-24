@@ -336,14 +336,18 @@ const HANDDRAWN = {
     <circle cx="28" cy="12" r="1.2" fill="var(--paper-3)"/><circle cx="32" cy="12" r="1.2" fill="var(--paper-3)"/>
     <circle cx="38" cy="18" r="1.2" fill="var(--paper-3)"/><circle cx="42" cy="18" r="1.2" fill="var(--paper-3)"/>
     ${legs([22,30,38,44],40,52,3.6)}`,
-  // 虎蛟：鱼身蛇尾，虎纹
+  // 虎蛟：虎首鱼身、蛇尾而虎纹
   hujiao: a => `
-    <path d="M44 32 Q54 30 57 40 Q58 45 55 43 Q52 41 51 35 Q50 33 45 33 Z"/>
-    <path d="M8 33 Q14 22 26 21 Q38 20 43 33 Q38 46 26 45 Q14 44 8 33 Z"/>
-    <path d="M40 33 L58 25 L55 33 L58 41 Z"/>
-    <path d="M16 24 L18 30 M22 22 L24 30 M28 22 L30 30 M34 23 L36 31 M16 38 L18 33 M22 40 L24 34 M28 40 L30 34 M34 39 L36 33" stroke="${a}" stroke-width="2" stroke-linecap="round"/>
-    <circle cx="14" cy="30" r="1.6" fill="var(--paper-3)"/>
-    <path d="M12 27 L6 25 L12 23 Z" fill="${a}"/>`,
+    <path d="M42 33 Q52 34 55 27 Q57 21 53 24 Q51 28 48 32 Q45 35 41 34 Z"/>
+    <path d="M8 33 Q13 23 25 22 Q36 21 42 33 Q36 45 25 44 Q13 43 8 33 Z"/>
+    <path d="M23 22 L26 14 L31 22 Z" fill="${a}"/>
+    <path d="M23 44 L26 51 L31 44 Z" fill="${a}"/>
+    <circle cx="15" cy="31" r="7.8"/>
+    <path d="M10 26 L7 18 L15 23 Z"/><path d="M20 25 L25 18 L27 26 Z"/>
+    <path d="M12 24 L12 29 M16 24 L16 29 M10 27 L18 27" stroke="${a}" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M24 25 L25 32 M29 24 L30 32 M34 25 L35 33 M24 40 L25 34 M29 41 L30 34 M34 40 L35 34" stroke="${a}" stroke-width="1.8" stroke-linecap="round"/>
+    <circle cx="12" cy="30" r="1.5" fill="var(--paper-3)"/>
+    <path d="M9 34 L4 33 L9 36 Z" fill="${a}"/>`,
   // 蛮蛮：一翼一目，比翼而飞（单只侧像）
   manman: a => `
     <path d="M26 28 Q14 14 4 18 Q12 26 16 30 Q21 33 26 32 Z" fill="${a}" opacity=".9"/>
@@ -363,16 +367,22 @@ const HANDDRAWN = {
     <path d="M13 16 Q10 9 16 11 Q14 13 16 16 Z M21 16 Q24 9 18 11 Q20 13 18 16 Z" fill="${a}"/>
     <path d="M27 38 L26 48 M34 38 L35 48" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
     ${eye(15,21)}`,
-  // 长右：其状如禺，四耳
+  // 长右：其状如禺，四耳（两对圆耳分列头侧）
   changyou: a => `
-    <circle cx="32" cy="13" r="6.4"/>
-    <ellipse cx="32" cy="15" rx="4.2" ry="3.4" fill="var(--paper-3)" opacity=".3"/>
-    <path d="M25 20 Q32 18 39 20 L42 36 L22 36 Z"/>
-    <path d="M25 22 Q18 28 20 36 M39 22 Q46 28 44 36" stroke="currentColor" stroke-width="4.4" fill="none" stroke-linecap="round"/>
-    <path d="M27 36 L26 50 M37 36 L38 50" stroke="currentColor" stroke-width="4.8" stroke-linecap="round"/>
-    <ellipse cx="24" cy="8" rx="2.6" ry="3.4"/><ellipse cx="40" cy="8" rx="2.6" ry="3.4"/>
-    <ellipse cx="26" cy="17" rx="2.4" ry="3"/><ellipse cx="38" cy="17" rx="2.4" ry="3"/>
-    ${eye(29.5,12)}${eye(34.5,12)}`,
+    <ellipse cx="23" cy="9" rx="3.4" ry="4.2"/><ellipse cx="41" cy="9" rx="3.4" ry="4.2"/>
+    <ellipse cx="20" cy="18" rx="3.6" ry="4.4"/><ellipse cx="44" cy="18" rx="3.6" ry="4.4"/>
+    <ellipse cx="23" cy="9.5" rx="1.4" ry="1.9" fill="${a}" opacity=".8"/>
+    <ellipse cx="41" cy="9.5" rx="1.4" ry="1.9" fill="${a}" opacity=".8"/>
+    <ellipse cx="20.5" cy="18" rx="1.5" ry="2" fill="${a}" opacity=".8"/>
+    <ellipse cx="43.5" cy="18" rx="1.5" ry="2" fill="${a}" opacity=".8"/>
+    <circle cx="32" cy="15" r="7.8"/>
+    <ellipse cx="32" cy="16.5" rx="5" ry="4.8" fill="var(--paper-3)" opacity=".9"/>
+    <circle cx="30" cy="15" r="1.3" fill="currentColor"/><circle cx="34" cy="15" r="1.3" fill="currentColor"/>
+    <path d="M30 18.5 Q32 20 34 18.5" stroke="currentColor" stroke-width="1.2" fill="none"/>
+    <path d="M26 22 Q32 20 38 22 L41 37 L23 37 Z"/>
+    <path d="M26 24 Q19 30 21 37 M38 24 Q45 30 43 37" stroke="currentColor" stroke-width="4.2" fill="none" stroke-linecap="round"/>
+    <path d="M27 37 L26 51 M37 37 L38 51" stroke="currentColor" stroke-width="4.6" stroke-linecap="round"/>
+    <path d="M26 51 L23 54 M38 51 L41 54" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"/>`,
   // 猾褢：其状如人而长彘毛
   huahuai: a => `
     <circle cx="32" cy="13" r="6.4"/>
@@ -425,16 +435,16 @@ const HANDDRAWN = {
     <path d="M30 40 L30 52" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
     <path d="M25 52 L35 52" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
     ${eye(15,23)}`,
-  // 凿齿：人形兽，齿长三尺
+  // 凿齿：人形兽，齿长三尺（两枚獠牙垂下）
   zaochi: a => `
-    <circle cx="32" cy="14" r="7"/>
-    <path d="M25 20 Q32 18 39 20 L43 38 L21 38 Z"/>
-    <path d="M25 22 Q18 29 20 38 M39 22 Q46 29 44 38" stroke="currentColor" stroke-width="4.6" fill="none" stroke-linecap="round"/>
+    <circle cx="32" cy="14" r="7.4"/>
+    <ellipse cx="32" cy="15" rx="4.6" ry="4.6" fill="var(--paper-3)" opacity=".85"/>
+    <circle cx="29.5" cy="12.5" r="1.4" fill="currentColor"/><circle cx="34.5" cy="12.5" r="1.4" fill="currentColor"/>
+    <path d="M25 21 Q32 19 39 21 L43 38 L21 38 Z"/>
+    <path d="M25 23 Q18 30 20 38 M39 23 Q46 30 44 38" stroke="currentColor" stroke-width="4.6" fill="none" stroke-linecap="round"/>
     <path d="M27 38 L25 52 M37 38 L39 52" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
-    <path d="M25 22 L21 30 L24 32 M39 22 L43 30 L40 32" stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round"/>
-    <path d="M26 20 L24 27 L28 24 M38 20 L40 27 L36 24" fill="var(--paper-3)"/>
-    <circle cx="29" cy="12" r="1.5" fill="var(--paper-3)"/><circle cx="35" cy="12" r="1.5" fill="var(--paper-3)"/>
-    <path d="M32 18 L32 24" stroke="${a}" stroke-width="2"/>`,
+    <path d="M25 52 L22 55 M39 52 L42 55" stroke="currentColor" stroke-width="3.4" fill="none" stroke-linecap="round"/>
+    <path d="M29 19 L28 27 L31.5 21 Z M35 19 L36 27 L32.5 21 Z" fill="${a}"/>`,
   // 九婴：九头，能喷水吐火
   jiuying: a => `
     <ellipse cx="32" cy="40" rx="15" ry="9"/>
@@ -551,15 +561,15 @@ const HANDDRAWN = {
     ${eye(7,19)}`,
   // 鼓：其状如人面而龙身（钟山之子）
   gu: a => `
-    <path d="M18 30 Q10 34 8 44 Q7 52 12 54 Q18 55 22 50 Q26 44 24 36 Z"/>
-    <path d="M22 34 Q34 30 46 34 Q54 37 56 46 Q57 54 50 56 Q42 57 36 52 Q28 46 24 40 Z"/>
-    <path d="M24 32 L28 26 M32 30 L36 24 M40 32 L44 27" stroke="${a}" stroke-width="2.4" stroke-linecap="round"/>
-    <path d="M12 46 Q16 48 20 46 M30 50 Q36 52 42 50 M44 42 Q48 44 52 42" stroke="${a}" stroke-width="2" fill="none" stroke-linecap="round"/>
-    <circle cx="26" cy="22" r="8.4"/>
-    <ellipse cx="26" cy="23" rx="5.6" ry="6.2" fill="var(--paper-3)"/>
-    <circle cx="24" cy="21" r="1.4" fill="currentColor"/><circle cx="28.4" cy="21" r="1.4" fill="currentColor"/>
-    <path d="M23 26 Q26 29 29 26" stroke="currentColor" stroke-width="1.6" fill="none"/>
-    <path d="M18 15 Q14 8 21 10 Q19 12 21 16 Z" fill="${a}"/>`,
+    <path d="M20 22 Q13 30 17 40 Q22 50 34 52 Q47 54 51 43 Q54 34 46 32"
+          fill="none" stroke="currentColor" stroke-width="9.5" stroke-linecap="round"/>
+    <path d="M15 34 L10 36 M19 44 L14 46 M30 52 L29 57 M42 53 L43 57" stroke="${a}" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M20 40 L16 43 M45 53 L44 57" stroke="${a}" stroke-width="2.2" stroke-linecap="round"/>
+    <circle cx="20" cy="14" r="8.6"/>
+    <ellipse cx="20" cy="15" rx="5.6" ry="6.2" fill="var(--paper-3)"/>
+    <circle cx="18" cy="13" r="1.4" fill="currentColor"/><circle cx="22.5" cy="13" r="1.4" fill="currentColor"/>
+    <path d="M18 18 Q20 20 22.5 18" stroke="currentColor" stroke-width="1.4" fill="none"/>
+    <path d="M14 7 Q10 2 17 4 Q15 6 17 8 Z" fill="${a}"/>`,
   // 钦䲹：化为大鹗前的神禽（雕身人面）
   qinfu: a => `
     <path d="M40 28 L58 20 L54 28 L59 34 L50 35 L52 44 L42 37 Z"/>

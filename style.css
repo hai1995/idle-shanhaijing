@@ -846,6 +846,8 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
 .tile-ic.bi-ic{ width:44px; height:44px; display:inline-flex; align-items:center; justify-content:center;
   margin:-1px 0 -2px; }
 .tile-ic.bi-ic svg.bi{ width:100%; height:100%; }
+/* 绘形图标：兽体走 currentColor（昼墨夜白），与纸墨主题同步；特征件仍取五行色 */
+svg.bi{ fill:currentColor; color:var(--ink); }
 .tile-nm{
   font-size:12px; color:var(--ink); max-width:100%;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap;

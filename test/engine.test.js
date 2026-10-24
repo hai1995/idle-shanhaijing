@@ -578,6 +578,13 @@ assert(typeof ST.beastIcon === 'function' && typeof ST.parseForm === 'function',
   // 人形躯干含头部圆（circle），兽形四足不含裸露的独立头部圆——抽查不报错即可
   assert(ST.beastIcon({ id:'qitong', name:'耆童' }).length > 300, '神祇立像非空壳');
 })();
+// 兽体填色走 currentColor（昼墨夜白）——夜间纸底极暗，若退回默认黑则图标隐没
+(function(){
+  const css = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
+  assert(/svg\.bi\{\s*fill:currentColor/.test(css), '图标杆体用 currentColor 填色（夜间可见）');
+  const svg = ST.beastIcon({ id:'hujiao', name:'虎蛟' });
+  assert(!/fill="#0{3,6}"/.test(svg), '图标不硬编码黑色填色（交由 CSS 主题接管）');
+})();
 
 // ============ 16. UI 渲染冒烟 ============
 section('UI 渲染冒烟');
