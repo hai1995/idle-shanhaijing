@@ -35,7 +35,7 @@ const ctx = {
 };
 ctx.window.UI = UIstub;
 vm.createContext(ctx);
-for (const f of ['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js',
+for (const f of ['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','zhongshanData.js',
   'gameData.js','engine.js','game.js','queue.js','interact.js','fx.js']){
   vm.runInContext(fs.readFileSync(path.join(root, 'src', f), 'utf8'), ctx, { filename: f });
 }
