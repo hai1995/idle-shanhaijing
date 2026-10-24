@@ -24,7 +24,8 @@ function bandMap(lv){
   if (lv <= 275) return Math.max(27, Math.min(42, Math.round(27 + (lv - 78) * 15 / 197))); // 西山
   if (lv <= 529) return Math.max(43, Math.min(56, Math.round(43 + (lv - 280) * 13 / 249)));// 北山
   if (lv <= 690) return Math.max(57, Math.min(68, Math.round(57 + (lv - 535) * 11 / 155)));// 东山
-  return Math.max(69, Math.min(81, Math.round(69 + (lv - 691) * 12 / 159)));               // 中山
+  if (lv <= 749) return Math.max(69, Math.min(81, Math.round(69 + (lv - 691) * 12 / 159)));// 中山前三系（已上线，斜率固定）
+  return Math.max(74, Math.min(81, Math.round(74 + (lv - 750) * 7 / 210)));                // 中山后九系 750–960 → 74–81
 }
 
 function derive(jsonFile, outFile, opts) {

@@ -10,7 +10,7 @@ window.ZHONGSHAN = {
     "数据范围": "中山经 十二系（中次一经15 / 中次二经9 / 中次三经5 / 中次四经9 / 中次五经16 / 中次六经14 / 中次七经19 / 中次八经23 / 中次九经16 / 中次十经9 / 中次十一经48 / 中次十二经15，全书自述 197 山 21371 里）",
     "用途": "世界地图与资源节点数据源，结构与前四份文件完全一致，可直接合并",
     "原文底本": "以中华书局点校本《山海经校注》（袁珂）为准，参校维基文库《山海经·中山经》、识典古籍 SBCK099（中山经第五）",
-    "本轮填充范围": "★中次一经、中次二经、中次三经三系共 29 山完整入录（原文、异兽、征兆、产出俱全）；中次四经至中次十二经九系先立 region 框架（山名、里程、祠礼、山神俱全，nodes 待后续逐系补录）",
+    "本轮填充范围": "★中次一经、中次二经、中次三经、中次四经四系共 38 山完整入录（原文、异兽、产出俱全）；中次五经至中次十二经八系先立 region 框架（山名、里程、祠礼、山神俱全，nodes 待后续逐系补录）",
     "版本差异说明": "中次十一经系末自述，识典本作「凡四十八山，三千七百三十二里」，维基文库/袁珂本作「凡四十六山」；全书总结「百九十七山」各本一致。山数统计暂以所据底本自述为准， nodes 补录时复核",
     "统计说明": "中山经是五藏山经中神祇与氏族记载最密的一部：十二系各有祠礼，多系末明言「冢也」（宗主山）与「帝也」（帝冢）；著名异兽密集（朏朏、旋龟、夫诸、马腹、化蛇、鸣蛇、雍和、跂踵、闻𧲂、狙如、梁渠、帝女之桑、洞庭帝之二女等）",
     "字段说明": {
@@ -35,7 +35,8 @@ window.ZHONGSHAN = {
       "异木条目": 15,
       "神祇": "熏池、武罗、泰逢、骄虫、天愚、𬠷围、计蒙、涉𬠷、于儿、耕父等"
     },
-    "授权状态": "《山海经》原文已进入公有领域，可自由引用、改编、再创作。本文件所录均为古籍原文，不含任何当代作品内容。"
+    "授权状态": "《山海经》原文已进入公有领域，可自由引用、改编、再创作。本文件所录均为古籍原文，不含任何当代作品内容。",
+    "等级重排": "前三系（中次一至三经 29 山）raw 691–749 → 69–73 斜率固定；后九系 raw 753–945 → 74–81 单独斜率（gen-world-data.js bandMap 两段式），保证已上线内容不变"
   },
   "regions": [
     {
@@ -928,7 +929,7 @@ window.ZHONGSHAN = {
       "regionAlias": "厘山",
       "order": 18,
       "unlockLevel": 74,
-      "summary": "凡厘山之首，自鹿蹄之山至于玄扈之山，凡九山，千六百七十里。其神状皆人面兽身。其祠之毛，用一白鸡，祈而不糈，以彩衣之。",
+      "summary": "凡厘山之首，自鹿蹄之山至于玄扈之山，凡九山，千六百七十里。其神状皆人面兽身。其祠之，毛用一白鸡，祈而不糈，以彩衣之。",
       "deity": {
         "form": "其神状皆人面兽身。其祠之毛，用一白鸡，祈而不糈，以彩衣之",
         "rite": {
@@ -937,9 +938,202 @@ window.ZHONGSHAN = {
           "原文": "凡厘山之首，自鹿蹄之山至于玄扈之山，凡九山，千六百七十里。其神状皆人面兽身。其祠之毛，用一白鸡，祈而不糈，以彩衣之。"
         }
       },
-      "requirement": "nodes 待补录（鹿蹄/扶猪/厘/箕尾/柄/白边/熊耳/牡/𬤰举九山）",
+      "requirement": "中次四经厘山九山已入录（2026-10-24 补录）",
       "legs": [],
-      "nodes": [],
+      "nodes": [
+        {
+          "id": "zhongshan-4-01",
+          "name": "鹿蹄之山",
+          "chapter": "中山经·中次四经",
+          "unlockLevel": 74,
+          "terrain": "甘水出焉，而北流注于洛",
+          "yields": {
+            "mineral": [
+              "玉",
+              "金",
+              "泠石"
+            ]
+          },
+          "source": "中次四经厘山之首，曰鹿蹄之山，其上多玉，其下多金。甘水出焉，而北流注于洛，其中多泠石。",
+          "dataUnlockLevel": 753
+        },
+        {
+          "id": "zhongshan-4-02",
+          "name": "扶猪之山",
+          "chapter": "中山经·中次四经",
+          "unlockLevel": 74,
+          "terrain": "虢水出焉，而北流注于洛",
+          "yields": {
+            "mineral": [
+              "碝石"
+            ]
+          },
+          "fauna": [
+            {
+              "name": "䴦",
+              "form": "其状如貉而人目",
+              "category": "兽"
+            }
+          ],
+          "source": "西五十里，曰扶猪之山，其上多碝石。有兽焉，其状如貉而人目，其名曰䴦。虢水出焉，而北流注于洛，其中多碝石。",
+          "dataUnlockLevel": 756
+        },
+        {
+          "id": "zhongshan-4-03",
+          "name": "厘山",
+          "chapter": "中山经·中次四经",
+          "unlockLevel": 74,
+          "terrain": "滽滽之水出焉，而南流注于伊水",
+          "yields": {
+            "mineral": [
+              "玉"
+            ],
+            "herb": [
+              "蒐"
+            ]
+          },
+          "fauna": [
+            {
+              "name": "犀渠",
+              "form": "其状如牛，苍身",
+              "sound": "其音如婴儿",
+              "effect": "是食人",
+              "hazard": true,
+              "category": "兽"
+            },
+            {
+              "name": "𤢺",
+              "form": "其状如獳犬而有鳞，其毛如彘鬣",
+              "category": "兽"
+            }
+          ],
+          "source": "又西一百二十里，曰厘山，其阳多玉，其阴多蒐。有兽焉，其状如牛，苍身，其音如婴儿，是食人，其名曰犀渠。滽滽之水出焉，而南流注于伊水。有兽焉，名曰𤢺，其状如獳犬而有鳞，其毛如彘鬣。",
+          "dataUnlockLevel": 758
+        },
+        {
+          "id": "zhongshan-4-04",
+          "name": "箕尾之山",
+          "chapter": "中山经·中次四经",
+          "unlockLevel": 74,
+          "yields": {
+            "wood": [
+              "楮"
+            ],
+            "mineral": [
+              "涂石",
+              "㻬琈之玉"
+            ]
+          },
+          "source": "又西二百里，曰箕尾之山，多楮，多涂石，其上多㻬琈之玉。",
+          "dataUnlockLevel": 761
+        },
+        {
+          "id": "zhongshan-4-05",
+          "name": "柄山",
+          "chapter": "中山经·中次四经",
+          "unlockLevel": 74,
+          "terrain": "滔雕之水出焉，而北流注于洛",
+          "yields": {
+            "mineral": [
+              "玉",
+              "铜"
+            ],
+            "wood": [
+              "茇"
+            ]
+          },
+          "fauna": [
+            {
+              "name": "羬羊",
+              "category": "兽"
+            }
+          ],
+          "source": "又西二百五十里，曰柄山，其上多玉，其下多铜。滔雕之水出焉，而北流注于洛。其中多羬羊。有木焉，其状如樗，其叶如桐而荚实，其名曰茇，可以毒鱼。",
+          "dataUnlockLevel": 764
+        },
+        {
+          "id": "zhongshan-4-06",
+          "name": "白边之山",
+          "chapter": "中山经·中次四经",
+          "unlockLevel": 75,
+          "yields": {
+            "mineral": [
+              "金",
+              "玉",
+              "青雄黄"
+            ]
+          },
+          "source": "又西二百里，曰白边之山，其上多金玉，其下多青雄黄。",
+          "dataUnlockLevel": 767
+        },
+        {
+          "id": "zhongshan-4-07",
+          "name": "熊耳之山",
+          "chapter": "中山经·中次四经",
+          "unlockLevel": 75,
+          "terrain": "浮濠之水出焉，而西流注于洛",
+          "yields": {
+            "wood": [
+              "漆",
+              "棕"
+            ],
+            "mineral": [
+              "水玉"
+            ],
+            "herb": [
+              "葶苎"
+            ]
+          },
+          "fauna": [
+            {
+              "name": "人鱼",
+              "category": "水族"
+            }
+          ],
+          "source": "又西二百里，曰熊耳之山，其上多漆，其下多棕。浮濠之水出焉，而西流注于洛，其中多水玉，多人鱼。有草焉，其状如苏而赤华，名曰葶苎，可以毒鱼。",
+          "dataUnlockLevel": 770
+        },
+        {
+          "id": "zhongshan-4-08",
+          "name": "牡山",
+          "chapter": "中山经·中次四经",
+          "unlockLevel": 75,
+          "yields": {
+            "mineral": [
+              "文石"
+            ],
+            "wood": [
+              "竹箭",
+              "竹䉋"
+            ]
+          },
+          "fauna": [
+            {
+              "name": "㸲牛",
+              "category": "兽"
+            },
+            {
+              "name": "羬羊",
+              "category": "兽"
+            },
+            {
+              "name": "赤鷩",
+              "category": "鸟"
+            }
+          ],
+          "source": "又西三百里，曰牡山，其上多文石，其下多竹箭、竹䉋。其兽多㸲牛、羬羊，鸟多赤鷩。",
+          "dataUnlockLevel": 772
+        },
+        {
+          "id": "zhongshan-4-09",
+          "name": "𬤰举之山",
+          "chapter": "中山经·中次四经",
+          "unlockLevel": 75,
+          "terrain": "雒水出焉，而东北流注于玄扈之水",
+          "source": "又西三百五十里，曰𬤰举之山，雒水出焉，而东北流注于玄扈之水，其中多马肠之物。此二山者，洛间也。",
+          "dataUnlockLevel": 775
+        }
+      ],
       "dataUnlockLevel": 753
     },
     {
@@ -947,7 +1141,7 @@ window.ZHONGSHAN = {
       "regionName": "中次五经",
       "regionAlias": "薄山",
       "order": 19,
-      "unlockLevel": 74,
+      "unlockLevel": 75,
       "summary": "凡薄山之首，自苟林之山至于阳虚之山，凡十六山，二千九百八十二里。升山，冢也；首山，䰠也；尸水，合天也。",
       "deity": {
         "form": "升山冢也，其祠礼太牢，婴用吉玉；首山䰠也，其祠用稌、黑牺、大牢之具，蘖酿，干舞置鼓，婴用一璧；尸水合天也，肥牲祠之",
@@ -958,14 +1152,14 @@ window.ZHONGSHAN = {
       "requirement": "nodes 待补录（苟床/首/县𣃁/葱聋/条谷/超/成侯/朝歌/槐/历/尸/良余/蛊尾/升/阳虚十六山）",
       "legs": [],
       "nodes": [],
-      "dataUnlockLevel": 759
+      "dataUnlockLevel": 777
     },
     {
       "regionId": "zhongshan-6",
       "regionName": "中次六经",
       "regionAlias": "缟羝山",
       "order": 20,
-      "unlockLevel": 75,
+      "unlockLevel": 76,
       "summary": "凡缟羝山之首，自平逢之山至于阳华之山，凡十四山，七百九十里。岳在其中，以六月祭之，如诸岳之祠法，则天下安宁。",
       "deity": {
         "form": "平逢之山有神焉，名曰骄虫，其状如人而二首，是为螫虫，实惟蜂蜜之庐；用一雄鸡，禳而勿杀",
@@ -976,14 +1170,14 @@ window.ZHONGSHAN = {
       "requirement": "nodes 待补录（平逢/缟羝/廆/瞻诸/娄涿/白石/榖/密/长石/传/橐/常烝/夸父/阳华十四山；密山多旋龟）",
       "legs": [],
       "nodes": [],
-      "dataUnlockLevel": 767
+      "dataUnlockLevel": 801
     },
     {
       "regionId": "zhongshan-7",
       "regionName": "中次七经",
       "regionAlias": "苦山",
       "order": 21,
-      "unlockLevel": 75,
+      "unlockLevel": 77,
       "summary": "凡苦山之首，自休与之山至于大騩之山，凡十有九山，千一百八十四里。其十六神者，皆豕身而人面。苦山、少室、太室，皆冢也。",
       "deity": {
         "form": "其十六神者，皆豕身而人面；苦山、少室、太室皆冢也，太牢之具，婴以吉玉；堵山神天愚居之，是多怪风雨",
@@ -994,14 +1188,14 @@ window.ZHONGSHAN = {
       "requirement": "nodes 待补录（休与/鼓钟/姑媱/苦/堵/放皋/大𩇵/半石/少室/泰室/讲/婴梁/浮戏/少陉/太/末/役/敏/大騩十九山）",
       "legs": [],
       "nodes": [],
-      "dataUnlockLevel": 777
+      "dataUnlockLevel": 825
     },
     {
       "regionId": "zhongshan-8",
       "regionName": "中次八经",
       "regionAlias": "荆山",
       "order": 22,
-      "unlockLevel": 76,
+      "unlockLevel": 77,
       "summary": "凡荆山之首，自景山至琴鼓之山，凡二十三山，二千八百九十里。其神状皆鸟身而人面。骄山，冢也。",
       "deity": {
         "form": "其神状皆鸟身而人面；骄山神𬠷围（人面羊角虎爪，恒游于睢漳之渊，出入有光）、光山神计蒙（人身龙首，出入必有飘风暴雨）、岐山神涉𬠷（人身而方面三足）",
@@ -1012,14 +1206,14 @@ window.ZHONGSHAN = {
       "requirement": "nodes 待补录（景/荆/骄/女几/宜诸/纶/陆䣀/光/岐/铜/美/大尧/灵/龙/衡/石/若/彘/玉/𬤰/仁举/师每/琴鼓二十三山）",
       "legs": [],
       "nodes": [],
-      "dataUnlockLevel": 789
+      "dataUnlockLevel": 849
     },
     {
       "regionId": "zhongshan-9",
       "regionName": "中次九经",
       "regionAlias": "岷山",
       "order": 23,
-      "unlockLevel": 77,
+      "unlockLevel": 78,
       "summary": "凡岷山之首，自女几山至于贾超之山，凡十六山，三千五百里。其神状皆马身而龙首。文山、勾、檷、风雨丑之山，是皆冢也；熊山，席也。",
       "deity": {
         "form": "其神状皆马身而龙首；冢者羞酒少牢具，婴毛一吉玉；熊山席也，羞酒大牢具，婴毛一璧，干舞，用兵以禳祈",
@@ -1030,14 +1224,14 @@ window.ZHONGSHAN = {
       "requirement": "nodes 待补录（女几/岷/崃/崌/高梁/蛇/鬲/隅阳/岐/勾檷/风雨/玉/熊/騩/葛/贾超十六山）",
       "legs": [],
       "nodes": [],
-      "dataUnlockLevel": 803
+      "dataUnlockLevel": 873
     },
     {
       "regionId": "zhongshan-10",
       "regionName": "中次十经",
       "regionAlias": "首阳山",
       "order": 24,
-      "unlockLevel": 78,
+      "unlockLevel": 79,
       "summary": "凡首阳山之首，自首山至于丙山，凡九山，二百六十七里。其神状皆龙身而人面。堵山，冢也；騩山，帝也。",
       "deity": {
         "form": "其神状皆龙身而人面；堵山冢也，少牢具，羞酒祠，婴毛一璧瘗；騩山帝也，羞酒太牢，合巫祝二人舞，婴一璧",
@@ -1048,14 +1242,14 @@ window.ZHONGSHAN = {
       "requirement": "nodes 待补录（首阳/虎尾/繁缋/勇石/复州/楮/又原/涿/丙九山；复州多跂踵）",
       "legs": [],
       "nodes": [],
-      "dataUnlockLevel": 813
+      "dataUnlockLevel": 897
     },
     {
       "regionId": "zhongshan-11",
       "regionName": "中次十一经",
       "regionAlias": "荆山",
       "order": 25,
-      "unlockLevel": 79,
+      "unlockLevel": 80,
       "summary": "凡荆山之首，自翼望之山至于几山，凡四十八山（识典本；维基文库/袁珂本作四十六山），三千七百三十二里。其神状皆彘身人首。禾山，帝也；堵山、玉山，冢也。",
       "deity": {
         "form": "其神状皆彘身人首；禾山帝也，太牢之具，羞瘗倒毛，用一璧；堵山、玉山冢也，皆倒祠，羞毛少牢，婴毛吉玉",
@@ -1066,14 +1260,14 @@ window.ZHONGSHAN = {
       "requirement": "nodes 待补录（翼望至几山，全书最长一系；宣山帝女之桑、鲜山𤝻即、倚帝狙如）",
       "legs": [],
       "nodes": [],
-      "dataUnlockLevel": 823
+      "dataUnlockLevel": 921
     },
     {
       "regionId": "zhongshan-12",
       "regionName": "中次十二经",
       "regionAlias": "洞庭山",
       "order": 26,
-      "unlockLevel": 80,
+      "unlockLevel": 81,
       "summary": "凡洞庭山之首，自篇遇之山至于荣余之山，凡十五山，二千八百里。其神状皆鸟身而龙首。洞庭、荣余山，神也。",
       "deity": {
         "form": "其神状皆鸟身而龙首；夫夫之山神于儿（人身而身操两蛇，常游于江渊，出入有光）；帝之二女居洞庭之山，出入必以飘风暴雨",
@@ -1084,7 +1278,7 @@ window.ZHONGSHAN = {
       "requirement": "nodes 待补录（篇遇至荣余十五山；全书收卷之系——帝之二女与九江风涛）",
       "legs": [],
       "nodes": [],
-      "dataUnlockLevel": 841
+      "dataUnlockLevel": 945
     }
   ]
 };
