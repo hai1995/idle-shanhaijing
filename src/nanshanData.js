@@ -375,7 +375,7 @@ window.NANSHAN = {
           "id": "nanshan-1-05",
           "name": "柢山",
           "chapter": "南山经·南山首经",
-          "unlockLevel": 4,
+          "unlockLevel": 3,
           "terrain": "多水，无草木",
           "yields": {},
           "fauna": [
@@ -398,7 +398,7 @@ window.NANSHAN = {
           "id": "nanshan-1-06",
           "name": "亶爰之山",
           "chapter": "南山经·南山首经",
-          "unlockLevel": 5,
+          "unlockLevel": 4,
           "terrain": "多水，无草木",
           "yields": {},
           "fauna": [
@@ -423,7 +423,7 @@ window.NANSHAN = {
           "id": "nanshan-1-07",
           "name": "基山",
           "chapter": "南山经·南山首经",
-          "unlockLevel": 6,
+          "unlockLevel": 5,
           "terrain": "其阳多玉，其阴多怪木",
           "yields": {
             "mineral": [
@@ -460,7 +460,7 @@ window.NANSHAN = {
           "id": "nanshan-1-08",
           "name": "青丘之山",
           "chapter": "南山经·南山首经",
-          "unlockLevel": 7,
+          "unlockLevel": 6,
           "terrain": "其阳多玉，其阴多青雘",
           "yields": {
             "mineral": [
@@ -508,7 +508,7 @@ window.NANSHAN = {
           "id": "nanshan-1-09",
           "name": "箕尾之山",
           "chapter": "南山经·南山首经",
-          "unlockLevel": 8,
+          "unlockLevel": 7,
           "terrain": "其㟬多沙石",
           "yields": {
             "mineral": [
@@ -533,7 +533,7 @@ window.NANSHAN = {
       "regionName": "南次二经",
       "regionAlias": null,
       "order": 2,
-      "unlockLevel": 9,
+      "unlockLevel": 7,
       "summary": "南次二经之首，曰柜山，西临流黄，北望诸𣲗，东望长右。凡南次二经之首，自柜山至于漆吴之山，凡十七山，七千二百里。",
       "deity": {
         "form": "其神状皆龙身而鸟首",
@@ -691,7 +691,7 @@ window.NANSHAN = {
           "id": "nanshan-2-01",
           "name": "柜山",
           "chapter": "南山经·南次二经",
-          "unlockLevel": 9,
+          "unlockLevel": 7,
           "terrain": "西临流黄，北望诸𣲗，东望长右",
           "yields": {
             "mineral": [
@@ -740,7 +740,7 @@ window.NANSHAN = {
           "id": "nanshan-2-02",
           "name": "长右之山",
           "chapter": "南山经·南次二经",
-          "unlockLevel": 10,
+          "unlockLevel": 8,
           "terrain": "无草木，多水",
           "yields": {},
           "fauna": [
@@ -768,7 +768,7 @@ window.NANSHAN = {
           "id": "nanshan-2-03",
           "name": "尧光之山",
           "chapter": "南山经·南次二经",
-          "unlockLevel": 11,
+          "unlockLevel": 9,
           "terrain": "其阳多玉，其阴多金",
           "yields": {
             "mineral": [
@@ -801,7 +801,7 @@ window.NANSHAN = {
           "id": "nanshan-2-04",
           "name": "羽山",
           "chapter": "南山经·南次二经",
-          "unlockLevel": 11,
+          "unlockLevel": 9,
           "terrain": "其下多水，其上多雨，无草木",
           "yields": {},
           "fauna": [],
@@ -816,7 +816,7 @@ window.NANSHAN = {
           "id": "nanshan-2-05",
           "name": "瞿父之山",
           "chapter": "南山经·南次二经",
-          "unlockLevel": 12,
+          "unlockLevel": 10,
           "terrain": "无草木",
           "yields": {
             "mineral": [
@@ -834,7 +834,7 @@ window.NANSHAN = {
           "id": "nanshan-2-06",
           "name": "句余之山",
           "chapter": "南山经·南次二经",
-          "unlockLevel": 12,
+          "unlockLevel": 10,
           "terrain": "无草木",
           "yields": {
             "mineral": [
@@ -852,7 +852,7 @@ window.NANSHAN = {
           "id": "nanshan-2-07",
           "name": "浮玉之山",
           "chapter": "南山经·南次二经",
-          "unlockLevel": 13,
+          "unlockLevel": 11,
           "terrain": "北望具区，东望诸𣲗",
           "yields": {
             "water": [
@@ -883,7 +883,7 @@ window.NANSHAN = {
           "id": "nanshan-2-08",
           "name": "成山",
           "chapter": "南山经·南次二经",
-          "unlockLevel": 14,
+          "unlockLevel": 11,
           "terrain": "四方而三坛",
           "yields": {
             "mineral": [
@@ -905,7 +905,7 @@ window.NANSHAN = {
           "id": "nanshan-2-09",
           "name": "会稽之山",
           "chapter": "南山经·南次二经",
-          "unlockLevel": 15,
+          "unlockLevel": 12,
           "terrain": "四方",
           "yields": {
             "mineral": [
@@ -926,7 +926,7 @@ window.NANSHAN = {
           "id": "nanshan-2-10",
           "name": "夷山",
           "chapter": "南山经·南次二经",
-          "unlockLevel": 15,
+          "unlockLevel": 12,
           "terrain": "无草木",
           "yields": {
             "mineral": [
@@ -946,7 +946,7 @@ window.NANSHAN = {
           "id": "nanshan-2-11",
           "name": "仆勾之山",
           "chapter": "南山经·南次二经",
-          "unlockLevel": 16,
+          "unlockLevel": 13,
           "terrain": "其上多金玉，其下多草木",
           "yields": {
             "mineral": [
@@ -967,7 +967,7 @@ window.NANSHAN = {
           "id": "nanshan-2-12",
           "name": "咸阴之山",
           "chapter": "南山经·南次二经",
-          "unlockLevel": 16,
+          "unlockLevel": 13,
           "terrain": null,
           "yields": {},
           "fauna": [],
@@ -981,7 +981,7 @@ window.NANSHAN = {
           "id": "nanshan-2-13",
           "name": "洵山",
           "chapter": "南山经·南次二经",
-          "unlockLevel": 17,
+          "unlockLevel": 14,
           "terrain": "其阳多金，其阴多玉",
           "yields": {
             "mineral": [
@@ -1013,7 +1013,7 @@ window.NANSHAN = {
           "id": "nanshan-2-14",
           "name": "虖勺之山",
           "chapter": "南山经·南次二经",
-          "unlockLevel": 18,
+          "unlockLevel": 15,
           "terrain": null,
           "yields": {
             "wood": [
@@ -1036,7 +1036,7 @@ window.NANSHAN = {
           "id": "nanshan-2-15",
           "name": "区吴之山",
           "chapter": "南山经·南次二经",
-          "unlockLevel": 18,
+          "unlockLevel": 15,
           "terrain": "无草木",
           "yields": {
             "mineral": [
@@ -1056,7 +1056,7 @@ window.NANSHAN = {
           "id": "nanshan-2-16",
           "name": "鹿吴之山",
           "chapter": "南山经·南次二经",
-          "unlockLevel": 19,
+          "unlockLevel": 16,
           "terrain": "上者无草木",
           "yields": {
             "mineral": [
@@ -1090,7 +1090,7 @@ window.NANSHAN = {
           "id": "nanshan-2-17",
           "name": "漆吴之山",
           "chapter": "南山经·南次二经",
-          "unlockLevel": 20,
+          "unlockLevel": 16,
           "terrain": "处于东海，望丘山，其光载出载入，是惟日次",
           "yields": {
             "mineral": [
@@ -1112,7 +1112,7 @@ window.NANSHAN = {
       "regionName": "南次三经",
       "regionAlias": null,
       "order": 3,
-      "unlockLevel": 22,
+      "unlockLevel": 18,
       "summary": "南次三经之首，曰天虞之山。凡南次三经之首，自天虞之山以至南禺之山，凡一十四山，六千五百三十里。",
       "deity": {
         "form": "其神状皆龙身而人面",
@@ -1238,7 +1238,7 @@ window.NANSHAN = {
           "id": "nanshan-3-01",
           "name": "天虞之山",
           "chapter": "南山经·南次三经",
-          "unlockLevel": 22,
+          "unlockLevel": 18,
           "terrain": "其下多水",
           "yields": {},
           "fauna": [],
@@ -1253,7 +1253,7 @@ window.NANSHAN = {
           "id": "nanshan-3-02",
           "name": "祷过之山",
           "chapter": "南山经·南次三经",
-          "unlockLevel": 22,
+          "unlockLevel": 18,
           "terrain": null,
           "yields": {
             "mineral": [
@@ -1297,7 +1297,7 @@ window.NANSHAN = {
           "id": "nanshan-3-03",
           "name": "丹穴之山",
           "chapter": "南山经·南次三经",
-          "unlockLevel": 24,
+          "unlockLevel": 19,
           "terrain": "其上多金玉",
           "yields": {
             "mineral": [
@@ -1335,7 +1335,7 @@ window.NANSHAN = {
           "id": "nanshan-3-04",
           "name": "发爽之山",
           "chapter": "南山经·南次三经",
-          "unlockLevel": 24,
+          "unlockLevel": 20,
           "terrain": "无草木，多水",
           "yields": {
             "water": [
@@ -1357,7 +1357,7 @@ window.NANSHAN = {
           "id": "nanshan-3-05",
           "name": "旄山之尾",
           "chapter": "南山经·南次三经",
-          "unlockLevel": 25,
+          "unlockLevel": 20,
           "terrain": "其南有谷，曰育遗",
           "yields": {},
           "fauna": [
@@ -1377,7 +1377,7 @@ window.NANSHAN = {
           "id": "nanshan-3-06",
           "name": "非山之首",
           "chapter": "南山经·南次三经",
-          "unlockLevel": 25,
+          "unlockLevel": 21,
           "terrain": "其上多金玉，无水",
           "yields": {
             "mineral": [
@@ -1397,7 +1397,7 @@ window.NANSHAN = {
           "id": "nanshan-3-07",
           "name": "阳夹之山",
           "chapter": "南山经·南次三经",
-          "unlockLevel": 26,
+          "unlockLevel": 21,
           "terrain": "无草木，多水",
           "yields": {},
           "fauna": [],
@@ -1410,7 +1410,7 @@ window.NANSHAN = {
           "id": "nanshan-3-08",
           "name": "灌湘之山",
           "chapter": "南山经·南次三经",
-          "unlockLevel": 26,
+          "unlockLevel": 21,
           "terrain": "上多木，无草",
           "yields": {
             "wood": [
@@ -1433,7 +1433,7 @@ window.NANSHAN = {
           "id": "nanshan-3-09",
           "name": "鸡山",
           "chapter": "南山经·南次三经",
-          "unlockLevel": 27,
+          "unlockLevel": 22,
           "terrain": "其上多金，其下多丹雘",
           "yields": {
             "mineral": [
@@ -1471,7 +1471,7 @@ window.NANSHAN = {
           "id": "nanshan-3-10",
           "name": "令丘之山",
           "chapter": "南山经·南次三经",
-          "unlockLevel": 28,
+          "unlockLevel": 23,
           "terrain": "无草木，多火。其南有谷焉，曰中谷",
           "yields": {
             "special": [
@@ -1507,7 +1507,7 @@ window.NANSHAN = {
           "id": "nanshan-3-11",
           "name": "仑者之山",
           "chapter": "南山经·南次三经",
-          "unlockLevel": 29,
+          "unlockLevel": 24,
           "terrain": "其上多金玉，其下多青雘",
           "yields": {
             "mineral": [
@@ -1533,7 +1533,7 @@ window.NANSHAN = {
           "id": "nanshan-3-12",
           "name": "禺槁之山",
           "chapter": "南山经·南次三经",
-          "unlockLevel": 30,
+          "unlockLevel": 24,
           "terrain": null,
           "yields": {},
           "fauna": [
@@ -1559,7 +1559,7 @@ window.NANSHAN = {
           "id": "nanshan-3-13",
           "name": "南禺之山",
           "chapter": "南山经·南次三经",
-          "unlockLevel": 32,
+          "unlockLevel": 26,
           "terrain": "其上多金玉，其下多水。有穴焉，水春辄入，夏乃出，冬则闭",
           "yields": {
             "mineral": [

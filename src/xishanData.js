@@ -176,7 +176,7 @@ window.XISHAN = {
       "regionName": "西山首经",
       "regionAlias": "华山",
       "order": 4,
-      "unlockLevel": 33,
+      "unlockLevel": 27,
       "summary": "西山华山之首，曰钱来之山。凡西经之首，自钱来之山至于騩山，凡十九山，二千九百五十七里。",
       "deity": {
         "form": "原文未载山神形象（诸本无「其神状」句，疑有脱文）",
@@ -353,7 +353,7 @@ window.XISHAN = {
           "id": "xishan-1-01",
           "name": "钱来之山",
           "chapter": "西山经·西山首经",
-          "unlockLevel": 33,
+          "unlockLevel": 27,
           "yields": {
             "wood": [
               "松"
@@ -377,7 +377,7 @@ window.XISHAN = {
           "id": "xishan-1-02",
           "name": "松果之山",
           "chapter": "西山经·西山首经",
-          "unlockLevel": 33,
+          "unlockLevel": 27,
           "yields": {
             "mineral": [
               "铜"
@@ -401,7 +401,7 @@ window.XISHAN = {
           "id": "xishan-1-03",
           "name": "太华之山",
           "chapter": "西山经·西山首经",
-          "unlockLevel": 33,
+          "unlockLevel": 27,
           "terrain": "削成而四方，其高五千仞，其广十里，鸟兽莫居",
           "yields": {},
           "fauna": [
@@ -428,7 +428,7 @@ window.XISHAN = {
           "id": "xishan-1-04",
           "name": "小华之山",
           "chapter": "西山经·西山首经",
-          "unlockLevel": 34,
+          "unlockLevel": 27,
           "yields": {
             "wood": [
               "荆",
@@ -464,7 +464,7 @@ window.XISHAN = {
           "id": "xishan-1-05",
           "name": "符禺之山",
           "chapter": "西山经·西山首经",
-          "unlockLevel": 34,
+          "unlockLevel": 28,
           "terrain": "其阳多铜，其阴多铁",
           "yields": {
             "mineral": [
@@ -509,7 +509,7 @@ window.XISHAN = {
           "id": "xishan-1-06",
           "name": "石脆之山",
           "chapter": "西山经·西山首经",
-          "unlockLevel": 34,
+          "unlockLevel": 28,
           "yields": {
             "wood": [
               "棕",
@@ -540,7 +540,7 @@ window.XISHAN = {
           "id": "xishan-1-07",
           "name": "英山",
           "chapter": "西山经·西山首经",
-          "unlockLevel": 34,
+          "unlockLevel": 28,
           "yields": {
             "wood": [
               "杻",
@@ -585,7 +585,7 @@ window.XISHAN = {
           "id": "xishan-1-08",
           "name": "竹山",
           "chapter": "西山经·西山首经",
-          "unlockLevel": 34,
+          "unlockLevel": 28,
           "yields": {
             "wood": [
               "乔木",
@@ -627,7 +627,7 @@ window.XISHAN = {
           "id": "xishan-1-09",
           "name": "浮山",
           "chapter": "西山经·西山首经",
-          "unlockLevel": 35,
+          "unlockLevel": 28,
           "yields": {
             "wood": [
               {
@@ -651,7 +651,7 @@ window.XISHAN = {
           "id": "xishan-1-10",
           "name": "羭次之山",
           "chapter": "西山经·西山首经",
-          "unlockLevel": 35,
+          "unlockLevel": 28,
           "yields": {
             "wood": [
               "棫",
@@ -688,7 +688,7 @@ window.XISHAN = {
           "id": "xishan-1-11",
           "name": "时山",
           "chapter": "西山经·西山首经",
-          "unlockLevel": 35,
+          "unlockLevel": 28,
           "terrain": "无草木",
           "yields": {
             "water": [
@@ -704,7 +704,7 @@ window.XISHAN = {
           "id": "xishan-1-12",
           "name": "南山",
           "chapter": "西山经·西山首经",
-          "unlockLevel": 35,
+          "unlockLevel": 29,
           "yields": {
             "mineral": [
               "丹粟"
@@ -730,7 +730,7 @@ window.XISHAN = {
           "id": "xishan-1-13",
           "name": "大时之山",
           "chapter": "西山经·西山首经",
-          "unlockLevel": 35,
+          "unlockLevel": 29,
           "yields": {
             "wood": [
               "榖（上）",
@@ -755,7 +755,7 @@ window.XISHAN = {
           "id": "xishan-1-14",
           "name": "嶓冢之山",
           "chapter": "西山经·西山首经",
-          "unlockLevel": 35,
+          "unlockLevel": 29,
           "yields": {
             "wood": [
               "桃枝",
@@ -807,7 +807,7 @@ window.XISHAN = {
           "id": "xishan-1-15",
           "name": "天帝之山",
           "chapter": "西山经·西山首经",
-          "unlockLevel": 36,
+          "unlockLevel": 29,
           "yields": {
             "wood": [
               "棕",
@@ -851,7 +851,7 @@ window.XISHAN = {
           "id": "xishan-1-16",
           "name": "皋涂之山",
           "chapter": "西山经·西山首经",
-          "unlockLevel": 36,
+          "unlockLevel": 29,
           "yields": {
             "wood": [
               "桂木"
@@ -894,7 +894,7 @@ window.XISHAN = {
           "id": "xishan-1-17",
           "name": "黄山",
           "chapter": "西山经·西山首经",
-          "unlockLevel": 36,
+          "unlockLevel": 30,
           "terrain": "无草木，多竹箭",
           "yields": {
             "wood": [
@@ -927,7 +927,7 @@ window.XISHAN = {
           "id": "xishan-1-18",
           "name": "翠山",
           "chapter": "西山经·西山首经",
-          "unlockLevel": 37,
+          "unlockLevel": 30,
           "yields": {
             "wood": [
               "棕（上）",
@@ -966,7 +966,7 @@ window.XISHAN = {
           "id": "xishan-1-19",
           "name": "騩山",
           "chapter": "西山经·西山首经",
-          "unlockLevel": 37,
+          "unlockLevel": 30,
           "terrain": "是錞于西海，无草木",
           "yields": {
             "mineral": [
@@ -992,7 +992,7 @@ window.XISHAN = {
       "regionName": "西次二经",
       "regionAlias": null,
       "order": 5,
-      "unlockLevel": 37,
+      "unlockLevel": 30,
       "summary": "西次二经之首，曰钤山。凡西次二经之首，自钤山至于莱山，凡十七山，四千一百四十里。",
       "deity": {
         "form": "其十神者，皆人面而马身。其七神皆人面而牛身，四足而一臂，操杖以行，是为飞兽之神",
@@ -1151,7 +1151,7 @@ window.XISHAN = {
           "id": "xishan-2-01",
           "name": "钤山",
           "chapter": "西山经·西次二经",
-          "unlockLevel": 37,
+          "unlockLevel": 30,
           "yields": {
             "mineral": [
               "铜（上）",
@@ -1170,7 +1170,7 @@ window.XISHAN = {
           "id": "xishan-2-02",
           "name": "泰冒之山",
           "chapter": "西山经·西次二经",
-          "unlockLevel": 37,
+          "unlockLevel": 31,
           "terrain": "其阳多玉，其阴多铁",
           "yields": {
             "mineral": [
@@ -1195,7 +1195,7 @@ window.XISHAN = {
           "id": "xishan-2-03",
           "name": "数历之山",
           "chapter": "西山经·西次二经",
-          "unlockLevel": 38,
+          "unlockLevel": 31,
           "yields": {
             "mineral": [
               "黄金（上）",
@@ -1223,7 +1223,7 @@ window.XISHAN = {
           "id": "xishan-2-04",
           "name": "高山",
           "chapter": "西山经·西次二经",
-          "unlockLevel": 38,
+          "unlockLevel": 31,
           "yields": {
             "mineral": [
               "银（上）",
@@ -1249,7 +1249,7 @@ window.XISHAN = {
           "id": "xishan-2-05",
           "name": "女床之山",
           "chapter": "西山经·西次二经",
-          "unlockLevel": 38,
+          "unlockLevel": 31,
           "yields": {
             "mineral": [
               "赤铜（阳）",
@@ -1297,7 +1297,7 @@ window.XISHAN = {
           "id": "xishan-2-06",
           "name": "龙首之山",
           "chapter": "西山经·西次二经",
-          "unlockLevel": 38,
+          "unlockLevel": 31,
           "yields": {
             "mineral": [
               "黄金（阳）",
@@ -1316,7 +1316,7 @@ window.XISHAN = {
           "id": "xishan-2-07",
           "name": "鹿台之山",
           "chapter": "西山经·西次二经",
-          "unlockLevel": 39,
+          "unlockLevel": 31,
           "yields": {
             "mineral": [
               "白玉（上）",
@@ -1359,7 +1359,7 @@ window.XISHAN = {
           "id": "xishan-2-08",
           "name": "鸟危之山",
           "chapter": "西山经·西次二经",
-          "unlockLevel": 39,
+          "unlockLevel": 32,
           "yields": {
             "mineral": [
               "磬石（阳）",
@@ -1382,7 +1382,7 @@ window.XISHAN = {
           "id": "xishan-2-09",
           "name": "小次之山",
           "chapter": "西山经·西次二经",
-          "unlockLevel": 39,
+          "unlockLevel": 32,
           "yields": {
             "mineral": [
               "白玉（上）",
@@ -1413,7 +1413,7 @@ window.XISHAN = {
           "id": "xishan-2-10",
           "name": "大次之山",
           "chapter": "西山经·西次二经",
-          "unlockLevel": 40,
+          "unlockLevel": 32,
           "yields": {
             "mineral": [
               "垩（阳）",
@@ -1437,7 +1437,7 @@ window.XISHAN = {
           "id": "xishan-2-11",
           "name": "薰吴之山",
           "chapter": "西山经·西次二经",
-          "unlockLevel": 40,
+          "unlockLevel": 32,
           "terrain": "无草木",
           "yields": {
             "mineral": [
@@ -1453,7 +1453,7 @@ window.XISHAN = {
           "id": "xishan-2-12",
           "name": "厎阳之山",
           "chapter": "西山经·西次二经",
-          "unlockLevel": 40,
+          "unlockLevel": 32,
           "yields": {
             "wood": [
               "稷",
@@ -1490,7 +1490,7 @@ window.XISHAN = {
           "id": "xishan-2-13",
           "name": "众兽之山",
           "chapter": "西山经·西次二经",
-          "unlockLevel": 40,
+          "unlockLevel": 33,
           "yields": {
             "mineral": [
               "㻬琈之玉（上）",
@@ -1518,7 +1518,7 @@ window.XISHAN = {
           "id": "xishan-2-14",
           "name": "皇人之山",
           "chapter": "西山经·西次二经",
-          "unlockLevel": 40,
+          "unlockLevel": 33,
           "yields": {
             "mineral": [
               "金玉（上）",
@@ -1537,7 +1537,7 @@ window.XISHAN = {
           "id": "xishan-2-15",
           "name": "中皇之山",
           "chapter": "西山经·西次二经",
-          "unlockLevel": 41,
+          "unlockLevel": 33,
           "yields": {
             "mineral": [
               "黄金（上）"
@@ -1557,7 +1557,7 @@ window.XISHAN = {
           "id": "xishan-2-16",
           "name": "西皇之山",
           "chapter": "西山经·西次二经",
-          "unlockLevel": 41,
+          "unlockLevel": 33,
           "yields": {
             "mineral": [
               "黄金（阳）",
@@ -1585,7 +1585,7 @@ window.XISHAN = {
           "id": "xishan-2-17",
           "name": "莱山",
           "chapter": "西山经·西次二经",
-          "unlockLevel": 41,
+          "unlockLevel": 33,
           "yields": {
             "wood": [
               "檀",
@@ -1615,7 +1615,7 @@ window.XISHAN = {
       "regionName": "西次三经",
       "regionAlias": "昆仑",
       "order": 6,
-      "unlockLevel": 41,
+      "unlockLevel": 34,
       "summary": "西次三经之首，曰崇吾之山。凡西次三经之首，崇吾之山至于翼望之山，凡二十三山，六千七百四十四里。（本数据录 22 山，差异见 _meta）",
       "deity": {
         "form": "其神状皆羊身人面",
@@ -1814,7 +1814,7 @@ window.XISHAN = {
           "id": "xishan-3-01",
           "name": "崇吾之山",
           "chapter": "西山经·西次三经",
-          "unlockLevel": 41,
+          "unlockLevel": 34,
           "terrain": "在河之南，北望冢遂，南望䍃之泽，西望帝之搏兽之丘，东望䗡渊",
           "yields": {
             "woodSpecial": [
@@ -1855,7 +1855,7 @@ window.XISHAN = {
           "id": "xishan-3-02",
           "name": "长沙之山",
           "chapter": "西山经·西次三经",
-          "unlockLevel": 42,
+          "unlockLevel": 34,
           "terrain": "无草木",
           "yields": {
             "mineral": [
@@ -1873,7 +1873,7 @@ window.XISHAN = {
           "id": "xishan-3-03",
           "name": "不周之山",
           "chapter": "西山经·西次三经",
-          "unlockLevel": 42,
+          "unlockLevel": 34,
           "terrain": "北望诸𣲗之山，临彼岳崇之山，东望泑泽，河水所潜也，其原浑浑泡泡",
           "yields": {
             "fruit": [
@@ -1893,7 +1893,7 @@ window.XISHAN = {
           "id": "xishan-3-04",
           "name": "峚山",
           "chapter": "西山经·西次三经",
-          "unlockLevel": 42,
+          "unlockLevel": 34,
           "yields": {
             "woodSpecial": [
               {
@@ -1925,7 +1925,7 @@ window.XISHAN = {
           "id": "xishan-3-05",
           "name": "钟山",
           "chapter": "西山经·西次三经",
-          "unlockLevel": 42,
+          "unlockLevel": 34,
           "yields": {},
           "fauna": [
             {
@@ -1969,7 +1969,7 @@ window.XISHAN = {
           "id": "xishan-3-06",
           "name": "泰器之山",
           "chapter": "西山经·西次三经",
-          "unlockLevel": 43,
+          "unlockLevel": 35,
           "yields": {
             "water": [
               "观水（西流注于流沙）"
@@ -2003,7 +2003,7 @@ window.XISHAN = {
           "id": "xishan-3-07",
           "name": "槐江之山",
           "chapter": "西山经·西次三经",
-          "unlockLevel": 43,
+          "unlockLevel": 35,
           "terrain": "南望昆仑，其光熊熊，其气魂魂；西望大泽，后稷所潜也；北望诸𣲗，槐鬼离仑居之；东望恒山四成，有穷鬼居之。爰有淫水，其清洛洛",
           "yields": {
             "mineral": [
@@ -2053,7 +2053,7 @@ window.XISHAN = {
           "id": "xishan-3-08",
           "name": "昆仑之丘",
           "chapter": "西山经·西次三经",
-          "unlockLevel": 44,
+          "unlockLevel": 35,
           "terrain": "实惟帝之下都",
           "yields": {
             "woodSpecial": [
@@ -2117,7 +2117,7 @@ window.XISHAN = {
           "id": "xishan-3-09",
           "name": "乐游之山",
           "chapter": "西山经·西次三经",
-          "unlockLevel": 44,
+          "unlockLevel": 36,
           "yields": {
             "mineral": [
               "白玉"
@@ -2141,7 +2141,7 @@ window.XISHAN = {
           "id": "xishan-3-10",
           "name": "蠃母之山",
           "chapter": "西山经·西次三经",
-          "unlockLevel": 44,
+          "unlockLevel": 36,
           "yields": {
             "mineral": [
               "玉（上）",
@@ -2163,7 +2163,7 @@ window.XISHAN = {
           "id": "xishan-3-11",
           "name": "玉山",
           "chapter": "西山经·西次三经",
-          "unlockLevel": 44,
+          "unlockLevel": 36,
           "terrain": "西王母所居",
           "yields": {
             "mineral": [
@@ -2216,7 +2216,7 @@ window.XISHAN = {
           "id": "xishan-3-12",
           "name": "轩辕之丘",
           "chapter": "西山经·西次三经",
-          "unlockLevel": 45,
+          "unlockLevel": 36,
           "terrain": "无草木",
           "yields": {
             "mineral": [
@@ -2235,7 +2235,7 @@ window.XISHAN = {
           "id": "xishan-3-13",
           "name": "积石之山",
           "chapter": "西山经·西次三经",
-          "unlockLevel": 45,
+          "unlockLevel": 36,
           "terrain": "其下有石门，河水冒以西南流",
           "yields": {
             "special": [
@@ -2251,7 +2251,7 @@ window.XISHAN = {
           "id": "xishan-3-14",
           "name": "长留之山",
           "chapter": "西山经·西次三经",
-          "unlockLevel": 45,
+          "unlockLevel": 37,
           "yields": {
             "mineral": [
               "文玉石"
@@ -2279,7 +2279,7 @@ window.XISHAN = {
           "id": "xishan-3-15",
           "name": "章莪之山",
           "chapter": "西山经·西次三经",
-          "unlockLevel": 46,
+          "unlockLevel": 37,
           "terrain": "无草木，多瑶碧，所为甚怪",
           "yields": {
             "mineral": [
@@ -2319,7 +2319,7 @@ window.XISHAN = {
           "id": "xishan-3-16",
           "name": "阴山",
           "chapter": "西山经·西次三经",
-          "unlockLevel": 46,
+          "unlockLevel": 37,
           "yields": {
             "mineral": [
               "文贝"
@@ -2345,7 +2345,7 @@ window.XISHAN = {
           "id": "xishan-3-17",
           "name": "符愓之山",
           "chapter": "西山经·西次三经",
-          "unlockLevel": 46,
+          "unlockLevel": 37,
           "terrain": "多怪雨，风云之所出也",
           "yields": {
             "wood": [
@@ -2372,7 +2372,7 @@ window.XISHAN = {
           "id": "xishan-3-18",
           "name": "三危之山",
           "chapter": "西山经·西次三经",
-          "unlockLevel": 46,
+          "unlockLevel": 38,
           "terrain": "三青鸟居之。是山也，广员百里",
           "yields": {},
           "fauna": [
@@ -2407,7 +2407,7 @@ window.XISHAN = {
           "id": "xishan-3-19",
           "name": "騩山",
           "chapter": "西山经·西次三经",
-          "unlockLevel": 47,
+          "unlockLevel": 38,
           "terrain": "其上多玉而无石，其下多积蛇",
           "yields": {
             "mineral": [
@@ -2433,7 +2433,7 @@ window.XISHAN = {
           "id": "xishan-3-20",
           "name": "天山",
           "chapter": "西山经·西次三经",
-          "unlockLevel": 47,
+          "unlockLevel": 38,
           "yields": {
             "mineral": [
               "金",
@@ -2461,7 +2461,7 @@ window.XISHAN = {
           "id": "xishan-3-21",
           "name": "泑山",
           "chapter": "西山经·西次三经",
-          "unlockLevel": 47,
+          "unlockLevel": 38,
           "terrain": "西望日之所入，其气员，神红光之所司也",
           "yields": {
             "mineral": [
@@ -2491,7 +2491,7 @@ window.XISHAN = {
           "id": "xishan-3-22",
           "name": "翼望之山",
           "chapter": "西山经·西次三经",
-          "unlockLevel": 47,
+          "unlockLevel": 38,
           "terrain": "无草木",
           "yields": {
             "mineral": [
@@ -2526,7 +2526,7 @@ window.XISHAN = {
       "regionName": "西次四经",
       "regionAlias": null,
       "order": 7,
-      "unlockLevel": 48,
+      "unlockLevel": 39,
       "summary": "西次四经之首，曰阴山。凡西次四经自阴山以下，至于崦嵫之山，凡十九山，三千六百八十里。",
       "deity": {
         "form": "原文未载山神形象",
@@ -2702,7 +2702,7 @@ window.XISHAN = {
           "id": "xishan-4-01",
           "name": "阴山",
           "chapter": "西山经·西次四经",
-          "unlockLevel": 48,
+          "unlockLevel": 39,
           "terrain": "无石",
           "yields": {
             "wood": [
@@ -2724,7 +2724,7 @@ window.XISHAN = {
           "id": "xishan-4-02",
           "name": "劳山",
           "chapter": "西山经·西次四经",
-          "unlockLevel": 48,
+          "unlockLevel": 39,
           "yields": {
             "herb": [
               "茈草"
@@ -2741,7 +2741,7 @@ window.XISHAN = {
           "id": "xishan-4-03",
           "name": "罢父之山",
           "chapter": "西山经·西次四经",
-          "unlockLevel": 48,
+          "unlockLevel": 39,
           "yields": {
             "mineral": [
               "茈",
@@ -2759,7 +2759,7 @@ window.XISHAN = {
           "id": "xishan-4-04",
           "name": "申山",
           "chapter": "西山经·西次四经",
-          "unlockLevel": 48,
+          "unlockLevel": 39,
           "yields": {
             "wood": [
               "榖（上）",
@@ -2783,7 +2783,7 @@ window.XISHAN = {
           "id": "xishan-4-05",
           "name": "鸟山",
           "chapter": "西山经·西次四经",
-          "unlockLevel": 49,
+          "unlockLevel": 39,
           "yields": {
             "wood": [
               "桑（上）",
@@ -2805,7 +2805,7 @@ window.XISHAN = {
           "id": "xishan-4-06",
           "name": "上申之山",
           "chapter": "西山经·西次四经",
-          "unlockLevel": 49,
+          "unlockLevel": 39,
           "terrain": "上无草木，而多硌石",
           "yields": {
             "wood": [
@@ -2839,7 +2839,7 @@ window.XISHAN = {
           "id": "xishan-4-07",
           "name": "诸次之山",
           "chapter": "西山经·西次四经",
-          "unlockLevel": 49,
+          "unlockLevel": 40,
           "terrain": "多木无草，鸟兽莫居，是多众蛇",
           "yields": {
             "wood": [
@@ -2861,7 +2861,7 @@ window.XISHAN = {
           "id": "xishan-4-08",
           "name": "号山",
           "chapter": "西山经·西次四经",
-          "unlockLevel": 49,
+          "unlockLevel": 40,
           "yields": {
             "wood": [
               "漆",
@@ -2888,7 +2888,7 @@ window.XISHAN = {
           "id": "xishan-4-09",
           "name": "盂山",
           "chapter": "西山经·西次四经",
-          "unlockLevel": 49,
+          "unlockLevel": 40,
           "yields": {
             "mineral": [
               "铁（阴）",
@@ -2924,7 +2924,7 @@ window.XISHAN = {
           "id": "xishan-4-10",
           "name": "白于之山",
           "chapter": "西山经·西次四经",
-          "unlockLevel": 50,
+          "unlockLevel": 40,
           "yields": {
             "wood": [
               "松（上）",
@@ -2958,7 +2958,7 @@ window.XISHAN = {
           "id": "xishan-4-11",
           "name": "申首之山",
           "chapter": "西山经·西次四经",
-          "unlockLevel": 50,
+          "unlockLevel": 40,
           "terrain": "无草木，冬夏有雪",
           "yields": {
             "mineral": [
@@ -2977,7 +2977,7 @@ window.XISHAN = {
           "id": "xishan-4-12",
           "name": "泾谷之山",
           "chapter": "西山经·西次四经",
-          "unlockLevel": 50,
+          "unlockLevel": 40,
           "yields": {
             "mineral": [
               "白金",
@@ -2995,7 +2995,7 @@ window.XISHAN = {
           "id": "xishan-4-13",
           "name": "刚山",
           "chapter": "西山经·西次四经",
-          "unlockLevel": 50,
+          "unlockLevel": 41,
           "yields": {
             "wood": [
               "柒木"
@@ -3022,7 +3022,7 @@ window.XISHAN = {
           "id": "xishan-4-14",
           "name": "刚山之尾",
           "chapter": "西山经·西次四经",
-          "unlockLevel": 50,
+          "unlockLevel": 41,
           "yields": {
             "water": [
               "洛水（北流注于河）"
@@ -3044,7 +3044,7 @@ window.XISHAN = {
           "id": "xishan-4-15",
           "name": "英鞮之山",
           "chapter": "西山经·西次四经",
-          "unlockLevel": 51,
+          "unlockLevel": 41,
           "terrain": "鸟兽尽白",
           "yields": {
             "wood": [
@@ -3073,7 +3073,7 @@ window.XISHAN = {
           "id": "xishan-4-16",
           "name": "中曲之山",
           "chapter": "西山经·西次四经",
-          "unlockLevel": 51,
+          "unlockLevel": 41,
           "yields": {
             "mineral": [
               "玉（阳）",
@@ -3108,7 +3108,7 @@ window.XISHAN = {
           "id": "xishan-4-17",
           "name": "邽山",
           "chapter": "西山经·西次四经",
-          "unlockLevel": 51,
+          "unlockLevel": 41,
           "yields": {
             "mineral": [
               "黄贝"
@@ -3154,7 +3154,7 @@ window.XISHAN = {
           "id": "xishan-4-18",
           "name": "鸟鼠同穴之山",
           "chapter": "西山经·西次四经",
-          "unlockLevel": 52,
+          "unlockLevel": 42,
           "terrain": "鸟鼠同穴（鸟与鼠同穴而居）",
           "yields": {
             "mineral": [
@@ -3200,7 +3200,7 @@ window.XISHAN = {
           "id": "xishan-4-19",
           "name": "崦嵫之山",
           "chapter": "西山经·西次四经",
-          "unlockLevel": 52,
+          "unlockLevel": 42,
           "terrain": "日之所入（传统说法，原文此处未明言但山名即日落之所）",
           "yields": {
             "woodSpecial": [

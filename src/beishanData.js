@@ -139,7 +139,7 @@ window.BEISHAN = {
       "regionName": "北次一经",
       "regionAlias": "单狐",
       "order": 8,
-      "unlockLevel": 53,
+      "unlockLevel": 43,
       "summary": "北山经之首，曰单狐之山。凡北山经之首，自单狐之山至于堤山，凡二十五山，五千四百九十里。",
       "deity": {
         "form": "其神皆人面蛇身",
@@ -363,7 +363,7 @@ window.BEISHAN = {
           "id": "beishan-1-01",
           "name": "单狐之山",
           "chapter": "北山经·北次一经",
-          "unlockLevel": 53,
+          "unlockLevel": 43,
           "yields": {
             "wood": [
               "机木"
@@ -387,7 +387,7 @@ window.BEISHAN = {
           "id": "beishan-1-02",
           "name": "求如之山",
           "chapter": "北山经·北次一经",
-          "unlockLevel": 53,
+          "unlockLevel": 43,
           "terrain": "无草木",
           "yields": {
             "mineral": [
@@ -420,7 +420,7 @@ window.BEISHAN = {
           "id": "beishan-1-03",
           "name": "带山",
           "chapter": "北山经·北次一经",
-          "unlockLevel": 53,
+          "unlockLevel": 43,
           "yields": {
             "mineral": [
               "玉（上）",
@@ -462,7 +462,7 @@ window.BEISHAN = {
           "id": "beishan-1-04",
           "name": "谯明之山",
           "chapter": "北山经·北次一经",
-          "unlockLevel": 54,
+          "unlockLevel": 43,
           "yields": {
             "mineral": [
               "青雄黄"
@@ -495,7 +495,7 @@ window.BEISHAN = {
           "id": "beishan-1-05",
           "name": "涿光之山",
           "chapter": "北山经·北次一经",
-          "unlockLevel": 54,
+          "unlockLevel": 44,
           "yields": {
             "wood": [
               "松",
@@ -533,7 +533,7 @@ window.BEISHAN = {
           "id": "beishan-1-06",
           "name": "虢山",
           "chapter": "北山经·北次一经",
-          "unlockLevel": 54,
+          "unlockLevel": 44,
           "yields": {
             "wood": [
               "漆（上）",
@@ -570,7 +570,7 @@ window.BEISHAN = {
           "id": "beishan-1-07",
           "name": "虢山之尾",
           "chapter": "北山经·北次一经",
-          "unlockLevel": 54,
+          "unlockLevel": 44,
           "terrain": "其上多玉而无石",
           "yields": {
             "mineral": [
@@ -589,7 +589,7 @@ window.BEISHAN = {
           "id": "beishan-1-08",
           "name": "丹熏之山",
           "chapter": "北山经·北次一经",
-          "unlockLevel": 54,
+          "unlockLevel": 44,
           "yields": {
             "wood": [
               "樗",
@@ -625,7 +625,7 @@ window.BEISHAN = {
           "id": "beishan-1-09",
           "name": "石者之山",
           "chapter": "北山经·北次一经",
-          "unlockLevel": 55,
+          "unlockLevel": 44,
           "terrain": "其上无草木",
           "yields": {
             "mineral": [
@@ -652,7 +652,7 @@ window.BEISHAN = {
           "id": "beishan-1-10",
           "name": "边春之山",
           "chapter": "北山经·北次一经",
-          "unlockLevel": 55,
+          "unlockLevel": 44,
           "yields": {
             "herb": [
               "葱",
@@ -684,7 +684,7 @@ window.BEISHAN = {
           "id": "beishan-1-11",
           "name": "蔓联之山",
           "chapter": "北山经·北次一经",
-          "unlockLevel": 55,
+          "unlockLevel": 44,
           "terrain": "其上无草木",
           "yields": {},
           "fauna": [
@@ -710,7 +710,7 @@ window.BEISHAN = {
           "id": "beishan-1-12",
           "name": "单张之山",
           "chapter": "北山经·北次一经",
-          "unlockLevel": 55,
+          "unlockLevel": 45,
           "terrain": "其上无草木",
           "yields": {
             "water": [
@@ -740,7 +740,7 @@ window.BEISHAN = {
           "id": "beishan-1-13",
           "name": "灌题之山",
           "chapter": "北山经·北次一经",
-          "unlockLevel": 55,
+          "unlockLevel": 45,
           "yields": {
             "wood": [
               "樗",
@@ -777,7 +777,7 @@ window.BEISHAN = {
           "id": "beishan-1-14",
           "name": "潘侯之山",
           "chapter": "北山经·北次一经",
-          "unlockLevel": 55,
+          "unlockLevel": 45,
           "yields": {
             "wood": [
               "松",
@@ -807,7 +807,7 @@ window.BEISHAN = {
           "id": "beishan-1-15",
           "name": "小咸之山",
           "chapter": "北山经·北次一经",
-          "unlockLevel": 56,
+          "unlockLevel": 45,
           "terrain": "无草木，冬夏有雪",
           "yields": {},
           "fauna": [],
@@ -818,7 +818,7 @@ window.BEISHAN = {
           "id": "beishan-1-16",
           "name": "大咸之山",
           "chapter": "北山经·北次一经",
-          "unlockLevel": 56,
+          "unlockLevel": 45,
           "terrain": "无草木，其下多玉。是山也，四方，不可以上",
           "yields": {
             "mineral": [
@@ -845,7 +845,7 @@ window.BEISHAN = {
           "id": "beishan-1-17",
           "name": "敦薨之山",
           "chapter": "北山经·北次一经",
-          "unlockLevel": 56,
+          "unlockLevel": 45,
           "yields": {
             "wood": [
               "棕",
@@ -881,7 +881,7 @@ window.BEISHAN = {
           "id": "beishan-1-18",
           "name": "少咸之山",
           "chapter": "北山经·北次一经",
-          "unlockLevel": 56,
+          "unlockLevel": 46,
           "terrain": "无草木",
           "yields": {
             "mineral": [
@@ -918,7 +918,7 @@ window.BEISHAN = {
           "id": "beishan-1-19",
           "name": "狱法之山",
           "chapter": "北山经·北次一经",
-          "unlockLevel": 57,
+          "unlockLevel": 46,
           "yields": {
             "water": [
               "瀤泽之水（东北流注于泰泽）"
@@ -955,7 +955,7 @@ window.BEISHAN = {
           "id": "beishan-1-20",
           "name": "北岳之山",
           "chapter": "北山经·北次一经",
-          "unlockLevel": 57,
+          "unlockLevel": 46,
           "yields": {
             "wood": [
               "枳",
@@ -993,7 +993,7 @@ window.BEISHAN = {
           "id": "beishan-1-21",
           "name": "浑夕之山",
           "chapter": "北山经·北次一经",
-          "unlockLevel": 57,
+          "unlockLevel": 46,
           "terrain": "无草木",
           "yields": {
             "mineral": [
@@ -1029,7 +1029,7 @@ window.BEISHAN = {
           "id": "beishan-1-22",
           "name": "北单之山",
           "chapter": "北山经·北次一经",
-          "unlockLevel": 57,
+          "unlockLevel": 46,
           "terrain": "无草木",
           "yields": {
             "herb": [
@@ -1045,7 +1045,7 @@ window.BEISHAN = {
           "id": "beishan-1-23",
           "name": "罴差之山",
           "chapter": "北山经·北次一经",
-          "unlockLevel": 57,
+          "unlockLevel": 46,
           "terrain": "无草木",
           "yields": {},
           "fauna": [
@@ -1061,7 +1061,7 @@ window.BEISHAN = {
           "id": "beishan-1-24",
           "name": "北鲜之山",
           "chapter": "北山经·北次一经",
-          "unlockLevel": 58,
+          "unlockLevel": 46,
           "yields": {
             "water": [
               "鲜水（西北流注于涂吾之水）"
@@ -1080,7 +1080,7 @@ window.BEISHAN = {
           "id": "beishan-1-25",
           "name": "堤山",
           "chapter": "北山经·北次一经",
-          "unlockLevel": 58,
+          "unlockLevel": 47,
           "yields": {
             "water": [
               "堤水（东流注于泰泽）"
@@ -1114,7 +1114,7 @@ window.BEISHAN = {
       "regionName": "北次二经",
       "regionAlias": "管涔",
       "order": 9,
-      "unlockLevel": 58,
+      "unlockLevel": 47,
       "summary": "北次二经之首，在河之东，其首枕汾，其名曰管涔之山。凡北次二经之首，自管涔之山至于敦题之山，凡十七山，五千六百九十里。",
       "deity": {
         "form": "其神皆蛇身人面",
@@ -1266,7 +1266,7 @@ window.BEISHAN = {
           "id": "beishan-2-01",
           "name": "管涔之山",
           "chapter": "北山经·北次二经",
-          "unlockLevel": 58,
+          "unlockLevel": 47,
           "terrain": "在河之东，其首枕汾。其上无木而多草",
           "yields": {
             "herb": [
@@ -1287,7 +1287,7 @@ window.BEISHAN = {
           "id": "beishan-2-02",
           "name": "少阳之山",
           "chapter": "北山经·北次二经",
-          "unlockLevel": 58,
+          "unlockLevel": 47,
           "yields": {
             "mineral": [
               "玉（上）",
@@ -1306,7 +1306,7 @@ window.BEISHAN = {
           "id": "beishan-2-03",
           "name": "县雍之山",
           "chapter": "北山经·北次二经",
-          "unlockLevel": 58,
+          "unlockLevel": 47,
           "yields": {
             "mineral": [
               "玉（上）",
@@ -1348,7 +1348,7 @@ window.BEISHAN = {
           "id": "beishan-2-04",
           "name": "狐岐之山",
           "chapter": "北山经·北次二经",
-          "unlockLevel": 59,
+          "unlockLevel": 47,
           "terrain": "无草木",
           "yields": {
             "mineral": [
@@ -1367,7 +1367,7 @@ window.BEISHAN = {
           "id": "beishan-2-05",
           "name": "白沙山",
           "chapter": "北山经·北次二经",
-          "unlockLevel": 59,
+          "unlockLevel": 47,
           "terrain": "广员三百里，尽沙也，无草木鸟兽",
           "yields": {
             "mineral": [
@@ -1386,7 +1386,7 @@ window.BEISHAN = {
           "id": "beishan-2-06",
           "name": "尔是之山",
           "chapter": "北山经·北次二经",
-          "unlockLevel": 59,
+          "unlockLevel": 47,
           "terrain": "无草木，无水",
           "yields": {},
           "fauna": [],
@@ -1397,7 +1397,7 @@ window.BEISHAN = {
           "id": "beishan-2-07",
           "name": "狂山",
           "chapter": "北山经·北次二经",
-          "unlockLevel": 59,
+          "unlockLevel": 48,
           "terrain": "无草木，是山也，冬夏有雪",
           "yields": {
             "mineral": [
@@ -1415,7 +1415,7 @@ window.BEISHAN = {
           "id": "beishan-2-08",
           "name": "诸余之山",
           "chapter": "北山经·北次二经",
-          "unlockLevel": 59,
+          "unlockLevel": 48,
           "yields": {
             "mineral": [
               "铜",
@@ -1437,7 +1437,7 @@ window.BEISHAN = {
           "id": "beishan-2-09",
           "name": "敦头之山",
           "chapter": "北山经·北次二经",
-          "unlockLevel": 59,
+          "unlockLevel": 48,
           "terrain": "无草木",
           "yields": {
             "mineral": [
@@ -1463,7 +1463,7 @@ window.BEISHAN = {
           "id": "beishan-2-10",
           "name": "钩吾之山",
           "chapter": "北山经·北次二经",
-          "unlockLevel": 60,
+          "unlockLevel": 48,
           "yields": {
             "mineral": [
               "玉（上）",
@@ -1492,7 +1492,7 @@ window.BEISHAN = {
           "id": "beishan-2-11",
           "name": "北嚻之山",
           "chapter": "北山经·北次二经",
-          "unlockLevel": 60,
+          "unlockLevel": 48,
           "terrain": "无石",
           "yields": {
             "mineral": [
@@ -1526,7 +1526,7 @@ window.BEISHAN = {
           "id": "beishan-2-12",
           "name": "梁渠之山",
           "chapter": "北山经·北次二经",
-          "unlockLevel": 60,
+          "unlockLevel": 49,
           "terrain": "无草木",
           "yields": {
             "mineral": [
@@ -1559,7 +1559,7 @@ window.BEISHAN = {
           "id": "beishan-2-13",
           "name": "姑灌之山",
           "chapter": "北山经·北次二经",
-          "unlockLevel": 61,
+          "unlockLevel": 49,
           "terrain": "无草木，是山也，冬夏有雪",
           "yields": {},
           "fauna": [],
@@ -1570,7 +1570,7 @@ window.BEISHAN = {
           "id": "beishan-2-14",
           "name": "湖灌之山",
           "chapter": "北山经·北次二经",
-          "unlockLevel": 61,
+          "unlockLevel": 49,
           "yields": {
             "mineral": [
               "玉（阳）",
@@ -1600,7 +1600,7 @@ window.BEISHAN = {
           "id": "beishan-2-15",
           "name": "洹山",
           "chapter": "北山经·北次二经",
-          "unlockLevel": 61,
+          "unlockLevel": 49,
           "terrain": "又北水行五百里，流沙三百里，至于洹山",
           "yields": {
             "mineral": [
@@ -1635,7 +1635,7 @@ window.BEISHAN = {
           "id": "beishan-2-16",
           "name": "敦题之山",
           "chapter": "北山经·北次二经",
-          "unlockLevel": 61,
+          "unlockLevel": 49,
           "terrain": "无草木，是錞于北海",
           "yields": {
             "mineral": [
@@ -1656,7 +1656,7 @@ window.BEISHAN = {
       "regionName": "北次三经",
       "regionAlias": "太行",
       "order": 10,
-      "unlockLevel": 62,
+      "unlockLevel": 50,
       "summary": "北次三经之首，曰太行之山。凡北次三经之首，自太行之山以至于毋逢之山，凡四十六山，万二千三百五十里。",
       "deity": {
         "form": "分三类，共四十四神",
@@ -2059,7 +2059,7 @@ window.BEISHAN = {
           "id": "beishan-3-01",
           "name": "太行之山（归山）",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 62,
+          "unlockLevel": 50,
           "terrain": "北次三经之首，其首曰归山",
           "yields": {
             "mineral": [
@@ -2091,7 +2091,7 @@ window.BEISHAN = {
           "id": "beishan-3-02",
           "name": "龙侯之山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 62,
+          "unlockLevel": 50,
           "terrain": "无草木",
           "yields": {
             "mineral": [
@@ -2120,7 +2120,7 @@ window.BEISHAN = {
           "id": "beishan-3-03",
           "name": "马成之山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 62,
+          "unlockLevel": 50,
           "yields": {
             "mineral": [
               "文石（上）",
@@ -2152,7 +2152,7 @@ window.BEISHAN = {
           "id": "beishan-3-04",
           "name": "咸山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 62,
+          "unlockLevel": 50,
           "yields": {
             "mineral": [
               "玉（上）",
@@ -2185,7 +2185,7 @@ window.BEISHAN = {
           "id": "beishan-3-05",
           "name": "天池之山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 62,
+          "unlockLevel": 50,
           "terrain": "其上无草木",
           "yields": {
             "mineral": [
@@ -2213,7 +2213,7 @@ window.BEISHAN = {
           "id": "beishan-3-06",
           "name": "阳山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 63,
+          "unlockLevel": 50,
           "yields": {
             "mineral": [
               "玉（上）",
@@ -2253,7 +2253,7 @@ window.BEISHAN = {
           "id": "beishan-3-07",
           "name": "贲闻之山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 63,
+          "unlockLevel": 50,
           "yields": {
             "mineral": [
               "苍玉（上）",
@@ -2269,7 +2269,7 @@ window.BEISHAN = {
           "id": "beishan-3-08",
           "name": "王屋之山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 63,
+          "unlockLevel": 51,
           "terrain": "是多石",
           "yields": {
             "water": [
@@ -2285,7 +2285,7 @@ window.BEISHAN = {
           "id": "beishan-3-09",
           "name": "教山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 63,
+          "unlockLevel": 51,
           "terrain": "其上多玉而无石",
           "yields": {
             "mineral": [
@@ -2305,7 +2305,7 @@ window.BEISHAN = {
           "id": "beishan-3-10",
           "name": "景山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 63,
+          "unlockLevel": 51,
           "terrain": "南望盐贩之泽，北望少泽",
           "yields": {
             "herb": [
@@ -2344,7 +2344,7 @@ window.BEISHAN = {
           "id": "beishan-3-11",
           "name": "孟门之山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 64,
+          "unlockLevel": 51,
           "yields": {
             "mineral": [
               "苍玉",
@@ -2362,7 +2362,7 @@ window.BEISHAN = {
           "id": "beishan-3-12",
           "name": "平山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 64,
+          "unlockLevel": 51,
           "yields": {
             "mineral": [
               "美玉"
@@ -2379,7 +2379,7 @@ window.BEISHAN = {
           "id": "beishan-3-13",
           "name": "京山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 64,
+          "unlockLevel": 51,
           "yields": {
             "mineral": [
               "美玉",
@@ -2402,7 +2402,7 @@ window.BEISHAN = {
           "id": "beishan-3-14",
           "name": "虫尾之山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 64,
+          "unlockLevel": 52,
           "yields": {
             "mineral": [
               "金玉（上）",
@@ -2424,7 +2424,7 @@ window.BEISHAN = {
           "id": "beishan-3-15",
           "name": "彭毗之山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 64,
+          "unlockLevel": 52,
           "terrain": "其上无草木，其下多水",
           "yields": {
             "mineral": [
@@ -2450,7 +2450,7 @@ window.BEISHAN = {
           "id": "beishan-3-16",
           "name": "小侯之山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 65,
+          "unlockLevel": 52,
           "yields": {
             "water": [
               "明漳之水（南流注于黄泽）"
@@ -2471,7 +2471,7 @@ window.BEISHAN = {
           "id": "beishan-3-17",
           "name": "泰头之山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 65,
+          "unlockLevel": 52,
           "yields": {
             "mineral": [
               "金玉（上）"
@@ -2491,7 +2491,7 @@ window.BEISHAN = {
           "id": "beishan-3-18",
           "name": "轩辕之山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 65,
+          "unlockLevel": 52,
           "yields": {
             "mineral": [
               "铜（上）"
@@ -2517,7 +2517,7 @@ window.BEISHAN = {
           "id": "beishan-3-19",
           "name": "谒戾之山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 65,
+          "unlockLevel": 52,
           "yields": {
             "wood": [
               "松",
@@ -2541,7 +2541,7 @@ window.BEISHAN = {
           "id": "beishan-3-20",
           "name": "沮洳之山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 65,
+          "unlockLevel": 52,
           "terrain": "无草木",
           "yields": {
             "mineral": [
@@ -2560,7 +2560,7 @@ window.BEISHAN = {
           "id": "beishan-3-21",
           "name": "神囷之山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 65,
+          "unlockLevel": 53,
           "yields": {
             "mineral": [
               "文石（上）"
@@ -2587,7 +2587,7 @@ window.BEISHAN = {
           "id": "beishan-3-22",
           "name": "发鸠之山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 66,
+          "unlockLevel": 53,
           "yields": {
             "wood": [
               "柘木"
@@ -2615,7 +2615,7 @@ window.BEISHAN = {
           "id": "beishan-3-23",
           "name": "少山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 66,
+          "unlockLevel": 53,
           "yields": {
             "mineral": [
               "金玉（上）",
@@ -2633,7 +2633,7 @@ window.BEISHAN = {
           "id": "beishan-3-24",
           "name": "锡山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 66,
+          "unlockLevel": 53,
           "yields": {
             "mineral": [
               "玉（上）",
@@ -2651,7 +2651,7 @@ window.BEISHAN = {
           "id": "beishan-3-25",
           "name": "景山（其二）",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 66,
+          "unlockLevel": 53,
           "yields": {
             "mineral": [
               "美玉"
@@ -2669,7 +2669,7 @@ window.BEISHAN = {
           "id": "beishan-3-26",
           "name": "题首之山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 66,
+          "unlockLevel": 53,
           "terrain": "无水",
           "yields": {
             "mineral": [
@@ -2685,7 +2685,7 @@ window.BEISHAN = {
           "id": "beishan-3-27",
           "name": "绣山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 67,
+          "unlockLevel": 53,
           "yields": {
             "mineral": [
               "玉",
@@ -2719,7 +2719,7 @@ window.BEISHAN = {
           "id": "beishan-3-28",
           "name": "松山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 67,
+          "unlockLevel": 53,
           "yields": {
             "water": [
               "阳水（东北流注于河）"
@@ -2733,7 +2733,7 @@ window.BEISHAN = {
           "id": "beishan-3-29",
           "name": "敦与之山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 67,
+          "unlockLevel": 54,
           "terrain": "其上无草木",
           "yields": {
             "mineral": [
@@ -2754,7 +2754,7 @@ window.BEISHAN = {
           "id": "beishan-3-30",
           "name": "柘山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 67,
+          "unlockLevel": 54,
           "yields": {
             "mineral": [
               "金玉（阳）",
@@ -2772,7 +2772,7 @@ window.BEISHAN = {
           "id": "beishan-3-31",
           "name": "维龙之山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 67,
+          "unlockLevel": 54,
           "yields": {
             "mineral": [
               "碧玉（上）",
@@ -2793,7 +2793,7 @@ window.BEISHAN = {
           "id": "beishan-3-32",
           "name": "白马之山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 67,
+          "unlockLevel": 54,
           "yields": {
             "mineral": [
               "石",
@@ -2813,7 +2813,7 @@ window.BEISHAN = {
           "id": "beishan-3-33",
           "name": "空桑之山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 67,
+          "unlockLevel": 54,
           "terrain": "无草木，冬夏有雪",
           "yields": {
             "water": [
@@ -2828,7 +2828,7 @@ window.BEISHAN = {
           "id": "beishan-3-34",
           "name": "泰戏之山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 68,
+          "unlockLevel": 54,
           "terrain": "无草木",
           "yields": {
             "mineral": [
@@ -2857,7 +2857,7 @@ window.BEISHAN = {
           "id": "beishan-3-35",
           "name": "石山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 68,
+          "unlockLevel": 54,
           "yields": {
             "mineral": [
               "金玉"
@@ -2875,7 +2875,7 @@ window.BEISHAN = {
           "id": "beishan-3-36",
           "name": "童戎之山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 68,
+          "unlockLevel": 54,
           "yields": {
             "water": [
               "皋涂之水（东流注于溇液水）"
@@ -2889,7 +2889,7 @@ window.BEISHAN = {
           "id": "beishan-3-37",
           "name": "高是之山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 68,
+          "unlockLevel": 55,
           "yields": {
             "wood": [
               "棕"
@@ -2910,7 +2910,7 @@ window.BEISHAN = {
           "id": "beishan-3-38",
           "name": "陆山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 68,
+          "unlockLevel": 55,
           "yields": {
             "mineral": [
               "美玉"
@@ -2927,7 +2927,7 @@ window.BEISHAN = {
           "id": "beishan-3-39",
           "name": "沂山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 68,
+          "unlockLevel": 55,
           "yields": {
             "water": [
               "般水（东流注于河）"
@@ -2941,7 +2941,7 @@ window.BEISHAN = {
           "id": "beishan-3-40",
           "name": "燕山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 69,
+          "unlockLevel": 55,
           "yields": {
             "mineral": [
               "婴石"
@@ -2958,7 +2958,7 @@ window.BEISHAN = {
           "id": "beishan-3-41",
           "name": "饶山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 69,
+          "unlockLevel": 55,
           "terrain": "又北山行五百里，水行五百里，至于饶山。是无草木",
           "yields": {
             "mineral": [
@@ -2996,7 +2996,7 @@ window.BEISHAN = {
           "id": "beishan-3-42",
           "name": "乾山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 69,
+          "unlockLevel": 55,
           "terrain": "无草木。其阴有铁而无水",
           "yields": {
             "mineral": [
@@ -3019,7 +3019,7 @@ window.BEISHAN = {
           "id": "beishan-3-43",
           "name": "伦山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 69,
+          "unlockLevel": 55,
           "yields": {
             "water": [
               "伦水（东流注于河）"
@@ -3039,7 +3039,7 @@ window.BEISHAN = {
           "id": "beishan-3-44",
           "name": "碣石之山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 69,
+          "unlockLevel": 56,
           "yields": {
             "mineral": [
               "玉（上）",
@@ -3062,7 +3062,7 @@ window.BEISHAN = {
           "id": "beishan-3-45",
           "name": "雁门之山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 70,
+          "unlockLevel": 56,
           "terrain": "又北水行五百里，至于雁门之山，无草木",
           "yields": {},
           "fauna": [],
@@ -3073,7 +3073,7 @@ window.BEISHAN = {
           "id": "beishan-3-46",
           "name": "帝都之山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 70,
+          "unlockLevel": 56,
           "terrain": "又北水行四百里，至于泰泽，其中有山焉，曰帝都之山，广员百里，无草木",
           "yields": {
             "mineral": [
@@ -3089,7 +3089,7 @@ window.BEISHAN = {
           "id": "beishan-3-47",
           "name": "錞于毋逢之山",
           "chapter": "北山经·北次三经",
-          "unlockLevel": 70,
+          "unlockLevel": 56,
           "terrain": "北望鸡号之山，其风如䬅。西望幽都之山，浴水出焉",
           "yields": {
             "water": [

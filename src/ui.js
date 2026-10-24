@@ -221,7 +221,7 @@ const UI = {
   // 由调用方传 { focus:true } 才切到征伐页。
   startCombat(m, opts){
     if (opts && opts.focus && this.currentTab !== 'taofa') this.switchTab('taofa');
-    // 只换竞技场：开战时列表 191 张卡不需要重建（重建会让滚动抖一下）
+    // 只换竞技场：开战时列表 245 张卡不需要重建（重建会让滚动抖一下）
     if (this.currentTab === 'taofa') this.patchCombatArena();
     this.refreshActivity();
   },
@@ -900,7 +900,7 @@ function nextHint(){
   if (ready)
     return { icon:'🐾', tab:'yushi', text:`「${ready.name}」已著录至「通形」，可往「御使」入槽，得被动增益与自动作业。` };
   // 新解锁却尚未涉足的山系
-  const fresh = (WORLD && WORLD.regions || []).find(r=>regionUnlocked(r) && r.nodes.every(n=>!Game.map[n.id]));
+  const fresh = (WORLD && WORLD.regions || []).find(r=>regionUnlocked(r) && r.nodes.length > 0 && r.nodes.every(n=>!Game.map[n.id]));
   if (fresh)
     return { icon:'🗺️', tab:'yudi', text:`新山系「${fresh.regionName}」已解锁，前往探索可得新物产与异兽。` };
   // 接近阶位突破（任一著录距下一阶不足 5 次）
@@ -990,14 +990,15 @@ UI.renderYudi = function(){
           ${chRegions.map(r=>{
             const un = regionUnlocked(r);
             const done = r.nodes.filter(n=>Game.map[n.id]).length;
-            const full = done >= r.nodes.length;
+            const full = r.nodes.length > 0 && done >= r.nodes.length;
+            const todo = r.nodes.length > 0;   // 空山系（框架已立、诸山待补录）不按进度渲染
             // 方块：山系名 + 涉山进度；未解锁只留一把锁与所需等级
             return `<div class="tile region-tile ${r.regionId===this.selRegion?'on':''} ${un?'':'lock'} ${full?'full':''}"
-                title="${esc(r.regionName)}${un?` · 已涉 ${done}/${r.nodes.length} 山`:` · 需舆地 ${r.unlockLevel} 级`}"
+                title="${esc(r.regionName)}${un ? (todo ? ` · 已涉 ${done}/${r.nodes.length} 山` : ' · 原文已备，诸山待补录') : ` · 需舆地 ${r.unlockLevel} 级`}"
                 onclick="UI.selRegion='${r.regionId}';UI.selNode=null;UI.renderYudi()">
               <span class="rg-name">${esc(r.regionName)}</span>
-              <span class="rg-sub">${un ? `${done}/${r.nodes.length} 山` : `${typeof markIcon==='function'?markIcon('lock',13):'🔒'} ${r.unlockLevel} 级`}</span>
-              ${un && done > 0 ? `<span class="rg-bar"><i style="width:${(done/r.nodes.length*100).toFixed(0)}%"></i></span>` : ''}
+              <span class="rg-sub">${un ? (todo ? `${done}/${r.nodes.length} 山` : '待补录') : `${typeof markIcon==='function'?markIcon('lock',13):'🔒'} ${r.unlockLevel} 级`}</span>
+              ${un && todo && done > 0 ? `<span class="rg-bar"><i style="width:${(done/r.nodes.length*100).toFixed(0)}%"></i></span>` : ''}
             </div>`;
           }).join('')}
           </div>
@@ -1010,6 +1011,7 @@ UI.renderYudi = function(){
       <h3>${esc(region.regionName)} · 诸山</h3>
       <div class="node-list">
       <div class="tile-grid node-grid">
+      ${nodes.length ? '' : '<div class="empty-tip">此山系原文已备（祠礼与山神已入祠典），诸山名录待逐系补录。</div>'}
       ${nodes.map(n=>{
         const un = nodeUnlocked(n);
         const visited = !!Game.map[n.id];
@@ -1521,7 +1523,7 @@ function taofaArenaHtml(){
   </div>`;
 }
 
-// 目标列表：234 只异兽分组平铺，只在切页或数据真变时重建
+// 目标列表：245 只异兽分组平铺，只在切页或数据真变时重建
 function taofaListHtml(){
   const groups = [];
   for (const r of WORLD.regions){
@@ -1533,7 +1535,7 @@ function taofaListHtml(){
   groups.push({ title:'刑天', list:Object.values(Monsters).filter(x=>x.id==='xingtian') });
   groups.push({ title:'西山神祇（守关）', list:Object.values(Monsters).filter(x=>x.boss&&['luwu','xiwangmu','dijiang'].includes(x.id)) });
   // 「宜讨」：当前节点已解锁、讨伐等级达标、非 BOSS 中经验最高的一只——
-  // 234 只异兽平铺时，玩家（与挂机队列）最需要的答案就是「现在打哪只」
+  // 245 只异兽平铺时，玩家（与挂机队列）最需要的答案就是「现在打哪只」
   const pick = (()=>{
     let best = null;
     for (const g of groups){

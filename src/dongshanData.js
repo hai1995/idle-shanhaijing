@@ -462,7 +462,7 @@ window.DONGSHAN = {
       "regionName": "东山首经",
       "regionAlias": "樕𧑤",
       "order": 11,
-      "unlockLevel": 71,
+      "unlockLevel": 57,
       "summary": "东山经之首，曰樕𧑤之山。凡东山经之首，自樕𧑤之山以至于竹山，凡十二山，三千六百里。",
       "deity": {
         "form": "其神状皆人身龙首",
@@ -581,7 +581,7 @@ window.DONGSHAN = {
           "id": "dongshan-1-01",
           "name": "樕𧑤之山",
           "chapter": "东山经·东山首经",
-          "unlockLevel": 71,
+          "unlockLevel": 57,
           "terrain": "北临乾昧",
           "yields": {
             "water": [
@@ -603,7 +603,7 @@ window.DONGSHAN = {
           "id": "dongshan-1-02",
           "name": "藟山",
           "chapter": "东山经·东山首经",
-          "unlockLevel": 71,
+          "unlockLevel": 57,
           "yields": {
             "mineral": [
               "玉（上）",
@@ -627,7 +627,7 @@ window.DONGSHAN = {
           "id": "dongshan-1-03",
           "name": "栒状之山",
           "chapter": "东山经·东山首经",
-          "unlockLevel": 71,
+          "unlockLevel": 57,
           "yields": {
             "mineral": [
               "金玉（上）",
@@ -673,7 +673,7 @@ window.DONGSHAN = {
           "id": "dongshan-1-04",
           "name": "勃亝之山",
           "chapter": "东山经·东山首经",
-          "unlockLevel": 72,
+          "unlockLevel": 58,
           "terrain": "无草木，无水",
           "yields": {},
           "fauna": [],
@@ -684,7 +684,7 @@ window.DONGSHAN = {
           "id": "dongshan-1-05",
           "name": "番条之山",
           "chapter": "东山经·东山首经",
-          "unlockLevel": 72,
+          "unlockLevel": 58,
           "terrain": "无草木，多沙",
           "yields": {
             "water": [
@@ -704,7 +704,7 @@ window.DONGSHAN = {
           "id": "dongshan-1-06",
           "name": "姑儿之山",
           "chapter": "东山经·东山首经",
-          "unlockLevel": 72,
+          "unlockLevel": 58,
           "yields": {
             "wood": [
               "漆（上）",
@@ -728,7 +728,7 @@ window.DONGSHAN = {
           "id": "dongshan-1-07",
           "name": "高氏之山",
           "chapter": "东山经·东山首经",
-          "unlockLevel": 72,
+          "unlockLevel": 58,
           "yields": {
             "mineral": [
               "玉（上）",
@@ -748,7 +748,7 @@ window.DONGSHAN = {
           "id": "dongshan-1-08",
           "name": "岳山",
           "chapter": "东山经·东山首经",
-          "unlockLevel": 72,
+          "unlockLevel": 58,
           "yields": {
             "wood": [
               "桑（上）",
@@ -769,7 +769,7 @@ window.DONGSHAN = {
           "id": "dongshan-1-09",
           "name": "犲山",
           "chapter": "东山经·东山首经",
-          "unlockLevel": 72,
+          "unlockLevel": 59,
           "terrain": "其上无草木，其下多水",
           "yields": {
             "water": [
@@ -805,7 +805,7 @@ window.DONGSHAN = {
           "id": "dongshan-1-10",
           "name": "独山",
           "chapter": "东山经·东山首经",
-          "unlockLevel": 73,
+          "unlockLevel": 59,
           "yields": {
             "mineral": [
               "金玉（上）",
@@ -841,7 +841,7 @@ window.DONGSHAN = {
           "id": "dongshan-1-11",
           "name": "泰山",
           "chapter": "东山经·东山首经",
-          "unlockLevel": 73,
+          "unlockLevel": 59,
           "yields": {
             "mineral": [
               "玉（上）",
@@ -869,7 +869,7 @@ window.DONGSHAN = {
           "id": "dongshan-1-12",
           "name": "竹山",
           "chapter": "东山经·东山首经",
-          "unlockLevel": 73,
+          "unlockLevel": 59,
           "terrain": "錞于江，无草木",
           "yields": {
             "mineral": [
@@ -893,7 +893,7 @@ window.DONGSHAN = {
       "regionName": "东次二经",
       "regionAlias": "空桑",
       "order": 12,
-      "unlockLevel": 73,
+      "unlockLevel": 60,
       "summary": "东次二经之首，曰空桑之山。凡东次二经之首，自空桑之山至于䃌山，凡十七山，六千六百四十里。",
       "deity": {
         "form": "其神状皆兽身人面载觡",
@@ -1054,7 +1054,7 @@ window.DONGSHAN = {
           "id": "dongshan-2-01",
           "name": "空桑之山",
           "chapter": "东山经·东次二经",
-          "unlockLevel": 73,
+          "unlockLevel": 60,
           "terrain": "北临食水，东望沮吴，南望沙陵，西望湣泽",
           "observation": {
             "type": "观象点",
@@ -1095,7 +1095,7 @@ window.DONGSHAN = {
           "id": "dongshan-2-02",
           "name": "曹夕之山",
           "chapter": "东山经·东次二经",
-          "unlockLevel": 74,
+          "unlockLevel": 60,
           "terrain": "其下多谷而无水",
           "yields": {
             "wood": [
@@ -1116,7 +1116,7 @@ window.DONGSHAN = {
           "id": "dongshan-2-03",
           "name": "峄皋之山",
           "chapter": "东山经·东次二经",
-          "unlockLevel": 74,
+          "unlockLevel": 60,
           "yields": {
             "mineral": [
               "金玉（上）",
@@ -1140,7 +1140,7 @@ window.DONGSHAN = {
           "id": "dongshan-2-04",
           "name": "葛山之尾",
           "chapter": "东山经·东次二经",
-          "unlockLevel": 74,
+          "unlockLevel": 60,
           "terrain": "无草木（又南水行五百里，流沙三百里）",
           "yields": {
             "mineral": [
@@ -1156,7 +1156,7 @@ window.DONGSHAN = {
           "id": "dongshan-2-05",
           "name": "葛山之首",
           "chapter": "东山经·东次二经",
-          "unlockLevel": 74,
+          "unlockLevel": 60,
           "terrain": "无草木",
           "yields": {
             "water": [
@@ -1181,7 +1181,7 @@ window.DONGSHAN = {
           "id": "dongshan-2-06",
           "name": "余峨之山",
           "chapter": "东山经·东次二经",
-          "unlockLevel": 74,
+          "unlockLevel": 61,
           "yields": {
             "wood": [
               "梓",
@@ -1220,7 +1220,7 @@ window.DONGSHAN = {
           "id": "dongshan-2-07",
           "name": "杜父之山",
           "chapter": "东山经·东次二经",
-          "unlockLevel": 75,
+          "unlockLevel": 61,
           "terrain": "无草木，多水",
           "yields": {},
           "fauna": [],
@@ -1231,7 +1231,7 @@ window.DONGSHAN = {
           "id": "dongshan-2-08",
           "name": "耿山",
           "chapter": "东山经·东次二经",
-          "unlockLevel": 75,
+          "unlockLevel": 61,
           "terrain": "无草木",
           "yields": {
             "mineral": [
@@ -1268,7 +1268,7 @@ window.DONGSHAN = {
           "id": "dongshan-2-09",
           "name": "卢其之山",
           "chapter": "东山经·东次二经",
-          "unlockLevel": 75,
+          "unlockLevel": 61,
           "terrain": "无草木，多沙石",
           "yields": {
             "water": [
@@ -1301,7 +1301,7 @@ window.DONGSHAN = {
           "id": "dongshan-2-10",
           "name": "姑射之山",
           "chapter": "东山经·东次二经",
-          "unlockLevel": 75,
+          "unlockLevel": 62,
           "terrain": "无草木，多水",
           "yields": {},
           "fauna": [],
@@ -1313,7 +1313,7 @@ window.DONGSHAN = {
           "id": "dongshan-2-11",
           "name": "北姑射之山",
           "chapter": "东山经·东次二经",
-          "unlockLevel": 75,
+          "unlockLevel": 62,
           "terrain": "无草木，多石（又南水行三百里，流沙百里）",
           "yields": {
             "mineral": [
@@ -1328,7 +1328,7 @@ window.DONGSHAN = {
           "id": "dongshan-2-12",
           "name": "南姑射之山",
           "chapter": "东山经·东次二经",
-          "unlockLevel": 76,
+          "unlockLevel": 62,
           "terrain": "无草木，多水",
           "yields": {},
           "fauna": [],
@@ -1339,7 +1339,7 @@ window.DONGSHAN = {
           "id": "dongshan-2-13",
           "name": "碧山",
           "chapter": "东山经·东次二经",
-          "unlockLevel": 76,
+          "unlockLevel": 62,
           "terrain": "无草木",
           "yields": {
             "mineral": [
@@ -1363,7 +1363,7 @@ window.DONGSHAN = {
           "id": "dongshan-2-14",
           "name": "缑氏之山",
           "chapter": "东山经·东次二经",
-          "unlockLevel": 76,
+          "unlockLevel": 62,
           "terrain": "无草木",
           "yields": {
             "mineral": [
@@ -1383,7 +1383,7 @@ window.DONGSHAN = {
           "id": "dongshan-2-15",
           "name": "姑逢之山",
           "chapter": "东山经·东次二经",
-          "unlockLevel": 76,
+          "unlockLevel": 63,
           "terrain": "无草木",
           "yields": {
             "mineral": [
@@ -1415,7 +1415,7 @@ window.DONGSHAN = {
           "id": "dongshan-2-16",
           "name": "凫丽之山",
           "chapter": "东山经·东次二经",
-          "unlockLevel": 76,
+          "unlockLevel": 63,
           "yields": {
             "mineral": [
               "金玉（上）",
@@ -1444,7 +1444,7 @@ window.DONGSHAN = {
           "id": "dongshan-2-17",
           "name": "䃌山",
           "chapter": "东山经·东次二经",
-          "unlockLevel": 77,
+          "unlockLevel": 63,
           "terrain": "南临䃌水，东望湖泽",
           "observation": {
             "type": "观象点",
@@ -1501,7 +1501,7 @@ window.DONGSHAN = {
       "regionName": "东次三经",
       "regionAlias": "尸胡",
       "order": 13,
-      "unlockLevel": 77,
+      "unlockLevel": 64,
       "summary": "东次三经之首，曰尸胡之山。凡东次三经之首，自尸胡之山至于无皋之山，凡九山，六千九百里。",
       "deity": {
         "form": "其神状皆人身而羊角",
@@ -1608,7 +1608,7 @@ window.DONGSHAN = {
           "id": "dongshan-3-01",
           "name": "尸胡之山",
           "chapter": "东山经·东次三经",
-          "unlockLevel": 77,
+          "unlockLevel": 64,
           "terrain": "北望𦍲山",
           "observation": {
             "type": "观象点",
@@ -1643,7 +1643,7 @@ window.DONGSHAN = {
           "id": "dongshan-3-02",
           "name": "岐山",
           "chapter": "东山经·东次三经",
-          "unlockLevel": 77,
+          "unlockLevel": 64,
           "terrain": "又南水行八百里",
           "yields": {
             "fruit": [
@@ -1664,7 +1664,7 @@ window.DONGSHAN = {
           "id": "dongshan-3-03",
           "name": "诸钩之山",
           "chapter": "东山经·东次三经",
-          "unlockLevel": 78,
+          "unlockLevel": 64,
           "terrain": "无草木，多沙石。是山也，广员百里",
           "yields": {},
           "fauna": [
@@ -1681,7 +1681,7 @@ window.DONGSHAN = {
           "id": "dongshan-3-04",
           "name": "中父之山",
           "chapter": "东山经·东次三经",
-          "unlockLevel": 78,
+          "unlockLevel": 65,
           "terrain": "无草木，多沙",
           "yields": {},
           "fauna": [],
@@ -1692,7 +1692,7 @@ window.DONGSHAN = {
           "id": "dongshan-3-05",
           "name": "胡射之山",
           "chapter": "东山经·东次三经",
-          "unlockLevel": 78,
+          "unlockLevel": 65,
           "terrain": "无草木，多沙石（又东水行千里）",
           "yields": {},
           "fauna": [],
@@ -1703,7 +1703,7 @@ window.DONGSHAN = {
           "id": "dongshan-3-06",
           "name": "孟子之山",
           "chapter": "东山经·东次三经",
-          "unlockLevel": 78,
+          "unlockLevel": 65,
           "terrain": "是山也，广员百里",
           "yields": {
             "wood": [
@@ -1750,7 +1750,7 @@ window.DONGSHAN = {
           "id": "dongshan-3-07",
           "name": "跂踵之山",
           "chapter": "东山经·东次三经",
-          "unlockLevel": 79,
+          "unlockLevel": 65,
           "terrain": "广员二百里，无草木（又南水行五百里，流沙五百里）",
           "yields": {
             "mineral": [
@@ -1790,7 +1790,7 @@ window.DONGSHAN = {
           "id": "dongshan-3-08",
           "name": "踇隅之山",
           "chapter": "东山经·东次三经",
-          "unlockLevel": 79,
+          "unlockLevel": 66,
           "terrain": "其上多草木",
           "yields": {
             "mineral": [
@@ -1818,7 +1818,7 @@ window.DONGSHAN = {
           "id": "dongshan-3-09",
           "name": "无皋之山",
           "chapter": "东山经·东次三经",
-          "unlockLevel": 79,
+          "unlockLevel": 66,
           "terrain": "南望幼海，东望榑木，无草木，多风。是山也，广员百里",
           "observation": {
             "type": "观象点",
@@ -1844,7 +1844,7 @@ window.DONGSHAN = {
       "regionName": "东次四经",
       "regionAlias": "北号",
       "order": 14,
-      "unlockLevel": 80,
+      "unlockLevel": 66,
       "summary": "东次四经之首，曰北号之山。凡东次四经之首，自北号之山至于太山，凡八山，一千七百二十里。",
       "deity": null,
       "note": "★本系原文未载山神形象与祠礼，是东山经四系中唯一没有祭祀记载的一系。可设计为「无神之域」，与其他山系形成对照。",
@@ -1925,7 +1925,7 @@ window.DONGSHAN = {
           "id": "dongshan-4-01",
           "name": "北号之山",
           "chapter": "东山经·东次四经",
-          "unlockLevel": 80,
+          "unlockLevel": 66,
           "terrain": "临于北海",
           "yields": {
             "water": [
@@ -1968,7 +1968,7 @@ window.DONGSHAN = {
           "id": "dongshan-4-02",
           "name": "旄山",
           "chapter": "东山经·东次四经",
-          "unlockLevel": 80,
+          "unlockLevel": 67,
           "terrain": "无草木",
           "yields": {
             "water": [
@@ -1991,7 +1991,7 @@ window.DONGSHAN = {
           "id": "dongshan-4-03",
           "name": "东始之山",
           "chapter": "东山经·东次四经",
-          "unlockLevel": 80,
+          "unlockLevel": 67,
           "yields": {
             "mineral": [
               "苍玉"
@@ -2026,7 +2026,7 @@ window.DONGSHAN = {
           "id": "dongshan-4-04",
           "name": "女烝之山",
           "chapter": "东山经·东次四经",
-          "unlockLevel": 80,
+          "unlockLevel": 67,
           "terrain": "其上无草木",
           "yields": {
             "water": [
@@ -2058,7 +2058,7 @@ window.DONGSHAN = {
           "id": "dongshan-4-05",
           "name": "钦山",
           "chapter": "东山经·东次四经",
-          "unlockLevel": 80,
+          "unlockLevel": 67,
           "terrain": "多金玉而无石",
           "yields": {
             "mineral": [
@@ -2099,7 +2099,7 @@ window.DONGSHAN = {
           "id": "dongshan-4-06",
           "name": "子桐之山",
           "chapter": "东山经·东次四经",
-          "unlockLevel": 81,
+          "unlockLevel": 68,
           "yields": {
             "water": [
               "子桐之水（西流注于余如之泽）"
@@ -2132,7 +2132,7 @@ window.DONGSHAN = {
           "id": "dongshan-4-07",
           "name": "剡山",
           "chapter": "东山经·东次四经",
-          "unlockLevel": 81,
+          "unlockLevel": 68,
           "yields": {
             "mineral": [
               "金",
@@ -2171,7 +2171,7 @@ window.DONGSHAN = {
           "id": "dongshan-4-08",
           "name": "太山",
           "chapter": "东山经·东次四经",
-          "unlockLevel": 81,
+          "unlockLevel": 68,
           "yields": {
             "mineral": [
               "金",

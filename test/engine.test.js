@@ -38,7 +38,7 @@ vm.createContext(context);
 
 const base = path.join(__dirname, '..', 'src');
 function loadJS(file){ vm.runInContext(fs.readFileSync(path.join(base, file), 'utf8'), context, {filename:file}); }
-['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','gameData.js','save.js','engine.js','game.js','queue.js','interact.js','fx.js','beastIcon.js','riteIcon.js','structureIcon.js','skillIcon.js','itemIcon.js','markIcon.js'].forEach(loadJS);
+['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','zhongshanData.js','gameData.js','save.js','engine.js','game.js','queue.js','interact.js','fx.js','beastIcon.js','riteIcon.js','structureIcon.js','skillIcon.js','itemIcon.js','markIcon.js'].forEach(loadJS);
 const G = context;
 const ST = context.window;
 
@@ -57,17 +57,30 @@ assert(ST.Skills.zhulu && ST.Skills.yushi && ST.Skills.yudi && ST.Skills.guanxia
 const allNodes = [];
 ST.NANSHAN.regions.forEach(r=>r.nodes.forEach(n=>allNodes.push(n)));
 assert(allNodes.length === 39, '南山经三系共 39 山 -> ' + allNodes.length);
-assert(ST.WORLD.regions.length === 14, '世界共 14 山系（南山 3 + 西山 4 + 北山 3 + 东山 4）');
-assert(ST.WORLD.regions.reduce((a,r)=>a+r.nodes.length,0) === 250, '世界共 250 山（39+77+88+46）-> ' + ST.WORLD.regions.reduce((a,r)=>a+r.nodes.length,0));
-assert(ST.CHAPTERS.length === 4 && ST.CHAPTERS[3].regionIds.length === 4, '四章：南山 / 西山 / 北山 / 东山');
+assert(ST.WORLD.regions.length === 26, '世界共 26 山系（南山 3 + 西山 4 + 北山 3 + 东山 4 + 中山 12）');
+assert(ST.WORLD.regions.reduce((a,r)=>a+r.nodes.length,0) === 279, '世界共 279 山（39+77+88+46+29）-> ' + ST.WORLD.regions.reduce((a,r)=>a+r.nodes.length,0));
+assert(ST.CHAPTERS.length === 5 && ST.CHAPTERS[4].regionIds.length === 3, '五章：南山 / 西山 / 北山 / 东山 / 中山（首录三系）');
 // 东山经接入校验（2026-10）
 const dsNodes = [];
 ST.DONGSHAN.regions.forEach(r=>r.nodes.forEach(n=>dsNodes.push(n)));
 assert(dsNodes.length === 46, '东山经四系共 46 山 -> ' + dsNodes.length);
-assert(dsNodes.every(n=>n.unlockLevel>=71 && n.unlockLevel<=81), '东山 46 山等级重排入 71-81（终末章）');
+assert(dsNodes.every(n=>n.unlockLevel>=57 && n.unlockLevel<=68), '东山 46 山等级重排入 57-68（后启中山 69）');
 assert(dsNodes.every(n=>n.dataUnlockLevel>0), '东山原始调参值保留在 dataUnlockLevel');
 assert(ST.DONGSHAN.regions.filter(r=>r.deity).length === 3, '东山四系中三系载山神与祠礼（东次四经为「无神之域」');
-assert(ST.WORLD.regions.find(r=>r.regionId==='dongshan-4').unlockLevel === 80, '东次四经区域门槛 80，太山（81）为全世界最高节点门槛');
+assert(ST.WORLD.regions.find(r=>r.regionId==='dongshan-4').unlockLevel === 66, '东次四经区域门槛 66（接北山 56 之后重排）');
+assert(ST.WORLD.regions.every(r=>r.unlockLevel<=80), '区域门槛上限 80（中次十二经）');
+assert(ST.WORLD.regions.reduce((a,r)=>a+r.nodes.length,0)>0 && ST.WORLD.regions.every(r=>r.nodes.length===0 || r.nodes.every(n=>n.unlockLevel<=81)), '节点等级不越 81 上限');
+// 中山经接入校验（2026-10）
+const zsNodes = [];
+ST.ZHONGSHAN.regions.forEach(r=>r.nodes.forEach(n=>zsNodes.push(n)));
+assert(ST.ZHONGSHAN.regions.length === 12, '中山经十二系 -> ' + ST.ZHONGSHAN.regions.length);
+assert(zsNodes.length === 29, '中山经首录三系共 29 山（中次一经 15 + 中次二经 9 + 中次三经 5）-> ' + zsNodes.length);
+assert(zsNodes.every(n=>n.unlockLevel>=69 && n.unlockLevel<=73), '中山已录 29 山等级重排入 69-73（后九系框架门槛至 80）');
+assert(zsNodes.every(n=>n.dataUnlockLevel>0), '中山原始调参值保留在 dataUnlockLevel');
+assert(['rite_zs1','rite_zs2','rite_zs3'].every(id=>ST.RITES[id]), '中山三套祠礼齐备');
+assert(ST.OMENS.mingshe && ST.OMENS.huashe && ST.OMENS.fuzhu, '中山三征兆：鸣蛇大旱 / 化蛇大水 / 夫诸大水');
+assert(ST.ZHONGSHAN.regions.filter(r=>r.nodes.length===0).length === 9, '中次四至十二经为框架（诸山待补录）');
+assert(ST.WORLD.regions.filter(r=>r.regionId.indexOf('zhongshan')===0).length === 12, '中山十二系并入世界');
 // 物品 id 唯一性（防止同名物品互相覆盖——曾因珠玉/祝余同 id 出过事故）
 (function(){
   const src = fs.readFileSync(path.join(__dirname,'..','src','gameData.js'),'utf8');
@@ -96,9 +109,9 @@ assert(bosses.map(b=>b.id).join(',').includes('luwu'), '陆吾守关在列');
 assert(bosses.map(b=>b.id).join(',').includes('xiwangmu'), '西王母在列');
 assert(bosses.map(b=>b.id).join(',').includes('dijiang'), '帝江在列');
 assert(Object.keys(ST.CODEX).length >= 90, '图鉴条目 -> ' + Object.keys(ST.CODEX).length);
-assert(Object.keys(ST.OMENS).length === 8 + 15 + 4 + 15, '征兆 8 + 15 + 北山 4 + 东山 15 = 42 条 -> ' + Object.keys(ST.OMENS).length);
+assert(Object.keys(ST.OMENS).length === 8 + 15 + 4 + 15 + 3, '征兆 8 + 15 + 北山 4 + 东山 15 + 中山 3 = 45 条 -> ' + Object.keys(ST.OMENS).length);
 assert(Object.keys(ST.OBSERVE_SITES).length === 9, '观象/观瑞 5 + 东山 4 = 9 处');
-assert(Object.keys(ST.RITES).length === 3 + 6 + 1 + 3 + 3, '祠礼 3 + 6 + 常祭 + 北山 3 + 东山 3 = 16 套 -> ' + Object.keys(ST.RITES).length);
+assert(Object.keys(ST.RITES).length === 3 + 6 + 1 + 3 + 3 + 3, '祠礼 3 + 6 + 常祭 + 北山 3 + 东山 3 + 中山 3 = 19 套 -> ' + Object.keys(ST.RITES).length);
 assert(ST.RITES.rite_chang.regionId === null, '常祭无区域归属（随时可行）');
 assert(Object.keys(ST.AUDIENCE_SITES).length >= 8, '谒见神祇之山 -> ' + Object.keys(ST.AUDIENCE_SITES).length);
 assert(Object.keys(ST.GROW_SITES).length === 3, '养成点（丹木 / 器酸 / 精卫）');
@@ -328,13 +341,13 @@ section('西山经 · 衔接');
 // 等级重排在 81 上限内
 const xsNodes = [];
 ST.XISHAN.regions.forEach(r=>r.nodes.forEach(n=>xsNodes.push(n)));
-assert(xsNodes.every(n=>n.unlockLevel>=33 && n.unlockLevel<=52), '西山 77 山等级重排入 33-52（接南山 32）');
+assert(xsNodes.every(n=>n.unlockLevel>=27 && n.unlockLevel<=42), '西山 77 山等级重排入 27-42（接南山 26）');
 assert(xsNodes.every(n=>n.dataUnlockLevel>0), '原始调参值保留在 dataUnlockLevel');
 // ---- 北山经校验 ----
 const bsNodes = [];
 ST.BEISHAN.regions.forEach(r=>r.nodes.forEach(n=>bsNodes.push(n)));
 assert(bsNodes.length === 88, '北山经三系共 88 山 -> ' + bsNodes.length);
-assert(bsNodes.every(n=>n.unlockLevel>=53 && n.unlockLevel<=70), '北山 88 山等级重排入 53-70（后启东山 71）');
+assert(bsNodes.every(n=>n.unlockLevel>=43 && n.unlockLevel<=56), '北山 88 山等级重排入 43-56（后启东山 57）');
 assert(ST.regionUnlocked(ST.WORLD.regions.find(r=>r.regionId==='beishan-3')), '北山三经区域已解锁');
 assert(['rite_bs1','rite_bs2','rite_bs3'].every(id=>ST.RITES[id]), '北山三套祠礼齐备');
 const bsOmenIds = Object.keys(ST.OMENS).filter(k=>k.indexOf('omen_beishan')===0);
@@ -1714,7 +1727,7 @@ section('数据引用完备性：配方产物 / 祠礼物品 / 作物种子 / �
   const noRecipe = ids.filter(k => !ST.Recipes.some(r => r.type === 'rite' && r.out === k));
   assert(noItem.length === 0, '每套祠礼都有祠器物品（东山三礼曾缺）-> ' + (noItem.join(',') || '齐全'));
   assert(noRecipe.length === 0, '每套祠礼都有对应配方 -> ' + (noRecipe.join(',') || '齐全'));
-  assert(ids.length === 16, '祠礼共十六套（含常祭）-> ' + ids.length);
+  assert(ids.length === 19, '祠礼共十九套（含常祭）-> ' + ids.length);
   assert(!!ST.Items.rite_ds1 && !!ST.Items.rite_ds2 && !!ST.Items.rite_ds3, '东山三套祠器各有其名（犬祈鱼䎶 / 鸡祈璧瘗 / 牡羊黍米）');
 }
 // 29.3 每种嘉谷都必须有种子，否则该作物永远拿不到
@@ -1775,7 +1788,7 @@ section('征兆可触发：兆必有兽 / 兆必能应');
   });
   assert(noSource.length === 0, '每条征兆都有触发源 -> ' + (noSource.join(' ') || '无死兆'));
   assert(ST._omenLinks >= 20, '征兆挂接补足 20 条（旧 IDS 命名与 ds_ 前缀脱节）-> ' + ST._omenLinks);
-  assert(Object.keys(ST.OMENS).length === 42, '征兆仍为 42 条');
+  assert(Object.keys(ST.OMENS).length === 45, '征兆仍为 45 条');
 }
 // 30.2 「有兆无兽」的四座山已补上实体（北山山𤟤 / 酸与，西山未名鸟，东山未名兽）
 {
@@ -2283,7 +2296,7 @@ section('移动端缩放与不溢出');
   assert(uiM.includes('data-tip-title="${esc(x.name)}${x.py?') && uiM.includes('（${esc(x.py)}）'), '浮层标题带注音（生僻字可辨）');
   // 7) 祠礼图标：十六礼各有专属「礼器」图形，不再用名字首字的方章
   assert(typeof ST.riteIcon === 'function', 'riteIcon 已导出');
-  assert(Array.isArray(ST.RITE_ICON_IDS) && ST.RITE_ICON_IDS.length === 16, '祠礼专属图标 16 枚（'+(ST.RITE_ICON_IDS||[]).length+'）');
+  assert(Array.isArray(ST.RITE_ICON_IDS) && ST.RITE_ICON_IDS.length === 19, '祠礼专属图标 19 枚（'+(ST.RITE_ICON_IDS||[]).length+'）');
   (function(){
     const ids = Object.keys(ST.RITES || {});
     const miss = ids.filter(id => !(ST.RITE_ICON_IDS||[]).includes(id));

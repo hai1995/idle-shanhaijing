@@ -48,19 +48,22 @@ const RARITY = {
 };
 const RARITY_TIERS = [ [1000,'MYTHIC'], [300,'LEGENDARY'], [100,'RARE'], [30,'UNCOMMON'], [0,'COMMON'] ];
 
-// ---------- 世界（南山经 + 西山经 + 北山经，三章同构接入） ----------
+// ---------- 世界（南山经 + 西山经 + 北山经 + 东山经 + 中山经，五章同构接入） ----------
 const NANSHAN = (typeof window !== 'undefined' && window.NANSHAN) ? window.NANSHAN : { regions: [] };
 const XISHAN  = (typeof window !== 'undefined' && window.XISHAN)  ? window.XISHAN  : { regions: [] };
 const BEISHAN = (typeof window !== 'undefined' && window.BEISHAN) ? window.BEISHAN : { regions: [] };
 const DONGSHAN = (typeof window !== 'undefined' && window.DONGSHAN) ? window.DONGSHAN : { regions: [] };
-const WORLD = { regions: [].concat(NANSHAN.regions||[], XISHAN.regions||[], BEISHAN.regions||[], DONGSHAN.regions||[]) };
+const ZHONGSHAN = (typeof window !== 'undefined' && window.ZHONGSHAN) ? window.ZHONGSHAN : { regions: [] };
+const WORLD = { regions: [].concat(NANSHAN.regions||[], XISHAN.regions||[], BEISHAN.regions||[], DONGSHAN.regions||[], ZHONGSHAN.regions||[]) };
 // 章节（叙事层）：南山经=巡行记录，西山经=神话舞台（神祇密度支撑主线章节），北山经=长篇养成（精卫填海），
-// 东山经=荒经水路（终末章：近半之山「无草木」，唯一全水行山系，产玉与渔）
+// 东山经=荒经水路（水泽大荒），中山经=帝之密都（全书收卷：神祇与氏族记载最密的一部，十二系各有祠礼）
 const CHAPTERS = [
   { id:'nanshan', name:'第一章 · 南山经', sub:'巡行记录', regionIds:['nanshan-1','nanshan-2','nanshan-3'] },
   { id:'xishan',  name:'第二章 · 西山经', sub:'神话舞台', regionIds:['xishan-1','xishan-2','xishan-3','xishan-4'] },
   { id:'beishan', name:'第三章 · 北山经', sub:'长篇养成', regionIds:['beishan-1','beishan-2','beishan-3'] },
   { id:'dongshan',name:'第四章 · 东山经', sub:'荒经水路', regionIds:['dongshan-1','dongshan-2','dongshan-3','dongshan-4'] },
+  // 第五章先挂已入录三系（中次一/二/三经）；中次四经至中次十二经 nodes 补录后逐一加入
+  { id:'zhongshan',name:'第五章 · 中山经', sub:'帝之密都', regionIds:['zhongshan-1','zhongshan-2','zhongshan-3'] },
 ];
 function chapterOf(regionId){ return CHAPTERS.find(c=>c.regionIds.includes(regionId)) || null; }
 
@@ -435,6 +438,26 @@ addItem(
   I('danmushi','丹木之实','food', { value:150, heal:500, icon:'🍒', edible:true, effect:'食之不饥', rarity:'RARE' }),
 );
 
+// 中山经首录三系独有产出（帝之密都：草木主治线收官 + 双征兆水族；2026-10-24）
+addItem(
+  // —— 中次一经 · 草木（樵采/采药）——
+  XW('zs_limu','櫔木','wood',['zhongshan-1-02'],{ icon:'🌳', skill:'qiaocai', py:'lǜ', note:'方茎而员叶，黄华而毛，其实如拣——服之不忘' }),
+  XW('zs_zhizhu','植楮','herb',['zhongshan-1-06'],{ icon:'🌿', skill:'caiyao', note:'其状如葵叶而赤华，荚实如棕椶荚——可以已癙，食之不眯' }),
+  XW('zs_tianying','天婴','herb',['zhongshan-1-07'],{ icon:'🌿', skill:'caiyao', note:'其状如龙骨——可以已痤' }),
+  XW('zs_guicao','鬼草','herb',['zhongshan-1-11'],{ icon:'🌿', skill:'caiyao', note:'其叶如葵而赤茎，其秀如禾——服之不忧' }),
+  XW('zs_diaotang','雕棠','wood',['zhongshan-1-14'],{ icon:'🪵', skill:'qiaocai', note:'其叶如榆叶而方，其实如赤菽——食之已聋' }),
+  XW('zs_zhanji','薝棘','wood',['zhongshan-1-13'],{ icon:'🌳', skill:'qiaocai' }),
+  XW('zs_rongcao','荣草','herb',['zhongshan-1-15'],{ icon:'🌿', skill:'caiyao', note:'其叶如柳，其本如鸡卵——食之已风' }),
+  // —— 中次二经 · 毒草（芒草可以毒鱼——采集需谨慎）——
+  XW('zs_mangcao','芒草','herb',['zhongshan-2-07'],{ icon:'☠️', skill:'caiyao', note:'其状如棠而赤叶——可以毒鱼', hazard:true }),
+  // —— 中次三经 · 帝之密都（青要之山）——
+  XW('zs_xuncao','荀草','herb',['zhongshan-3-02'],{ icon:'🌸', skill:'caiyao', note:'其状如葌而方茎、黄华、赤实，其本如稿本——服之美人色' }),
+  XW('zs_manju','蔓居之木','wood',['zhongshan-3-04'],{ icon:'🪵', skill:'qiaocai' }),
+  // —— 水族（渔）——豪鱼（中次一经）与飞鱼（中次一经/中次三经同名异地）——
+  XW('zs_haoyu','豪鱼','fish',['zhongshan-1-03'],{ icon:'🐟', skill:'yu', effect:'可以已白癣', note:'状如鲔，而赤喙赤尾赤羽' }),
+  XW('zs_feiyu','飞鱼','fish',['zhongshan-1-11','zhongshan-3-03'],{ icon:'🐟', skill:'yu', effect:'服之不畏雷，可以御兵', note:'牛首之山飞鱼其状如鲋鱼（食之已痔衕）；騩山飞鱼其状如豚而赤文——同名异地，效果以騩山为准' }),
+);
+
 // ---- 长尾产出自动派生 ----
 // 世界数据里凡未手工定义的产出名称，按公式自动补成物品，保证每座山的
 // 原文产出都真实可采（id 以 w_ 前缀区分于手工条目）。
@@ -622,6 +645,13 @@ R('rite','rite_bs3',1,850,65,[['yu',1],['bi',1],['tu',1]]);                     
 R('rite','rite_ds1',1,850,71,[['baiquan',1],['yupei',1]]);   // 东山首经·人身龙首之神：毛用一犬祈，䎶用鱼
 R('rite','rite_ds2',1,870,73,[['xiongji',1],['bi',1]]);      // 东次二经·兽身人面载觡之神：毛用一鸡祈，婴用一璧瘗
 R('rite','rite_ds3',1,900,77,[['yang',1],['shu',1]]);        // 东次三经·人身羊角之神：用一牡羊，米用黍
+// 中山三套祠礼（帝之密都·全书收卷；2026-10-24 首录三系）
+// 中次一经：历儿为冢用太牢之具、县婴以吉玉，其余十三山一羊+藻珪瘗而不糈——综合以羊+玉
+R('rite','rite_zs1',1,920,69,[['yang',1],['yu',1]]);
+// 中次二经：其神皆人面而鸟身——祠用毛，用一吉玉，投而不糈
+R('rite','rite_zs2',1,940,71,[['yu',1]]);
+// 中次三经：帝之密都群神——太逢/熏池/武罗皆一牡羊，副婴用吉玉；其二神用一雄鸡，瘗之，糈用稌
+R('rite','rite_zs3',1,960,73,[['yang',1],['yu',1],['tu',1]]);
 
 // ---- 西山制作链 ----
 // 琢玉：祠器与玉符
@@ -669,6 +699,9 @@ addItem(
   I('rite_ds1','犬祈鱼䎶','rite',{ value:0, icon:'🕯️', note:'东山首经·人身龙首之神：毛用一犬祈，䎶用鱼（以鱼血涂祭器）' }),
   I('rite_ds2','鸡祈璧瘗','rite',{ value:0, icon:'🕯️', note:'东次二经·兽身人面载觡之神：毛用一鸡祈，婴用一璧瘗' }),
   I('rite_ds3','牡羊黍米','rite',{ value:0, icon:'🕯️', note:'东次三经·人身羊角之神：用一牡羊，米用黍——是神见则风雨水为败' }),
+  I('rite_zs1','太牢吉玉','rite',{ value:0, icon:'🕯️', note:'中次一经·薄山十五山神：历儿为冢，毛用太牢之具，县婴以吉玉；其余十三者，毛用一羊，县婴用藻珪，瘗而不糈' }),
+  I('rite_zs2','吉玉投水','rite',{ value:0, icon:'🕯️', note:'中次二经·人面鸟身之神：祠用毛，用一吉玉，投而不糈' }),
+  I('rite_zs3','牡羊雄鸡','rite',{ value:0, icon:'🕯️', note:'中次三经·帝之密都群神：太逢、熏池、武罗皆一牡羊，副婴用吉玉；其二神用一雄鸡，瘞之，糈用稌' }),
 );
 // ---- 西山新制成品 ----
 addItem(
@@ -726,6 +759,27 @@ addItem(
   }
 })();
 
+
+// 跨章共享材料：中山经首录三系产地并入既有物品（避免同名双 id）
+(function mergeZhongshanNodes(){
+  const SHARED = {
+    '杻木':['zhongshan-1-01'], '橿':['zhongshan-1-02'], '竹':['zhongshan-1-03','zhongshan-2-09'],
+    '赤铜':['zhongshan-1-05','zhongshan-1-09','zhongshan-1-15','zhongshan-2-06'],
+    '铁':['zhongshan-1-05','zhongshan-1-08'], '砺石':['zhongshan-1-14'], '文石':['zhongshan-1-14'],
+    '金':['zhongshan-2-02','zhongshan-2-03','zhongshan-2-04','zhongshan-2-07','zhongshan-2-09','zhongshan-3-04'],
+    '玉':['zhongshan-2-02','zhongshan-2-03','zhongshan-2-04','zhongshan-2-07','zhongshan-2-09','zhongshan-3-04'],
+    '砥砺':['zhongshan-2-02'], '桑':['zhongshan-2-01'], '美枣':['zhongshan-3-03'],
+    '赭':['zhongshan-3-01'], '黄金':['zhongshan-3-01'], '㻬琈之玉':['zhongshan-3-01','zhongshan-3-03'],
+  };
+  for (const [name, nodes] of Object.entries(SHARED)){
+    const it = Object.values(Items).find(i=>i.name===name);
+    if (!it) continue;
+    it.nodes = it.nodes || (it.node ? [it.node] : []);
+    nodes.forEach(n=>{ if (!it.nodes.includes(n)) it.nodes.push(n); });
+    it.node = it.nodes[0];
+  }
+})();
+
 // 北山异兽掉落物（与既有西山掉落物同待遇：定义为物品，供战利品系统使用）
 addItem(
   I('paoxiaorou','狍鸮之肉','food',{ value:120, lvl:50, icon:'🍖', note:'羊身人面，目在腋下——食人' }),
@@ -761,6 +815,10 @@ const RITES = {
   rite_ds1: { regionId:'dongshan-1', yieldBonus:0.30, dur:3600, xp:850, deity:'deity_dongshan-1' },
   rite_ds2: { regionId:'dongshan-2', yieldBonus:0.30, dur:3600, xp:870, deity:'deity_dongshan-2' },
   rite_ds3: { regionId:'dongshan-3', yieldBonus:0.30, dur:3600, xp:900, deity:'deity_dongshan-3' },
+  // 中山三套祠礼（帝之密都·全书收卷；2026-10-24 首录三系）
+  rite_zs1: { regionId:'zhongshan-1', yieldBonus:0.30, dur:3600, xp:920, deity:'deity_zhongshan-1' },
+  rite_zs2: { regionId:'zhongshan-2', yieldBonus:0.30, dur:3600, xp:940, deity:'deity_zhongshan-2' },
+  rite_zs3: { regionId:'zhongshan-3', yieldBonus:0.35, dur:3600, xp:960, deity:'deity_zhongshan-3' },
 };
 
 // ---------- 征兆系统（原文「见则X」，首次著录触发） ----------
@@ -788,6 +846,8 @@ const OMENS = {
     '䖪鼠':'zhi', '䖺䗤':'taohuang', '軨軨':'lingling', '犰狳':'qiuyu', '朱獳':'zhunu',
     '鵹鹕':'lihu', '獙獙':'bibi', '峳峳':'youyou', '絜钩':'xiegou', '薄鱼':'boyu',
     '当康':'dangkang', '䱻鱼':'dshuayu', '合窳':'hey', '蜚':'fei',
+    // 中山经首录三系（3 组）
+    '鸣蛇':'mingshe', '化蛇':'huashe', '夫诸':'fuzhu',
   };
   // 征兆类型 → 全局修正（自研；类型字符串以 JSON 的 node.omen 为准）
   const EFFECT = {
@@ -807,7 +867,7 @@ const OMENS = {
     '多疫':     { yield:-0.12, offline:-0.20 },          // 瘟疫
     '大疫':     { yield:-0.20, offline:-0.30 },          // 大瘟疫（蜚所致）
   };
-  for (const src of [XISHAN, BEISHAN, DONGSHAN]){
+  for (const src of [XISHAN, BEISHAN, DONGSHAN, ZHONGSHAN]){
     for (const region of src.regions){
       for (const node of region.nodes){
         for (const om of (node.omen||[])){
@@ -1198,6 +1258,19 @@ const FAUNA_META = {
               note:'其状如牛而三足，其鸣自詨' },
   '蒲夷之鱼':   { id:'bs_puyi', el:'水', drop:'bs_puyi_r', py:'pú yí zhī yú',
               note:'原文未详述形态' },
+  // ===== 中山经首录三系（中次一经/中次二经/中次三经，29 山）=====
+  // 循北山 bs_ 先例以 zs_ 前缀补录；豪鱼渔表 zs_haoyu 与异兽实体 zs_haoyu2 双层并存
+  // （同北山滑鱼类先例）；飞鱼同名异地（牛首之山/騩山）且两山效果不同，仅入渔表单层。
+  // 武罗/泰逢为神祇（category 神祇、无 meta）——不讨伐，走 region.deity 与图鉴祠典。
+  '㔮':     { id:'zs_nao',     el:'土', drop:'zs_nao_r',    py:'náo',      note:'其状如𤠢鼠而文题——食之已瘿' },
+  '豪鱼':   { id:'zs_haoyu2',  el:'水', drop:'zs_haoyu_r',  py:'háo',      note:'状如鲔，而赤喙赤尾赤羽——可以已白癣' },
+  '朏朏':   { id:'zs_feifei',  el:'金', drop:'zs_feifei_r', py:'fěi',      note:'其状如狸，而白尾有鬛——养之可以已忧' },
+  '鸣蛇':   { id:'zs_mingshe', el:'水', drop:'zs_mingshe_r',py:'míng shé', note:'其状如蛇而四翼，其音如磬——见则其邑大旱' },
+  '化蛇':   { id:'zs_huashe',  el:'水', drop:'zs_huashe_r', py:'huà shé',  note:'其状如人面而豺身，鸟翼而蛇行，其音如叱呼——见则其邑大水' },
+  '蠪蚳':   { id:'zs_longchi', el:'土', drop:'zs_longchi_r',py:'lóng chì', note:'其状如彘而有角，其音如号——食之不眯' },
+  '马腹':   { id:'zs_mafu',    el:'金', drop:'zs_mafu_r',   py:'mǎ fù',  man:true, note:'其状如人面虎身，其音如婴儿——是食人' },
+  '夫诸':   { id:'zs_fuzhu',   el:'土', drop:'zs_fuzhu_r',  py:'fū zhū',   note:'其状如白鹿而四角——见则其邑大水' },
+  '鴢':     { id:'zs_yao',     el:'火', drop:'zs_yao_r',    py:'yǎo',      note:'其状如凫，青身而朱目赤尾——食之宜子' },
   // ===== 东山经（四系 46 山）=====  —— 常兽虎/麋/鹿/大蛇/䱻鱼已在他经存在，复用其 meta
   '鳙鳙之鱼':{ id:'ds_yongyu',  el:'水', drop:'ds_yongyu_r' },
   '从从':    { id:'ds_congcong',el:'土', drop:'ds_congcong_r' },
@@ -1331,6 +1404,20 @@ addItem(
   I('bs_shiyu_r','师鱼肉','food',{value:48,xp:116,lvl:69,icon:'🐟',effect:'食之杀人',py:'shī yú'}),
   I('bs_huan_r','獂皮','material',{value:48,xp:116,lvl:69,icon:'🐂',py:'huán'}),
   I('bs_puyi_r','蒲夷之鱼鳞','material',{value:48,xp:116,lvl:69,icon:'🐟',py:'pú yí zhī yú'}),
+);
+
+// 中山经首录三系具名异兽掉落物（自研；形态/效果以原文为准，数值与节点等次挂钩）
+// 帝之密都三系 L69–73：主治草木线收官区，数值较北山同阶上浮约三成
+addItem(
+  I('zs_nao_r','㔮肉','food',{value:22,xp:52,lvl:69,icon:'🍖',heal:55,effect:'食之已瘿',py:'náo'}),
+  I('zs_haoyu_r','豪鱼肉','food',{value:22,xp:52,lvl:69,icon:'🐟',heal:55,effect:'可以已白癣',py:'háo'}),
+  I('zs_feifei_r','朏朏之尾','material',{value:26,xp:62,lvl:71,icon:'🪶',py:'fěi',note:'养之可以已忧——白尾有鬛'}),
+  I('zs_mingshe_r','鸣蛇之翼','material',{value:28,xp:66,lvl:72,icon:'🪽',py:'míng shé',note:'四翼，其音如磬'}),
+  I('zs_huashe_r','化蛇之皮','material',{value:28,xp:66,lvl:72,icon:'🐍',py:'huà shé',note:'人面豺身，鸟翼而蛇行'}),
+  I('zs_longchi_r','蠪蚳之角','material',{value:28,xp:66,lvl:72,icon:'🦬',py:'lóng chì',note:'其状如彘而有角'}),
+  I('zs_mafu_r','马腹之皮','material',{value:30,xp:72,lvl:73,icon:'🐆',py:'mǎ fù',note:'人面虎身，音如婴儿——是食人'}),
+  I('zs_fuzhu_r','夫诸之角','material',{value:30,xp:72,lvl:73,icon:'🦌',py:'fū zhū',note:'其状如白鹿而四角'}),
+  I('zs_yao_r','鴢肉','food',{value:30,xp:72,lvl:73,icon:'🍗',heal:75,effect:'食之宜子',py:'yǎo'}),
 );
 
 // 祷过之山「多犀、兕、多象」——可猎之兽（非异兽）
@@ -1599,6 +1686,10 @@ function buildCodex(){
     deity_xs3:'西次三经 · 羊身人面之神', deity_xs4:'西次四经 · 山神',
     deity_bs1:'北次一经 · 人面蛇身之神', deity_bs2:'北次二经 · 蛇身人面之神',
     deity_bs3:'北次三经 · 神祇（廿神藻茝瘗／十四神玉不瘗／十神璧瘗）',
+    // 中山经（帝之密都；首录三系）
+    deity_zs1:'中次一经 · 薄山十五山神（历儿为冢）',
+    deity_zs2:'中次二经 · 人面鸟身之神',
+    deity_zs3:'中次三经 · 帝之密都群神（熏池／武罗／泰逢）',
   };
   for (const def of Object.values(RITES)){
     if (cx[def.deity] || !RITE_DEITY_NAMES[def.deity]) continue;
@@ -1700,8 +1791,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.2.0',
-  codename:'山经 · 云驿',
+  version: '1.3.0',
+  codename:'山经 · 密都',
   updated: '2026-10-24',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
