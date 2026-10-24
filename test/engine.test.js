@@ -38,7 +38,7 @@ vm.createContext(context);
 
 const base = path.join(__dirname, '..', 'src');
 function loadJS(file){ vm.runInContext(fs.readFileSync(path.join(base, file), 'utf8'), context, {filename:file}); }
-['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','gameData.js','engine.js','game.js','queue.js','interact.js','fx.js','beastIcon.js'].forEach(loadJS);
+['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','gameData.js','engine.js','game.js','queue.js','interact.js','fx.js','beastIcon.js','riteIcon.js'].forEach(loadJS);
 const G = context;
 const ST = context.window;
 
@@ -948,7 +948,7 @@ assert(ruOk, '等级提升后写入已解锁山系集合');
 section('合规与布局审计');
 const root = path.join(__dirname, '..');
 function readText(rel){ return fs.readFileSync(path.join(root, rel), 'utf8'); }
-const codeFiles = ['index.html','style.css','src/nanshanData.js','src/gameData.js','src/engine.js','src/game.js','src/queue.js','src/interact.js','src/fx.js','src/ui.js','README.md'];
+const codeFiles = ['index.html','style.css','src/nanshanData.js','src/gameData.js','src/engine.js','src/game.js','src/queue.js','src/interact.js','src/fx.js','src/ui.js','src/beastIcon.js','src/riteIcon.js','README.md'];
 const banned = ['Melvor','melvor','梅尔沃'];
 let ipHits = [];
 codeFiles.forEach(f=>{ const t = readText(f); banned.forEach(b=>{ if (t.includes(b)) ipHits.push(f+':'+b); }); });
@@ -2261,6 +2261,21 @@ section('移动端缩放与不溢出');
   assert(/\.beast-tile \.bt-el-hint\{ position:static;[^}]*min-height:16px;/.test(cssM), '窄屏「宜X」角标放大到可点高度');
   // 6) 生僻字兽（扩展 B 区，常见字体无字形）浮层标题补注音，便于辨认
   assert(uiM.includes('data-tip-title="${esc(x.name)}${x.py?') && uiM.includes('（${esc(x.py)}）'), '浮层标题带注音（生僻字可辨）');
+  // 7) 祠礼图标：十六礼各有专属「礼器」图形，不再用名字首字的方章
+  assert(typeof ST.riteIcon === 'function', 'riteIcon 已导出');
+  assert(Array.isArray(ST.RITE_ICON_IDS) && ST.RITE_ICON_IDS.length === 16, '祠礼专属图标 16 枚（'+(ST.RITE_ICON_IDS||[]).length+'）');
+  (function(){
+    const ids = Object.keys(ST.RITES || {});
+    const miss = ids.filter(id => !(ST.RITE_ICON_IDS||[]).includes(id));
+    assert(miss.length === 0, '每种祠礼都有专属图标（缺：'+(miss.join(',')||'无')+'）');
+    let bad = [];
+    ids.forEach(id=>{
+      const svg = ST.riteIcon(id, id);
+      if(!svg || svg.indexOf('<svg') < 0 || svg.indexOf('</svg>') < 0) bad.push(id);
+    });
+    assert(bad.length === 0, '祠礼图标全部出图（破图：'+(bad.join(',')||'无')+'）');
+  })();
+  assert(uiM.includes("typeof riteIcon==='function')?riteIcon(id, riteName)"), '祠礼卡改用矢量图标渲染');
 }
 
 console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

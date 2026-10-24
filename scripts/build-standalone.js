@@ -8,7 +8,7 @@ const root = path.join(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
 const order = ['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js',
-  'gameData.js','engine.js','game.js','queue.js','beastIcon.js','interact.js','fx.js','ui.js'];
+  'gameData.js','engine.js','game.js','queue.js','beastIcon.js','riteIcon.js','interact.js','fx.js','ui.js'];
 const scripts = order.map(f => '// ===== ' + f + ' =====\n' +
   fs.readFileSync(path.join(root, 'src', f), 'utf8')).join('\n');
 

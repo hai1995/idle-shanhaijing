@@ -1772,7 +1772,7 @@ UI.renderJisi = function(){
       // 方块：点按即行祭（材料/等级不足给说明）；山系与祭品明细在浮层
       return `<div class="tile rite-tile ${can?'':'lock'}" data-rite="${id}" data-tip data-tip-title="${esc(riteName)}"
         role="button" tabindex="0" onclick="UI.tryRite('${id}')">
-        <span class="tile-seal">${esc((String(riteName).split('·')[1] || String(riteName)).trim().slice(0,1))}</span>
+        <span class="tile-ic bi-ic">${(typeof riteIcon==='function')?riteIcon(id, riteName):`<span class="tile-seal">${esc((String(riteName).split('·')[1] || String(riteName)).trim().slice(0,1))}</span>`}</span>
         <span class="tile-nm">${esc(riteName)}</span>
         <span class="tile-tag">祭祀 ${rec.lvl}</span>
         <span class="tip-body hidden">
