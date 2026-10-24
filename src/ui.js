@@ -48,6 +48,29 @@ function fmtTime(sec){
   if (m > 0) return `${m} 分 ${s} 秒`;
   return `${s} 秒`;
 }
+// ---------- 增益口径（顶栏「增益一览」与御使页「当前增益」共用） ----------
+// 御使增益分两类：一类是「点数」（防御 +1、回血 +3），一类是「倍率」（采集速度 +10%）。
+// 早期两处各写一套格式化，御使页把点数也乘了 100，防御 +1 被显示成 +100%，
+// 同一增益在两页对不上。现在只有这一个出口。
+const BONUS_LABEL = {
+  gatherSpeed:'采集速度', xp:'经验', farmSpeed:'田事', div:'卜筮观象', hp:'气血', def:'防御',
+  offline:'离线收益', trade:'贸易', dmg:'伤害', loot:'所获', cookQty:'烹饪并出',
+  build:'营造', yield:'全局产出', heal:'疗愈',
+};
+const BONUS_FLAT = { def:true, heal:true };   // 点数型（不乘 100）
+function bonusTextOf(obj, sep){
+  const parts = Object.entries(obj||{}).filter(([k,v])=>v>0).map(([k,v])=>{
+    const val = BONUS_FLAT[k] ? (Math.round(v*100)/100) : (Math.round(v*1000)/10) + '%';
+    return `${BONUS_LABEL[k]||k} +${val}`;
+  });
+  return parts.length ? parts.join(sep || ' · ') : '—';
+}
+// 征兆合计（征兆是百分比修正，与御使增益分列）
+function omenBonusText(){
+  if (typeof currentOmenEffects !== 'function') return '—';
+  const list = currentOmenEffects();
+  return (list.map(e=>`${e.label} ${e.pct>0?'+':''}${Math.round(e.pct*100)/100}%`).join(' · ')) || '—';
+}
 // 生僻字：显示拼音注音 + 保留原字
 function nameTag(name, py){
   // 生僻字（CJK 扩展 B 及以上）检测：码点转义 + u flag
@@ -455,13 +478,6 @@ const UI = {
   // 浮层内容：分三段列清，末尾给两行合计（御使 / 征兆各自的总加成）
   buffPopHtml(){
     const s = this.buffSummary();
-    const bonusNames = { gatherSpeed:'采集速度', xp:'经验', farmSpeed:'田事', div:'卜筮观象', hp:'气血', def:'防御',
-      offline:'离线收益', trade:'贸易', dmg:'伤害', loot:'所获', cookQty:'烹饪并出', build:'营造', yield:'全局产出', heal:'疗愈' };
-    const fmtBonus = (obj)=>{
-      const parts = Object.entries(obj || {}).filter(([k,v])=>v > 0)
-        .map(([k,v])=>`${bonusNames[k] || k} +${k === 'def' ? v : (v*100).toFixed(0) + '%'}`);
-      return parts.length ? parts.join(' · ') : '—';
-    };
     const item = (title, desc, extra) => `<div class="bp-item"><div class="bp-l1"><b>${esc(title)}</b>${extra || ''}</div>${desc?`<div class="bp-desc">${esc(desc)}</div>`:''}</div>`;
     const sec = (name, n, body) => n ? `<div class="bp-sec"><h4>${name}<i>${n}</i></h4>${body}</div>` : '';
 
@@ -475,9 +491,8 @@ const UI = {
         item(b.name, b.desc || b.label)).join(''));
       html += sec('征兆', s.omens.length, s.omens.map(o=>
         item(o.name, o.desc, `<span class="bp-pol ${o.pol}">${o.pol}</span>${o.left?`<span class="bp-time">${fmtTime(o.left)}</span>`:''}`)).join(''));
-      const dBonus = (typeof deployedBonuses === 'function') ? fmtBonus(deployedBonuses()) : '—';
-      const oBonus = (typeof currentOmenEffects === 'function')
-        ? (currentOmenEffects().map(e=>`${e.label} ${e.pct>0?'+':''}${e.pct}%`).join(' · ') || '—') : '—';
+      const dBonus = (typeof deployedBonuses === 'function') ? bonusTextOf(deployedBonuses()) : '—';
+      const oBonus = omenBonusText();
       html += `<div class="bp-agg"><div><span>御使合计</span><b>${esc(dBonus)}</b></div><div><span>征兆合计</span><b>${esc(oBonus)}</b></div></div>`;
     }
     return html;
@@ -1514,11 +1529,9 @@ UI.renderYushi = function(){
   const slots = beastSlots();
   const used = Object.keys(Game.deployed).length;
   const bonus = deployedBonuses();
-  const bonusText = Object.entries(bonus).filter(([k,v])=>v>0).map(([k,v])=>{
-    const names = { gatherSpeed:'采集速度', xp:'经验', farmSpeed:'田事', div:'卜筮观象', hp:'气血', def:'防御',
-      offline:'离线收益', trade:'贸易', dmg:'伤害', loot:'所获', cookQty:'烹饪并出', build:'营造', yield:'全局产出', heal:'疗愈' };
-    return `${names[k]||k} +${(v*100).toFixed(0)}%`;
-  }).join('　') || '暂无';
+  // 与顶栏「增益一览」同一出口：点数型（防御）不再被乘成百分比
+  const bonusText = bonusTextOf(bonus) === '—' ? '暂无' : bonusTextOf(bonus);
+  const omenText = omenBonusText();
   let html = `<div class="two-col"><div class="panel slot-panel">
     <h3>御使槽位（${used}/${slots}）</h3>
     <div class="slot-row">
@@ -1534,7 +1547,8 @@ UI.renderYushi = function(){
       }).join('')}
     </div>
     <div class="hint">槽位随御使等级扩充（每 10 级 +1，至 9 槽）。御使中的异兽持续积累御使经验。</div>
-    <div class="bonus-line">当前增益：${bonusText}</div>
+    <div class="bonus-line">当前增益（御使）：${bonusText}</div>
+    <div class="bonus-line">当前增益（征兆）：${omenText}</div>
   </div>
   <div class="panel deploy-panel"><h3>可御使之异兽（著录至「通形」）</h3>
     <div class="tile-grid beast-grid">

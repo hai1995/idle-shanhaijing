@@ -2276,6 +2276,14 @@ section('移动端缩放与不溢出');
     assert(bad.length === 0, '祠礼图标全部出图（破图：'+(bad.join(',')||'无')+'）');
   })();
   assert(uiM.includes("typeof riteIcon==='function')?riteIcon(id, riteName)"), '祠礼卡改用矢量图标渲染');
+  // 8) 增益口径统一：顶栏「增益一览」与御使页「当前增益」必须走同一个格式化出口
+  assert(/function bonusTextOf\(obj, sep\)/.test(uiM), '存在共享增益格式化 bonusTextOf');
+  assert(/const BONUS_FLAT = \{ def:true, heal:true \}/.test(uiM), '防御 / 疗愈 归为点数型（不乘 100）');
+  assert(uiM.includes('const dBonus = (typeof deployedBonuses === \'function\') ? bonusTextOf(deployedBonuses())'), '顶栏御使合计走 bonusTextOf');
+  assert(uiM.includes('const bonusText = bonusTextOf(bonus)'), '御使页当前增益走 bonusTextOf');
+  assert(uiM.includes('当前增益（御使）') && uiM.includes('当前增益（征兆）'), '御使页与顶栏同样分列御使 / 征兆');
+  assert(!/const names = \{ gatherSpeed:'采集速度'[\s\S]{0,400}\$\{\(v\*100\)\.toFixed\(0\)\}%/.test(uiM), '御使页不再把所有增益一律乘 100');
+  assert((uiM.match(/bonusTextOf\(/g)||[]).length >= 4, '增益格式化只有一处实现（多处复用）');
 }
 
 console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
