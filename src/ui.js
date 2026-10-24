@@ -1420,7 +1420,7 @@ function taofaListHtml(){
       // 方块：图标 + 名 + 「录 n · Lv n」，五行与宜讨做角标，威胁改边框色；
       // 气血/攻防/经验/掉落/产地/形态全进浮层——一屏能扫过整片山系
       return `<div class="tile beast-tile ${th.level}${x===pick?' pick':''}${(!un||!lvOk)?' lock':''}"
-        data-bid="${x.id}" data-tip data-tip-title="${esc(x.name)}"
+        data-bid="${x.id}" data-tip data-tip-title="${esc(x.name)}${x.py?`（${esc(x.py)}）`:''}"
         role="button" tabindex="0" onclick="UI.tryHunt('${x.id}')">
         ${x.el?`<span class="bt-el el-${x.el}">${x.el}</span>`:''}
         <span class="tile-ic bi-ic">${(typeof beastIcon==='function')?beastIcon(x):(CAT_EMOJI[x.category]||'🐾')}</span>

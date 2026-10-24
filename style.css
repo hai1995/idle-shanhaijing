@@ -1629,6 +1629,14 @@ svg.bi{ fill:currentColor; color:var(--ink); }
 
   /* 触控目标 */
   .btn,.chip-btn{ min-height:38px; padding:8px 14px; }
+  /* 工具条上的小控件（关闭钮、迷你按钮）视觉上只有 26px 高，指尖点不准：
+     视觉尺寸不变，另用透明伪元素把命中区撑到 34px。
+     只补工具条上的控件；卡片内的「更多」不扩，免得抢走「点卡即讨伐」的手势。 */
+  .hint-close,.btn-mini{ position:relative; }
+  .hint-close::after,.btn-mini::after{
+    content:''; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:34px; height:34px;
+  }
   .btn.small{ min-height:32px; padding:5px 11px; }
   .btn.tiny{ min-height:26px; }
   .chip-btn{ padding:6px 13px; }
@@ -1674,7 +1682,8 @@ svg.bi{ fill:currentColor; color:var(--ink); }
   /* 窄卡上「宜金 / ×0.76」若仍按绝对定位钉在四角，会压住「录 N · Lv N」——
      改为与它同排居中，一行读完，不叠字。 */
   .beast-tile .tile-tag{ display:flex; align-items:center; justify-content:center; gap:3px; }
-  .beast-tile .bt-el-hint{ position:static; order:-1; height:auto; padding:0 2px; line-height:1.25; }
+  .beast-tile .bt-el-hint{ position:static; order:-1; height:auto; padding:1px 3px; line-height:1.25;
+    font-size:9px; min-height:16px; }
   .beast-tile .bt-decay{ position:static; }
 
   #nickTag{ display:none; }

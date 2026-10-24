@@ -2255,6 +2255,12 @@ section('移动端缩放与不溢出');
   // 4) 侧栏宽度集中为变量，窄屏缩放只改一处
   assert(/--rail-w:\s*54px/.test(cssM), '默认侧栏宽度变量为 54px');
   assert((cssM.match(/var\(--rail-w\)/g)||[]).length >= 6, '侧栏宽度统一走 --rail-w（改一处即全局生效）');
+  // 5) 窄屏点击热区：工具条上的小控件用透明伪元素撑到 34px（视觉不变，指尖可点）
+  assert(/\.hint-close,\.btn-mini\{ position:relative; \}/.test(cssM), '窄屏小控件可挂伪元素（补点击热区）');
+  assert(/\.hint-close::after,\.btn-mini::after\{[^}]*width:34px; height:34px;/.test(cssM), '窄屏小控件命中区撑到 34px');
+  assert(/\.beast-tile \.bt-el-hint\{ position:static;[^}]*min-height:16px;/.test(cssM), '窄屏「宜X」角标放大到可点高度');
+  // 6) 生僻字兽（扩展 B 区，常见字体无字形）浮层标题补注音，便于辨认
+  assert(uiM.includes('data-tip-title="${esc(x.name)}${x.py?') && uiM.includes('（${esc(x.py)}）'), '浮层标题带注音（生僻字可辨）');
 }
 
 console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
