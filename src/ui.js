@@ -15,7 +15,7 @@ const TABS = [
   { id:'shichan', label:'墟市', icon:ICON('<path d="M12 4.4V20M8 20h8M4.6 8.4h14.8"/><path d="M4.6 8.4 2.6 12.6h4L4.6 8.4ZM19.4 8.4l-2 4.2h4l-2-4.2Z"/>') },
   { id:'ying',    label:'营造', icon:ICON('<path d="M3.6 11.2 12 4l8.4 7.2"/><path d="M6 10v9.6h12V10"/><path d="M10 19.6v-5.2h4v5.2"/>') },
   { id:'queue',   label:'行动', icon:ICON('<circle cx="12" cy="12" r="8.6"/><path d="M15.2 8.8 13 13l-4.2 2.2L11 11l4.2-2.2Z"/>') },
-  { id:'pack',    label:'行装', icon:ICON('<path d="M4.8 8.2h14.4l-1 11.6H5.8L4.8 8.2Z"/><path d="M8.8 8.2V6.4a3.2 3.2 0 0 1 6.4 0v1.8"/>') },
+  { id:'pack',    label:'行装', icon:ICON('<path d="M8.4 9.6h7.2l1.3 8.4a1.5 1.5 0 0 1-1.5 1.7H8.6a1.5 1.5 0 0 1-1.5-1.7L8.4 9.6Z"/><path d="M9.4 9.6c0-2.7 1.1-4.4 2.6-4.4s2.6 1.7 2.6 4.4"/><path d="M12 5.2v2.3"/>') },
   { id:'stats',   label:'统计', icon:ICON('<path d="M4 19.6h16"/><path d="M7.4 19.6v-6.2M12 19.6V7.6M16.6 19.6v-9.2"/>') },
   { id:'about',   label:'叙录', icon:ICON('<rect x="4.6" y="3.4" width="14.8" height="17.2" rx="1.4"/><path d="M8.2 8.2h7.6M8.2 11.6h7.6M8.2 15h4.6"/>') },
 ];
@@ -2185,6 +2185,14 @@ function addQueueTask(){
 window.addQueueTask = addQueueTask;
 
 // ================= 行装 =================
+// 一键最优装：换上行囊中同槽位最强的一件（按装备评分比较，等级不足者不换）
+UI.autoEquipBest = function(){
+  if (typeof equipBest !== 'function'){ this.toast('装备功能未就绪'); return; }
+  let changes = [];
+  try { changes = equipBest() || []; } catch(e){ this.toast('一键最优装失败：' + e.message); return; }
+  this.toast(changes.length ? ('已换上最优装：' + changes.join('；')) : '行囊中暂无更优的装备');
+  this.renderPack();
+};
 UI.renderPack = function(){
   const box = $('content');
   if (!box) return;
@@ -2197,7 +2205,7 @@ UI.renderPack = function(){
   });
   let html = `<div class="pack-wrap">
     <div class="panel gear-panel">
-      <h3>装备</h3>
+      <h3>装备<button class="btn small gear-best" type="button" onclick="UI.autoEquipBest()">一键最优装</button></h3>
       <div class="attr-row">
         <span>气血 <b>${playerMaxHp()}</b></span>
         <span>防御 <b>${totalDefence().toFixed(1)}</b></span>

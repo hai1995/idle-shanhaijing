@@ -157,11 +157,36 @@ function maybeAutoEquip(){
     if (best && best !== cur) equipItem(best.id);
   }
 }
+// 一键最优装：每个槽位换成行囊里更强、且相应技艺等级达标的装备。
+// 与 maybeAutoEquip 同一套比较（gearPower），但不受 Prefs.autoEquip 开关约束，
+// 由玩家主动点击触发，并返回换了哪几件以便回报。
+function equipBest(){
+  const changes = [];
+  for (const slot in GearSlotLabels){
+    const cur = Game.gear[slot];
+    let best = cur, bestPower = gearPower(cur);
+    for (const id in Game.inventory){
+      const it = Items[id];
+      if (!it || !it.equip) continue;
+      if ((Game.inventory[id]||0) <= 0) continue;
+      if (equipSlotOf(it) !== slot) continue;
+      if ((it.lvl||1) > relevantLevel(it)) continue;
+      const p = gearPower(it);
+      if (p > bestPower){ best = it; bestPower = p; }
+    }
+    if (best && best !== cur){
+      const from = cur ? cur.name : '空';
+      equipItem(best.id);
+      changes.push(`${GearSlotLabels[slot]}：${from} → ${best.name}`);
+    }
+  }
+  return changes;
+}
 window.GearSlotLabels = GearSlotLabels;
 window.equipItem = equipItem; window.unequip = unequip;
 window.equipSlotOf = equipSlotOf; window.relevantLevel = relevantLevel;
 window.requiredSkillName = requiredSkillName; window.gearPower = gearPower;
-window.maybeAutoEquip = maybeAutoEquip;
+window.maybeAutoEquip = maybeAutoEquip; window.equipBest = equipBest;
 
 // ---------- 商旅贸易 ----------
 function sellValue(itemId, qty){

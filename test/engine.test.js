@@ -2284,6 +2284,16 @@ section('移动端缩放与不溢出');
   assert(uiM.includes('当前增益（御使）') && uiM.includes('当前增益（征兆）'), '御使页与顶栏同样分列御使 / 征兆');
   assert(!/const names = \{ gatherSpeed:'采集速度'[\s\S]{0,400}\$\{\(v\*100\)\.toFixed\(0\)\}%/.test(uiM), '御使页不再把所有增益一律乘 100');
   assert((uiM.match(/bonusTextOf\(/g)||[]).length >= 4, '增益格式化只有一处实现（多处复用）');
+  // 9) 装备页：一键最优装 + 侧栏小行囊图标 + 移动端按钮收小
+  assert(/function equipBest\(\)/.test(interactSrc), '存在 equipBest（一键最优装）');
+  assert(interactSrc.includes('window.equipBest = equipBest;'), 'equipBest 已导出');
+  assert(/equipSlotOf\(it\) !== slot/.test(interactSrc) && /relevantLevel\(it\)/.test(interactSrc), '最优装按槽位与等级门槛筛选');
+  assert(uiM.includes('onclick="UI.autoEquipBest()"'), '装备面板有「一键最优装」按钮');
+  assert(/UI\.autoEquipBest = function\(\)/.test(uiM), 'UI.autoEquipBest 存在');
+  assert(uiM.includes('M8.4 9.6h7.2l1.3 8.4'), '侧栏行装页图标改为小行囊');
+  assert(/\.btn,\.chip-btn\{ min-height:34px; padding:7px 12px; \}/.test(cssM), '移动端按钮收小一号（34px）');
+  assert(/\.chip-btn\{ padding:5px 11px; \}/.test(cssM), '移动端筛选 chip 收小');
+  assert(/\.gear-panel h3\{ display:flex/.test(cssM), '装备面板标题与按钮同行');
 }
 
 console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
