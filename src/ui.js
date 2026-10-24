@@ -1425,16 +1425,15 @@ function taofaListHtml(){
         ${x.el?`<span class="bt-el el-${x.el}">${x.el}</span>`:''}
         <span class="tile-ic bi-ic">${(typeof beastIcon==='function')?beastIcon(x):(CAT_EMOJI[x.category]||'🐾')}</span>
         <span class="tile-nm">${esc(x.name)}</span>
-        <span class="tile-tag"><i class="bt-rec">录 ${rec.count}</i> · Lv ${x.needLvl||1}</span>
-        ${counterEl?`<button class="bt-el-hint" type="button" title="一键切到${counterEl}属（${counterEl}克${x.el}，伤害 ×${TUNING.WUXING.KE}）"
-          onclick="event.stopPropagation();setCombatStyle('zhu');setZhuEl('${counterEl}');UI.renderTaofa()">宜${counterEl}</button>`:''}
+        <span class="tile-tag"><i class="bt-rec">录 ${rec.count}</i> · Lv ${x.needLvl||1}${counterEl?`<button class="bt-el-hint" type="button" title="一键切到${counterEl}属（${counterEl}克${x.el}，伤害 ×${TUNING.WUXING.KE}）"
+          onclick="event.stopPropagation();setCombatStyle('zhu');setZhuEl('${counterEl}');UI.renderTaofa()">宜${counterEl}</button>`:''}${decayTag?`<span class="bt-decay" title="连续讨伐 ${streakN} 次，经验递减；换一只异兽即恢复全额">×${mobStreakMult(x.id).toFixed(2)}</span>`:''}</span>
         ${x===pick?'<span class="bt-pick">宜讨</span>':''}
-        ${decayTag?`<span class="bt-decay" title="连续讨伐 ${streakN} 次，经验递减；换一只异兽即恢复全额">×${mobStreakMult(x.id).toFixed(2)}</span>`:''}
         <span class="tip-body hidden">
           ${x.form?`<div class="bc-sub">${esc(x.form)}</div>`:''}
           <div class="bc-sub">气血 ${fmt(x.hp)} · 攻 ${fmt(x.atk)} · 防 ${fmt(x.def)} · 经验 ${fmt(x.xp)}</div>
           <div class="bc-sub drop-line">📍 ${esc(node?node.name:'')}${drops?` · 掉落 ${esc(drops)}`:''}</div>
           ${counterEl?`<div class="bc-sub">宜用 ${counterEl} 属（${counterEl}克${x.el}，伤害 ×${TUNING.WUXING.KE}）</div>`:''}
+          ${decayTag?`<div class="bc-sub">连续讨伐 ${streakN} 次，经验 ×${mobStreakMult(x.id).toFixed(2)}；换一只异兽即恢复全额</div>`:''}
           <div class="bc-sub">${th.label}${(!un||!lvOk)?' · 尚不可讨':''}</div>
         </span>
       </div>`;

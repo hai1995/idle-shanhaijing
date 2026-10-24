@@ -1013,7 +1013,7 @@ const tabsRule = (css2.match(/#tabs\{[^}]*\}/) || [''])[0];
 assert(/flex-direction:column/.test(tabsRule), '#tabs 竖排（flex-direction:column）');
 assert(css2.includes('body.drawer-open #tabs'), '抽屉展开规则 body.drawer-open #tabs 存在');
 assert(css2.includes('body.drawer-open #tabs{') && css2.includes('width:min(228px, 80vw);'), '移动端侧边栏展开为宽菜单（228px）');
-assert(/position:fixed; left:0; top:0; bottom:0; width:54px;/.test(css), '移动端图标栏铺满全高（上接书脊，左侧无断带空白）');
+assert(/position:fixed; left:0; top:0; bottom:0; width:var\(--rail-w\);/.test(css), '移动端图标栏铺满全高（上接书脊，左侧无断带空白）');
 assert(/var\(--chrome\) 0 var\(--topbar-h, 48px\),\s*var\(--paper\) var\(--topbar-h, 48px\)/.test(css), '图标栏墨色只铺到书脊下沿、再转纸色（白天非整块深墨）');
 // 回归：墨色若铺满整条吸顶区，左上角会出现一块 54×82 的纯墨空白，比右边书脊高出一截
 assert(!/var\(--chrome\) 0 var\(--topdock-h/.test(css), '墨色不再铺满整条吸顶区（消除左上角深色空块）');
@@ -1025,12 +1025,12 @@ assert(/body\.drawer-open #tabs\{[^}]*width:min\(228px, 80vw\);[^}]*top:var\(--t
 // topdock-h，渐变会把抽屉头部一条带误涂成书脊墨色（盖住 ≪ 与首行页签，
 // 淡朱底活动行叠在深墨上成暗红）——白天模式下尤其明显
 assert(/body\.drawer-open #tabs\{[^}]*background:var\(--paper\);/.test(css), '展开态覆盖为纯纸色（消除渐变残留的伪书脊带）');
-assert(/#guidance\{ padding:8px 34px 8px 66px; font-size:11\.5px; line-height:1\.5; \}/.test(css), '指引条让出侧栏宽度（padding-left:66px）');
+assert(/#guidance\{ padding:8px 34px 8px calc\(var\(--rail-w\) \+ 12px\); font-size:11\.5px; line-height:1\.5; \}/.test(css), '指引条让出侧栏宽度（padding-left 随 --rail-w）');
 assert(/#guidance span:not\(\.goto\)\{[\s\S]*?-webkit-line-clamp:2/.test(css), '指引条文本最多两行（切换页签不挤兑内容）');
-assert(/#topbar\{ padding:8px 8px 9px 66px; \}/.test(css), '窄屏书脊让出侧栏宽度');
-assert(/#statusbar\{ padding:0 8px 0 66px; gap:10px; \}/.test(css), '窄屏仪表带让出侧栏宽度');
+assert(/#topbar\{ padding:8px 8px 9px calc\(var\(--rail-w\) \+ 12px\); \}/.test(css), '窄屏书脊让出侧栏宽度');
+assert(/#statusbar\{ padding:0 8px 0 calc\(var\(--rail-w\) \+ 12px\); gap:10px; \}/.test(css), '窄屏仪表带让出侧栏宽度');
 assert(/#topbar \.stat\[data-s="录"\] \.meter\{ display:none; \}/.test(css), '窄屏隐藏已录细线，为让位腾出宽度');
-assert(css2.includes('padding-left:54px'), '移动端主内容为常驻图标栏让位（padding-left:54px）');
+assert(css2.includes('padding-left:var(--rail-w)'), '移动端主内容为常驻图标栏让位（padding-left 随 --rail-w）');
 assert(css2.includes('visibility:visible'), '图标栏默认常驻可见（不再整体移出屏外）');
 assert(!css2.includes('translateX(-102%)'), '侧边栏不再整条移出屏外（改为图标栏 + 展开）');
 assert(css2.includes('--topdock-h'), '侧边栏吸顶位置用 --topdock-h 对齐顶栏');
@@ -1085,7 +1085,7 @@ assert(uiSrc.includes('touchJustNow') && uiSrc.includes('lastTouchAt'), 'ui.js �
 // 网格密度：改为正比例方块后，列宽由 minmax 控制（一屏能扫更多）
 assert(/\.tile-grid\{[^}]*minmax\(104px,1fr\)/.test(css), '方块网格列宽 104px（桌面最多十列）');
 assert(/\.skill-grid\{[^}]*minmax\(92px,1fr\)/.test(css) && /\.beast-grid\{[^}]*minmax\(104px,1fr\)/.test(css), '技能方格 92px、征伐/御使方格 104px');
-assert(/\.skill-grid\{ grid-template-columns:repeat\(3,1fr\); gap:6px; \}/.test(css), '窄屏技能三列');
+assert(/\.skill-grid\{ grid-template-columns:repeat\(3,minmax\(0,1fr\)\); gap:6px; \}/.test(css), '窄屏技能三列');
 
 // ============ 20. 状态条上移 + 顶栏精简 + 悬浮按钮避让抽屉 ============
 section('状态条上移与悬浮按钮避让');
@@ -1949,7 +1949,7 @@ section('制作：单件 / 连作 / 紧凑卡片');
   assert(uiSrc.includes('role="button" tabindex="0"'), '方块可聚焦（键盘可达）');
   assert(!/class="recipe-card[^"]*"[^>]*>\s*<div class="rc-head">/.test(uiSrc), '制作卡不再套 rc-head 三行结构');
   assert(/\.tile\{[^}]*aspect-ratio:1\/1/.test(css), '方形卡为正比例');
-  assert(/\.recipe-grid\{ grid-template-columns:repeat\(3,1fr\); gap:6px; \}/.test(css), '窄屏配方三列');
+  assert(/\.recipe-grid\{ grid-template-columns:repeat\(3,minmax\(0,1fr\)\); gap:6px; \}/.test(css), '窄屏配方三列');
   assert(uiSrc.includes("`UI.craftDenied('${r.type}::${r.out}')`") && uiSrc.includes('UI.craftDenied = function(key)'), '不可制作时点按给出缺料 / 等级提示');
   assert(uiSrc.includes("if (a.hasAttribute && a.hasAttribute('onclick')) return;"), '浮层捕获层放行「点按即执行」的方块（点卡面任意处均执行动作）');
   assert(uiSrc.includes('pressTimer = setTimeout') && uiSrc.includes('longPressAt'), '移动端长按 500ms 开浮层看详情（单点恒为动作）');
@@ -1965,7 +1965,7 @@ section('方块语言：技能 / 祠礼 / 墟市');
   assert(uiSrc.includes('class="tile skill-tile') && uiSrc.includes('class="sk-bar"'), '技能改为方块 + 底部经验条');
   assert(uiSrc.includes('<span class="sk-lv">${lv}</span>'), '技能方块右上角显示等级');
   assert(/\.skill-grid\{[^}]*minmax\(92px,1fr\)/.test(css), '技能方格 92px');
-  assert(/#content \.skill-grid\{ grid-template-columns:repeat\(3,1fr\)/.test(css), '窄屏技能三列（高特异性覆盖）');
+  assert(/#content \.skill-grid\{ grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/.test(css), '窄屏技能三列（高特异性覆盖）');
 
   assert(uiSrc.includes('class="tile rite-tile') && uiSrc.includes('class="tile-seal"'), '祠礼改为方块 + 首字朱印');
   assert(uiSrc.includes('UI.tryRite = function(id)'), '祠礼点按走 tryRite（校验等级与祭品）');
@@ -1975,7 +1975,7 @@ section('方块语言：技能 / 祠礼 / 墟市');
   assert(uiSrc.includes('class="tile shop-tile') && uiSrc.includes("onclick=\"buyItem(${idx},1)\""), '商品方块点按买一份');
   assert(uiSrc.includes("event.stopPropagation();buyItem(${idx},10)"), '商品方块右上 ×10 买十份');
   assert(/\.shop-grid\{[^}]*minmax\(92px,1fr\)/.test(css), '墟市方格 92px');
-  assert(/\.panel \.inv-grid, \.panel \.codex-grid,[\s\S]{0,80}\.panel \.rite-grid, \.panel \.shop-grid\{ grid-template-columns:repeat\(3,1fr\)/.test(css), '窄屏行装/图鉴/祠礼/墟市统一三列');
+  assert(/\.panel \.inv-grid, \.panel \.codex-grid,[\s\S]{0,80}\.panel \.rite-grid, \.panel \.shop-grid\{ grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/.test(css), '窄屏行装/图鉴/祠礼/墟市统一三列');
 }
 // ============ 41. 方块语言补完：御使 / 征兆 / 廛市出售 / 营造 ============
 section('方块语言补完：御使 / 征兆 / 出售 / 营造');
@@ -2004,7 +2004,7 @@ section('方块语言补完：御使 / 征兆 / 出售 / 营造');
   assert(uiSrc.indexOf('building-card') < 0, '营造页不再用旧行状卡');
 
   // 41.5 窄屏统一三列
-  assert(/\.panel \.region-grid, \.panel \.node-grid,\s*\.panel \.gear-grid, \.panel \.inv-grid, \.panel \.sell-grid,\s*\.panel \.omen-grid, \.panel \.building-grid,\s*\.panel \.farm-grid\{ grid-template-columns:repeat\(3,1fr\)/.test(css), '窄屏舆地/装备/行囊/出售/征兆/营造/田地统一三列');
+  assert(/\.panel \.region-grid, \.panel \.node-grid,\s*\.panel \.gear-grid, \.panel \.inv-grid, \.panel \.sell-grid,\s*\.panel \.omen-grid, \.panel \.building-grid,\s*\.panel \.farm-grid\{ grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/.test(css), '窄屏舆地/装备/行囊/出售/征兆/营造/田地统一三列');
 
   // 41.6 运行时渲染：四页都产出 tile
   ST.Game.records['gui'] = Object.assign({}, ST.Game.records['gui'], { count:5, tier:4 });
@@ -2175,7 +2175,7 @@ section('田地：小方卡 + 择种浮层');
   assert(!/farm-panel[\s\S]{0,2000}?<select/.test(uiSrc), '田地不再用下拉框择种');
   assert(css.includes('.farm-tile.empty{ border-style:dashed; }'), '空田虚线框');
   assert(css.includes('.ft-bar{'), '生长田贴底细进度条');
-  assert(/\.panel \.farm-grid\{ grid-template-columns:repeat\(3,1fr\)/.test(css), '窄屏田地三列');
+  assert(/\.panel \.farm-grid\{ grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/.test(css), '窄屏田地三列');
   assert(css.includes('.seed-row{'), '择种浮层行样式');
   assert(uiSrc.includes('data-plot="${slot}" data-tip'), '生长田卡保留飘字锚点');
   // 运行时：空田渲染为点按方卡；pickSeed 正常植入
@@ -2229,6 +2229,32 @@ section('实时性：状态变化即刻上屏');
 
   // 43.6 键盘可达：Enter / 空格激活聚焦的方卡
   assert(uiSrc.includes("el.getAttribute('role') === 'button' && el.onclick"), '回车 / 空格可激活聚焦方卡');
+}
+
+// ============ 移动端缩放与不溢出 ============
+section('移动端缩放与不溢出');
+{
+  const cssM = readText('style.css');
+  const uiM = readText('src/ui.js');
+  // 1) 三列网格必须用 minmax(0,1fr)：1fr 的最小尺寸是内容宽，窄卡片（图标+名+录数）
+  //    会把整块撑出屏幕，横向出现滚动条、右侧一列被裁掉。
+  assert(/\.beast-grid\{ grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/.test(cssM), '征伐网格三列用 minmax(0,1fr)（不撑出屏幕）');
+  assert(!/grid-template-columns:repeat\(3,1fr\)/.test(cssM), '不再有裸 repeat(3,1fr)（会被内容顶宽）');
+  assert(/\.tile\{[^}]*min-width:0;/.test(cssM), '方块显式 min-width:0（网格项不被内容顶宽）');
+  // 2) 小屏整体收一档：侧栏 54→48、面板留白收紧、图标与字号同比缩小
+  assert(/--rail-w:\s*48px/.test(cssM), '小屏图标栏收窄到 48px');
+  assert(/\.panel\{ padding:10px 11px 12px; \}/.test(cssM), '小屏面板留白收紧（10/11/12）');
+  assert(/\.tile-ic\.bi-ic\{ width:38px; height:38px;/.test(cssM), '小屏绘形图标收到 38px');
+  assert(/\.tile-nm\{ font-size:11\.5px; \}/.test(cssM), '小屏方块名降到 11.5px');
+  // 3) 角标（宜X / ×0.76）改为与「录 N · Lv N」同行，避免窄卡上互相压字
+  assert(/\.beast-tile \.bt-el-hint\{ position:static; order:-1;/.test(cssM), '小屏「宜X」角标改入 tag 行（不压字）');
+  assert(/\.beast-tile \.bt-decay\{ position:static; \}/.test(cssM), '小屏经验衰减角标改入 tag 行');
+  assert(/<span class="tile-tag">[^]*?bt-el-hint/.test(uiM), 'JS：宜X 角标渲染在 tile-tag 内（可随行排列）');
+  assert(/<span class="tile-tag">[^]*?bt-decay/.test(uiM), 'JS：经验衰减角标渲染在 tile-tag 内');
+  assert(uiM.includes('连续讨伐 ${streakN} 次，经验 ×'), '浮层补充经验递减说明（窄屏藏角标时仍可查）');
+  // 4) 侧栏宽度集中为变量，窄屏缩放只改一处
+  assert(/--rail-w:\s*54px/.test(cssM), '默认侧栏宽度变量为 54px');
+  assert((cssM.match(/var\(--rail-w\)/g)||[]).length >= 6, '侧栏宽度统一走 --rail-w（改一处即全局生效）');
 }
 
 console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
