@@ -38,7 +38,7 @@ vm.createContext(context);
 
 const base = path.join(__dirname, '..', 'src');
 function loadJS(file){ vm.runInContext(fs.readFileSync(path.join(base, file), 'utf8'), context, {filename:file}); }
-['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','gameData.js','engine.js','game.js','queue.js','interact.js','fx.js','beastIcon.js','riteIcon.js'].forEach(loadJS);
+['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','gameData.js','save.js','engine.js','game.js','queue.js','interact.js','fx.js','beastIcon.js','riteIcon.js'].forEach(loadJS);
 const G = context;
 const ST = context.window;
 
@@ -948,7 +948,9 @@ assert(ruOk, '等级提升后写入已解锁山系集合');
 section('合规与布局审计');
 const root = path.join(__dirname, '..');
 function readText(rel){ return fs.readFileSync(path.join(root, rel), 'utf8'); }
-const codeFiles = ['index.html','style.css','src/nanshanData.js','src/gameData.js','src/engine.js','src/game.js','src/queue.js','src/interact.js','src/fx.js','src/ui.js','src/beastIcon.js','src/riteIcon.js','README.md'];
+// 子串位置（-1 表示不存在），用于断言脚本加载顺序
+function indexOfOf(rel, sub){ return readText(rel).indexOf(sub); }
+const codeFiles = ['index.html','style.css','src/nanshanData.js','src/gameData.js','src/save.js','src/engine.js','src/game.js','src/queue.js','src/interact.js','src/fx.js','src/ui.js','src/beastIcon.js','src/riteIcon.js','README.md'];
 const banned = ['Melvor','melvor','梅尔沃'];
 let ipHits = [];
 codeFiles.forEach(f=>{ const t = readText(f); banned.forEach(b=>{ if (t.includes(b)) ipHits.push(f+':'+b); }); });
@@ -2294,6 +2296,99 @@ section('移动端缩放与不溢出');
   assert(/\.btn,\.chip-btn\{ min-height:34px; padding:7px 12px; \}/.test(cssM), '移动端按钮收小一号（34px）');
   assert(/\.chip-btn\{ padding:5px 11px; \}/.test(cssM), '移动端筛选 chip 收小');
   assert(/\.gear-panel h3\{ display:flex/.test(cssM), '装备面板标题与按钮同行');
+}
+
+
+// ============ 28. 云端化存档层：版本迁移 / 多端合并 / 可插拔后端 ============
+section('云端化存档层');
+{
+  const SM = ST.SaveManager;          // SaveManager 挂在 window 上（const 顶层声明不落 vm 全局）
+  const saveSrc = readText('src/save.js');
+  const engSrc2 = readText('src/engine.js');
+  // 28.1 独立存档模块存在且已接入加载顺序
+  assert(!!SM, 'SaveManager 已加载');
+  assert(/const SAVE_VERSION = 3/.test(saveSrc), '存档结构版本号为 3');
+  assert(indexOfOf('index.html', 'src/save.js') < indexOfOf('index.html', 'src/engine.js'), 'save.js 在 engine.js 之前加载');
+  // 28.2 engine 只做委托，不再直接写 localStorage
+  assert(/SaveManager\.save\(\)/.test(engSrc2), 'saveGame 委托 SaveManager.save');
+  assert(/SaveManager\.load\(\)/.test(engSrc2), 'loadGame 委托 SaveManager.load');
+  assert(!/localStorage\.setItem\(SAVE_KEY/.test(engSrc2), 'engine.js 不再直接写存档键');
+  assert(!/const SAVE_KEY =/.test(engSrc2), 'SAVE_KEY 唯一来源是 save.js（无重复声明）');
+  // 28.3 版本迁移链：v1 旧档升到当前版本且不丢字段
+  const old = { version:1, shells:77, inventory:{ gui:3 }, skills:{}, map:{}, stats:{} };
+  const mig = ST.migrateSave(old);
+  assert(mig.version === SM.version, 'v1 旧档迁移到当前版本（' + mig.version + '）');
+  assert(mig.shells === 77 && mig.inventory.gui === 3, '迁移保留原有数据');
+  assert(mig.mobStreak && typeof mig.mobStreak === 'object', '迁移补齐 mobStreak');
+  assert(Array.isArray(mig.orders), '迁移补齐 orders');
+  const mig2 = ST.migrateSave({ version:2, shells:1, inventory:{}, skills:{}, stats:{} });
+  assert(mig2.version === SM.version && mig2.grow && mig2.danmu && mig2.omenImmune, 'v2 旧档迁移补齐养成 / 丹木 / 免疫');
+  // 28.4 多端合并：单调字段取大，可变资源取新
+  const A = { version:3, savedAt:1000, shells:50, inventory:{ gui:2 }, skills:{ taofa:{ level:3, xp:100 } },
+              records:{ ds_hey:{ count:5, tier:2 } }, stats:{ kills:10, bossKills:{ a:1 } }, grow:{ p1:{ stage:2, done:1 } },
+              map:{ 'nanshan-1-01':true }, observed:{}, buildings:{}, omenImmune:{}, danmu:{ stage:1, done:0 }, orders:[], omens:[], rites:{} };
+  const B = { version:3, savedAt:2000, shells:30, inventory:{ gui:5 }, skills:{ taofa:{ level:2, xp:400 } },
+              records:{ ds_hey:{ count:3, tier:4 } }, stats:{ kills:4, bossKills:{ b:2 } }, grow:{ p1:{ stage:1, done:7 } },
+              map:{ 'nanshan-2-01':true }, observed:{}, buildings:{}, omenImmune:{}, danmu:{ stage:0, done:5 }, orders:[], omens:[], rites:{} };
+  const M = ST.mergeSaveData(A, B);
+  assert(M.skills.taofa.xp === 400 && M.skills.taofa.level === 3, '技能经验取大、等级取大（不倒退）');
+  assert(M.records.ds_hey.count === 5 && M.records.ds_hey.tier === 4, '著录次数取大、阶位取大');
+  assert(M.stats.kills === 10, '统计计数取大');
+  assert(M.stats.bossKills.a === 1 && M.stats.bossKills.b === 2, '嵌套统计对象取并集');
+  assert(M.grow.p1.stage === 2 && M.grow.p1.done === 7, '养成进度取大');
+  assert(M.danmu.stage === 1 && M.danmu.done === 5, '丹木进度取大');
+  assert(M.map['nanshan-1-01'] && M.map['nanshan-2-01'], '地图节点取并集');
+  assert(M.shells === 30, '可变资源（贝币）取较新一档');
+  assert(M.inventory.gui === 5, '行囊物品逐项取较大值（两端收获都保住）');
+  // 背包合并：较新档缺失的物品必须保留本地独有的收获
+  const MB = ST.mergeSaveData(
+    { version:3, savedAt:2000, shells:10, inventory:{ gui:12, hu:3 }, skills:{}, records:{}, stats:{}, grow:{}, map:{}, observed:{}, buildings:{}, omenImmune:{}, danmu:{stage:0,done:0} },
+    { version:3, savedAt:1000, shells:20, inventory:{ gui:5 }, skills:{}, records:{}, stats:{}, grow:{}, map:{}, observed:{}, buildings:{}, omenImmune:{}, danmu:{stage:0,done:0} }
+  );
+  assert(MB.inventory.gui === 12, '背包合并取较大值（不丢更多的那份）');
+  assert(MB.inventory.hu === 3, '较新档没有的物品保留本地独有收获');
+  assert(MB.shells === 10, '贝币取较新一档（不凭空造钱）');
+  assert(M.version === SM.version, '合并结果标记为当前版本');
+  // 28.5 存储后端可插拔
+  assert(!!ST.LocalSaveStore && ST.LocalSaveStore.id === 'local', '本地后端实现');
+  assert(typeof ST.createCloudStore === 'function', '云端后端工厂存在');
+  const cs = ST.createCloudStore({ endpoint:'https://example.test/api' });
+  assert(cs.id === 'cloud' && cs.endpoint === 'https://example.test/api', '云端后端可配置端点');
+  assert(cs.available() === false || typeof fetch === 'function', '云端后端按可用性判定');
+  assert(typeof SM.setCloud === 'function' && typeof SM.sync === 'function' && typeof SM.pull === 'function', '管理器具备接入 / 上传 / 拉取接口');
+  // 28.6 修订号与脏标记（云端同步的基础）
+  SM.reset();
+  ST.Game.shells = 999;
+  ST.saveGame();
+  const meta = SM.meta();
+  assert(meta.rev >= 1, '每次保存递增修订号 rev');
+  assert(meta.dirty === true, '保存后标记 dirty（有未上传云端的改动）');
+  assert(!!meta.deviceId, '记录本机设备标识 deviceId');
+  assert(typeof SM.deviceId() === 'string' && SM.deviceId().length > 0, 'deviceId 稳定可取');
+  const rev1 = SM.rev();
+  ST.saveGame();
+  assert(SM.rev() === rev1 + 1, '修订号随保存严格递增');
+  // 28.7 未接入云端时同步安全降级（不抛错，且状态可同步查询）
+  const ready = SM.syncReady();
+  assert(ready && ready.ready === false && ready.state === 'offline', '未接入云端时 syncReady 报告 offline');
+  assert(SM.syncState === 'idle' || SM.syncState === 'offline', '未接入云端时同步状态不报错');
+  let syncSafe = true;
+  try { const r = SM.sync(); if (!r || typeof r.then !== 'function') syncSafe = false; } catch(e){ syncSafe = false; }
+  assert(syncSafe, '未接入云端时 sync 安全降级（返回 Promise 而非抛错）');
+  // 存档负载自带同步元数据（多端合并判新旧的基础）
+  const payload = JSON.parse(SM.store.read());
+  assert(isFinite(payload.savedAt) && payload.savedAt > 0, '存档负载带 savedAt 时间戳');
+  assert(payload.deviceId && payload.deviceId.length > 0, '存档负载带 deviceId');
+  // 28.8 装备槽兼容两种历史形态（对象 / 裸 id），且无效 id 被清理
+  assert(/typeof g === 'string'/.test(engSrc2), '读档兼容装备槽的裸 id 旧形态');
+  assert(/!Items\[gid\]/.test(engSrc2), '读档校验装备 id 有效性');
+  // 28.9 导入导出仍走同一套格式（云端档与本地档同构）
+  const txt2 = G.exportSaveText();
+  assert(txt2.length > 0 && JSON.parse(txt2).version === SM.version, '导出档带当前版本号');
+  assert(G.importSaveText(txt2).ok === true, '导出的档可原样导入（格式同构）');
+  // 28.10 迁移后版本回写磁盘（避免每次启动重跑迁移链）
+  assert(/before !== d\.version/.test(saveSrc), '旧档迁移后回写新版本号');
+  assert(/syncReady\(\)/.test(saveSrc), '提供同步状态同步查询接口');
 }
 
 console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

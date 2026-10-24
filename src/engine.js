@@ -36,7 +36,7 @@ const Game = {
   startedAt: Date.now(),
   version: 2,
 };
-const SAVE_KEY = 'shj_zhulu_save_v1';
+// 存档键与结构版本统一由 src/save.js 定义（SAVE_KEY / SAVE_VERSION），此处不再重复声明。
 
 // 偏好设置（不进 Game 主体，避免与存档字段冲突）
 const Prefs = {
@@ -76,31 +76,20 @@ function cloneDefaultGame(){
 }
 
 // ---------- 存档 ----------
+// 存档统一走 SaveManager（src/save.js）：存储后端可插拔（本地 / 将来的云端）、
+// 版本迁移与多端合并都在那一层完成。此处只负责「内存 ↔ 存档对象」的装配与校正。
 function saveGame(){
   Game.skills = Game.skills || {};
-  const data = { version:2, shells:Game.shells, nickname:Game.nickname||'', banking:Game.banking, inventory:Game.inventory,
-    skills:Game.skills, gear:Game.gear, records:Game.records, map:Game.map, observed:Game.observed,
-    buildings:Game.buildings, deployed:Game.deployed, omens:Game.omens, rites:Game.rites, recentLoot:Game.recentLoot||[],
-    omenImmune:Game.omenImmune||{}, danmu:Game.danmu||{stage:0,done:0}, grow:Game.grow||{}, buff:Game.buff,
-    farms:Game.farms, node:Game.node, activity:Game.activity||null,
-    stats:Game.stats, startedAt:Game.startedAt, prefs:Prefs,
-    queue:Game.queue||[], queueIdx:Game.queueIdx||0, queueRound:Game.queueRound||0,
-    queueRunning:!!Game.queueRunning, queueLoop:Game.queueLoop!==false, fallback:Game.fallback||null,
-    mobStreak:Game.mobStreak||{}, orders:Game.orders||[], ordersAt:Game.ordersAt||0 };
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); }
-  catch(e){ console.error('保存失败', e); }
-  try { localStorage.setItem(SAVE_KEY+'_time', String(Date.now())); } catch(e){}
+  const ok = SaveManager.save();
+  if (!ok) console.error('保存失败', new Error('SaveManager.save 返回 false'));
 }
 
-function loadGame(){
-  let raw;
-  try { raw = localStorage.getItem(SAVE_KEY); } catch(e){ raw = null; }
-  if (!raw){ resetToDefault(); return; }
+// 把存档对象装配回内存状态（读档 + 校验 + 补缺）
+function applySave(d){
   try {
-    const d = JSON.parse(raw);
-    const dflt = cloneDefaultGame();
-    Game.banking = d.banking || {};
-    Game.inventory = d.inventory || {};
+  const dflt = cloneDefaultGame();
+  Game.banking = d.banking || {};
+  Game.inventory = d.inventory || {};
     Game.skills = d.skills || dflt.skills;
     Game.gear = Object.assign({}, dflt.gear, d.gear || {});
     Game.records = d.records || {};
@@ -155,18 +144,43 @@ function loadGame(){
       if (!isFinite(f.remain) || f.remain < 0) f.remain = 0;
       if (!isFinite(f.grow) || f.grow <= 0) f.grow = Items[f.seedId].grow || 10;
     }
-    // 校正装备引用（物品 id 必须仍存在）
+    // 校正装备引用（装备槽存的是物品对象，其 id 必须仍存在）
+    // 兼容两种历史形态：{id, name, ...} 对象（当前）与裸 id 字符串（早期档）。
     for (const slot in Game.gear){
       const g = Game.gear[slot];
-      if (g && !Items[g.id]) Game.gear[slot] = null;
+      if (!g) continue;
+      const gid = (typeof g === 'string') ? g : g.id;
+      if (!gid || !Items[gid]){ Game.gear[slot] = null; continue; }
+      if (typeof g === 'string'){
+        // 裸 id 档：还原为物品对象快照，避免下游读 .dmg/.name 时拿到字符串
+        const it = Items[gid];
+        Game.gear[slot] = { id: gid, name: it.name, dmg: it.dmg||0, def: it.def||0, ranged: !!it.ranged, lvl: it.lvl||1 };
+      } else if (!g.id){
+        g.id = gid;
+      }
     }
     // 校正御使槽位
     for (const k in Game.deployed){ if (!Monsters[Game.deployed[k]]) delete Game.deployed[k]; }
   } catch(e){
-    console.error('读档失败，恢复默认', e);
-    resetToDefault();
+    console.error('存档装配失败', e);
+    throw e;
   }
   if (typeof invalidateMilestones === 'function') invalidateMilestones();   // 状态跳变：刷新成就缓存
+  return true;
+}
+
+// 读档：存储与迁移交给 SaveManager，本函数只做状态装配与合法性校正。
+function loadGame(){
+  let d = null;
+  try { d = SaveManager.load(); } catch(e){ console.error('读档失败，恢复默认', e); d = null; }
+  if (!d){ resetToDefault(); return false; }
+  try {
+    applySave(d);
+  } catch(e){
+    console.error('读档失败，恢复默认', e);
+    resetToDefault();
+    return false;
+  }
   return true;
 }
 
@@ -179,31 +193,23 @@ function sanitizeBag(bag){
 }
 
 // ---------- 存档导出 / 导入 ----------
+// 导出 / 导入同样走 SaveManager，保证云端档与本地档是同一套格式，
+// 玩家手动导出的文本将来可以直接作为「云端存档迁移」的载体。
 function exportSaveText(){
-  try { return localStorage.getItem(SAVE_KEY) || ''; } catch(e){ return ''; }
+  try { return SaveManager.exportText(); } catch(e){ return ''; }
 }
 function importSaveText(raw){
-  if (!raw || typeof raw !== 'string') return { ok:false, reason:'内容为空' };
-  let d;
-  try { d = JSON.parse(raw); } catch(e){ return { ok:false, reason:'不是合法的 JSON' }; }
-  if (!d || typeof d !== 'object' || Array.isArray(d)) return { ok:false, reason:'格式不是存档对象' };
-  if (!isFinite(d.shells) || typeof d.inventory !== 'object' || typeof d.skills !== 'object'){
-    return { ok:false, reason:'缺少存档字段（shells / inventory / skills）' };
-  }
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(d)); }
-  catch(e){ return { ok:false, reason:'写入本地存储失败' }; }
+  const r = SaveManager.importText(raw);
+  if (!r.ok) return r;
   loadGame();
-  return { ok:true, reason:'导入成功' };
+  return r;
 }
 
 function resetToDefault(){
   const g = cloneDefaultGame();
   Object.assign(Game, g);
   if (typeof invalidateMilestones === 'function') invalidateMilestones();   // 状态整体重置：刷新成就缓存
-  try {
-    localStorage.removeItem(SAVE_KEY);
-    localStorage.removeItem(SAVE_KEY+'_time');
-  } catch(e){}
+  try { SaveManager.reset(); } catch(e){}
 }
 window.exportSaveText = exportSaveText;
 window.importSaveText = importSaveText;

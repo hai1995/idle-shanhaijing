@@ -610,6 +610,11 @@ UI.renderSettings = function(){
         <section class="set-sec">
           <h4>存档</h4>
           <div class="form-row"><span>自动存档</span><b>每 5 秒</b><span class="hint">写入浏览器本地</span></div>
+          <div class="form-row"><span>存档格式</span><b>v${typeof SaveManager!=='undefined'?SaveManager.version:3}</b>
+            <span class="hint">旧档自动升级，无需手动处理</span></div>
+          <div class="form-row"><span>同步状态</span>
+            <b>${(() => { const r = (typeof SaveManager!=='undefined') ? SaveManager.syncReady() : {reason:'本地存档'}; return r.reason; })()}</b>
+            <span class="hint">云端存档将在后续版本开放</span></div>
           <div class="form-row"><span>手动管理</span>
             <button class="btn" onclick="UI.switchTab('stats')">前往统计页</button>
             <span class="hint">导出 / 导入 / 重置</span></div>
