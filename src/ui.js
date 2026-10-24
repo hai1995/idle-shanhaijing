@@ -1521,7 +1521,7 @@ function taofaArenaHtml(){
   </div>`;
 }
 
-// 目标列表：191 只异兽分组平铺，只在切页或数据真变时重建
+// 目标列表：234 只异兽分组平铺，只在切页或数据真变时重建
 function taofaListHtml(){
   const groups = [];
   for (const r of WORLD.regions){
@@ -1533,7 +1533,7 @@ function taofaListHtml(){
   groups.push({ title:'刑天', list:Object.values(Monsters).filter(x=>x.id==='xingtian') });
   groups.push({ title:'西山神祇（守关）', list:Object.values(Monsters).filter(x=>x.boss&&['luwu','xiwangmu','dijiang'].includes(x.id)) });
   // 「宜讨」：当前节点已解锁、讨伐等级达标、非 BOSS 中经验最高的一只——
-  // 191 只异兽平铺时，玩家（与挂机队列）最需要的答案就是「现在打哪只」
+  // 234 只异兽平铺时，玩家（与挂机队列）最需要的答案就是「现在打哪只」
   const pick = (()=>{
     let best = null;
     for (const g of groups){

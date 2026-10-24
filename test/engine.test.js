@@ -1830,7 +1830,7 @@ section('山志异兽：记录不串山 / 无实体如实标注');
   const m = Object.values(ST.Monsters).find(x => x.nodeId === 'beishan-1-19' && x.name === '山𤟤');
   G.recordObject(m.id, 3);
   assert(/录\s*3/.test(chip('beishan-1-19', '山𤟤')), '著录 3 次后显示「录 3」');
-  assert(chip('beishan-1-19', '䲃鱼').includes('仅载其名'), '原文有名但未设实体 → 「仅载其名」');
+  assert(chip('dongshan-1-02', '活师').includes('仅载其名'), '原文有名但未设实体 → 「仅载其名」（活师为蝌蚪属常兽）');
   assert(chip('nanshan-3-03', '凤皇').includes('祥瑞'), '凤皇为祥瑞（观瑞可见、不可讨伐）');
   assert(chip('xishan-3-07', '（天神）').includes('未录'), '神祇记录走谒见（deity id），此处仍为「未录」');
   // 同名异兽必须按节点取记录
@@ -1838,7 +1838,7 @@ section('山志异兽：记录不串山 / 无实体如实标注');
   G.recordObject(west.id, 5);
   assert(/录\s*5/.test(chip('xishan-1-07', '肥遗')), '西山肥遗显示自身著录数');
   assert(/未录/.test(chip('beishan-1-21', '肥遗')), '北山肥遗不借用西山肥遗的记录');
-  assert(ST.Items && Object.keys(ST.Monsters).length >= 194, '异兽表含新增四兽（总 ' + Object.keys(ST.Monsters).length + '）');
+  assert(ST.Items && Object.keys(ST.Monsters).length >= 240, '北山补录后异兽表总量（总 ' + Object.keys(ST.Monsters).length + '）');
 }
 
 // ============ 32. 战斗态不跨会话（回归：重进游戏卡在「往讨：X」不动） ============
