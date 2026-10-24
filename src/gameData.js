@@ -1034,15 +1034,18 @@ const GATHER_BONUS = {
   zhipiyu: { item:'zhuyu2', chance:0.5, note:'是生珠玉' },
 };
 // ---------- 营造（营邑） ----------
+// 营邑等级门槛已压平（1/2/4/6/9/12/16/20），经验按「造完即够下一档」给足——
+// 旧的 1/3/5/10/15/20/30/40 门槛配 50–900 经验，造到第三座就永远卡住（升级需数万经验）。
+// 另设「修葺」（game.js repairBuild）作为材料换经验的兜底，任何时候都不会无路可走。
 const BUILDINGS = {
-  zhai:    { id:'zhai',    name:'柴栅',   lvl:1,  xp:50,  cost:[['gui',5],['yan',3]],               desc:'结木为栅，以固所获 · 全局产出 +3%' },
-  zaoku:   { id:'zaoku',   name:'灶窟',   lvl:3,  xp:100, cost:[['yan',15],['guaimu',5]],           desc:'甃灶炊爨，工不暇息 · 制作耗时 -10%' },
-  tuku:    { id:'tuku',    name:'土窟',   lvl:5,  xp:150, cost:[['guaimu',20],['tan',5]],           desc:'因势窟土，以庇风雨 · 离线上限 +1 小时' },
-  citan:   { id:'citan',   name:'祠坛',   lvl:10, xp:200, cost:[['guaimu',10],['shashi',10],['yu',1]], desc:'祭祀效果 ×1.5' },
-  shichan: { id:'shichan', name:'市廛',   lvl:15, xp:300, cost:[['guaimu',15],['jin',2]],             desc:'商旅售价 +5%' },
-  canglin: { id:'canglin', name:'仓廪',   lvl:20, xp:400, cost:[['guaimu',20],['tu',10]],             desc:'离线上限 +2 小时' },
-  fenghuotai:{ id:'fenghuotai',name:'烽火台',lvl:30, xp:600, cost:[['shashi',20],['tan',10]],         desc:'征兆可提前预知' },
-  xuegong: { id:'xuegong', name:'学宫',   lvl:40, xp:900, cost:[['guaimu',30],['yu',5],['jian',10]],  desc:'著录度获取 +25%' },
+  zhai:    { id:'zhai',    name:'柴栅',   lvl:1,  xp:40,    cost:[['gui',5],['yan',3]],               desc:'结木为栅，以固所获 · 全局产出 +3%' },
+  zaoku:   { id:'zaoku',   name:'灶窟',   lvl:2,  xp:340,   cost:[['yan',15],['guaimu',5]],           desc:'甃灶炊爨，工不暇息 · 制作耗时 -10%' },
+  tuku:    { id:'tuku',    name:'土窟',   lvl:4,  xp:1080,  cost:[['guaimu',20],['tan',5]],           desc:'因势窟土，以庇风雨 · 离线上限 +1 小时' },
+  citan:   { id:'citan',   name:'祠坛',   lvl:6,  xp:4100,  cost:[['guaimu',10],['shashi',10],['yu',1]], desc:'祭祀效果 ×1.5' },
+  shichan: { id:'shichan', name:'市廛',   lvl:9,  xp:8700,  cost:[['guaimu',15],['jin',2]],             desc:'商旅售价 +5%' },
+  canglin: { id:'canglin', name:'仓廪',   lvl:12, xp:22000, cost:[['guaimu',20],['tu',10]],             desc:'离线上限 +2 小时' },
+  fenghuotai:{ id:'fenghuotai',name:'烽火台',lvl:16, xp:38200, cost:[['shashi',20],['tan',10]],         desc:'征兆可提前预知' },
+  xuegong: { id:'xuegong', name:'学宫',   lvl:20, xp:20000, cost:[['guaimu',30],['yu',5],['jian',10]],  desc:'著录度获取 +25%' },
 };
 
 // ---------- 墟市（商旅） ----------
@@ -1880,9 +1883,9 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.6.0',
+  version: '1.7.0',
   codename:'密都 · 岳祠',
-  updated: '2026-10-24',
+  updated: '2026-10-25',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
 };

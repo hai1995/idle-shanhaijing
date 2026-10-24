@@ -425,7 +425,7 @@ function farmCatchUp(seconds){
   if (seconds > 0 && Object.keys(Game.farms).length) farmTick(seconds);
 }
 function slotIdNum(slot){ return parseInt(String(slot).replace('farm',''))+1; }
-function plantSeed(plotId, seedId){
+function plantSeed(plotId, seedId, silent){
   const seed = Items[seedId];
   if (!seed || !seed.crop){ UI && UI.toast('此非嘉种'); return false; }
   if (levelOf('puyi') < (seed.lvl||1)){ UI && UI.toast(`🔒 需圃艺 ${seed.lvl} 级`); return false; }
@@ -435,7 +435,7 @@ function plantSeed(plotId, seedId){
   if (Game.inventory[seedId]<=0) delete Game.inventory[seedId];
   Game.farms[plotId] = { seedId, remain: seed.grow||10, grow: seed.grow||10 };
   saveGame();
-  UI && UI.toast(`🌱 已植 ${seed.name}`);
+  if (!silent) UI && UI.toast(`🌱 已植 ${seed.name}`);
   return true;
 }
 window.plantSeed = plantSeed; window.farmCatchUp = farmCatchUp;
@@ -687,6 +687,25 @@ function buildStructure(id){
 }
 window.buildStructure = buildStructure;
 
+// 修葺旧筑：材料换营邑经验的常备出口。
+// 营造是一次性里程碑（八座造完即止），若等级差一点又无可造之物，旧版会彻底卡死；
+// 修葺让「木×2 + 石×1」随时可换「本级升级所需 25%」经验（至少 20 点）。
+const REPAIR_COST = [['guaimu', 2], ['shashi', 1]];
+function repairBuild(){
+  const lv = levelOf('yingyi');
+  if (lv >= TUNING.MAX_LEVEL){ UI && UI.toast('营邑已至九九，无需再葺'); return false; }
+  if (!canAfford(REPAIR_COST)){ UI && UI.toast('材用不足（怪木×2、沙石×1）'); return false; }
+  payCost(REPAIR_COST);
+  const need = Math.max(1, xpForLevel(lv + 1) - xpForLevel(lv));
+  const gain = Math.max(20, Math.round(need * 0.25));
+  gainXp('yingyi', gain);
+  log(`🔨 修葺旧筑：营邑经验 +${gain}`, 'gold', 'sys');
+  UI && UI.toast(`🔨 修葺完成：营邑经验 +${gain}`);
+  saveGame();
+  return true;
+}
+window.repairBuild = repairBuild;
+
 // ===== 战斗（讨伐 · 五行相克） =====
 function playerEl(){ return document.getElementById('playerFighter'); }
 function monsterEl(){ return document.getElementById('monsterFighter'); }
@@ -739,6 +758,49 @@ function playerElement(){
   if (style === 'ranged' && Game.gear.quiver) return Game.gear.quiver.el || '金';
   return '金';
 }
+// ---------- 装备淬炼（强化） ----------
+// 装备槽里存的是「那一件」，淬炼等级按物品 id 记（同 id 共享），0–+9。
+// 每级 +6% 基础伤害 / 防御，消耗炭与贝币，级数越高越贵。
+const ENHANCE_MAX = 9, ENHANCE_STEP = 0.06;
+function enhanceLevel(itemId){
+  const v = (Game.enhance && Game.enhance[itemId]) || 0;
+  return Math.max(0, Math.min(ENHANCE_MAX, v | 0));
+}
+function enhanceScaled(base, lv){
+  if (!base) return 0;
+  // 每级增量 = 基础的 6%，至少 +1——低阶兵器（伤害 5）也能一级一级看见涨，
+  // 高阶（伤害 60）则按比例走，+9 约 +60%。
+  const inc = Math.max(1, Math.round(base * ENHANCE_STEP));
+  return base + inc * lv;
+}
+function enhanceCost(itemId){
+  const next = enhanceLevel(itemId) + 1;
+  return { next, tan: next + 1, shells: 120 * next };
+}
+function enhanceItem(itemId){
+  const it = Items[itemId];
+  if (!it || !it.equip) return false;
+  const lv = enhanceLevel(itemId);
+  if (lv >= ENHANCE_MAX){ UI && UI.toast('已至 +9，无可再淬'); return false; }
+  const cost = enhanceCost(itemId);
+  if ((Game.inventory.tan || 0) < cost.tan){ UI && UI.toast(`炭不足（需 ${cost.tan}，持有 ${Game.inventory.tan||0}）`); return false; }
+  if (Game.shells < cost.shells){ UI && UI.toast(`贝币不足（需 ${cost.shells}）`); return false; }
+  Game.inventory.tan -= cost.tan;
+  if (Game.inventory.tan <= 0) delete Game.inventory.tan;
+  Game.shells -= cost.shells;
+  Game.stats.spent = (Game.stats.spent || 0) + cost.shells;
+  if (!Game.enhance) Game.enhance = {};
+  Game.enhance[itemId] = lv + 1;
+  log(`🔨 ${it.name} 淬炼至 +${lv+1}`, 'gold', 'trade');
+  UI && UI.toast(`🔨 ${it.name} +${lv+1}`);
+  saveGame();
+  UI && UI.refreshGear && UI.refreshGear();
+  UI && UI.refreshInventory && UI.refreshInventory();
+  return true;
+}
+window.enhanceItem = enhanceItem; window.enhanceLevel = enhanceLevel; window.enhanceCost = enhanceCost;
+window.enhanceScaled = enhanceScaled;
+
 function playerWeaponDmg(){
   const style = combatMode();
   if (style === 'zhu'){
@@ -748,7 +810,7 @@ function playerWeaponDmg(){
   }
   let dmg = 0;
   const w = Game.gear.weapon;
-  if (w) dmg += w.dmg;
+  if (w) dmg += (typeof enhanceScaled === 'function') ? enhanceScaled(w.dmg, enhanceLevel(w.id || w)) : (w.dmg||0);
   if (style === 'ranged' && Game.gear.quiver) dmg += Game.gear.quiver.dmg||0;
   return dmg;
 }
@@ -775,7 +837,9 @@ function playerEvasion(){
   return Math.min(0.5, (Game.gear.armor ? 0.04 : 0) + levelOf('bing')*0.0015 + levelOf('ming')*0.001);
 }
 function totalDefence(){
-  let d = Game.gear.armor ? (Game.gear.armor.def||0) : 0;
+  let d = Game.gear.armor
+    ? ((typeof enhanceScaled === 'function') ? enhanceScaled(Game.gear.armor.def, enhanceLevel(Game.gear.armor.id || Game.gear.armor)) : (Game.gear.armor.def||0))
+    : 0;
   d += levelOf('ming')*0.2;
   d += defBonus();
   return d;
@@ -1020,7 +1084,13 @@ function meetKill(c, m){
     const _d = _e && typeof entryDef === 'function' ? entryDef(_e) : null;
     return _d && _d.mode === 'taofa' && _e.target === m.id; })();
   const queueTookOver = (typeof queueOnKill === 'function') && queueOnKill(m.id);
-  if (!isBoss && !queueTookOver) startCombat(c.monsterId, _qDriven ? { fromQueue:true } : undefined);
+  // 限次连战：c.repeat 为「本轮还剩几场」（含刚打完这场）。null = 无限连战（旧行为）。
+  const left = (c.repeat == null) ? null : c.repeat - 1;
+  if (!isBoss && !queueTookOver){
+    if (left == null) startCombat(c.monsterId, _qDriven ? { fromQueue:true } : undefined);
+    else if (left > 0) startCombat(c.monsterId, _qDriven ? { times:left, fromQueue:true } : { times:left });
+    else UI && UI.toast(`⚔️ 已战 ${c.repeat} 场，收兵`);
+  }
 }
 function pushRecentLoot(itemId, qty){
   if (!itemId || !Items[itemId]) return;
@@ -1042,7 +1112,8 @@ function onPlayerDeath(c, m){
   const lastId = c && c.monsterId;
   Game.combat = null;
   UI && UI.afterCombatEnd && UI.afterCombatEnd(lastId);   // 败北：连杀清零，递减标签该消失
-  if (Prefs.autoRevive && lastId && Monsters[lastId]){
+  // 限次往讨败北即收兵（尊重玩家设定的场次）；无线连战仍按偏好自动复讨
+  if (Prefs.autoRevive && lastId && Monsters[lastId] && c.repeat == null){
     setTimeout(()=>{
       if (!Prefs.autoRevive) return;
       startCombat(lastId);
@@ -1070,8 +1141,10 @@ function startCombat(monsterId, opts){
     else style = 'zhu';
   }
   if (style === 'attack' && !styleAvailable('attack')) style = 'zhu';
+  // 次数：仅当显式传入 times 时生效（弹窗「战斗 N 场」）；不传 = 旧行为（击杀后无限连战）
+  const times = (opts && opts.times > 0) ? Math.max(1, Math.min(99, Math.floor(opts.times))) : null;
   Game.combat = { monsterId, monsterHp:m.hp, playerHp:playerMaxHp(), timer:0, maxtimer:0, spec:0,
-    style, dmgOut:0, dmgIn:0, round:0, flee:0 };
+    style, dmgOut:0, dmgIn:0, round:0, flee:0, repeat:times };
   autoAttack = true;
   saveGame();
   UI && UI.startCombat(m, opts);
@@ -1222,8 +1295,12 @@ function gameLoop(){
     }
   }
   if (UI && UI.tickProgress) UI.tickProgress();
+  // 顶栏数值（贝币 / 已录 / 总等级）随结算实时刷新：此前只在切页或整页重绘时更新，
+  // 挂机收益要等下一次渲染才看得见。节流到 500ms，set() 内部自带「未变则不打扰」。
+  topbarAccum += dt;
+  if (topbarAccum >= 0.5){ topbarAccum = 0; if (UI && UI.renderTopbar) UI.renderTopbar(); }
 }
-let oneSecondAccum = 0, activityProgress = 0;
+let oneSecondAccum = 0, activityProgress = 0, topbarAccum = 0;
 function stepGame(dt){
   if (Game.buff) tickBuffs(dt);
   tickYushi(dt);

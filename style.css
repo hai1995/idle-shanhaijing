@@ -1842,3 +1842,90 @@ mark.hit{
 @media (max-width:760px){
   #content .skill-grid{ grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
 }
+
+/* ==========================================================================
+   交互改版（v1.7）：行动条可点 · 页头等级条 · 征兆意象图标 · 移动端直角
+   ========================================================================== */
+/* 仪表带的行动文字：可点击直达对应页 */
+.act-link{ cursor:pointer; border-bottom:1px dashed transparent;
+  transition:color .12s, border-color .12s; }
+.act-link:hover{ color:var(--zhu); border-bottom-color:var(--zhu); }
+.act-link:active{ color:var(--zhu-d); }
+
+/* 页头等级条：每页顶部一条轻量技能进度（等级 / 当前经验 / 升级所需）
+   贴在内容顶，随页面渲染插入；窄屏折成两行也不挤 */
+.page-lvbar{
+  display:flex; align-items:center; gap:9px; flex-wrap:wrap;
+  margin:0 0 12px; padding:7px 11px;
+  background:var(--paper-2); border:1px solid var(--rule); border-left:2px solid var(--qing);
+  border-radius:var(--r); font-size:12px; color:var(--ink-2);
+}
+.page-lvbar .pl-name{ font-family:var(--f-kai); color:var(--qing); letter-spacing:.08em; }
+.page-lvbar .pl-lv{ color:var(--ink); font-variant-numeric:tabular-nums; font-size:12.5px; }
+.page-lvbar .pl-bar{ flex:1 1 120px; min-width:64px; height:4px; background:var(--rule-3);
+  border-radius:1px; overflow:hidden; }
+.page-lvbar .pl-bar i{ display:block; height:100%; background:var(--tai); transition:width .3s; }
+.page-lvbar .pl-xp{ font-variant-numeric:tabular-nums; color:var(--ink-3); font-size:11.5px; }
+
+/* 征兆方块：意象图标为主形，吉/凶/中缩为左上角小印 */
+.omen-tile .omen-ic{ width:34px; height:34px; margin:-1px 0 0; }
+.omen-tile .ot-pol{
+  position:absolute; top:3px; left:3px; width:16px; height:16px;
+  font-family:var(--f-kai); font-size:10px; line-height:16px; border-radius:1px;
+}
+
+/* 移动端：操作按钮与方块统一近直角（圆角按钮在窄屏上显得过大，与纸墨主题不合） */
+@media (max-width:760px){
+  .btn, .btn-mini, .chip-btn, .tile, .tab, .slot, .mini-card,
+  .seed-row, .inv-card, .beast-tile, .gear-tile, .omen-tile, .rite-tile{
+    border-radius:1px !important;
+  }
+  .modal-btns .btn, .seed-row, .shop-buy, .bs-act .btn{ border-radius:1px !important; }
+}
+
+/* ----- 交互弹窗（征伐目标 / 御使异兽） ----- */
+.hm-py{ font-size:11.5px; color:var(--ink-3); font-weight:400; margin-left:4px; }
+.hm-form{ font-size:12px; color:var(--ink-2); line-height:1.7; margin:2px 0 8px; }
+.hm-stats{ display:flex; flex-wrap:wrap; gap:6px 14px; margin:8px 0;
+  font-size:12px; color:var(--ink-2); font-variant-numeric:tabular-nums; }
+.hm-stats b{ color:var(--ink); }
+.hm-line{ font-size:12px; color:var(--ink-2); line-height:1.75; }
+.hm-line b{ color:var(--ink); }
+.hm-buff{ margin:8px 0 6px; padding:7px 9px; background:var(--paper-2);
+  border:1px solid var(--rule); border-left:2px solid var(--tai); }
+.hm-eff{ color:var(--tai); }
+.hm-lock{ margin:10px 0; padding:8px 10px; font-size:12px; color:var(--zhu-d);
+  background:var(--zhu-w); border-left:2px solid var(--zhu); }
+.hm-times{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:12px 0 6px; }
+.hm-times label{ font-size:12px; color:var(--ink-2); }
+.hm-times input[type=number]{
+  width:72px; padding:6px 8px; font-family:var(--f-num); font-size:14px; text-align:center;
+  color:var(--ink); background:var(--paper-3); border:1px solid var(--rule-2); border-radius:var(--r);
+}
+.hm-times input[type=number]:focus{ border-color:var(--qing); outline:none; }
+.hm-chips{ display:inline-flex; gap:4px; }
+.hm-chips .chip-btn{ min-width:34px; padding:4px 8px; text-align:center; }
+
+/* ----- 营造：修葺兜底 ----- */
+.ying-repair{ display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  margin-top:12px; padding-top:12px; border-top:1px solid var(--rule); }
+
+/* ----- 装备淬炼角标 ----- */
+.gear-tile .gt-enh{
+  position:absolute; top:3px; right:3px; padding:2px 4px; border-radius:1px;
+  font-family:var(--f-num); font-size:10px; line-height:1; color:#fff; background:var(--jin);
+}
+
+/* ----- 行动链：页尾「下一步」横条 ----- */
+.next-step-bar{
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  margin:12px 0 4px; padding:8px 11px;
+  background:var(--paper-2); border:1px solid var(--rule); border-left:2px solid var(--zhu);
+  border-radius:var(--r); font-size:12px;
+}
+.next-step-bar .ns-lb{ font-family:var(--f-kai); color:var(--zhu); letter-spacing:.1em; flex:0 0 auto; }
+.next-step-bar .btn.small{ padding:4px 10px; font-size:12px; }
+
+/* 弹窗标题里的兽形图标定尺（beastIcon 的 svg 默认 100% 撑满，需给容器定死） */
+#modal h3 .mi-ic{ display:inline-block; width:22px; height:22px; vertical-align:-4px; margin-right:5px; }
+#modal h3 .mi-ic svg{ width:22px; height:22px; display:block; }

@@ -21,6 +21,7 @@ const Game = {
   buff: null,            // 饮药之益 { itemId, def, remaining, dur }
   farms: {},             // 圃艺田地 { 'p0'..: { seedId, remain, grow } }
   mobStreak: {},         // 同目标连续讨伐计数 { monsterId: n }（经验递减用，换目标即重置）
+  enhance: {},           // 装备淬炼等级 { itemId: 0..9 }（按物品 id 记，同 id 共享）
   orders: [],            // 方国求购订单 [{ id, itemId, regionId, qty, premium, total, xp }]
   ordersAt: 0,           // 当前一批订单的生成时间戳（ms，30 分钟轮换）
   node: 'nanshan-1-01',  // 当前所在节点
@@ -63,6 +64,7 @@ function cloneDefaultGame(){
   g.node = 'nanshan-1-01'; g.activity = null; g.combat = null;
   g.queue = []; g.queueIdx = 0; g.queueRound = 0; g.queueRunning = false; g.queueLoop = true; g.fallback = null;
   g.mobStreak = {};
+  g.enhance = {};
   g.orders = []; g.ordersAt = 0;
   g.skills = {};
   for (const id of ALL_SKILL_IDS) g.skills[id] = { level:1, xp:0 };
@@ -128,6 +130,14 @@ function applySave(d){
     Game.fallback = (d.fallback && d.fallback.kind && d.fallback.target) ? d.fallback : null;
     // 同目标连续讨伐计数（旧档无此字段，缺省为空）
     Game.mobStreak = (d.mobStreak && typeof d.mobStreak === 'object') ? d.mobStreak : {};
+    // 装备淬炼等级（旧档无此字段，缺省为空；非法值剔除）
+    Game.enhance = {};
+    if (d.enhance && typeof d.enhance === 'object'){
+      for (const k in d.enhance){
+        const v = parseInt(d.enhance[k], 10);
+        if (isFinite(v) && v > 0) Game.enhance[k] = Math.min(9, v);
+      }
+    }
     // 方国求购订单（旧档无此字段，读档后由 refreshOrders 补生成）
     Game.orders = Array.isArray(d.orders) ? d.orders.filter(o=>o && o.itemId && o.qty>0) : [];
     Game.ordersAt = isFinite(d.ordersAt) ? d.ordersAt : 0;

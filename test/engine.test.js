@@ -1985,9 +1985,10 @@ section('制作：单件 / 连作 / 紧凑卡片');
   assert(/\.recipe-grid\{ grid-template-columns:repeat\(3,minmax\(0,1fr\)\); gap:6px; \}/.test(css), '窄屏配方三列');
   assert(uiSrc.includes("`UI.craftDenied('${r.type}::${r.out}')`") && uiSrc.includes('UI.craftDenied = function(key)'), '不可制作时点按给出缺料 / 等级提示');
   assert(uiSrc.includes("if (a.hasAttribute && a.hasAttribute('onclick')) return;"), '浮层捕获层放行「点按即执行」的方块（点卡面任意处均执行动作）');
-  assert(uiSrc.includes('pressTimer = setTimeout') && uiSrc.includes('longPressAt'), '移动端长按 500ms 开浮层看详情（单点恒为动作）');
-  assert(uiSrc.includes('longPressAnchor.contains(e.target)'), '长按后吞掉紧随的 click，不误触动作');
-  assert(/longPressAnchor\.contains\(e\.target\)\)\{\s*e\.stopPropagation\(\); e\.preventDefault\(\); return;/.test(uiSrc), '长按守卫必须 stopPropagation——capture 阶段仅 return 挡不住 inline onclick（浏览器实测回归）');
+  assert(!uiSrc.includes('pressTimer') && !uiSrc.includes('longPressAnchor'), '长按逻辑已移除（v1.7 起统一为单击交互）');
+  assert(uiSrc.includes('UI.openHuntModal') && uiSrc.includes("onclick=\"UI.openHuntModal('${x.id}')\""), '征伐目标单击开交互弹窗');
+  assert(uiSrc.includes("id=\"huntTimes\" type=\"number\"") && uiSrc.includes('UI.clampHuntTimes'), '弹窗内可设战斗次数，异常值夹到 1–99');
+  assert(gameSrc.includes('repeat:times') && gameSrc.includes('else UI && UI.toast(`⚔️ 已战 ${c.repeat} 场，收兵`)'), '限次连战：场次用尽即收兵');
   assert(css.includes('[data-tip]{ -webkit-touch-callout:none; user-select:none; }'), '长按锚点禁选中与系统菜单');
   assert(interactSrc.includes('const times = (opts && opts.times > 0)'), 'startActivity 支持 times 参数');
   assert(gameSrc.includes('if (done && a.remain != null)') && gameSrc.includes('a.remain--;'), '制作完成扣次数并收手');
@@ -2013,8 +2014,8 @@ section('方块语言：技能 / 祠礼 / 墟市');
 // ============ 41. 方块语言补完：御使 / 征兆 / 廛市出售 / 营造 ============
 section('方块语言补完：御使 / 征兆 / 出售 / 营造');
 {
-  // 41.1 御使：beast-card → deploy-tile，点按即御使，在槽只读描边
-  assert(uiSrc.includes('class="tile deploy-tile') && uiSrc.includes("deployBeast('${b.id}');UI.renderYushi()"), '御使异兽改为方块（点按即御使）');
+  // 41.1 御使：beast-card → deploy-tile，单击开弹窗（御/卸在弹窗内），在槽描边
+  assert(uiSrc.includes('class="tile deploy-tile') && uiSrc.includes("onclick=\"UI.openDeployModal('${b.id}')\""), '御使异兽改为方块（单击开弹窗，御/卸在内）');
   assert(css.includes('.deploy-tile.inslot{'), '在槽异兽只读描边');
   assert(uiSrc.indexOf('beast-card') < 0, '御使页不再用旧行状卡');
 
@@ -2061,7 +2062,7 @@ section('仪表带去冗余 / 增益浮层');
   assert(html.indexOf('id="buffBtn"') > html.indexOf('id="topbar"') &&
          html.indexOf('id="buffBtn"') < html.indexOf('id="statusbar"'), '增益图标位于书脊（顶栏）内、仪表带之前');
   assert(html.indexOf('id="buffPop"') > 0, '增益浮层容器存在');
-  assert(/<span id="activityText">空闲<\/span>/.test(html), '仪表带首项直接是当前行动');
+  assert(/<span id="activityText"[^>]*class="act-link"[^>]*>空闲<\/span>/.test(html), '仪表带首项直接是当前行动（可点击直达对应页）');
   assert(uiSrc.indexOf('passiveSummary') < 0, '旧的被动摘要（挤在仪表带上）已删除');
 
   // 37.2 计数：临时 + 御使 + 征兆 三类各计一条
@@ -2663,6 +2664,102 @@ section('云端存档接入');
     }
     SM.clearCloud();   // 收尾：不影响后续用例
   })());
+}
+
+// ============ 42. 交互改版（v1.7）：顶栏实时 · 行动链 · 弹窗 · 淬炼 ============
+section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
+{
+  const gameSrc2 = fs.readFileSync(path.join(__dirname, '..', 'src', 'game.js'), 'utf8');
+  const uiSrc2 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  const css2 = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
+
+  // 42.1 顶栏数值随结算实时刷新（贝币不再等切页才变）
+  assert(/topbarAccum \+= dt;[\s\S]{0,200}UI\.renderTopbar/.test(gameSrc2), '主循环节流刷新顶栏（贝币随结算实时可见）');
+
+  // 42.2 仪表带行动文字可点，按行动类型跳页
+  G.resetToDefault();
+  ST.Game.activity = { kind:'gather', skill:'qiaocai', itemId:'gui', src:'manual' };
+  ST.UI.gotoActivity();
+  assert(ST.UI.currentTab === 'skills', '采集中点行动条 → 技能页');
+  ST.Game.activity = null;
+  ST.Game.combat = { monsterId:'x', monsterHp:1, playerHp:1 };
+  ST.UI.gotoActivity();
+  assert(ST.UI.currentTab === 'taofa', '往讨中点行动条 → 征伐页');
+  ST.Game.combat = null;
+
+  // 42.3 田地一键种植
+  G.resetToDefault();
+  ST.Game.farms = {};
+  ST.Game.inventory.seed_tu = 4;   // 稌籽 lvl 1，圃艺 1 级即可种
+  const _renderSkills = ST.UI.renderSkills, _toast = ST.UI.toast;
+  ST.UI.renderSkills = ()=>{}; ST.UI.toast = ()=>{};
+  ST.UI.plantAll();
+  ST.UI.renderSkills = _renderSkills; ST.UI.toast = _toast;
+  assert(Object.keys(ST.Game.farms).length === 4, '一键种植按存种数量填满空田 -> ' + Object.keys(ST.Game.farms).length);
+  assert((ST.Game.inventory.seed_tu || 0) === 0, '一键种植按田扣种');
+
+  // 42.4 征兆意象图标：七类各有其形，水兆取水色
+  assert(typeof ST.omenIcon === 'function', '征兆意象图标已导出');
+  const omenCases = [['大水','见则其邑大水'],['大旱','见则天下大旱'],['兵','见则其邑有兵'],
+    ['大疫','见则其国大疫'],['螽蝗','见则螽蝗为败'],['大风','见则天下大风'],['安宁','见则天下安宁']];
+  assert(omenCases.every(([t,d])=>String(ST.omenIcon({type:t, desc:d}, 20)).indexOf('<svg') === 0), '七类征兆各有专属意象（水/旱/兵/疫/蝗/风/安）');
+  assert(String(ST.omenIcon({type:'大水', desc:''}, 20)).indexOf('#2E5269') >= 0, '水兆取水色');
+  assert(String(ST.omenIcon({type:'大旱', desc:''}, 20)).indexOf('#B03A2B') >= 0, '旱兆取火色');
+
+  // 42.5 每页页头等级条（等级 / 当前经验 / 升级所需）
+  assert(typeof ST.UI.renderPageLevel === 'function', '页头等级条随页渲染');
+  assert(uiSrc2.includes('class="page-lvbar"') && uiSrc2.includes('经验 ${fmt(got)} / ${fmt(need)}'), '等级条含当前经验与升级所需');
+  assert(/PAGE_SKILL = \{[\s\S]{0,400}yudi[\s\S]{0,400}taofa[\s\S]{0,400}yushi[\s\S]{0,400}codex[\s\S]{0,400}jisi[\s\S]{0,400}shichan[\s\S]{0,400}ying/.test(uiSrc2), '七页各有对应技能');
+
+  // 42.6 营造：门槛压平后八连造自洽，且有「修葺」兜底
+  G.resetToDefault();
+  assert(ST.BUILDINGS.zhai.lvl === 1 && ST.BUILDINGS.xuegong.lvl === 20, '营造门槛压平为 1–20');
+  const chain = ['zhai','zaoku','tuku','citan','shichan','canglin','fenghuotai','xuegong'];
+  const built = chain.every(id=>{
+    ST.Game.inventory.guaimu = 999; ST.Game.inventory.shashi = 999;
+    ST.Game.inventory.yan = 999; ST.Game.inventory.gui = 999; ST.Game.inventory.tan = 999;
+    ST.Game.inventory.tu = 999; ST.Game.inventory.jin = 999; ST.Game.inventory.yu = 999;
+    ST.Game.inventory.jian = 999;
+    return G.buildStructure(id) === true;
+  });
+  assert(built, '八座建筑可一路连造（造完即够下一档）');
+  G.resetToDefault();
+  ST.Game.inventory.guaimu = 10; ST.Game.inventory.shashi = 10;
+  const yxp0 = ST.Game.skills.yingyi.xp;
+  assert(ST.repairBuild() === true, '修葺可执行（无可造之物时的兜底）');
+  assert(ST.Game.skills.yingyi.xp > yxp0, '修葺给营邑经验');
+  assert(ST.Game.inventory.guaimu === 8, '修葺耗怪木×2 -> ' + ST.Game.inventory.guaimu);
+
+  // 42.7 征伐 / 御使弹窗入口
+  assert(typeof ST.UI.openHuntModal === 'function' && typeof ST.UI.startHuntTimes === 'function', '征伐弹窗与开战入口齐备');
+  assert(typeof ST.UI.openDeployModal === 'function', '御使弹窗入口齐备');
+  G.resetToDefault();
+  const anyBeast = Object.values(ST.Monsters).find(m=>!m.boss);
+  ST.UI.openHuntModal(anyBeast.id);
+  assert(true, '征伐弹窗可打开（属性 / 场次 / 战斗按钮）');
+
+  // 42.8 装备淬炼：消耗 · 数值 · 上限 · 存档
+  G.resetToDefault();
+  ST.Game.inventory.tan = 30; ST.Game.shells = 8000;
+  ST.Game.inventory.muge = 1;                  // 先持有一柄木戈再装备
+  ST.equipItem('muge');
+  ST.Game.combat = { style:'attack' };        // 固定近战口径，免得默认祝术走法术分支
+  const dmg0 = G.playerWeaponDmg();
+  assert(ST.enhanceItem('muge') === true, '装备可淬炼');
+  assert(ST.enhanceLevel('muge') === 1, '淬炼 +1');
+  assert(G.playerWeaponDmg() > dmg0, '淬炼提升武器伤害（+6%/级）');
+  ST.Game.combat = null;
+  ST.Game.enhance.muge = 9;
+  const tan0 = ST.Game.inventory.tan;
+  assert(ST.enhanceItem('muge') === false && (ST.Game.inventory.tan || 0) === tan0, '已至 +9 不再消耗');
+  const ser2 = ST.serializeSave();
+  assert(ser2 && ser2.enhance && ser2.enhance.muge === 9, '淬炼等级写入存档');
+
+  // 42.9 行动链：页尾「下一步」横条
+  assert(uiSrc2.includes('function nextStepHtml') && uiSrc2.includes('class="next-step-bar"'), '页尾「下一步」横条（行动链）');
+
+  // 42.10 移动端操作按钮统一近直角
+  assert(/@media \(max-width:760px\)\{[\s\S]{0,500}\.btn[^{]*\{[^}]*border-radius:1px !important/.test(css2), '窄屏操作按钮统一近直角');
 }
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）

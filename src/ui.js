@@ -309,7 +309,18 @@ const UI = {
     this.tickProgress();
     refreshTabBadges();
     this.updateGuidance();
-    if (this.currentTab === 'skills') this.renderSkills();
+    // 技能页会就地重绘整页（采集进度），页头条与「下一步」随之被冲掉——补回
+    if (this.currentTab === 'skills'){ this.renderSkills(); this.renderPageLevel(); }
+  },
+  // 仪表带的行动文字可点：直达该行动所在页（采集/制作→技能，观象/谒见/灌木→舆地，往讨→征伐）
+  gotoActivity(){
+    if (Game.combat){ this.switchTab('taofa'); return; }
+    const a = Game.activity;
+    if (!a){ this.switchTab('skills'); return; }          // 空闲时回最常用的技能页
+    if (a.src === 'queue'){ this.switchTab('queue'); return; }
+    const tab = (a.kind === 'observe' || a.kind === 'audience' || a.kind === 'grow') ? 'yudi'
+      : a.kind === 'jisi' ? 'jisi' : 'skills';
+    this.switchTab(tab);
   },
   refreshGear(){ if (this.currentTab === 'pack') this.renderPack(); },
   refreshInventory(){
@@ -441,9 +452,23 @@ const UI = {
       queue:'renderQueue', pack:'renderPack', stats:'renderStats', settings:'renderSettings',
       about:'renderAbout' }[this.currentTab];
     if (fn && this[fn]) this[fn]();
+    this.renderPageLevel();
     this.renderTopbar();
     this.refreshActivity();
     this.fitGhostScrollbar();
+  },
+  // 页头等级条 + 页尾下一步：各页渲染完后就地插入（不侵入各页 HTML 模板）
+  renderPageLevel(){
+    const c = $('content');
+    if (!c || typeof c.insertAdjacentHTML !== 'function') return;
+    const old = (c.querySelector && c.querySelector('.page-lvbar'));
+    if (old && old.remove) old.remove();
+    const html = pageLevelBar(this.currentTab);
+    if (html) c.insertAdjacentHTML('afterbegin', html);
+    const oldBar = (c.querySelector && c.querySelector('.next-step-bar'));
+    if (oldBar && oldBar.remove) oldBar.remove();
+    const bar = nextStepHtml(this.currentTab);
+    if (bar) c.insertAdjacentHTML('beforeend', bar);
   },
   // 幽灵竖滚动条：内容几乎正好填满视口时，#app 的底部留白会把页面顶出几像素，
   // 浏览器于是画出一条「几乎滑不动」的竖滚动条。这里量一次真实溢出：
@@ -879,6 +904,102 @@ function xpBar(skillId){
   const pct = next > cur ? Math.min(100, (sk.xp - cur) / (next - cur) * 100) : 100;
   return `<div class="xpbar"><div class="fill" style="width:${pct.toFixed(1)}%"></div></div>
     <div class="xpnum">${fmt(sk.xp - cur)} / ${fmt(next - cur)}</div>`;
+}
+
+// 页面 → 主技能：每页顶部固定一条「等级 · 当前经验 / 升级所需」，
+// 免得玩家在祠祀、营造、墟市里不知道自己在什么火候。
+const PAGE_SKILL = {
+  yudi:    ['yudi',    '舆地'],
+  taofa:   ['taofa',   '讨伐'],
+  yushi:   ['yushi',   '御使'],
+  codex:   ['zhulu',   '著录'],
+  jisi:    ['jisi',    '祭祀'],
+  shichan: ['shanglv', '商旅'],
+  ying:    ['yingyi',  '营邑'],
+};
+function pageLevelBar(tab){
+  if (tab === 'skills'){
+    // 技能页：按当前筛选显示那一门；「全部」时给 26 技总览（合计等级 / 满级线）
+    const f = UI.skillFilter;
+    if (f && f !== 'all' && Game.skills[f]){
+      const name = (Skills[f] && Skills[f].name) || f;
+      return skillLevelBarHtml(f, name);
+    }
+    const sum = totalSkillLevel(), max = Object.keys(Game.skills).length * TUNING.MAX_LEVEL;
+    const pct = max ? Math.min(100, sum / max * 100) : 0;
+    return `<div class="page-lvbar" data-plv="all">
+      <span class="pl-name">技能总览</span>
+      <b class="pl-lv">${sum} 级</b>
+      <span class="pl-bar"><i style="width:${pct.toFixed(1)}%"></i></span>
+      <span class="pl-xp">二十六技合计 · 满级 ${max}</span>
+    </div>`;
+  }
+  const pair = PAGE_SKILL[tab];
+  if (!pair) return '';
+  return skillLevelBarHtml(pair[0], pair[1]);
+}
+// 行动链：关键页尾部给「下一步」的明确出口——采集→制作→祠祀→征伐 本是一条闭环，
+// 玩家不该自己猜「材料齐了该干什么」。只给 1–2 个当下确实可做、且能一键完成的事。
+function nextStepHtml(tab){
+  const out = [];
+  if (tab === 'skills'){
+    const empty = [];
+    for (let i = 0; i < TUNING.FARM_PLOTS; i++) if (!Game.farms['p'+i]) empty.push(i);
+    if (empty.length){
+      const lv = levelOf('puyi');
+      const hasSeed = Object.values(Items).some(s=>s.crop && (s.lvl||1)<=lv && (Game.inventory[s.id]||0)>0);
+      if (hasSeed) out.push({ label:`一键种满 ${empty.length} 块空田`, act:'UI.plantAll()' });
+    }
+    const r = Recipes.find(x=>canAfford(x.cost) && levelOf(mapRecipeSkill(x.type)) >= x.lvl);
+    if (r){ const it = Items[r.out]; out.push({ label:`材料已齐 · 制「${it?it.name:r.out}」`, act:`startActivity('craft','${r.type}::${r.out}',{times:1})` }); }
+    if (!out.length) out.push({ label:'去征伐攒著录', tab:'taofa' });
+  }
+  if (tab === 'taofa'){
+    const best = Object.values(Monsters)
+      .filter(m=>!m.boss && m.nodeId && nodeUnlocked(nodeOf(m.nodeId)) && levelOf('taofa') >= (m.needLvl||1))
+      .sort((a,b)=>(b.xp||0)-(a.xp||0))[0];
+    if (best) out.push({ label:`宜讨「${best.name}」`, act:`UI.openHuntModal('${best.id}')` });
+  }
+  if (tab === 'jisi'){
+    const rite = Object.entries(RITES).find(([id])=>{
+      const rec = Recipes.find(x=>x.out===id);
+      return rec && canAfford(rec.cost) && levelOf('jisi') >= rec.lvl;
+    });
+    if (rite) out.push({ label:`行祭「${(Items[rite[0]]||{}).name||'祠礼'}」（产出 +30% 一时）`, act:`UI.tryRite('${rite[0]}')` });
+    const xiong = Game.omens.some(o=>OMENS[o.id] && OMENS[o.id].polarity === '凶');
+    if (xiong) out.push({ label:'禳解当前凶兆', tab:'jisi' });
+  }
+  if (tab === 'pack'){
+    const p = (typeof bulkSellPreview === 'function') ? bulkSellPreview(UI.packSellTier || 'COMMON') : null;
+    if (p && p.count > 0) out.push({ label:`清整售出 ${p.count} 件（约 ${fmt(p.total)} 贝）`, act:'bulkSellRun()' });
+    const better = Object.values(Items).some(it=>it.equip && (Game.inventory[it.id]||0) > 0 && (it.lvl||1) <= relevantLevel(it));
+    if (better) out.push({ label:'一键最优装', act:'UI.autoEquipBest()' });
+  }
+  if (tab === 'ying'){
+    const b = Object.values(BUILDINGS).find(x=>!Game.buildings[x.id] && levelOf('yingyi') >= x.lvl && canAfford(x.cost));
+    if (b) out.push({ label:`营造「${b.name}」`, act:`buildStructure('${b.id}');UI.renderYing()` });
+  }
+  if (!out.length) return '';
+  return `<div class="next-step-bar"><span class="ns-lb">下一步</span>${
+    out.slice(0,2).map(o=>`<button class="btn small" onclick="${o.act || `UI.switchTab('${o.tab}')`}">${esc(o.label)}</button>`).join('')
+  }</div>`;
+}
+
+function skillLevelBarHtml(id, name){
+  const sk = Game.skills[id] || { level:1, xp:0 };
+  const lv = sk.level || 1;
+  const cur = xpForLevel(lv), next = xpForLevel(lv + 1);
+  const need = Math.max(1, next - cur);
+  const got = Math.max(0, (sk.xp || 0) - cur);
+  const maxed = lv >= TUNING.MAX_LEVEL;
+  const pct = maxed ? 100 : Math.min(100, got / need * 100);
+  return `<div class="page-lvbar" data-plv="${id}">
+    <span class="pl-name">${esc(name)}</span>
+    <span class="tier">${TUNING.TIER_NAMES[tierOfLevel(lv)] || ''}</span>
+    <b class="pl-lv">Lv ${lv}</b>
+    <span class="pl-bar"><i style="width:${pct.toFixed(1)}%"></i></span>
+    <span class="pl-xp">${maxed ? '已至九九' : `经验 ${fmt(got)} / ${fmt(need)}`}</span>
+  </div>`;
 }
 
 // ================= 舆地 =================
@@ -1318,7 +1439,7 @@ UI.renderSkills = function(){
   </div>
 
   <div class="panel farm-panel">
-    <h3>圃艺 · 田地</h3>
+    <h3>圃艺 · 田地<button class="btn small gear-best" type="button" onclick="UI.plantAll()">一键种植</button></h3>
     <div class="tile-grid farm-grid">
     ${farmTilesHtml()}
     </div>
@@ -1379,6 +1500,26 @@ UI.seedMenu = function(slot){
 };
 UI.pickSeed = function(slot, id){
   if (plantSeed(slot, id)){ this.closeModal(); this.renderSkills(); }
+};
+// 一键种植：按「价值优先、圃艺达标、确有存种」把空田依次种满，种到没有可用种子为止。
+// 单田仍可点按择种（换种、指定某田）；这里只负责「懒得一格格点」的日常。
+UI.plantAll = function(){
+  const empty = [];
+  for (let i = 0; i < TUNING.FARM_PLOTS; i++) if (!Game.farms['p'+i]) empty.push('p'+i);
+  if (!empty.length){ this.toast('田已种满'); return; }
+  const lv = levelOf('puyi');
+  const pool = Object.values(Items)
+    .filter(s=>s.crop && (s.lvl||1) <= lv && (Game.inventory[s.id]||0) > 0)
+    .sort((a,b)=>(b.value||0)-(a.value||0));
+  if (!pool.length){ this.toast('无可用嘉种：需持有种子且圃艺达标'); return; }
+  let n = 0;
+  for (const slot of empty){
+    const s = pool.find(x=>(Game.inventory[x.id]||0) > 0);
+    if (!s) break;
+    if (plantSeed(slot, s.id, true)) n++;
+  }
+  this.renderSkills();
+  this.toast(n ? `🌱 一键植 ${n} 田` : '未能植入');
 };
 // 田地就地补绘：收获 / 植入后卡片还显示着旧状态，切页才变是不合理的
 UI.patchFarms = function(){
@@ -1583,7 +1724,7 @@ function taofaListHtml(){
       // 气血/攻防/经验/掉落/产地/形态全进浮层——一屏能扫过整片山系
       return `<div class="tile beast-tile ${th.level}${x===pick?' pick':''}${(!un||!lvOk)?' lock':''}"
         data-bid="${x.id}" data-tip data-tip-title="${esc(x.name)}${x.py?`（${esc(x.py)}）`:''}"
-        role="button" tabindex="0" onclick="UI.tryHunt('${x.id}')">
+        role="button" tabindex="0" onclick="UI.openHuntModal('${x.id}')">
         ${x.el?`<span class="bt-el el-${x.el}">${x.el}</span>`:''}
         <span class="tile-ic bi-ic">${(typeof beastIcon==='function')?beastIcon(x):(CAT_EMOJI[x.category]||'🐾')}</span>
         <span class="tile-nm">${esc(x.name)}</span>
@@ -1644,6 +1785,82 @@ UI.tryHunt = function(id){
   const need = x.needLvl || 1;
   if (levelOf('taofa') < need){ UI.toast(`🔒 需讨伐 ${need} 级方可言 ${x.name}`); return; }
   startCombat(id, { focus: true });
+};
+// 单击目标卡 → 交互弹窗：属性、掉落、克制、著录一并陈明，再自定场次开战。
+// （旧版单击直接开打、长按看详情；手机上常误触，也不方便「连打十场」这类意图。）
+UI.openHuntModal = function(id){
+  const x = Monsters[id];
+  if (!x) return;
+  const node = nodeOf(x.nodeId);
+  const un = node ? nodeUnlocked(node) : false;
+  const need = x.needLvl || 1;
+  const taofa = levelOf('taofa');
+  const lvOk = taofa >= need;
+  const rec = Game.records[id] || { count:0, tier:0 };
+  const th = threatOf(x);
+  const counterEl = x.el ? (counterOf(x.el) || '') : '';
+  const drops = (x.loot || []).map(([iid]) => (Items[iid]||{}).name || iid).join('、');
+  const streakN = (Game.mobStreak && Game.mobStreak[id]) || 0;
+  const decay = (!x.boss && streakN > 0) ? mobStreakMult(id) : 1;
+  const can = un && lvOk;
+  const lockMsg = !un
+    ? `山系未解锁：${node ? nodeLockReason(node) : '此地不明'}`
+    : !lvOk ? `需讨伐 ${need} 级（当前 ${taofa} 级）` : '';
+  const rows = [
+    x.form ? `<div class="hm-form">${esc(x.form)}</div>` : '',
+    `<div class="hm-stats">
+       <span>气血 <b>${fmt(x.hp)}</b></span>
+       <span>攻击 <b>${fmt(x.atk)}</b></span>
+       <span>防御 <b>${fmt(x.def)}</b></span>
+       <span>经验 <b>${fmt(x.xp)}</b></span>
+     </div>`,
+    `<div class="hm-line">${esc(node ? node.name : '')}${drops ? ' · 掉落 ' + esc(drops) : ''}</div>`,
+    `<div class="hm-line">五行 ${x.el || '—'}${counterEl ? ` · <b>宜用 ${counterEl} 属</b>（伤害 ×${TUNING.WUXING.KE}）` : ''}</div>`,
+    `<div class="hm-line">${th.label}${x.boss ? ' · BOSS' : ''}${x.pair ? ' · 成对（占两槽）' : ''}</div>`,
+    `<div class="hm-line">已录 <b>${rec.count}</b> 次（${TUNING.MASTERY.NAMES[rec.tier] || ''}）${decay < 1 ? ` · 连杀递减 ×${decay.toFixed(2)}` : ''}</div>`,
+  ].filter(Boolean).join('');
+  this.modal(`<h3><span class="mi-ic">${typeof beastIcon==='function'?beastIcon(x):'🐾'}</span> ${esc(x.name)}${x.py?`<span class="hm-py">（${esc(x.py)}）</span>`:''}</h3>
+    ${rows}
+    ${can ? `
+    <div class="hm-times">
+      <label for="huntTimes">战斗次数</label>
+      <input id="huntTimes" type="number" min="1" max="99" step="1" value="1" inputmode="numeric"
+        oninput="UI.onHuntTimesInput(this)" onchange="UI.clampHuntTimes(this)">
+      <span class="hm-chips">
+        ${[1,5,10,99].map(n=>`<button type="button" class="chip-btn" onclick="UI.setHuntTimes(${n})">${n}</button>`).join('')}
+      </span>
+    </div>
+    <div class="hint">一场胜后自动接战，直至场次用尽或败北；换一只异兽即重置连杀递减。</div>
+    <div class="modal-btns">
+      <button class="btn primary" onclick="UI.startHuntTimes('${id}')">战斗</button>
+      <button class="btn" onclick="UI.closeModal()">取消</button>
+    </div>` : `
+    <div class="hm-lock">${esc(lockMsg)}</div>
+    <div class="modal-btns"><button class="btn" onclick="UI.closeModal()">闭</button></div>`}`);
+};
+// 次数校验：空 / 0 / 负数 / 小数 / 超 99，一律夹到 1–99 的整数
+UI.clampHuntTimes = function(el){
+  if (!el) return 1;
+  let n = parseInt(el.value, 10);
+  if (!isFinite(n) || n < 1) n = 1;
+  if (n > 99) n = 99;
+  el.value = n;
+  return n;
+};
+UI.onHuntTimesInput = function(el){
+  if (!el) return;
+  const n = parseInt(el.value, 10);
+  if (isFinite(n) && n > 99) el.value = 99;    // 输入过程中只挡上限，不打断两位数
+};
+UI.setHuntTimes = function(n){
+  const el = document.getElementById('huntTimes');
+  if (el) el.value = Math.max(1, Math.min(99, n|0));
+};
+UI.startHuntTimes = function(id){
+  const el = document.getElementById('huntTimes');
+  const n = this.clampHuntTimes(el);
+  this.closeModal();
+  startCombat(id, { times:n, focus:true });
 };
 UI.patchBeastCard = function(id){
   const x = Monsters[id];
@@ -1707,7 +1924,7 @@ UI.renderYushi = function(){
       // 方块：图标 + 名 + 著录阶，点按即御使（在槽的只读不点）；
       // 增益幅度与著录次数进浮层
       return `<div class="tile deploy-tile ${inSlot?'inslot':''}" data-tip data-tip-title="${esc(b.name)}"
-        role="button" tabindex="0" onclick="${inSlot?'':`deployBeast('${b.id}');UI.renderYushi()`}">
+        role="button" tabindex="0" onclick="UI.openDeployModal('${b.id}')">
         <span class="tile-ic bi-ic">${(typeof beastIcon==='function')?beastIcon(b):(CAT_EMOJI[b.category]||'🐾')}</span>
         <span class="tile-nm">${esc(b.name)}</span>
         <span class="tile-tag">${TUNING.MASTERY.NAMES[rec.tier]} · 录${rec.count}</span>
@@ -1775,6 +1992,36 @@ function refreshTabBadges(){
 }
 
 // ================= 图鉴 =================
+// 单击异兽 → 弹窗：形态、增益明细、著录与成对规则一次说清，再决定御或卸。
+// （旧版可御使的直接入槽、在槽的不可点；看不到「为什么不可御」也看不到具体增益。）
+UI.openDeployModal = function(id){
+  const b = Monsters[id];
+  if (!b) return;
+  const rec = Game.records[id] || { count:0, tier:0 };
+  const def = (typeof BEAST_BUFFS !== 'undefined' && BEAST_BUFFS[id])
+    || (typeof genericBeastBuff === 'function' ? genericBeastBuff(b) : null);
+  const scale = 0.6 + 0.1 * rec.tier;
+  const slotIdx = Object.keys(Game.deployed).find(k => Game.deployed[k] === id);
+  const inSlot = slotIdx != null;
+  const node = nodeOf(b.nodeId);
+  const eff = def ? (buffDefText(def) || '') : '';
+  const tierOk = rec.tier >= 3;
+  this.modal(`<h3><span class="mi-ic">${typeof beastIcon==='function'?beastIcon(b):'🐾'}</span> ${esc(b.name)}${b.py?`<span class="hm-py">（${esc(b.py)}）</span>`:''}</h3>
+    ${b.form?`<div class="hm-form">${esc(b.form)}</div>`:''}
+    <div class="hm-line">${esc(node?node.name:'')} · 著录 <b>${rec.count}</b> 次（${TUNING.MASTERY.NAMES[rec.tier]||''}）</div>
+    <div class="hm-buff">
+      <div class="hm-line">增益 <b>${esc(def?def.label:'—')}</b>${eff?` <span class="hm-eff">${esc(eff)}</span>`:''}</div>
+      <div class="hint">增益按著录阶放大（当前 ×${scale.toFixed(1)}）${b.pair?'；此兽「相得乃飞」，成对御使占两槽':''}。</div>
+    </div>
+    <div class="modal-btns">
+      ${inSlot
+        ? `<button class="btn" onclick="undeployBeast(${Number(slotIdx)});UI.closeModal();UI.renderYushi()">卸下</button>`
+        : (tierOk
+            ? `<button class="btn primary" onclick="deployBeast('${id}');UI.closeModal();UI.renderYushi()">御使</button>`
+            : `<button class="btn" disabled>需著录至通形（${TUNING.MASTERY.THRESHOLDS[3]} 次）</button>`)}
+      <button class="btn" onclick="UI.closeModal()">取消</button>
+    </div>`);
+};
 UI.renderCodex = function(keepFocus){
   const box = $('content');
   if (!box) return;
@@ -1897,7 +2144,8 @@ function omenPanelHtml(){
       const mark = def.polarity==='凶'?'凶':def.polarity==='吉'?'吉':'中';
       // 方块：印记字（吉/凶/中）+ 异兽名 + 征兆类型；生效中高亮并在角标显示剩余
       return `<div class="tile omen-tile ${active?'active':''} ${def.polarity}" data-tip data-tip-title="${esc(def.beast)}">
-        <span class="tile-seal">${mark}</span>
+        <span class="tile-ic bi-ic omen-ic">${typeof omenIcon==='function'?omenIcon(def,30):mark}</span>
+        <span class="tile-seal ot-pol" title="${mark}兆">${mark}</span>
         <span class="tile-nm">${esc(def.beast)}</span>
         <span class="tile-tag">${esc(def.type)}</span>
         ${active?`<span class="tile-more ot-left" title="生效中，余 ${fmtTime(active.until-gameTime())}">${fmtTime(active.until-gameTime())}</span>`:''}
@@ -2215,12 +2463,16 @@ UI.renderYing = function(){
         <span class="tip-body hidden">
           ${b.desc?`<div class="rc-sub">${esc(b.desc)}</div>`:''}
           <div class="rc-cost">${costChips(b.cost)}</div>
-          ${done?'<div class="hint">已经营造完毕</div>':`${lvOk?'':'<div class="hint">需营邑 '+b.lvl+' 级</div>'}${afford?'':'<div class="hint">材料不足</div>'}`}
+          ${done?'<div class="hint">已经营造完毕</div>':`${lvOk?'':'<div class="hint">需营邑 '+b.lvl+' 级（当前 '+levelOf('yingyi')+'）</div>'}${afford?'':'<div class="hint">材料不足</div>'}`}
         </span>
       </div>`;
     }).join('')}
     </div>
-    <div class="hint">营邑等级随营造提升；学宫可加快著录度获取。</div>
+    <div class="hint">营邑等级随营造提升；造完一座所得经验足以开启下一座。学宫可加快著录度获取。</div>
+    <div class="ying-repair">
+      <button class="btn" onclick="repairBuild();UI.renderYing()">修葺旧筑（怪木×2 · 沙石×1）</button>
+      <span class="hint">无可造之物而等级差一点时，以此补足营邑经验（约本级所需四分之一）</span>
+    </div>
   </div>`;
 };
 
@@ -2370,6 +2622,7 @@ UI.renderPack = function(){
           <span class="gt-label">${GearSlotLabels[slot]}</span>
           ${g?`<span class="tile-ic bi-ic">${typeof itemIc==='function'?itemIc(g.id||g):g.icon}</span>
                <span class="tile-nm">${esc(g.name)}</span>
+               ${(typeof enhanceLevel==='function'&&enhanceLevel(g.id||g)>0)?`<span class="gt-enh">+${enhanceLevel(g.id||g)}</span>`:''}
                <button class="tile-more" type="button" title="卸下" onclick="event.stopPropagation();unequip('${slot}',false);UI.renderPack()">脱</button>`
              :`<span class="gt-empty">空</span>`}
         </div>`;
@@ -2448,8 +2701,10 @@ function bulkSellCommit(){
 }
 function gearSubText(g){
   const parts = [];
-  if (g.dmg) parts.push(`伤害 ${g.dmg}`);
-  if (g.def) parts.push(`防御 ${g.def}`);
+  const lv = (typeof enhanceLevel === 'function') ? enhanceLevel(g.id || g) : 0;
+  const sc = v => Math.floor((typeof enhanceScaled === 'function') ? enhanceScaled(v, lv) : v);
+  if (g.dmg) parts.push(`伤害 ${sc(g.dmg)}${lv?`（+${lv}）`:''}`);
+  if (g.def) parts.push(`防御 ${sc(g.def)}${lv?`（+${lv}）`:''}`);
   if (g.axePower) parts.push(`斧力 ${g.axePower}`);
   if (g.pickPower) parts.push(`镐力 ${g.pickPower}`);
   if (g.netPower) parts.push(`网力 ${g.netPower}`);
@@ -2468,12 +2723,25 @@ function showItemDetail(itemId){
     actions.push(`<button class="btn ${ok?'primary':''}" ${ok?'':'disabled'} onclick="equipItem('${itemId}');UI.closeModal()">装备${ok?'':'（需'+requiredSkillName(it)+' '+it.lvl+'）'}</button>`);
   }
   if (it.heal || it.buff) actions.push(`<button class="btn primary" onclick="useConsumable('${itemId}');UI.closeModal()">${it.heal?'食用':'服用'}</button>`);
+  // 淬炼：装备专属长线投入（+9 上限，每级 +6% 基础伤害 / 防御）
+  const enhLv = (typeof enhanceLevel === 'function') ? enhanceLevel(itemId) : 0;
+  const enhCost = (typeof enhanceCost === 'function') ? enhanceCost(itemId) : null;
+  if (it.equip && (it.dmg || it.def) && enhCost){
+    const base = it.dmg || it.def;
+    const now = Math.floor(enhanceScaled(base, enhLv));
+    const nx = Math.floor(enhanceScaled(base, enhLv + 1));
+    const enough = (Game.inventory.tan||0) >= enhCost.tan && Game.shells >= enhCost.shells;
+    actions.push(enhLv < 9
+      ? `<button class="btn ${enough?'primary':''}" ${enough?'':'disabled'} onclick="enhanceItem('${itemId}');UI.closeModal();UI.renderPack()">淬炼 +${enhLv+1}（炭×${enhCost.tan} · ${enhCost.shells} 贝）</button>`
+      : `<button class="btn" disabled>已至 +9</button>`);
+  }
   if (it.value) actions.push(`<button class="btn" onclick="sellItem('${itemId}',1);UI.closeModal()">出售 1（${sellValue(itemId,1)} 贝）</button>`);
   UI.modal(`<h3><span class="mi-ic">${typeof itemIc==='function'?itemIc(itemId,18):it.icon}</span> ${esc(it.name)} <span class="tier">${rarityName(it)}</span></h3>
     <div class="meta">行囊 ${qty} 件${rec?` · 著录 ${rec.count} 次（${TUNING.MASTERY.NAMES[rec.tier]}）`:''}</div>
     ${it.form?`<div class="reveal"><b>形态</b>${esc(it.form)}</div>`:''}
     ${it.effect?`<div class="reveal"><b>效果</b>${esc(it.effect)}</div>`:''}
     ${it.note?`<div class="reveal"><b>出处</b>${esc(it.note)}</div>`:''}
+    ${it.equip&&(it.dmg||it.def)?`<div class="reveal"><b>淬炼</b>+${enhLv} · ${it.dmg?'伤害':'防御'} ${Math.floor(enhanceScaled(it.dmg||it.def, enhLv))} → 下一级 ${Math.floor(enhanceScaled(it.dmg||it.def, enhLv+1))}（炭×${enhCost.tan} · ${enhCost.shells} 贝）</div>`:''}
     ${it.buff?`<div class="reveal"><b>服用</b>${esc(it.buff.name)}（${it.buff.dur}s）</div>`:''}
     ${it.heal?`<div class="reveal"><b>食用</b>回血 ${it.heal}</div>`:''}
     <div class="modal-btns">${actions.join('')}<button class="btn" onclick="UI.closeModal()">闭</button></div>`);
@@ -2854,34 +3122,9 @@ function hideTip(){
 let lastTouchAt = 0;
 const touchJustNow = ()=>Date.now() - lastTouchAt < 700;
 document.addEventListener('touchstart', ()=>{ lastTouchAt = Date.now(); }, { passive:true });
-// 移动端长按看详情：单点 = 执行动作（见 click 分支），长按 500ms 才开浮层。
-// 早年只有「点卡面空白处才执行、点图标文字就弹浮层」——因为 capture 阶段的
-// stopPropagation 把锚点的 onclick 一起吞了；现在单点恒为动作，长按补上详情入口。
-let pressTimer = null, longPressAt = 0, longPressAnchor = null;
-function clearPress(){ if (pressTimer){ clearTimeout(pressTimer); pressTimer = null; } }
-document.addEventListener('touchstart', e=>{
-  const a = e.target && e.target.closest && e.target.closest('[data-tip]');
-  if (!a || !a.hasAttribute || !a.hasAttribute('onclick')){ clearPress(); return; }
-  const t = e.touches && e.touches[0];
-  if (!t) return;
-  const x = t.clientX, y = t.clientY;
-  clearPress();
-  pressTimer = setTimeout(()=>{
-    longPressAt = Date.now();
-    longPressAnchor = a;
-    showTipFor(a);
-    if (navigator.vibrate) { try { navigator.vibrate(12); } catch(_){} }
-  }, 500);
-  // 手指挪动超过 10px 视为滚动意图，取消长按
-  const cancel = ev=>{
-    const tt = ev.touches && ev.touches[0];
-    if (!tt) return;
-    if (Math.abs(tt.clientX - x) > 10 || Math.abs(tt.clientY - y) > 10) clearPress();
-  };
-  document.addEventListener('touchmove', cancel, { passive:true, once:true });
-}, { passive:true });
-document.addEventListener('touchend', ()=>{ clearPress(); }, { passive:true });
-document.addEventListener('touchcancel', ()=>{ clearPress(); }, { passive:true });
+// 触屏交互（v1.7 起）：取消 500ms 长按，统一为「单击」——
+// 带 onclick 的方块（征伐目标 / 御使异兽）单击即开交互弹窗，弹窗里陈明属性与操作；
+// 不带 onclick 的纯展示块单击直接开详情浮层（见下方 click 分支）。
 function bindTipEvents(){
   document.addEventListener('mouseover', e=>{
     if (touchJustNow()) return;
@@ -2898,21 +3141,12 @@ function bindTipEvents(){
     hideTip();
   });
   document.addEventListener('click', e=>{
-    // 长按刚开过浮层的那张卡：吞掉紧随的 click，免得动作也被执行。
-    // 注意必须 stopPropagation——本监听在 capture 阶段，仅 return 的话事件
-    // 仍会抵达目标阶段触发卡片的 inline onclick（长按=只看详情，不动作）。
-    if (Date.now() - longPressAt < 900 && longPressAnchor && longPressAnchor.contains(e.target)){
-      e.stopPropagation(); e.preventDefault(); return;
-    }
     if (e.target && e.target.closest && e.target.closest('.tip-close')){ hideTip(); return; }
     const a = e.target && e.target.closest && e.target.closest('[data-tip]');
     if (a){
       // 锚点内的按钮 / 表单元素自行处理，不触发浮层开关
       if (e.target.closest('button:not(.tip-close), a, select, input, textarea, label')) return;
-      // 「点按即执行」的方块（自带 onclick）：点卡面任意处（图标 / 名字 / 空白）
-      // 都让动作先发生，不再被浮层吞掉。早先只放过 e.target===锚点本身，
-      // 点子元素时下面的 stopPropagation 会把锚点 onclick 一并吃掉。
-      // PC 端仍可靠悬停看详情；触屏用长按（见上）。
+      // 自带 onclick 的方块：单击交给它（开交互弹窗 / 执行动作），浮层只在悬停时出现
       if (a.hasAttribute && a.hasAttribute('onclick')) return;
       if (Tip.anchor === a){ hideTip(); return; }
       showTipFor(a);

@@ -120,6 +120,7 @@ function equipItem(itemId){
   UI && UI.refreshInventory();
   log(`✅ 已装备 ${it.name}`, 'good', 'trade');
 }
+
 function unequip(slot, toBank){
   const cur = Game.gear[slot];
   if (!cur) return;

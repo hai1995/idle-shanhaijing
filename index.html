@@ -52,7 +52,7 @@
 
     <!-- 仪表带：当前行动 / 进度 / 停止（气血只在征伐页的战斗面板里，此处不再重复） -->
     <div id="statusbar">
-      <span id="activityText">空闲</span>
+      <span id="activityText" class="act-link" role="button" tabindex="0" title="点击前往对应页" onclick="UI.gotoActivity()">空闲</span>
       <div id="actionProg" class="hidden"><div id="actionProgFill"></div></div>
       <button id="btnStop" class="btn-mini" type="button">停止</button>
     </div>

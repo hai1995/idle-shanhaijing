@@ -63,6 +63,42 @@ const MARK = {
     <path d="M7.4 4.4 V18.4" stroke="${INK}" stroke-width="1.9" stroke-linecap="round" fill="none"/>
     <path d="M7.4 18.4 A4.4 4.4 0 0 0 7.4 9.6 Z" fill="${GOLD}"/>
     <circle cx="18.6" cy="8.6" r="1.6" fill="${FIRE}"/>`,
+
+  /* —— 征兆意象（按「见则 X」取形，不与吉凶字印重复） —— */
+  // 水：三道波（大水）
+  water: `<path d="M2.8 8.8 q3-2.4 6 0 t6 0 t6 0" fill="none" stroke="${WATER}" stroke-width="2.1" stroke-linecap="round"/>
+    <path d="M2.8 13.4 q3-2.4 6 0 t6 0 t6 0" fill="none" stroke="${WATER}" stroke-width="2.1" stroke-linecap="round" opacity=".72"/>
+    <path d="M2.8 18 q3-2.4 6 0 t6 0 t6 0" fill="none" stroke="${WATER}" stroke-width="2.1" stroke-linecap="round" opacity=".45"/>`,
+  // 火/旱：焰心
+  fire: `<path d="M12 21.4 C7.6 21.4 4.8 18.2 5.6 14.4 C6.4 10.8 9.6 9 10.8 4.2 C12.8 7.2 16.6 9.2 17.6 13.2 C18.6 17.4 16.2 21.4 12 21.4 Z" fill="${FIRE}"/>
+    <path d="M12 19.2 C9.8 19.2 8.4 17.6 9 15.6 C9.6 13.6 11.2 12.8 11.8 10.8 C12.8 12.4 14.8 13.6 15 15.8 C15.2 17.8 13.8 19.2 12 19.2 Z" fill="${GOLD}" opacity=".9"/>`,
+  // 兵：戈（兵灾）
+  war: `<path d="M5.6 20.4 L17.2 6.6" stroke="${INK}" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M17.2 6.6 L14.6 3.4 L21.2 3.2 L20.8 9.8 L18 6.8 Z" fill="${BLOOD}"/>
+    <path d="M9.2 12.4 L5.2 10.4" stroke="${INK}" stroke-width="1.8" stroke-linecap="round"/>`,
+  // 疫：螫虫（大疫 / 虫毒）
+  plague: `<ellipse cx="12" cy="14.6" rx="4.3" ry="5.6" fill="${BLOOD}"/>
+    <circle cx="12" cy="8.2" r="2.7" fill="${BLOOD}"/>
+    <path d="M7.8 12.4 L4.2 10.4 M16.2 12.4 L19.8 10.4 M7.8 16.4 L4.2 18.4 M16.2 16.4 L19.8 18.4" stroke="${INK}" stroke-width="1.6" stroke-linecap="round"/>`,
+  // 败：禾枯（螽蝗为败）
+  blight: `<path d="M12 21.4 V7.6" stroke="${GOLD}" stroke-width="2" stroke-linecap="round"/>
+    <path d="M12 12.6 q4.2-3.2 6.8-1.4 q-2.6 4.4-6.8 3.4" fill="${WOOD}" opacity=".85"/>
+    <path d="M12 17 q-4.2-3.2-6.8-1.4 q2.6 4.4 6.8 3.4" fill="${WOOD}" opacity=".55"/>
+    <path d="M12 7.6 q1.8-3.6 4.6-3.8 q-1 3.6-4.6 4.4" fill="${WOOD}"/>`,
+  // 风：回风三道
+  wind: `<path d="M3 8.2 h11.6 q3.2 0 3.2 2.7 t-3.2 2.7" fill="none" stroke="${WATER}" stroke-width="2" stroke-linecap="round"/>
+    <path d="M3 13.6 h8.2" stroke="${WATER}" stroke-width="2" stroke-linecap="round" opacity=".7"/>
+    <path d="M5.4 18.8 h9.2 q2.8 0 2.8 2.3" fill="none" stroke="${WATER}" stroke-width="2" stroke-linecap="round" opacity=".45"/>`,
+  // 安宁：云开见日
+  peace: `<circle cx="12" cy="10" r="4.4" fill="${GOLD}"/>
+    <path d="M12 2.2 V4.4 M12 15.6 V17.8 M4.4 10 H6.6 M17.4 10 H19.6 M6.6 4.6 L8.2 6.2 M15.8 13.8 L17.4 15.4 M17.4 4.6 L15.8 6.2 M8.2 13.8 L6.6 15.4"
+      stroke="${GOLD}" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M4.8 20.8 q3.6-2 7.2 0 t7.2 0" fill="none" stroke="${JADE}" stroke-width="1.9" stroke-linecap="round"/>`,
+  // 土功/繇役：版筑
+  build: `<path d="M3.4 20.4 h17.2" stroke="${INK}" stroke-width="2" stroke-linecap="round"/>
+    <path d="M5.6 20.4 V11.6 h6 v8.8" fill="none" stroke="${INK}" stroke-width="1.9"/>
+    <path d="M13.6 20.4 V8 h4.8 v12.4" fill="none" stroke="${INK}" stroke-width="1.9"/>
+    <path d="M6.6 14.4 h4 M14.6 11.4 h2.8 M14.6 15.4 h2.8" stroke="${WOOD}" stroke-width="1.5" stroke-linecap="round"/>`,
 };
 
 function escAttr(s){
@@ -81,6 +117,26 @@ function markIcon(name, size){
   const art = MARK[name] || MARK.lamp;
   return svgOf(art, name, size);
 }
+
+// 征兆意象：按「见则 X」的类型词取形。判断顺序有意为之——
+// 「风雨水为败」应先归「败」而非「水」，「大风」先归「风」，「大疫」先归「疫」。
+const OMEN_RULES = [
+  [/蝗|螽|败|饥/, 'blight'],
+  [/疫|疠|病|毒/, 'plague'],
+  [/兵|戈|寇|战/, 'war'],
+  [/风/, 'wind'],
+  [/土功|繇|役/, 'build'],
+  [/安宁|太平|穰|丰/, 'peace'],
+  [/水|雨|潮|洪/, 'water'],
+  [/旱|火|焚/, 'fire'],
+];
+function omenIcon(def, size){
+  const text = ((def && def.type) || '') + ((def && def.desc) || '');
+  let key = 'lamp';
+  for (const [re, k] of OMEN_RULES){ if (re.test(text)){ key = k; break; } }
+  return svgOf(MARK[key], (def && def.type) || key, size);
+}
+window.omenIcon = omenIcon;
 
 window.markIcon = markIcon;
 window.MARK_ICON_IDS = Object.keys(MARK);
