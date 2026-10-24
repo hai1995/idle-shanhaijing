@@ -443,6 +443,25 @@ const UI = {
     if (fn && this[fn]) this[fn]();
     this.renderTopbar();
     this.refreshActivity();
+    this.fitGhostScrollbar();
+  },
+  // 幽灵竖滚动条：内容几乎正好填满视口时，#app 的底部留白会把页面顶出几像素，
+  // 浏览器于是画出一条「几乎滑不动」的竖滚动条。这里量一次真实溢出：
+  //   溢出 ≤ 留白量 → 说明多出来的正是留白，收窄留白即可让页面正好贴住视口底；
+  //   溢出 > 留白量 → 内容本身就超高，滚动条是必要的，留白保持不动。
+  fitGhostScrollbar(){
+    const de = document.documentElement;
+    const app = document.getElementById('app');
+    if (!de || !app) return;
+    const base = parseFloat(getComputedStyle(de).getPropertyValue('--app-pad-b-base')) || 28;
+    const apply = (v)=>{ de.style.setProperty('--app-pad-b', Math.max(0, v) + 'px'); };
+    apply(base);                                   // 先回到基准，避免沿用上一次的收窄值
+    const over = de.scrollHeight - de.clientHeight;
+    if (over <= 0) return;                         // 本来就不溢出，留白照旧
+    if (over > base) return;                       // 内容自身超高，滚动条必要，不动
+    apply(base - over);                            // 溢出全在留白里：收窄到刚好贴住底
+    const over2 = de.scrollHeight - de.clientHeight;
+    if (over2 > 0) apply(Math.max(0, base - over - over2));
   },
   // 相邻页签切换（移动端左右滑）
   switchTabNeighbor(dir){
@@ -2863,6 +2882,9 @@ function init(){
   window.addEventListener('resize', ()=>{
     scrollActiveTabIntoView();
     if (window.innerWidth > 720) UI.closeDrawer();
+    // 视口高度变了，幽灵滚动条的收窄量要重算
+    clearTimeout(window.__fitGhostTimer);
+    window.__fitGhostTimer = setTimeout(()=>UI.fitGhostScrollbar(), 120);
   });
   // 移动端：在内容上左右滑动切换页签
   bindSwipeGestures();

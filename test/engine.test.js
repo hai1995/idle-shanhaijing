@@ -1118,7 +1118,22 @@ assert(/top:calc\(var\(--topdock-h/.test(toastBaseRule), '桌面端通知落于�
 const sbRule = (css.match(/#statusbar\{[^}]*\}/) || [''])[0];
 assert(sbRule && !/position:fixed/.test(sbRule), '状态条规则不含 position:fixed（已并入吸顶流）');
 assert(/background:var\(--paper-2\)/.test(sbRule) && /border-bottom:1px solid var\(--rule\)/.test(sbRule), '状态条为纸质仪表带（墨色顶栏之下留一道细线）');
-assert(/padding:0 16px 28px/.test((css.match(/#app\{[^}]*\}/) || [''])[0]), '#app 底部不再为状态条预留空间');
+assert(/padding:0 16px var\(--app-pad-b, var\(--app-pad-b-base\)\)/.test((css.match(/#app\{[^}]*\}/) || [''])[0]), '#app 底部不再为状态条预留空间（留白变量化，可被抑制）');
+// 20.4b 滚动条审查：消除「不必要」的内部滚动条
+// (1) 竖排古籍不得有左外边距：竖排时 margin-left 是物理左外边距，会把整块推出父容器内容盒
+assert(/\.quote\{[\s\S]*?writing-mode:vertical-rl/.test(css), '宽屏古籍为竖排');
+// 取「带竖排属性」的那条 .quote 规则（同一个选择器有基础版与宽屏版两条）
+const quoteRule = [...css.matchAll(/\.quote\{([^}]*)\}/g)].map(m=>m[1]).find(t=>/writing-mode:vertical-rl/.test(t)) || '';
+assert(!/margin-left\s*:/.test(quoteRule) && !/margin\s*:\s*[^;]*\s\d+px[^;]*\s\d+px\s+\d+px/.test(quoteRule), '竖排古籍无左外边距（否则父容器凭空多出横向滚动条）');
+assert(/overflow-x:auto/.test(quoteRule) && /scrollbar-width:thin/.test(quoteRule), '竖排原文溢出时保留可见细滚动条（可翻阅的卷轴），不藏起来');
+// (2) 节点列表：任何宽度都不限高（窄屏页面已在滚，再加内滚就是双层滚动条）
+const nodeListBase = [...css.matchAll(/(?:^|[};])\s*\.node-list\{([^}]*)\}/g)].map(m=>m[1])[0] || '';
+assert(!/max-height/.test(nodeListBase) && !/overflow-y/.test(nodeListBase), '节点列表基础规则不限高也不内滚（窄屏无双层滚动条）');
+assert(/\.map-wrap \.node-list\{[^}]*overflow-y:auto/.test(css), '宽屏书案三栏下节点列表仍保留内滚动（刻意设计）');
+// (3) 幽灵竖滚动条：底部留白可被收窄到刚好贴住视口底
+assert(/--app-pad-b-base:\s*28px/.test(css), '底部留白有基准值 --app-pad-b-base');
+assert(uiSrc.includes('fitGhostScrollbar'), 'UI 提供幽灵滚动条收敛逻辑');
+assert(/over > base/.test(uiSrc) && /base - over/.test(uiSrc), '溢出超过留白量时不收窄（内容真超高的滚动条保留）');
 assert(!css.includes('#omenCount') && !css.includes('#maxSkill'), 'CSS 无已删元素的死规则');
 // 20.5 实测：精简后的三个统计项仍正常写入
 ST.UI.renderTopbar();
@@ -1221,7 +1236,7 @@ assert(css.includes('.style-row .chip-btn'), '战斗风格快捷行按钮放大�
   (css.match(/var\(--[a-z0-9-]+/g) || []).forEach(m => used.add(m.slice(4)));
   (css.match(/--[a-z0-9-]+\s*:/g) || []).forEach(m => defined.add(m.replace(/\s*:$/, '')));
   // 运行时由 JS / 内联样式注入的变量不算未定义
-  const runtime = ['--topdock-h','--topbar-h','--sheet-h','--dx','--dy','--r'];
+  const runtime = ['--topdock-h','--topbar-h','--sheet-h','--dx','--dy','--r','--app-pad-b'];
   const undef = [...used].filter(v => !defined.has(v) && !runtime.includes(v));
   assert(undef.length === 0, 'CSS 变量全部有定义（运行时注入的 --topdock-h / --topbar-h / --sheet-h / --dx / --dy / --r 除外）' + (undef.length?('：'+undef.join(',')):''));
 }
