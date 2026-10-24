@@ -158,7 +158,11 @@ function entryMatchesActivity(e){
   if (def.mode === 'gather') return a.kind === 'gather' && a.itemId === e.target;
   if (def.mode === 'recipe') return a.kind === 'craft' && !!(a.recipe) && a.recipe.out === e.target;
   if (def.mode === 'special') return a.kind === e.kind && (a.nodeId === e.target || a.siteId === e.target);
-  return a.kind === 'taofa' && a.target === e.target;
+  // 讨伐不走 Game.activity（startCombat 会把它清空），落在 Game.combat 上。
+  // 早年这里查 a.kind==='taofa' 恒为 false，ensureQueueActivity 每帧都重启
+  // 战斗（HP 回满），队列讨伐永远打不完。
+  const c = Game.combat;
+  return !!c && c.monsterId === e.target;
 }
 function startEntryActivity(e, src){
   const def = entryDef(e);
@@ -184,7 +188,7 @@ function startEntryActivity(e, src){
     const m = Monsters[e.target];
     if (!m) return false;
     if (m.nodeId !== Game.node){ if (!travelTo(m.nodeId)) return false; }
-    startCombat(e.target);
+    startCombat(e.target, { fromQueue:true });   // 队列驱动的讨伐：不触发「往讨即暂停队列」
   }
   return true;
 }
@@ -346,8 +350,29 @@ function queueOnSpecialDone(a){
   if (a.kind === 'grow' && a.siteId !== e.target) return;
   e.done = (e.done||0) + 1;
   if (e.done >= e.qty) onQueueEntryDone(e);
+  else if (UI && UI.patchQueueProgress) UI.patchQueueProgress();   // 进行中也即时上屏
 }
 window.queueOnSpecialDone = queueOnSpecialDone;
+
+// 讨伐计数：早年只接了采集/制作两条线，队列里排讨伐时 done 永远不涨
+// （任务卡住不动）。由 meetKill 在每次讨平时调用；返回 true 表示
+// 「本只已达成且队列已接管下一环」，meetKill 便不再自动接战同一只。
+function queueOnKill(monsterId){
+  if (!Game.queueRunning) return false;
+  const e = Game.queue[Game.queueIdx];
+  if (!e) return false;
+  const def = entryDef(e);
+  if (!def || def.mode !== 'taofa') return false;
+  if (e.target !== monsterId) return false;
+  e.done = (e.done||0) + 1;
+  if (e.done >= e.qty){
+    onQueueEntryDone(e);
+    return true;
+  }
+  if (UI && UI.patchQueueProgress) UI.patchQueueProgress();
+  return false;
+}
+window.queueOnKill = queueOnKill;
 
 function queueOnActionDone(a, gained){
   if (!Game.queueRunning) return;
@@ -363,10 +388,11 @@ function queueOnActionDone(a, gained){
     if (a.kind !== 'gather' || a.itemId !== e.target) return;
     e.done = (e.done||0) + Math.max(0, gained||0);
   } else {
-    // 讨伐按次数计数（由 meetKill 调用）
+    // 讨伐按次数计数（由 meetKill → queueOnKill 调用）
     return;
   }
   if (e.done >= e.qty) onQueueEntryDone(e);
+  else if (UI && UI.patchQueueProgress) UI.patchQueueProgress();   // 进行中也即时上屏
 }
 
 // 任务达成 → 推进到下一项
@@ -386,7 +412,7 @@ function onQueueEntryDone(e){
       Game.queueRunning = false;
       applyFallback();
       saveGame();
-      refreshQueuePage();          // 队列自然收官：按钮回到「启动」
+      refreshQueuePage();          // 队列自然收官：按钮回到「启动」（状态大变，整页重绘）
       return;
     }
   } else {
@@ -394,7 +420,9 @@ function onQueueEntryDone(e){
   }
   ensureQueueActivity();
   saveGame();
-  refreshQueuePage();              // 正停在队列页时，「当前」标记与完成轮数立刻跟上
+  // 正停在队列页时，「当前」标记 / 进度归零 / 完成轮数就地跟上（不重建 DOM，保滚动）
+  if (UI && UI.patchQueueProgress) UI.patchQueueProgress();
+  else refreshQueuePage();
 }
 // 队列页就地补绘（仅当玩家正停在该页）
 function refreshQueuePage(){

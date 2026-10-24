@@ -794,7 +794,11 @@ UI.faunaChipHtml = function(sel, f){
     const hint = fm && fm.pacifist ? '祥瑞' : fm && fm.fishOnly ? '渔获' : '仅载其名';
     tag = `<i class="rec-none">${hint}</i>`;
   }
-  return `<span class="fauna-chip ${rec && rec.count>0 ? 'seen':''}"${f.effect?` title="${esc(f.effect)}"`:''}>${CAT_EMOJI[f.category]||'🐾'}${esc(f.name)}${tag}</span>`;
+  // 异兽小签头：绘形图标（手绘特型 → form 解析 → 分类兜底），与讨伐页同一套语言
+  const ic = (typeof beastIcon === 'function')
+    ? beastIcon({ id: rid || '', name: f.name, el: (rid && Monsters[rid] && Monsters[rid].el) || ((typeof FAUNA_META!=='undefined' && FAUNA_META[f.name])||{}).el })
+    : (CAT_EMOJI[f.category]||'🐾');
+  return `<span class="fauna-chip ${rec && rec.count>0 ? 'seen':''}"${f.effect?` title="${esc(f.effect)}"`:''}><span class="fc-ic">${ic}</span>${esc(f.name)}${tag}</span>`;
 };
 
 UI.renderYudi = function(){
@@ -1340,7 +1344,8 @@ function taofaArenaHtml(){
       </div>
       <div class="vs">对</div>
       <div class="fighter enemy" id="monsterFighter">
-        ${m?`<div class="f-name">${esc(m.name)} ${elBadge(m.el)}</div>
+        ${m?`<div class="f-portrait">${(typeof beastIcon==='function')?beastIcon(m):''}</div>
+        <div class="f-name">${esc(m.name)} ${elBadge(m.el)}</div>
         <div class="f-hp"><div class="fill enemy" style="width:${Math.max(0,c.monsterHp/m.hp*100)}%"></div></div>
         <div class="f-sub">${fmt(Math.max(0,c.monsterHp))} / ${fmt(m.hp)}</div>`:`<div class="f-name">待机</div>
         <div class="f-hp"><div class="fill enemy" style="width:0%"></div></div>
@@ -1418,7 +1423,7 @@ function taofaListHtml(){
         data-bid="${x.id}" data-tip data-tip-title="${esc(x.name)}"
         role="button" tabindex="0" onclick="UI.tryHunt('${x.id}')">
         ${x.el?`<span class="bt-el el-${x.el}">${x.el}</span>`:''}
-        <span class="tile-ic">${CAT_EMOJI[x.category]||'🐾'}</span>
+        <span class="tile-ic bi-ic">${(typeof beastIcon==='function')?beastIcon(x):(CAT_EMOJI[x.category]||'🐾')}</span>
         <span class="tile-nm">${esc(x.name)}</span>
         <span class="tile-tag"><i class="bt-rec">录 ${rec.count}</i> · Lv ${x.needLvl||1}</span>
         ${counterEl?`<button class="bt-el-hint" type="button" title="一键切到${counterEl}属（${counterEl}克${x.el}，伤害 ×${TUNING.WUXING.KE}）"
@@ -1543,7 +1548,7 @@ UI.renderYushi = function(){
       // 增益幅度与著录次数进浮层
       return `<div class="tile deploy-tile ${inSlot?'inslot':''}" data-tip data-tip-title="${esc(b.name)}"
         role="button" tabindex="0" onclick="${inSlot?'':`deployBeast('${b.id}');UI.renderYushi()`}">
-        <span class="tile-ic">${CAT_EMOJI[b.category]||'🐾'}</span>
+        <span class="tile-ic bi-ic">${(typeof beastIcon==='function')?beastIcon(b):(CAT_EMOJI[b.category]||'🐾')}</span>
         <span class="tile-nm">${esc(b.name)}</span>
         <span class="tile-tag">${TUNING.MASTERY.NAMES[rec.tier]} · 录${rec.count}</span>
         ${inSlot?'<span class="tile-more" title="已在御使槽中">✓</span>':''}
@@ -1663,7 +1668,11 @@ UI.renderCodex = function(keepFocus){
       const countHtml = nextTh
         ? `${rec.count}<i>/${nextTh}</i>`
         : `${rec.count}`;
+      // 异兽 / 神祇卡：绘形小像置顶，与讨伐页同一套图标语言
+      const icHtml = (typeof beastIcon === 'function' && (e.cat === '异兽' || e.cat === '神祇'))
+        ? `<div class="cc-ic">${beastIcon(e.id)}</div>` : '';
       return `<div class="codex-card" onclick="showCodexDetail('${e.id}')" title="${esc(e.name)} · 已著录 ${rec.count} 次${esc(nextTip)}">
+        ${icHtml}
         <div class="cc-name">${nmHtml}</div>
         <div class="tier-dots" aria-hidden="true">${dots}</div>
         <div class="cc-tier">${TUNING.MASTERY.NAMES[rec.tier]}<span class="cc-count">${countHtml}</span></div>
@@ -1688,7 +1697,11 @@ function showCodexDetail(id){
   const cn = codexNode(e);
   const cnLabel = e.cat === '异兽' ? '前往讨伐节点' : '前往产出节点';
   const cnBtn = cn ? `<button class="btn on" onclick="UI.selRegion='${cn.regionId}';UI.selNode='${cn.nodeId}';UI.switchTab('yudi');UI.closeModal()">📍 ${cnLabel}</button>` : '';
+  // 异兽 / 神祇详情：绘形大像置顶（未著录也画——详情本就是「书中先有其名」）
+  const icHtml = (typeof beastIcon === 'function' && (e.cat === '异兽' || e.cat === '神祇'))
+    ? `<div class="cd-ic">${beastIcon(e.id)}</div>` : '';
   UI.modal(`<h3>${esc(e.name)} <span class="tier">${e.cat}</span></h3>
+    ${icHtml}
     <div class="meta">著录 ${rec.count} 次 · ${rec.count>0?TUNING.MASTERY.NAMES[rec.tier]:'未见'}</div>
     ${rows}
     ${e.source?`<div class="source">${esc(e.source)}</div>`:''}
@@ -2063,9 +2076,12 @@ UI.renderQueue = function(){
       <h3>巡历队列（${Game.queue.length}/${QUEUE_MAX}）${Game.queue.length?` · 预计一轮 ≈ ${fmtTime(estimateQueueSeconds())}`:''}</h3>
       ${Game.queue.map((e,i)=>{
         const st = entryCanRun(e);
+        // 讨伐条目：目标异兽的绘形小像（手绘特型 → form 解析），队列里一眼认得出打的是谁
+        const qiIc = (e.kind === 'taofa' && typeof beastIcon === 'function')
+          ? `<span class="qi-ic">${beastIcon({ id:e.target })}</span>` : '';
         return `<div class="queue-item ${Game.queueIdx===i&&Game.queueRunning?'cur':''} ${st.ok?'':'blocked'}">
           <span class="qi-idx">${i+1}</span>
-          <span class="qi-name">${esc(entryLabel(e))}</span>
+          <span class="qi-name">${qiIc}${esc(entryLabel(e))}</span>
           <span class="qi-prog">${esc(entryProgressText(e))}</span>
           <span class="qi-eta">约 ${fmtTime(estimateEntrySeconds(e))}</span>
           ${!st.ok?`<span class="qi-reason">${esc(st.reason)}</span>`:''}
@@ -2110,6 +2126,41 @@ UI.renderQueue = function(){
     </div>
   </div>`;
   box.innerHTML = html;
+};
+// 巡历队列就地补绘：进度计数 / 当前标记 / 阻塞原因 / 完成轮数。
+// 队列在跑时每秒（以及每次动作完成时）调用，只改文本与 class，
+// 不重建 DOM——保滚动位置、保「添加任务」表单的填写状态。
+UI.patchQueueProgress = function(){
+  if (this.currentTab !== 'queue') return;
+  const box = $('content');
+  if (!box) return;
+  const items = box.querySelectorAll('.queue-item');
+  Game.queue.forEach((e, i)=>{
+    const el = items[i];
+    if (!el) return;
+    const st = entryCanRun(e);
+    const prog = el.querySelector('.qi-prog');
+    const txt = entryProgressText(e);
+    if (prog && prog.textContent !== txt) prog.textContent = txt;
+    el.classList.toggle('cur', Game.queueIdx === i && Game.queueRunning);
+    el.classList.toggle('blocked', !st.ok);
+    let reason = el.querySelector('.qi-reason');
+    if (!st.ok){
+      if (!reason){
+        reason = document.createElement('span');
+        reason.className = 'qi-reason';
+        el.appendChild(reason);
+      }
+      if (reason.textContent !== st.reason) reason.textContent = st.reason;
+    } else if (reason){
+      reason.remove();
+    }
+  });
+  const hint = box.querySelector('.queue-ctrl .hint');
+  if (hint){
+    const t = `已完成 ${Game.queueRound} 轮`;
+    if (hint.textContent !== t) hint.textContent = t;
+  }
 };
 function addQueueTask(){
   const target = $('queueTarget') ? $('queueTarget').value : '';

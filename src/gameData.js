@@ -912,6 +912,9 @@ const GATHER_BONUS = {
 };
 // ---------- 营造（营邑） ----------
 const BUILDINGS = {
+  zhai:    { id:'zhai',    name:'柴栅',   lvl:1,  xp:50,  cost:[['gui',5],['yan',3]],               desc:'结木为栅，以固所获 · 全局产出 +3%' },
+  zaoku:   { id:'zaoku',   name:'灶窟',   lvl:3,  xp:100, cost:[['yan',15],['guaimu',5]],           desc:'甃灶炊爨，工不暇息 · 制作耗时 -10%' },
+  tuku:    { id:'tuku',    name:'土窟',   lvl:5,  xp:150, cost:[['guaimu',20],['tan',5]],           desc:'因势窟土，以庇风雨 · 离线上限 +1 小时' },
   citan:   { id:'citan',   name:'祠坛',   lvl:10, xp:200, cost:[['guaimu',10],['shashi',10],['yu',1]], desc:'祭祀效果 ×1.5' },
   shichan: { id:'shichan', name:'市廛',   lvl:15, xp:300, cost:[['guaimu',15],['jin',2]],             desc:'商旅售价 +5%' },
   canglin: { id:'canglin', name:'仓廪',   lvl:20, xp:400, cost:[['guaimu',20],['tu',10]],             desc:'离线上限 +2 小时' },

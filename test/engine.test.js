@@ -38,7 +38,7 @@ vm.createContext(context);
 
 const base = path.join(__dirname, '..', 'src');
 function loadJS(file){ vm.runInContext(fs.readFileSync(path.join(base, file), 'utf8'), context, {filename:file}); }
-['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','gameData.js','engine.js','game.js','queue.js','interact.js','fx.js'].forEach(loadJS);
+['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','gameData.js','engine.js','game.js','queue.js','interact.js','fx.js','beastIcon.js'].forEach(loadJS);
 const G = context;
 const ST = context.window;
 
@@ -309,6 +309,12 @@ assert(ST.Game.stats.divines === 1, '卜筮计数');
 G.gainXp('yingyi', 5000000);
 G.giveItem('guaimu',120,false); G.giveItem('shashi',40,false); G.giveItem('yu',10,false);
 G.giveItem('jin',5,false); G.giveItem('tan',15,false); G.giveItem('tu',15,false); G.giveItem('jian',15,false);
+G.giveItem('gui',20,false); G.giveItem('yan',20,false);
+// 低级建造物：营造曲线从 1 级起步（柴栅 / 灶窟 / 土窟）
+assert(ST.BUILDINGS.zhai && ST.BUILDINGS.zhai.lvl === 1, '柴栅为 1 级建造物（最低不再是 10 级）');
+assert(G.buildStructure('zhai') === true && G.buildStructure('zaoku') === true && G.buildStructure('tuku') === true, '三座低级建造物均可营造');
+assert(ST.globalYieldBonus() >= 0.03, '柴栅全局产出 +3% 生效 -> ' + ST.globalYieldBonus());
+assert(ST.offlineCapHours() >= 13, '土窟离线上限 +1h 生效 -> ' + ST.offlineCapHours() + 'h');
 assert(G.buildStructure('citan') === true, '营造祠坛');
 assert(G.buildStructure('citan') === false, '重复营造被拒');
 assert(G.buildStructure('shichan') === true && G.buildStructure('canglin') === true
@@ -511,6 +517,67 @@ assert(ST.dropWeight(1, 10, 10, 0) === 1, '同级同阶权重 = base');
 assert(ST.TUNING.ELEMENTS.length === 5 && ST.TUNING.KE_MAP['金']==='木' && ST.TUNING.SHENG['土']==='金', '五行生克表');
 // 著录加成单调
 assert(ST.TUNING.MASTERY.BONUS[4] > ST.TUNING.MASTERY.BONUS[3] > ST.TUNING.MASTERY.BONUS[0], '著录阶加成单调');
+
+// ============ 15.5 绘形图标（beastIcon） ============
+section('异兽绘形图标');
+assert(typeof ST.beastIcon === 'function' && typeof ST.parseForm === 'function', 'beastIcon / parseForm 已导出');
+// 全部异兽都能产出有效 SVG（不抛错、不落空）
+(function(){
+  const ms = Object.values(ST.Monsters);
+  let bad = [];
+  ms.forEach(m=>{
+    let s; try { s = ST.beastIcon(m); } catch(e){ bad.push(m.id+':'+e.message); return; }
+    if (!s || s.indexOf('<svg') < 0 || s.indexOf('</svg>') < 0) bad.push(m.id);
+    else {
+      const inner = s.replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
+      if (inner.length < 200) bad.push(m.id+':thin');
+    }
+  });
+  assert(bad.length === 0, '全部 '+ms.length+' 只异兽均出有效 SVG（空/破图：'+(bad.slice(0,5).join(',')||'无')+'）');
+})();
+// 主躯干解析：尾部/属性描述词不得压过「状如 X」
+(function(){
+  const cases = [
+    ['鯥','其状如牛，陵居，蛇尾有翼，其羽在魼下','bovine'],
+    ['赤鱬','其状如鱼而人面','fish'],
+    ['鹿蜀','其状如马而白首，其文如虎而赤尾','equine'],
+    ['旋龟','其状如龟而鸟首虺尾','turtle'],
+    ['九尾狐','其状如狐而九尾','feline'],
+    ['灌灌','其状如鸠','avian'],
+    ['彘','其状如虎而牛尾','porcine'],
+  ];
+  let ok = true, det = [];
+  cases.forEach(([n,f,exp])=>{
+    const p = ST.parseForm(f, n, null);
+    if (p.family !== exp){ ok = false; det.push(n+'→'+p.family+'≠'+exp); }
+  });
+  assert(ok, '主躯干按「如 X」优先（'+(det.join('；')||'全部正确')+'）');
+})();
+// 「九尾」「四耳」「目在背」等特征件解析
+(function(){
+  const p = ST.parseForm('其状如羊，九尾四耳，其目在背', '猼訑', null);
+  assert(p.family === 'ovine' && p.tails === 9 && p.parts.indexOf('eyesBack') >= 0, '猼訑：羊身 九尾 目在背');
+  const q = ST.parseForm('其状如龟而鸟首虺尾', '旋龟', null);
+  assert(q.family === 'turtle', '旋龟：归龟身（鸟首虺尾不夺主躯干）');
+  const r = ST.parseForm('其状如鸡而三首六目，赤喙', 'xx', null);
+  assert(r.parts.indexOf('beak') >= 0, '「喙」识别为鸟喙部件');
+})();
+// 手绘特型能命中（BOSS / 高辨识异兽）
+(function(){
+  const hd = ['jiuwei','fenghuang','xuangui','bifang','jiuying','dafeng','xingtian','dijiang','luwu','xiwangmu','zaochi','xiushe','xiang','tuotuo','renyu'];
+  let miss = hd.filter(id=>{ const s=ST.beastIcon({id:id,name:id}); return !s || s.indexOf('<svg')<0; });
+  assert(miss.length === 0, '手绘特型全部出图（缺：'+(miss.join(',')||'无')+'）');
+  // BOSS 额外画一环虚线，便于在网格里一眼认出
+  const bossSvg = ST.beastIcon({ id:'jiuying', name:'九婴', boss:true });
+  assert(/stroke-dasharray/.test(bossSvg), 'BOSS 图标带虚线警示环');
+})();
+// 神祇无 form 时按人形立像（不误落成兽形）
+(function(){
+  const godSvg = ST.beastIcon({ id:'changcheng', name:'长乘' });
+  assert(godSvg.indexOf('<svg') >= 0, '无 form 神祇也出图');
+  // 人形躯干含头部圆（circle），兽形四足不含裸露的独立头部圆——抽查不报错即可
+  assert(ST.beastIcon({ id:'qitong', name:'耆童' }).length > 300, '神祇立像非空壳');
+})();
 
 // ============ 16. UI 渲染冒烟 ============
 section('UI 渲染冒烟');
@@ -2138,10 +2205,20 @@ section('实时性：状态变化即刻上屏');
   assert(gameSrc.includes("Date.now() - _pm.t > 60*1000"), '售价走势按 60 秒间隔采样');
   assert(!/renderShichan[\s\S]{0,300}priceHistory\.push/.test(uiSrc), '渲染时不再采样（无副作用）');
 
-  // 43.5 队列：任务达成 / 自然收官即刷新队列页
+  // 43.5 队列：任务达成 / 自然收官即刷新队列页；进行中数值秒级上屏
   const qSrc = readText('src/queue.js');
   assert(qSrc.includes('function refreshQueuePage()') && qSrc.includes("UI.currentTab === 'queue'"), '队列任务达成即补绘队列页');
-  assert((qSrc.match(/refreshQueuePage\(\)/g)||[]).length >= 3, '两个出口都刷新（推进与自然收官）');
+  assert(qSrc.includes('UI.patchQueueProgress'), '任务推进走就地补绘（不重建 DOM，保滚动）');
+  assert(qSrc.includes('function queueOnKill(monsterId)'), '讨伐队列计数落地（queueOnKill）');
+  assert(gameSrc.includes('queueOnKill(m.id)'), 'meetKill 每次讨平都通知队列计数');
+  assert(gameSrc.includes('!isBoss && !queueTookOver'), '队列接管下一环后不再自动接战同一只');
+  assert(qSrc.includes('const c = Game.combat;') && qSrc.includes('return !!c && c.monsterId === e.target;'), '讨伐条目按 Game.combat 匹配（否则 ensureQueueActivity 每帧重启战斗，永远打不完）');
+  assert(qSrc.includes("startCombat(e.target, { fromQueue:true })"), '队列驱动的讨伐不触发「往讨即暂停队列」');
+  assert(gameSrc.includes("if (!(opts && opts.fromQueue) && typeof pauseQueue === 'function') pauseQueue('往讨');"), '仅手动往讨暂停队列');
+  assert(gameSrc.includes('_qDriven ? { fromQueue:true } : undefined'), '队列讨伐连战同一只时也不暂停队列');
+  assert(uiSrc.includes('UI.patchQueueProgress = function()') && uiSrc.includes("this.currentTab !== 'queue'"), '队列进度就地补绘函数（仅队列页）');
+  assert(gameSrc.includes('if (UI && UI.patchQueueProgress) UI.patchQueueProgress();'), '主循环秒级兜底队列数值（顺延 / 轮数 / 进度）');
+  assert((qSrc.match(/UI\.patchQueueProgress/g)||[]).length >= 3, '进行中三处都补绘（采集/制作/讨伐/特殊）');
 
   // 43.6 键盘可达：Enter / 空格激活聚焦的方卡
   assert(uiSrc.includes("el.getAttribute('role') === 'button' && el.onclick"), '回车 / 空格可激活聚焦方卡');

@@ -173,6 +173,7 @@ function globalYieldBonus(){
   let b = 0;
   (window.Milestones||[]).forEach(ms=>{ if (ms.yield && ms.check()) b += ms.yield; });
   b += deployedBonuses().yield;
+  if (Game.buildings.zhai) b += 0.03;   // 柴栅：结木为栅，以固所获
   b += omenMod('yield');             // 凤皇「天下安宁」：全局产出 +15%
   if (Game.buff && Game.buff.def && Game.buff.def.kind === 'all' && Game.buff.def.yield) b += Game.buff.def.yield;
   return b;
@@ -194,6 +195,7 @@ function offlineEff(){
 function offlineCapHours(){
   let h = TUNING.OFFLINE.CAP_H;
   if (Game.buildings.canglin) h += 2;
+  if (Game.buildings.tuku) h += 1;      // 土窟：因势窟土，以庇风雨
   h += Object.values(Game.observed||{}).filter(Boolean).length;   // 每处观象 +1h
   return h;
 }
@@ -1013,7 +1015,12 @@ function meetKill(c, m){
   // 立刻接上下一只，Game.combat 从不为空，那条分支在挂机时永远不触发，
   // 结果是著录数、连杀递减标签在页面上一直不更新。
   UI && UI.afterCombatEnd && UI.afterCombatEnd(c.monsterId);
-  if (!isBoss) startCombat(c.monsterId);   // 自动接战下一只
+  // 讨伐队列计数：本只达成且队列已接管下一环时，不再自动接战同一只（下一步交给队列）
+  const _qDriven = Game.queueRunning && (()=>{ const _e = Game.queue[Game.queueIdx];
+    const _d = _e && typeof entryDef === 'function' ? entryDef(_e) : null;
+    return _d && _d.mode === 'taofa' && _e.target === m.id; })();
+  const queueTookOver = (typeof queueOnKill === 'function') && queueOnKill(m.id);
+  if (!isBoss && !queueTookOver) startCombat(c.monsterId, _qDriven ? { fromQueue:true } : undefined);
 }
 function pushRecentLoot(itemId, qty){
   if (!itemId || !Items[itemId]) return;
@@ -1054,7 +1061,9 @@ function startCombat(monsterId, opts){
   // 往讨即动身：舆地页的「前往」按钮已取消，动作本身兼管走一趟（初至记录 / 舆地与巡历经验）
   if (Game.node !== m.nodeId) travelTo(m.nodeId);
   Game.activity = null;
-  if (typeof pauseQueue === 'function') pauseQueue('往讨');
+  // 手动往讨才暂停队列；队列自己驱动的讨伐（startEntryActivity 传 fromQueue）
+  // 必须放行——否则一启动就被自己暂停，讨伐进度永远不计数。
+  if (!(opts && opts.fromQueue) && typeof pauseQueue === 'function') pauseQueue('往讨');
   let style = combatMode();
   if (style === 'ranged' && !styleAvailable('ranged')){
     if (styleAvailable('attack')){ style = 'attack'; UI && UI.toast('无弓，以近战往讨'); }
@@ -1166,6 +1175,8 @@ function tickYushi(dt){
 }
 window.BEAST_BUFFS = BEAST_BUFFS; window.deployableBeasts = deployableBeasts;
 window.deployBeast = deployBeast; window.undeployBeast = undeployBeast;
+window.currentActionInterval = currentActionInterval; window.globalYieldBonus = globalYieldBonus;
+window.offlineCapHours = offlineCapHours; window.offlineEff = offlineEff;
 
 // ---------- 主循环（后台补算） ----------
 const FRAME_STEP   = 0.6;
@@ -1236,6 +1247,7 @@ let saveTick = 0;
 let idleSeconds = 0;            // 持续闲置秒数（兜底行动计时）
 function onSecond(){
   if (Object.keys(Game.farms).length){ farmTick(1); if (UI && UI.patchFarmsProgress) UI.patchFarmsProgress(); }
+  if (UI && UI.patchQueueProgress) UI.patchQueueProgress();   // 巡历队列：进度/当前标记/轮数秒级兜底
   // 售价走势采样：倍率随商旅/营造/御使/征兆而变，倍率一变或每满 60 秒留一个点，
   // 挂机时也有轨迹可看（渲染时只读，不再有采样副作用）
   if (!Game.priceHistory) Game.priceHistory = [];
@@ -1275,6 +1287,7 @@ function currentActionInterval(){
     let base = 2.0;
     const craftPenalty = omenMod('craft');        // 毕方「讹火」：制作效率 -20%
     if (craftPenalty < 0) base *= (1 - craftPenalty);
+    if (Game.buildings.zaoku) base *= 0.9;        // 灶窟：甃灶炊爨，工不暇息
     return base;
   }
   let interval = 1;
