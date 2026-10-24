@@ -1,7 +1,7 @@
 # 云端存档接入指南
 
-> 本文面向「后期接云端」这一目标，说明当前存档层的设计与接入步骤。
-> 现阶段**未接入任何云端服务**，全部逻辑走本地后端；接入时业务层无需改动。
+> 本文说明存档层的设计与云端接入用法。v1.1.0（山经 · 云驿）起云端存档已可用：
+> 填一次端点即接入，业务层零改动；不填则与旧版完全一致（纯本地）。
 
 ## 一、为什么要提前做
 
@@ -34,9 +34,26 @@ src/save.js  ── SaveManager 门面
     · createCloudStore —— HTTP（未接入）
 ```
 
-## 三、接入步骤（未来）
+## 三、接入步骤
 
-### 1. 开启云端后端
+### 1. 起服务端（参考实现，零依赖）
+
+```bash
+node server/cloud-save-server.js --port 8787 --token 你的令牌
+# 也可用环境变量：PORT / DATA_FILE / CLOUD_TOKEN
+```
+
+- 默认只监听 `127.0.0.1`；要给别人用，请放到反代 / 内网后面，并**务必设置 token**。
+- 存档落在单个 JSON 文件（`--data` 指定，原子写入），按 `rev` 做乐观并发。
+- 接口契约见下表；客户端（`createCloudStore`）已按此约定实现。
+
+### 2. 开启云端后端（设置页一键完成）
+
+```
+设置 → 存档 → 云端地址填 http(s)://… → 连接
+```
+
+等价于在控制台执行：
 
 ```js
 SaveManager.setCloud({
@@ -45,29 +62,16 @@ SaveManager.setCloud({
 });
 ```
 
-### 2. 服务端接口约定
+配置（端点 / 令牌 / 自动同步开关）持久化在 `localStorage`（键 `shj_cloud_cfg_v1`），
+下次打开页面由 `SaveManager.restore()` 自动恢复接入，无需再填。
 
-| 方法 | 路径 | 请求 | 响应 |
-|---|---|---|---|
-| GET | `{endpoint}/save` | — | `{ payload: "<存档JSON字符串>", rev: 12 }`；无档返回 404 |
-| PUT | `{endpoint}/save` | `{ payload, rev, deviceId }` | `{ ok: true, rev }` |
-| DELETE | `{endpoint}/save` | — | `{ ok: true }` |
+### 3. 同步时机（已接线，无需业务层改动）
 
-`payload` 是**完整的存档 JSON 字符串**（与本地 `localStorage` 里那份同构），
-所以服务端无需理解游戏内部结构，只需按字符串存取 + 按 `rev` 做乐观并发。
-
-### 3. 同步时机
-
-```js
-await SaveManager.sync();   // 上传本地改动（dirty 为真才动作）
-await SaveManager.pull();   // 拉取云端档并与本地合并
-SaveManager.syncReady();    // 同步查询状态，供 UI 展示（不返回 Promise）
-```
-
-典型接线：
-- 进入游戏时 `pull()`（把另一台设备的进度合进来）
-- 每次 `saveGame()` 后标记 `dirty`，由防抖定时器批量 `sync()`
-- 页面 `visibilitychange` / `beforeunload` 时强制 `sync()` 一次
+- 每次 `saveGame()` 后 `SaveManager.scheduleSync()`：停止改动约 3 秒自动上传（防抖）；
+- 页面切后台（`visibilitychange`）/ 关闭（`pagehide` / `beforeunload`）时 `flushSync()` 强传一次
+  （`fetch keepalive`，页面销毁后请求仍会完成，限 64KB 以内）；
+- 设置页另有「立即上传 / 拉取合并 / 断开」手动入口；
+- 自动同步可在设置页关闭（只存本地，不删配置）。
 
 ### 4. 冲突处理
 
@@ -100,11 +104,13 @@ SaveManager.syncReady();    // 同步查询状态，供 UI 展示（不返回 Pr
 
 - 存档结构版本：**v3**（v1 / v2 老档可自动升级并回写新版本）
 - 本地后端：启用（键 `shj_zhulu_save_v1`，与旧版一致，旧档不丢）
-- 云端后端：接口齐备，**未接入**（`SaveManager.cloud === null`）
+- 云端后端：**已接入**（v1.1.0）。默认不配置端点 = 纯本地；填入端点即启用，
+  配置持久化于 `shj_cloud_cfg_v1`，`SaveManager.restore()` 开页自动恢复
 - 元数据：`shj_zhulu_meta_v1`（`rev` 修订号 / `dirty` 脏标记 / `savedAt` / `deviceId`）
 - 设备标识：`shj_device_id`（首次访问随机生成，用于多端区分与审计）
+- 参考后端：`server/cloud-save-server.js`（零依赖；契约已由测试 32.5.3 真实 HTTP 覆盖）
 
-## 六、已验证项（`test/engine.test.js` 第 28 节，911 项全通过）
+## 六、已验证项（`test/engine.test.js` 第 28 / 32 节，全通过）
 
 - 存档往返、版本迁移链、迁移后版本回写
 - 多端合并各字段规则（经验/著录/统计/地图/背包/贝币）
@@ -113,3 +119,8 @@ SaveManager.syncReady();    // 同步查询状态，供 UI 展示（不返回 Pr
 - 未接入云端时安全降级（不抛错）
 - 导入导出与云端档同构
 - 装备槽兼容「对象」与「裸 id」两种历史形态，无效 id 自动清理
+- 云端配置持久化与开页自动恢复（setCloud / cloudConfig / restore / clearCloud）
+- 防抖自动同步调度门（接入且开启才调度；关闭 / 未接入安全跳过）
+- flushSync 离页强传（keepalive 透传、成功后清脏标记）
+- pull 合并落本地并标记 dirty（合并结果推回云端，多端不各说各话）
+- 参考后端 HTTP 契约（404 → 上传 → rev 冲突 409 → 删除）

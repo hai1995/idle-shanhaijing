@@ -14,6 +14,8 @@ const SAVE_KEY = 'shj_zhulu_save_v1';         // 本地存档键（沿用旧键�
 const SAVE_TIME_KEY = SAVE_KEY + '_time';     // 最后写入时间戳（离线结算用）
 const SAVE_META_KEY = 'shj_zhulu_meta_v1';    // 元数据：rev / dirty / savedAt / deviceId
 const DEVICE_KEY = 'shj_device_id';           // 本机设备标识（多端冲突与审计用）
+const CLOUD_CFG_KEY = 'shj_cloud_cfg_v1';     // 云端接入配置：endpoint / token / autoSync
+const SYNC_DEBOUNCE_MS = 3000;                // 停止改动后多久自动上传（防抖）
 
 // ---------- 版本迁移链 ----------
 // SAVE_MIGRATIONS[n] 表示「把 n 版存档升到 n+1 版」的补丁函数。
@@ -95,6 +97,8 @@ const LocalSaveStore = {
 
 // 云端后端（接口齐备，默认未启用；接后端时只需 SaveManager.setCloud({endpoint, token})）。
 // 约定：GET  /save 返回 { payload, rev, savedAt }；PUT /save 接收 { payload, rev, deviceId }。
+// write 第二参可传 { keepalive:true }：页面关闭前的最后一次上传用，浏览器会把请求
+// 保留到页面销毁之后（限 64KB 以内；超限会抛错由 sync 捕获记入 lastError）。
 function createCloudStore(cfg){
   cfg = cfg || {};
   const endpoint = String(cfg.endpoint || '').replace(/\/+$/, '');
@@ -117,12 +121,12 @@ function createCloudStore(cfg){
       if (!j) return null;
       return (typeof j.payload === 'string') ? j.payload : JSON.stringify(j);
     },
-    async write(text){
+    async write(text, opts){
       if (!this.available()) return false;
-      const res = await fetch(endpoint + '/save', {
-        method:'PUT', headers: auth(),
-        body: JSON.stringify({ payload:text, rev:SaveManager.rev(), deviceId:SaveManager.deviceId() }),
-      });
+      const opt = { method:'PUT', headers: auth(),
+        body: JSON.stringify({ payload:text, rev:SaveManager.rev(), deviceId:SaveManager.deviceId() }) };
+      if (opts && opts.keepalive) opt.keepalive = true;
+      const res = await fetch(endpoint + '/save', opt);
       if (!res.ok) throw new Error('云端写入失败 HTTP ' + res.status);
       return true;
     },
@@ -259,6 +263,26 @@ function writeSaveMeta(m){
   try { localStorage.setItem(SAVE_META_KEY, JSON.stringify(m)); } catch(e){}
 }
 
+// ---------- 云端接入配置（端点 / 令牌 / 自动同步） ----------
+// 配置持久化在 localStorage：玩家填一次，下次开页自动恢复接入（restore()）。
+// 令牌只存本机浏览器，随配置一起走，不随存档负载上传。
+function readCloudConfig(){
+  try {
+    const raw = localStorage.getItem(CLOUD_CFG_KEY);
+    if (!raw) return null;
+    const c = JSON.parse(raw);
+    if (!c || typeof c !== 'object' || !c.endpoint) return null;
+    return {
+      endpoint: String(c.endpoint).replace(/\/+$/, ''),
+      token: String(c.token || ''),
+      autoSync: c.autoSync !== false,
+    };
+  } catch(e){ return null; }
+}
+function writeCloudConfig(cfg){
+  try { localStorage.setItem(CLOUD_CFG_KEY, JSON.stringify(cfg)); } catch(e){}
+}
+
 // ---------- 存档管理器：业务层唯一入口 ----------
 const SaveManager = {
   version: SAVE_VERSION,
@@ -268,6 +292,7 @@ const SaveManager = {
   lastSyncAt: 0,
   lastError: '',
   _syncing: false,
+  _syncTimer: 0,                  // 防抖自动同步的定时器句柄
 
   deviceId(){
     let id = '';
@@ -342,8 +367,45 @@ const SaveManager = {
     }
   },
 
-  // 接入云端后端（现在只是登记；真正上传需后端服务就绪）
-  setCloud(cfg){ this.cloud = createCloudStore(cfg); return this.cloud; },
+  // 接入云端后端：登记 + 持久化配置（下次开页由 restore() 自动恢复）。
+  // endpoint 为空表示断开。自动同步默认开启，可显式传 autoSync:false 关闭。
+  setCloud(cfg){
+    const c = cfg || {};
+    const norm = {
+      endpoint: String(c.endpoint || '').replace(/\/+$/, ''),
+      token: String(c.token || ''),
+      autoSync: c.autoSync !== false,
+    };
+    this.cloud = norm.endpoint ? createCloudStore(norm) : null;
+    if (this.cloud){
+      writeCloudConfig(norm);
+      this.syncState = 'pending';
+      this.lastError = '';
+    } else {
+      this.clearCloud();
+    }
+    return this.cloud;
+  },
+  // 当前云端接入配置（无配置返回 null）
+  cloudConfig(){ return readCloudConfig(); },
+  // 断开云端：保留本地存档与设置页已填信息由调用方决定；服务端存档不动
+  //（要连服务端一起抹掉请用 reset()，它会 DELETE 云端档）。
+  clearCloud(){
+    this.cloud = null;
+    this.syncState = 'offline';
+    clearTimeout(this._syncTimer);
+    this._syncTimer = 0;
+    try { localStorage.removeItem(CLOUD_CFG_KEY); } catch(e){}
+  },
+  // 恢复上次接入的云端配置（init 时调用一次）；未配置过返回 null。
+  restore(){
+    const cfg = readCloudConfig();
+    if (cfg && cfg.endpoint){
+      this.cloud = createCloudStore(cfg);
+      return this.cloud;
+    }
+    return null;
+  },
 
   // 同步可用性（同步返回，供 UI 直接展示状态，无需 await）
   syncReady(){
@@ -352,8 +414,27 @@ const SaveManager = {
     return { ready:true, reason:m.dirty ? '有待上传的改动' : '已与云端一致', state:this.syncState, dirty:m.dirty, rev:m.rev };
   },
 
+  // 防抖自动同步：本地每次存档后调用（engine.saveGame 已接）。
+  // 未接入 / 关闭了自动同步 / 正在同步中 → 安全跳过；否则标记 pending 并重启防抖计时。
+  scheduleSync(){
+    if (!this.cloud || !this.cloud.available() || this._syncing) return false;
+    const cfg = readCloudConfig();
+    if (!cfg || cfg.autoSync === false) return false;
+    this.syncState = 'pending';
+    clearTimeout(this._syncTimer);
+    this._syncTimer = setTimeout(()=>{ this._syncTimer = 0; this.sync(); }, SYNC_DEBOUNCE_MS);
+    return true;
+  },
+  // 立即同步（页面隐藏 / 关闭 / 手动「立即上传」）：取消防抖，马上传。
+  // keepalive 让 beforeunload 里的请求在页面销毁后继续完成。
+  flushSync(){
+    clearTimeout(this._syncTimer);
+    this._syncTimer = 0;
+    return this.sync(true);
+  },
+
   // 上传本地改动到云端（幂等：dirty 为假直接跳过）
-  async sync(){
+  async sync(keepalive){
     if (!this.cloud || !this.cloud.available()){ this.syncState = 'offline'; return { ok:false, reason:'云端未接入' }; }
     if (this._syncing) return { ok:false, reason:'同步中' };
     const m = readSaveMeta();
@@ -363,7 +444,7 @@ const SaveManager = {
     try {
       const raw = this.store.read();
       if (!raw) return { ok:false, reason:'本地无存档' };
-      await this.cloud.write(raw);
+      await this.cloud.write(raw, keepalive ? { keepalive:true } : undefined);
       writeSaveMeta({ ...m, dirty:false, savedAt:Date.now(), deviceId:this.deviceId() });
       this.lastSyncAt = Date.now();
       this.syncState = 'ok';
@@ -376,7 +457,9 @@ const SaveManager = {
     } finally { this._syncing = false; }
   },
 
-  // 从云端拉取并与本地合并（多端同时改档时按合并规则处理，不丢进度）
+  // 从云端拉取并与本地合并（多端同时改档时按合并规则处理，不丢进度）。
+  // 合并结果即刻落本地；合并档与云端不再一致，标记 dirty 让下一次同步把合并结果推回去，
+  // 否则另一台设备拉到的会是「未合并的旧云端档」，多端进度各说各话。
   async pull(){
     if (!this.cloud || !this.cloud.available()){ this.syncState = 'offline'; return { ok:false, reason:'云端未接入' }; }
     try {
@@ -387,11 +470,11 @@ const SaveManager = {
       const merged = mergeSaveData(local, remote);
       // 合并结果即刻落本地，避免「合并了但没保存」导致下次启动又退回旧档
       merged.savedAt = Date.now();
-      localStorage.setItem(SAVE_KEY, JSON.stringify(merged));
+      if (!this.store.write(JSON.stringify(merged))) return { ok:false, reason:'合并结果写入本地失败' };
       const m = readSaveMeta();
-      writeSaveMeta({ rev: m.rev + 1, dirty:false, savedAt:Date.now(), deviceId:this.deviceId() });
+      writeSaveMeta({ rev: m.rev + 1, dirty:true, savedAt:Date.now(), deviceId:this.deviceId() });
       this.lastSyncAt = Date.now();
-      this.syncState = 'ok';
+      this.syncState = 'pending';
       return { ok:true, reason:'已合并云端存档', data:merged };
     } catch(e){
       this.syncState = 'error';
@@ -408,4 +491,11 @@ if (typeof window !== 'undefined'){
   window.migrateSave = migrateSave;
   window.serializeSave = serializeSave;
   window.mergeSaveData = mergeSaveData;
+  // 给 ui.js 的初始化用的两个薄封装（restore / flush 都不抛错）
+  window.restoreCloudSave = function(){
+    try { return SaveManager.restore(); } catch(e){ return null; }
+  };
+  window.flushCloudSave = function(){
+    try { return SaveManager.flushSync(); } catch(e){ return Promise.resolve({ ok:false, reason:String(e) }); }
+  };
 }

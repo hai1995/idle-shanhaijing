@@ -82,6 +82,8 @@ function saveGame(){
   Game.skills = Game.skills || {};
   const ok = SaveManager.save();
   if (!ok) console.error('保存失败', new Error('SaveManager.save 返回 false'));
+  // 云端自动同步：已接入且开启自动同步时，停止改动约 3 秒自动上传；未接入时零开销跳过
+  if (SaveManager.scheduleSync) SaveManager.scheduleSync();
 }
 
 // 把存档对象装配回内存状态（读档 + 校验 + 补缺）

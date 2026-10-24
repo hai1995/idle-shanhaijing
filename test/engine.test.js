@@ -45,6 +45,7 @@ const ST = context.window;
 G.resetToDefault();
 
 let pass = 0, fail = 0;
+const pending = [];   // 异步用例（云端同步 / 参考后端契约）：收尾后再出汇总，避免漏计
 function assert(cond, msg){ if(cond){ pass++; console.log('PASS: '+msg); } else { fail++; console.error('FAIL: '+msg); process.exitCode=1; } }
 function section(t){ console.log('\n== ' + t + ' =='); }
 
@@ -617,6 +618,7 @@ try {
   ST.UI.currentTab = 'pack';   ST.UI.renderPack();
   ST.UI.currentTab = 'stats';  ST.UI.renderStats();
   ST.UI.currentTab = 'about'; ST.UI.renderAbout();
+  ST.UI.currentTab = 'settings'; ST.UI.renderSettings();
   ST.UI.renderTopbar();
   ST.UI.tickProgress();
   ST.UI.refreshActivity();
@@ -626,6 +628,7 @@ try {
 } catch(e){ uiOk = false; console.error('UI 渲染异常：'+e.stack); }
 assert(uiOk, '全部页面渲染不抛错');
 assert(renderTargets.content.innerHTML.length > 100, '内容区有实际输出');
+assert(renderTargets.content.innerHTML.indexOf('cloudEndpoint') >= 0 && renderTargets.content.innerHTML.indexOf('立即上传') >= 0, '设置页渲染出云端存档控件');
 // 战斗不得强行切页（挂机连战每杀一只都会触发 startCombat，跳焦点会打断玩家）
 ST.UI.currentTab = 'codex';
 G.startCombat('shengsheng');
@@ -2169,9 +2172,9 @@ section('叙录 / 关于本作');
   ST.UI.renderAbout();
   const h = renderTargets.content.innerHTML;
   assert(h.indexOf('山海经') >= 0, '叙录页显示书名');
-  assert(/v1\.0\.0/.test(h), '叙录页显示版本号');
+  assert(h.indexOf('v' + ST.GAME_META.version) >= 0, '叙录页显示版本号（随 GAME_META，不写死）');
   assert(h.indexOf('代号') >= 0 && h.indexOf('山经') >= 0, '叙录页显示版本代号');
-  assert(h.indexOf('更新') >= 0 && /2026-10-23/.test(h), '叙录页显示更新日期');
+  assert(h.indexOf('更新') >= 0 && h.indexOf(ST.GAME_META.updated) >= 0, '叙录页显示更新日期（随 GAME_META，不写死）');
   ['缘起', '此身', '体例', '卷帙', '稽考', '成书'].forEach(k =>
     assert(h.indexOf(k) >= 0, '叙录页含「' + k + '」一栏'));
 
@@ -2529,5 +2532,131 @@ section('物品族形图标');
   assert(ii(ST.Items[itemIds[0]]).includes('width="100%"'), '省略尺寸时撑满容器');
 }
 
-console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
-process.exit(fail ? 1 : 0);
+// ============ 32. 云端存档接入：配置持久化 · 防抖同步 · 离页强传 · 参考后端 ============
+section('云端存档接入');
+{
+  const SM = ST.SaveManager;
+  const saveSrc = readText('src/save.js');
+  const engSrc = readText('src/engine.js');
+  const uiM32 = readText('src/ui.js');
+  // 32.1 配置持久化：接入一次，下次开页自动恢复
+  SM.clearCloud();
+  assert(SM.cloudConfig() === null, '未接入时无云端配置');
+  const cfg = SM.setCloud({ endpoint: 'https://save.example.test/api/', token: 't0ps3cret', autoSync: true });
+  assert(!!cfg && cfg.endpoint === 'https://save.example.test/api', 'setCloud 规范化端点（去掉尾斜杠）');
+  const saved = SM.cloudConfig();
+  assert(saved && saved.endpoint === 'https://save.example.test/api' && saved.token === 't0ps3cret' && saved.autoSync === true, '云端配置已持久化');
+  const restored = SM.restore();
+  assert(!!restored && restored.id === 'cloud', 'restore 从持久化配置重建云端后端');
+  // 32.2 防抖同步的调度门：接入且自动同步开 → pending；关 / 未接入 → 跳过
+  SM.cloud = { id:'cloud', available: ()=>true };          // 替身后端（不发真实请求）
+  SM.syncState = 'idle';
+  assert(SM.scheduleSync() === true, '已接入且自动同步开启时调度上传');
+  assert(SM.syncState === 'pending', '调度后同步状态为待上传');
+  clearTimeout(SM._syncTimer); SM._syncTimer = 0;
+  SM.setCloud({ endpoint: 'https://save.example.test/api', autoSync: false });
+  SM.cloud = { id:'cloud', available: ()=>true };
+  SM.syncState = 'idle';
+  assert(SM.scheduleSync() === false, '关闭自动同步后不再调度上传');
+  assert(SM.syncState === 'idle', '未调度则状态不变');
+  SM.clearCloud();
+  SM.syncState = 'idle';
+  assert(SM.scheduleSync() === false, '未接入云端时调度安全跳过');
+  // 32.3 engine.saveGame 接上防抖钩子（每次存档后尝试调度）
+  assert(/SaveManager\.scheduleSync\(\)/.test(engSrc), 'saveGame 委托 SaveManager.scheduleSync');
+  // 32.4 UI 接线：设置页控件 + 初始化恢复 + 离页强传
+  assert(uiM32.includes('id="cloudEndpoint"'), '设置页提供云端地址输入');
+  assert(uiM32.includes('id="cloudToken"'), '设置页提供访问令牌输入');
+  assert(uiM32.includes('onclick="cloudSyncNow()"') && uiM32.includes('onclick="cloudPullNow()"'), '设置页提供立即上传 / 拉取合并');
+  assert(uiM32.includes('onclick="saveCloudConfig()"') && uiM32.includes('onclick="cloudDisconnect()"'), '设置页提供连接 / 断开');
+  assert(uiM32.includes('restoreCloudSave()'), '初始化时恢复云端接入配置');
+  assert(/visibilitychange[\s\S]{0,200}flushCloudSave/.test(uiM32), '页面切后台时强传待上传改动');
+  assert(/beforeunload[\s\S]{0,160}flushCloudSave/.test(uiM32), '关闭页面前强传待上传改动');
+  assert(uiM32.includes('cloudStatusText()'), '同步状态行实时反映 syncReady');
+  // 32.5 异步用例（上传 / 合并 / 参考后端契约）收尾后再出汇总
+  pending.push((async ()=>{
+    // 32.5.1 flushSync：取消防抖立即上传，keepalive 透传，成功后清脏标记
+    let written = '', keepaliveSeen = false;
+    SM.setCloud({ endpoint: 'https://save.example.test/api', token: 'k' });
+    SM.cloud = { id:'cloud', available: ()=>true, read: async()=>null,
+      write: async(t, opts)=>{ written = t; keepaliveSeen = !!(opts && opts.keepalive); return true; },
+      remove: async()=>true };
+    ST.saveGame();
+    assert(SM.meta().dirty === true, '保存后 dirty 为真（有待上传改动）');
+    const fr = await SM.flushSync();
+    assert(fr && fr.ok === true, 'flushSync 立即上传成功');
+    assert(written.length > 0 && JSON.parse(written).version === SM.version, '上传的是本地存档文本');
+    assert(keepaliveSeen === true, 'flushSync 以 keepalive 上传（离页不断传）');
+    assert(SM.meta().dirty === false, '上传成功后清除脏标记');
+    assert(SM.syncState === 'ok' && SM.lastSyncAt > 0, '上传成功后状态 ok 且记录同步时间');
+    // 32.5.2 pull：云端有档时合并落本地，并标记 dirty 把合并推回云端
+    SM.setCloud({ endpoint: 'https://save.example.test/api' });
+    const localBefore = JSON.parse(SM.store.read());
+    SM.cloud = { id:'cloud', available: ()=>true,
+      read: async()=>JSON.stringify({ version:3, savedAt: Date.now() + 60000, shells: 999, inventory:{ gui: 1 }, skills:{}, records:{}, stats:{}, map:{ 'nanshan-2-01':true } }),
+      write: async()=>true, remove: async()=>true };
+    ST.saveGame();
+    const pr = await SM.pull();
+    assert(pr && pr.ok === true, 'pull 合并成功');
+    const merged = JSON.parse(SM.store.read());
+    assert(merged.shells === 999, '贝币取较新的云端一档');
+    assert(merged.map['nanshan-2-01'] === true, '地图节点取并集（云端到访不丢）');
+    assert(SM.meta().dirty === true, '合并结果标记 dirty（等待推回云端）');
+    assert(JSON.parse(SM.store.read()).version === SM.version, '合并结果仍为当前存档版本');
+    // 32.5.3 参考后端：真实 HTTP 走一遍约定契约（404 → 上传 → 冲突 → 删除）
+    const { spawn } = require('child_process');
+    const os = require('os');
+    const dataFile = path.join(os.tmpdir(), 'shj-cloud-test-' + process.pid + '.json');
+    try { fs.unlinkSync(dataFile); } catch(e){}
+    const child = spawn(process.execPath, [path.join(root, 'server', 'cloud-save-server.js'), '--port', '0', '--data', dataFile], { stdio: ['ignore','pipe','pipe'] });
+    const port = await new Promise((resolve, reject)=>{
+      let buf = '';
+      const timer = setTimeout(()=>reject(new Error('参考后端启动超时')), 8000);
+      child.stdout.on('data', d=>{
+        buf += d;
+        const nl = buf.indexOf('\n');                 // 等整行到齐再解析，防止分包截断端口号
+        if (nl < 0) return;
+        const m = buf.slice(0, nl).match(/127\.0\.0\.1:(\d+)/);
+        if (m){ clearTimeout(timer); resolve(+m[1]); }
+        else reject(new Error('未能解析参考后端端口：' + buf.slice(0, nl)));
+      });
+      child.on('exit', ()=>{ clearTimeout(timer); reject(new Error('参考后端提前退出')); });
+    });
+    const base = 'http://127.0.0.1:' + port;
+    try {
+      let res = await fetch(base + '/save');
+      assert(res.status === 404, '空库 GET /save 返回 404');
+      res = await fetch(base + '/save', { method:'PUT', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ payload:'{"version":3,"shells":7}', rev:0, deviceId:'dev-a' }) });
+      assert(res.status === 200, '首次上传 200');
+      const put1 = await res.json();
+      assert(put1.ok === true && put1.rev === 1, '首次上传后 rev 为 1');
+      res = await fetch(base + '/save');
+      const got = await res.json();
+      assert(got.payload === '{"version":3,"shells":7}' && got.rev === 1, 'GET 取回上传的存档与 rev');
+      res = await fetch(base + '/save', { method:'PUT', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ payload:'{"version":3,"shells":8}', rev:0, deviceId:'dev-b' }) });
+      assert(res.status === 409, '落后 rev 的上传被拒（409 乐观并发）');
+      res = await fetch(base + '/save', { method:'PUT', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ payload:'{"version":3,"shells":8}', rev:1, deviceId:'dev-b' }) });
+      assert(res.status === 200 && (await res.json()).rev === 2, '带最新 rev 的上传被接受');
+      res = await fetch(base + '/save', { method:'DELETE' });
+      assert(res.status === 200, 'DELETE 抹档 200');
+      res = await fetch(base + '/save');
+      assert(res.status === 404, '删除后 GET 回到 404');
+    } finally {
+      child.kill();
+      try { fs.unlinkSync(dataFile); } catch(e){}
+    }
+    SM.clearCloud();   // 收尾：不影响后续用例
+  })());
+}
+
+// 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
+function finishTests(){
+  console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
+  process.exit(fail ? 1 : 0);
+}
+if (pending.length){
+  Promise.all(pending).then(finishTests).catch(e=>{ console.error('异步用例异常：', e); fail++; finishTests(); });
+} else finishTests();

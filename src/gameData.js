@@ -1541,9 +1541,9 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.0.0',
-  codename:'山经 · 墨启',
-  updated: '2026-10-23',
+  version: '1.1.0',
+  codename:'山经 · 云驿',
+  updated: '2026-10-24',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
 };

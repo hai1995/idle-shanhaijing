@@ -2,10 +2,10 @@
 
 一款以《山海经》为题材的纯前端放置挂机网页游戏（原生 JS，零依赖、无需构建、可离线运行）。
 
-> 当前版本 **v1.0.0**（代号「山经 · 墨启」）· 更新于 2026-10-23。版本号与更新日期集中于 `GAME_META`（`src/gameData.js`），「叙录」页直接读取，不散落硬编码。
+> 当前版本 **v1.1.0**（代号「山经 · 云驿」）· 更新于 2026-10-24。版本号与更新日期集中于 `GAME_META`（`src/gameData.js`），「叙录」页直接读取，不散落硬编码。
 玩家扮演**著录者**，受命巡行南山，采集、制作、讨伐、御使、祭祀，把山川万物逐条录于竹简——游戏进度即一部正在写成的《山海经》。
 
-- **技术形态**：纯静态站点（无后端），可直接部署 GitHub Pages；`localStorage` 存档，支持导出 / 导入。
+- **技术形态**：纯静态站点（无后端），可直接部署 GitHub Pages；`localStorage` 存档，支持导出 / 导入；可选接入自托管云端存档（`server/cloud-save-server.js`，零依赖）实现多设备进度合并。
 - **玩法骨架**：采用放置类游戏的通用设计模式（技能训练—挂机推进—离线结算、采集—加工—消耗三级闭环）；这部分属于不受著作权保护的通用设计。
 - **内容来源**：世界观、山名、异兽、祠礼、征兆全部取自《山海经》原文（中华书局点校本《山海经校注》袁珂，公有领域）；所有数值、机制、命名均为本项目**自研调参**，未沿用任何既有产品。
 
@@ -33,6 +33,7 @@
 
 - **本地预览**：根目录起任意静态服务器，如 `npx serve` 或 `python -m http.server 8080`；直接双击 `index.html` 亦可游玩（个别浏览器下 `localStorage` 可能受限）。
 - **部署**：推送到 GitHub 仓库 `main` 分支根目录，`Settings → Pages` 选 `main` / `(root)` 即可（已带 `.nojekyll`）。
+- **云端存档（可选）**：想多设备续玩才需要。起一个参考后端 `node server/cloud-save-server.js --port 8787 --token 你的令牌`（零依赖，接口约定见 `CLOUD_SAVE.md`），再到「设置 → 存档」填地址与令牌即可；停止操作约 3 秒自动上传，离开页面强传一次，拉取时与本地进度按规则合并。不填则纯本地，与旧版行为一致。
 
 ## 世界结构
 
@@ -151,6 +152,7 @@ src/
   nanshanData.js        南山经世界数据（由 nanshanjing_nodes.json 派生，勿手改）
   xishanData.js         西山经世界数据（由 xishanjing_nodes.json 派生，等级已重排）
   gameData.js           数值常量表 / 26 技能 / 物品 / 配方 / 异兽 / 祠礼 / 征兆 / 商店 / 谒见与养成点
+  save.js               存档层：可插拔后端（本地 / 云端）、版本迁移、多端合并、防抖自动同步
   engine.js             状态、存档（导出/导入）、81 级经验曲线、著录度、舆地经验耦合
   game.js               采集/制作/祠祀/观象/卜筮/营造/谒见/养成/五行战斗/御使/征兆/主循环/离线结算
   queue.js              巡历队列（任务顺序 / 阻塞顺延 / 兜底 / 循环 / 祠祀与谒见）
@@ -161,6 +163,8 @@ scripts/
   gen-world-data.js     JSON → src/{nanshan,xishan,beishan,dongshan}Data.js 派生脚本（含四章等级重排）
   build-standalone.js   多文件版 → idle-shanhaijing-standalone.html 自包含单文件（node scripts/build-standalone.js）
   audit-data.js         数据引用审计：配方产物 / 祠礼三表 / 种子 / 消耗品可达性 / 征兆触发源（node scripts/audit-data.js）
+server/
+  cloud-save-server.js  云端存档参考后端（零依赖；不启用则游戏纯本地运行）
 test/
   engine.test.js        无头引擎测试（node test/engine.test.js）
 SELF_AUDIT.md           上线前合规自检报告
