@@ -39,20 +39,19 @@
 - ❌ 为了「保险」而重复跑测试、重复截图、重复读文件
 - ❌ 输出大段调试日志
 
-## 六、Git 推送通道（2026-10-24 实测）
+## 六、Git 推送通道（2026-10-25 用户指令：只用 PAT）
 
-推送 `origin`（`hai1995/idle-shanhaijing`，分支 `main`）有两条通道，优先级从高到低：
+用户明确要求：**每次推送只用已保存的 PAT**，不要尝试其他方式。
 
-1. **Git Data API**（首选）：`api.github.com` 可达，凭据来自
-   `source /root/.codebuddy/skills/github-connector/scripts/get_token.sh github` → `$GITHUB_TOKEN`。
-   流程：`GET /git/ref/heads/main` → `POST /git/trees` → `POST /git/commits` → `PATCH /git/refs/heads/main`。
-   注意：本地与线上 commit sha 不同，但内容一致。
-2. **原生 `git push`**（备选）：`github.com:443` 在本环境常常超时，且需先
-   `git remote set-url origin "https://oauth2:${GITHUB_TOKEN}@github.com/hai1995/idle-shanhaijing.git"`。
+**唯一通道：原生 `git push`（凭据来自 `~/.git-credentials`）**
 
-**已知故障点**：连接器 token 可能已失效（`gh auth status` 显示未登录 / API 返回 401）。
-此时两条通道都不通，**不要反复重试**——按第二节处理：停下来告知用户去
-WorkBuddy「设置 → 连接器」重新授权 GitHub，同时说明本地已提交、待推送的 commit sha。
+- 仓库 `hai1995/idle-shanhaijing`，分支 `main`。
+- 凭据已存入 `~/.git-credentials`，配合 `credential.helper store` 自动注入；
+  远端保持 `https://github.com/hai1995/idle-shanhaijing.git`（**不要**把 token 拼进 remote url）。
+- 流程：`git add -A` → `git commit` → `git push origin main`。
+
+**不要**再尝试：Git Data API、连接器 token（`github-connector`）、`gh` CLI、
+连接器授权流程。这些一律不再使用，避免反复失败。
 
 **推送后自检**（不要凭 push 输出就断言成功）：
 

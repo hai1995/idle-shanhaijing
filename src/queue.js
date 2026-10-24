@@ -72,12 +72,14 @@ function makeQueueEntry(kind, target, qty){
   };
 }
 function entryDef(e){ return e ? ActionKinds[e.kind] : null; }
+// 行动标签只出文字：小像（兽像 / 技艺像）由渲染层单独给，
+// 这里再塞 emoji 会与之重复，且 emoji 字体各平台形态不一。
 function entryLabel(e){
   const def = entryDef(e);
   const it = Items[e.target];
   const beast = Monsters[e.target];
   const name = it ? it.name : beast ? beast.name : e.target;
-  return `${def?def.icon:'❓'}${def?def.label:'行动'}·${name}`;
+  return `${def?def.label:'行动'}·${name}`;
 }
 function entryUnit(e){
   const def = entryDef(e);

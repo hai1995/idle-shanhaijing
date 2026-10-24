@@ -18,12 +18,12 @@ const FX = {
   },
 
   // 在视口坐标 (x,y) 处漂浮一段文字
-  float(x, y, text, color, big){
+  float(x, y, text, color, big, html){
     const layer = this.ensureLayer();
     if (!layer) return;
     const d = document.createElement('div');
     d.className = 'fx-float' + (big ? ' big' : '');
-    d.textContent = text;
+    if (html) d.innerHTML = text; else d.textContent = text;
     d.style.left = x + 'px';
     d.style.top = y + 'px';
     if (color) d.style.color = color;
@@ -32,11 +32,11 @@ const FX = {
   },
 
   // 以某个元素为锚点漂浮文字（元素不可见/不存在时自动跳过）
-  floatAtEl(el, text, color, big){
+  floatAtEl(el, text, color, big, html){
     if (!el || typeof el.getBoundingClientRect !== 'function') return;
     const r = el.getBoundingClientRect();
     if (!r.width && !r.height) return;
-    this.float(r.left + r.width/2, r.top + r.height*0.35, text, color, big);
+    this.float(r.left + r.width/2, r.top + r.height*0.35, text, color, big, html);
   },
 
   // 粒子爆开（Boss 击杀、升级等）
@@ -118,7 +118,7 @@ const FX = {
       <div class="forge-anvil">🛠️</div>
       <div class="forge-billet"><span>🔥</span></div>
       <div class="forge-hammer">${o.emoji || '🔨'}</div>
-      <div class="forge-out"><span class="out-ring"></span><span class="out-ico">${item ? item.icon : '📦'}</span><span class="out-name">${name}</span></div>`;
+      <div class="forge-out"><span class="out-ring"></span><span class="out-ico">${(typeof itemIc==='function'&&item)?itemIc(item,34):(item?item.icon:'📦')}</span><span class="out-name">${name}</span></div>`;
     layer.appendChild(stage);
     this.forgeBusy = true;
 

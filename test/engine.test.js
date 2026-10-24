@@ -38,7 +38,7 @@ vm.createContext(context);
 
 const base = path.join(__dirname, '..', 'src');
 function loadJS(file){ vm.runInContext(fs.readFileSync(path.join(base, file), 'utf8'), context, {filename:file}); }
-['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','gameData.js','save.js','engine.js','game.js','queue.js','interact.js','fx.js','beastIcon.js','riteIcon.js'].forEach(loadJS);
+['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','gameData.js','save.js','engine.js','game.js','queue.js','interact.js','fx.js','beastIcon.js','riteIcon.js','structureIcon.js','skillIcon.js','itemIcon.js','markIcon.js'].forEach(loadJS);
 const G = context;
 const ST = context.window;
 
@@ -950,7 +950,7 @@ const root = path.join(__dirname, '..');
 function readText(rel){ return fs.readFileSync(path.join(root, rel), 'utf8'); }
 // 子串位置（-1 表示不存在），用于断言脚本加载顺序
 function indexOfOf(rel, sub){ return readText(rel).indexOf(sub); }
-const codeFiles = ['index.html','style.css','src/nanshanData.js','src/gameData.js','src/save.js','src/engine.js','src/game.js','src/queue.js','src/interact.js','src/fx.js','src/ui.js','src/beastIcon.js','src/riteIcon.js','README.md'];
+const codeFiles = ['index.html','style.css','src/nanshanData.js','src/gameData.js','src/save.js','src/engine.js','src/game.js','src/queue.js','src/interact.js','src/fx.js','src/ui.js','src/beastIcon.js','src/riteIcon.js','src/structureIcon.js','src/skillIcon.js','src/itemIcon.js','src/markIcon.js','README.md'];
 const banned = ['Melvor','melvor','梅尔沃'];
 let ipHits = [];
 codeFiles.forEach(f=>{ const t = readText(f); banned.forEach(b=>{ if (t.includes(b)) ipHits.push(f+':'+b); }); });
@@ -1075,7 +1075,7 @@ ST.UI.currentTab = 'jisi'; ST.UI.renderJisi();
 assert(tipCount(renderTargets.content.innerHTML) >= 3, '祠祀页含多个浮层锚点（祠礼/征兆详情入浮层）');
 ST.UI.currentTab = 'ying'; ST.UI.renderYing();
 { const yingTxt = renderTargets.content.innerHTML;
-  assert(yingTxt.indexOf('tile-grid building-grid') >= 0 && yingTxt.indexOf('tile-seal') >= 0, '营造页为小方卡（印记字 + 营造等级）');
+  assert(yingTxt.indexOf('tile-grid building-grid') >= 0 && yingTxt.indexOf('tile-ic bi-ic') >= 0, '营造页为小方卡（矢量图标 + 营造等级）');
   assert(tipCount(yingTxt) >= 3, '营造卡含多个浮层锚点（说明/材料/欠缺进浮层）');
   assert(yingTxt.indexOf('rc-sub') >= 0 && yingTxt.indexOf('chip cost') >= 0, '营造卡浮层直陈说明与材料');
   assert(uiSrc.includes("buildStructure('${b.id}');UI.renderYing()"), '营造卡点按即营造'); }
@@ -1255,7 +1255,7 @@ assert(uiSrc.includes('levelOf(\'taofa\') < (x.needLvl||1)) continue;'), '宜讨
 assert(uiSrc.includes('if (!best || (x.xp||0) > (best.xp||0)) best = x;'), '宜讨取经验效率最高者');
 assert(uiSrc.includes('(b===pick?1:0) - (a===pick?1:0)'), '宜讨项在分组内置顶');
 assert(uiSrc.includes('class="bc-pick"') && uiSrc.includes('>宜讨</span>'), '宜讨项带朱色「宜讨」标记');
-assert(uiSrc.includes('>✔ 宜讨</span>'), '宜讨与「✔ 推荐」兼具时合并为一枚标签（不并排）');
+assert(uiSrc.includes("markIcon('check',13):'✔'} 宜讨</span>"), '宜讨与「✔ 推荐」兼具时合并为一枚标签（不并排）');
 assert(/\.bc-pick\{/.test(css) && /\.beast-card\.pick\{ border-color:var\(--zhu\); \}/.test(css), '宜讨有样式（朱色小印 + 卡面朱边）');
 // 23.2 图鉴阶位进度：显示距下一阶阈值（7/10），满阶明示得御
 assert(uiSrc.includes('TUNING.MASTERY.THRESHOLDS[rec.tier+1]'), '图鉴卡计算下一阶阈值');
@@ -1445,7 +1445,7 @@ assert(ST.ORDER_POOL.some(it=>ST.ITEM_REGION[it.id]==='nanshan-1'), '南山首�
   assert(ST.Game.orders.length === 3, '换批后仍为 3 单');
 }
 // 25.6 UI：订单板接入墟市页
-assert(uiSrc.includes('⚖️ 方国求购'), '墟市页有订单板标题');
+assert(uiSrc.includes("markIcon('scale',17):'⚖️'") && uiSrc.includes('方国求购'), '墟市页有订单板标题');
 assert(uiSrc.includes('整批轮换 <b>${mm}:${ss}</b> 后'), '订单板显示轮换倒计时');
 assert(uiSrc.includes('onclick="deliverOrder(${idx});UI.renderShichan()"'), '订单卡有交割按钮');
 assert(uiSrc.includes('onclick="rerollOrders();UI.renderShichan()"'), '订单板有「另访方国」');
@@ -2389,6 +2389,129 @@ section('云端化存档层');
   // 28.10 迁移后版本回写磁盘（避免每次启动重跑迁移链）
   assert(/before !== d\.version/.test(saveSrc), '旧档迁移后回写新版本号');
   assert(/syncReady\(\)/.test(saveSrc), '提供同步状态同步查询接口');
+}
+
+
+// ============ 29. 营造绘形：八座营邑建筑矢量图标 ============
+section('营造建筑图标');
+{
+  const si = ST.structureIcon;
+  const stcSrc = readText('src/structureIcon.js');
+  const uiM29 = readText('src/ui.js');
+  // 29.1 模块存在并已接入加载顺序
+  assert(typeof si === 'function', 'structureIcon 已导出');
+  assert(/const ART = \{ zhai, zaoku, tuku, citan, shichan, canglin, fenghuotai, xuegong \}/.test(stcSrc), '八座建筑各有一幅专属画法');
+  assert(indexOfOf('index.html', 'src/structureIcon.js') >= 0, 'structureIcon.js 已引入页面');
+  // 29.2 建筑数量与图标数量严格对齐（新增建筑必须补图）
+  assert(ST.STRUCTURE_ICON_IDS.length === 8, '建筑图标共 8 枚（' + ST.STRUCTURE_ICON_IDS.length + '）');
+  const bIds = Object.keys(ST.BUILDINGS);
+  const missing = bIds.filter(id => !ST.STRUCTURE_ICON_IDS.includes(id));
+  assert(missing.length === 0, '每座建筑都有图标（缺：' + (missing.join(',')||'无') + '）');
+  // 29.3 每枚图标都出图且结构完整
+  const bad = [];
+  bIds.forEach(id => {
+    const svg = si(ST.BUILDINGS[id]);
+    if (!svg || !svg.includes('<svg') || !svg.includes('</svg>') || svg.length < 80) bad.push(id);
+  });
+  assert(bad.length === 0, '建筑图标全部出图（破图：' + (bad.join(',')||'无') + '）');
+  // 29.4 矢量特征：viewBox + currentColor 无关但含墨色剪影与晕圈
+  const one = si(ST.BUILDINGS.zhai);
+  assert(one.includes('viewBox="0 0 64 64"'), '图标使用 64×64 视框');
+  assert(one.includes('class="bi"'), '图标沿用 bi 类名（与异兽同族，昼夜自动反相）');
+  assert(one.includes('aria-label="柴栅"'), '图标带无障碍名称');
+  assert(/opacity="\.1[0-9]?"/.test(one), '图标带圆晕底');
+  // 29.5 营造页已用矢量图替换汉字印记
+  assert(uiM29.includes("typeof structureIcon==='function'?structureIcon(b)"), '营造卡改用矢量图标渲染');
+  assert(!/tile-seal">\$\{esc\(b\.name\.slice\(0,1\)\)\}/.test(uiM29), '营造卡不再用汉字印记方块');
+  // 29.6 传入字符串 id 也能出图（容错）
+  assert(typeof si('zhai') === 'string' && si('zhai').includes('<svg'), '支持传入建筑 id 字符串');
+  assert(si('__不存在__').includes('<svg'), '未知 id 兜底出图不报错');
+}
+
+
+// ============ 30. 技能绘形：二十六艺矢量图标 ============
+section('技能矢量图标');
+{
+  const ki = ST.skillIcon;
+  const skiSrc = readText('src/skillIcon.js');
+  const uiM30 = readText('src/ui.js');
+  // 30.1 模块存在并已接入
+  assert(typeof ki === 'function', 'skillIcon 已导出');
+  assert(indexOfOf('index.html', 'src/skillIcon.js') >= 0, 'skillIcon.js 已引入页面');
+  // 30.2 技能数量与图标数量严格对齐（新增技能必须补图）
+  assert(ST.SKILL_ICON_IDS.length === 26, '技能图标共 26 枚（' + ST.SKILL_ICON_IDS.length + '）');
+  const skIds = Object.keys(ST.Skills);
+  const missSk = skIds.filter(id => !ST.SKILL_ICON_IDS.includes(id));
+  assert(missSk.length === 0, '每个技能都有图标（缺：' + (missSk.join(',')||'无') + '）');
+  assert(skIds.length === 26, '技能总数 26（' + skIds.length + '）');
+  // 30.3 每枚图标都出图
+  const badSk = [];
+  skIds.forEach(id => {
+    const svg = ki(id);
+    if (!svg || !svg.includes('<svg') || !svg.includes('</svg>') || svg.length < 80) badSk.push(id);
+  });
+  assert(badSk.length === 0, '技能图标全部出图（破图：' + (badSk.join(',')||'无') + '）');
+  // 30.4 与异兽 / 营邑图标同族：统一视框 + bi 类名（昼夜自动反相）+ 无障碍名
+  const one = ki('qiaocai');
+  assert(one.includes('viewBox="0 0 64 64"'), '技能图标使用 64×64 视框');
+  assert(one.includes('class="bi"'), '技能图标沿用 bi 类名（与异兽 / 营邑同族）');
+  assert(one.includes('aria-label="樵采"'), '技能图标带无障碍名称');
+  // 30.5 技能卡已改用矢量图，emoji 兜底仍保留（模块缺失时不白屏）
+  assert(uiM30.includes("typeof skillIcon==='function'?skillIcon(sk):sk.icon"), '技能卡改用矢量图标渲染');
+  assert(uiM30.includes("typeof skillIcon==='function'?skillIcon(k,15):d.icon"), '配方 chip 改用矢量图标渲染');
+  assert(uiM30.includes("typeof skillIcon==='function'?skillIcon(d.skill,15):d.icon"), '兜底动作 chip 改用矢量图标渲染');
+  // 30.6 容错：未知 id 兜底出图不报错
+  assert(ki('__不存在__').includes('<svg'), '未知技能 id 兜底出图不报错');
+  assert(ki({ id:'bing', name:'兵' }).includes('aria-label="兵"'), '支持传入技能对象');
+}
+
+// ============ 31. 物品绘形：族形矢量图标 ============
+section('物品族形图标');
+{
+  const ii = ST.itemIcon;
+  const ic = ST.itemIc;
+  const itemSrc = readText('src/itemIcon.js');
+  const uiM31 = readText('src/ui.js');
+  // 31.1 模块存在并已接入
+  assert(typeof ii === 'function', 'itemIcon 已导出');
+  assert(typeof ic === 'function', 'itemIc 已导出');
+  assert(indexOfOf('index.html', 'src/itemIcon.js') >= 0, 'itemIcon.js 已引入页面');
+  assert(indexOfOf('scripts/build-standalone.js', 'itemIcon.js') >= 0, 'itemIcon.js 已并入独立版构建');
+  // 31.2 族形数量足够覆盖：每个物品都能落到一个族
+  const fams = ST.ITEM_ICON_FAMILIES;
+  assert(fams.length >= 50, '物品族形共 ' + fams.length + ' 枚（≥50）');
+  const itemIds = Object.keys(ST.Items);
+  const missFam = itemIds.filter(id => {
+    const svg = ii(ST.Items[id]);
+    return !svg || !svg.includes('<svg') || svg.length < 40;
+  });
+  assert(missFam.length === 0, '每个物品都能出图（缺：' + (missFam.join(',')||'无') + '）');
+  // 31.3 与其余图标同族语言：24 视框 + bi 类名（昼夜自动反相）+ 无障碍名
+  const one = ii(ST.Items[itemIds[0]]);
+  assert(one.includes('viewBox="0 0 24 24"'), '物品图标使用 24×24 视框');
+  assert(one.includes('class="bi ii"'), '物品图标沿用 bi 类名（与异兽 / 技能同族）');
+  assert(one.includes('aria-label='), '物品图标带无障碍名称');
+  // 31.4 描边件必须显式 fill="none"，否则会继承 fill:currentColor 被填实
+  const strokeTags = (itemSrc.match(/<(?:path|circle|ellipse|rect|line|polyline|polygon)\b[^>]*>/g) || []);
+  const badFill = strokeTags.filter(t => t.includes('stroke=') && !t.includes('fill='));
+  assert(badFill.length === 0, '所有描边件都显式声明 fill（漏：' + badFill.length + '）');
+  // 31.5 主墨色走 currentColor，夜间自动反相
+  assert(itemSrc.includes("const INK = 'currentColor'"), '物品图标墨色走 currentColor（昼夜反相）');
+  // 31.6 UI 已改用矢量图标（emoji 兜底保留，模块缺失时不白屏）
+  assert(uiM31.includes("typeof itemIc==='function'?itemIc(it)"), '墟市 / 廛市 / 配方卡改用矢量图标');
+  assert(uiM31.includes("typeof itemIc==='function'?itemIc(id,13)"), '成本 chip 改用矢量小图');
+  assert(uiM31.includes("typeof itemIc==='function'?itemIc(id,20)"), '行囊卡改用矢量小图');
+  assert(uiM31.includes("typeof itemIc==='function'?itemIc(itemId,18)"), '物品详情改用矢量小图');
+  assert(uiM31.includes("typeof itemIc==='function'?itemIc(g.id||g)"), '装备槽改用矢量图标');
+  // 31.7 容错：未知 id / 空值不崩
+  assert(ii('__不存在__').includes('<svg'), '未知物品 id 兜底出图不报错');
+  assert(ic(null) === '', '空值返回空串不报错');
+  assert(ic('__不存在__').includes('<svg'), 'itemIc 未知 id 兜底出图不报错');
+  // 31.8 尺寸参数：定尺小图走 inline-block，不撑破行内布局
+  const small = ii(ST.Items[itemIds[0]], 13);
+  assert(small.includes('width="13"') && small.includes('height="13"'), '定尺小图按给定尺寸输出');
+  assert(small.includes('display:inline-block'), '定尺小图行内对齐（inline-block）');
+  assert(ii(ST.Items[itemIds[0]]).includes('width="100%"'), '省略尺寸时撑满容器');
 }
 
 console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

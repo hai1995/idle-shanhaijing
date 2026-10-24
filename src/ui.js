@@ -24,6 +24,26 @@ const LOG_COLORS = { good:'#4A7C59', bad:'#C3272B', gold:'#D9A521', sys:'#8C5A3C
 
 // ---------- DOM 辅助 ----------
 function $(id){ return document.getElementById(id); }
+
+// 前缀符号矢量化：toast / 日志等纯文本通道只能塞字符串，
+// 但开头那个 emoji 若原样留下，与界面里其余矢量图标不搭。
+// 这里把开头的标记 emoji 换成对应矢量小图，其余文字仍走转义。
+const MARK_EMOJI_MAP = {
+  '📍':'pin', '🔒':'lock', '☀':'sun', '☾':'moon', '🧭':'compass',
+  '⚖️':'scale', '⚖':'scale', '💡':'lamp', '⚡':'bolt', '✔':'check',
+  '✓':'check', '⚠':'warn', '🌙':'moon', '⚔️':'bolt', '⚔':'bolt',
+  '🦹':'warn', '🗺️':'compass', '📜':'lamp', '🎒':'scale', '📊':'check',
+};
+function markHtml(text, size){
+  const raw = String(text==null?'':text);
+  // 已经内联好的 SVG（物品小图等）原样透传，不再转义
+  if (raw.charCodeAt(0) === 60 /* '<' */ && raw.indexOf('<svg') === 0) return raw;
+  const m = raw.match(/^(\s*)([\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]+)\s*/u);
+  if (!m) return esc(raw);
+  const fam = MARK_EMOJI_MAP[m[2]] || MARK_EMOJI_MAP[m[2].replace(/\u{FE0F}/g,'')];
+  if (!fam || typeof markIcon !== 'function') return esc(raw);
+  return m[1] + markIcon(fam, size||15) + ' ' + esc(raw.slice(m[0].length));
+}
 function esc(s){
   return String(s==null?'':s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
@@ -98,7 +118,7 @@ function costChips(cost){
     const it = Items[id];
     const has = totalOf(id);
     const cls = has >= q ? 'ok' : 'lack';
-    return `<span class="chip cost ${cls}">${it?it.icon:'❓'}${esc(it?it.name:id)}×${q}<i>${has}</i></span>`;
+    return `<span class="chip cost ${cls}">${typeof itemIc==='function'?itemIc(id,13):(it?it.icon:'❓')}${esc(it?it.name:id)}×${q}<i>${has}</i></span>`;
   }).join('');
 }
 function elBadge(el){
@@ -135,13 +155,14 @@ const UI = {
     if (!box) return;
     const d = document.createElement('div');
     d.className = 'toast';
-    d.textContent = text;
+    d.innerHTML = markHtml(text, 15);
     box.appendChild(d);
     setTimeout(()=>d.remove(), 2600);
   },
   floatText(el, text, color, big){
     if (!el || typeof el.getBoundingClientRect !== 'function') return;
-    FX.floatAtEl(el, text, color, big);
+    // 浮字走 markHtml：开头的标记 emoji 换成矢量小图，其余文字仍转义
+    FX.floatAtEl(el, markHtml(text, 15), color, big, true);
   },
   hit(el, text, color){
     if (!el) return;
@@ -160,17 +181,20 @@ const UI = {
     this.toast(`🎉 ${sk.name} 升至 ${lv} 级（${TUNING.TIER_NAMES[tierOfLevel(lv)]}）`);
     this.log(`🎉 ${sk.name} ${old} → ${lv} 级`, 'gold', 'skill');
   },
-  actionFeedback(skillId, icon, qty){
+  // 产物浮字：传入物品 id（而非 emoji），此处取族形小图
+  actionFeedback(skillId, itemId, qty){
     const el = document.querySelector(`[data-skill="${skillId}"]`);
     if (el){
       FX.pop(el);
-      this.floatText(el, `${icon}×${qty}`, '#D9A521');
+      const ic = (typeof itemIc === 'function') ? itemIc(itemId, 15) : '';
+      this.floatText(el, `${ic}×${qty}`, '#D9A521');
     }
   },
   lootFloat(itemId, qty){
     const el = $('monsterFighter');
     const it = Items[itemId];
-    this.floatText(el, `${it?it.icon:'📦'} ${it?it.name:''}×${qty}`, '#D9A521');
+    const ic = (typeof itemIc === 'function') ? itemIc(itemId, 15) : '';
+    this.floatText(el, `${ic} ${it?it.name:''}×${qty}`, '#D9A521');
   },
   deathFloat(){
     const el = $('playerFighter');
@@ -248,7 +272,7 @@ const UI = {
     const h = (typeof nextHint === 'function') ? nextHint() : null;
     if (!h){ el.classList.add('hidden'); el.onclick = null; return; }
     el.classList.remove('hidden');
-    el.innerHTML = `${h.icon} <span>${esc(h.text)}</span>${h.tab?' <span class="goto">前往 ›</span>':''}<button class="hint-close" title="关闭指引条（设置中可重开）" onclick="event.stopPropagation();UI.dismissHint()">✕</button>`;
+    el.innerHTML = `<span class="mi-ic">${typeof markIcon==='function'?markIcon(hintMark(h),15):h.icon}</span> <span>${esc(h.text)}</span>${h.tab?' <span class="goto">前往 ›</span>':''}<button class="hint-close" title="关闭指引条（设置中可重开）" onclick="event.stopPropagation();UI.dismissHint()">✕</button>`;
     el.onclick = h.tab ? ()=>UI.switchTab(h.tab) : null;
     el.style.cursor = h.tab ? 'pointer' : 'default';
   },
@@ -316,12 +340,12 @@ const UI = {
     if (!rec) return;
     const items = Object.entries(rec.items||{}).map(([id,q])=>{
       const it = Items[id];
-      return `<span class="chip">${it?(it.icon||'⬜'):'❓'}${it?esc(it.name):esc(id)}×${q}</span>`;
+      return `<span class="chip">${typeof itemIc==='function'?itemIc(id,13):(it?(it.icon||'⬜'):'❓')}${it?esc(it.name):esc(id)}×${q}</span>`;
     }).join('');
     const harvest = (rec.harvests||0) > 0 ? `<div class="form-row"><span>圃艺收成</span><b>🌾 ${rec.harvests} 次</b></div>` : '';
     const recLine = (rec.records||0) > 0 ? `<div class="form-row"><span>新著录</span><b>${rec.records} 条</b></div>` : '';
     UI.modal(`
-      <h3>🌙 离线归来</h3>
+      <h3><span class="mi-ic">${typeof markIcon==='function'?markIcon('moon',18):'🌙'}</span> 离线归来</h3>
       <p class="hint">离山 ${fmtTime(rec.seconds)}（离线效率 ${Math.round(offlineEff()*100)}%），竹简不曾停笔。</p>
       <div class="form-row"><span>修得经验</span><b style="color:var(--gamboge)">+${fmt(rec.xp)}</b></div>
       ${recLine}${harvest}
@@ -577,8 +601,8 @@ UI.renderSettings = function(){
         <section class="set-sec">
           <h4>外观</h4>
           <div class="form-row"><span>昼夜</span><span class="btn-group">
-            <button class="btn ${this.theme!=='night'?'on':''}" onclick="setTheme('day')">☀ 白昼</button>
-            <button class="btn ${this.theme==='night'?'on':''}" onclick="setTheme('night')">☾ 黑夜</button>
+            <button class="btn ${this.theme!=='night'?'on':''}" onclick="setTheme('day')">${typeof markIcon==='function'?markIcon('sun',15):'☀'} 白昼</button>
+            <button class="btn ${this.theme==='night'?'on':''}" onclick="setTheme('night')">${typeof markIcon==='function'?markIcon('moon',15):'☾'} 黑夜</button>
           </span></div>
           <div class="form-row"><span>动效强度</span><span class="btn-group">${opts}</span></div>
           <div class="form-row"><span>常驻指引条</span>
@@ -691,6 +715,11 @@ const TUT_STEPS = [
   { icon:'📊', title:'祠祀与统计',
     body:`你还可祠祀山神（增益区域产出）、营造市廛、卜筮吉凶、观象提升离线上限。\n进度<b>自动存档于本机</b>；在「统计」页可导出 / 导入存档。\n\n祝著录顺利，山海自有回响。` },
 ];
+// 教程步骤的标记：取该步对应页签的意象，避免各平台 emoji 差异
+const TUT_MARKS = { yudi:'compass', skills:'lamp', taofa:'warn', pack:'scale', queue:'bolt' };
+function tutMark(s){
+  return TUT_MARKS[s && s.tab] || 'lamp';
+}
 let _tutIdx = 0;
 function showTutorial(){
   _tutIdx = 0;
@@ -704,7 +733,7 @@ function renderTutStep(){
   const dots = TUT_STEPS.map((_,i)=>`<span class="tut-dot ${i===_tutIdx?'on':''} ${i<_tutIdx?'done':''}"></span>`).join('');
   UI.modal(`
     <div class="tut-card">
-      <div class="tut-head">${s.icon||'📜'} <b>${s.title}</b></div>
+      <div class="tut-head"><span class="mi-ic">${typeof markIcon==='function'?markIcon(tutMark(s),17):(s.icon||'📜')}</span> <b>${s.title}</b></div>
       <div class="tut-body">${s.body.replace(/\n/g,'<br>')}</div>
       <div class="tut-dots">${dots}</div>
       <div class="modal-btns tut-btns">
@@ -731,6 +760,12 @@ window.tutSkip = tutSkip; window.tutFinish = tutFinish;
 function skillLevelTag(skillId){
   const lv = levelOf(skillId);
   return `<span class="tier">${TUNING.TIER_NAMES[tierOfLevel(lv)]}</span> <b>${lv}</b>`;
+}
+// 提示条标记：按提示类型取意象，原先各用不同 emoji，此处统一到标记族
+const HINT_MARKS = { yudi:'compass', yushi:'lamp', queue:'bolt' };
+function hintMark(h){
+  if (!h) return 'lamp';
+  return HINT_MARKS[h.tab] || 'lamp';
 }
 function xpBar(skillId){
   const sk = Game.skills[skillId];
@@ -835,11 +870,11 @@ UI.renderYudi = function(){
 
   // 指引条只控制自身显隐，地图/山系/节点/详情必须始终渲染（曾因三元表达式包住整页导致关闭指引条后界面全空）
   let html = ((typeof Prefs !== 'undefined' && Prefs.hideHint) ? '' :
-    `<div class="hint-banner">${h.icon} <span>${esc(h.text)}</span><button class="hint-close" title="关闭指引条（设置中可重开）" onclick="UI.dismissHint()">✕</button></div>`)
+    `<div class="hint-banner"><span class="mi-ic">${typeof markIcon==='function'?markIcon(hintMark(h),15):h.icon}</span> <span>${esc(h.text)}</span><button class="hint-close" title="关闭指引条（设置中可重开）" onclick="UI.dismissHint()">✕</button></div>`)
     + `<div class="map-wrap">
     <div class="panel regions">
       <h3>山系</h3>
-      <button type="button" class="locked-toggle" title="展开/收起尚未解锁的山系" onclick="document.body.classList.toggle('show-locked');this.classList.toggle('on')">🔒 未解锁山系 ${CHAPTERS.filter(ch=>!regions.filter(r=>ch.regionIds.includes(r.regionId)).some(r=>regionUnlocked(r))).length} 章</button>
+      <button type="button" class="locked-toggle" title="展开/收起尚未解锁的山系" onclick="document.body.classList.toggle('show-locked');this.classList.toggle('on')">${typeof markIcon==='function'?markIcon('lock',14):'🔒'} 未解锁山系 ${CHAPTERS.filter(ch=>!regions.filter(r=>ch.regionIds.includes(r.regionId)).some(r=>regionUnlocked(r))).length} 章</button>
       <div class="region-scroll">
       ${CHAPTERS.map(ch=>{
         const chRegions = regions.filter(r=>ch.regionIds.includes(r.regionId));
@@ -856,7 +891,7 @@ UI.renderYudi = function(){
                 title="${esc(r.regionName)}${un?` · 已涉 ${done}/${r.nodes.length} 山`:` · 需舆地 ${r.unlockLevel} 级`}"
                 onclick="UI.selRegion='${r.regionId}';UI.selNode=null;UI.renderYudi()">
               <span class="rg-name">${esc(r.regionName)}</span>
-              <span class="rg-sub">${un ? `${done}/${r.nodes.length} 山` : `🔒 ${r.unlockLevel} 级`}</span>
+              <span class="rg-sub">${un ? `${done}/${r.nodes.length} 山` : `${typeof markIcon==='function'?markIcon('lock',13):'🔒'} ${r.unlockLevel} 级`}</span>
               ${un && done > 0 ? `<span class="rg-bar"><i style="width:${(done/r.nodes.length*100).toFixed(0)}%"></i></span>` : ''}
             </div>`;
           }).join('')}
@@ -864,7 +899,7 @@ UI.renderYudi = function(){
         </div>`;
       }).join('')}
       </div>
-      <div class="region-summary">${unlocked ? esc(region.summary||'') : '🔒 尚未解锁此山系'}</div>
+      <div class="region-summary">${unlocked ? esc(region.summary||'') : `${typeof markIcon==='function'?markIcon('lock',13):'🔒'} 尚未解锁此山系`}</div>
     </div>
     <div class="panel nodes">
       <h3>${esc(region.regionName)} · 诸山</h3>
@@ -881,7 +916,7 @@ UI.renderYudi = function(){
         return `<div class="tile node-tile ${this.selNode===n.id?'on':''} ${un?'':'lock'} ${cur?'here':''} ${reason?'rec '+reason:''}"
              title="${esc(n.name)}${rp.total?` · 已著录 ${rp.done}/${rp.total} 种`:''}${!un?' · '+esc(nodeLockReason(n)):''}"
              onclick="UI.selNode='${n.id}';UI.renderYudi()">
-          ${n.hazard?`<span class="nt-haz" title="${esc(n.hazard.detail||n.hazard.type)}">⚠</span>`:''}
+          ${n.hazard?`<span class="nt-haz" title="${esc(n.hazard.detail||n.hazard.type)}">${typeof markIcon==='function'?markIcon('warn',15):'⚠'}</span>`:''}
           ${cur?'<span class="nt-mark here">在</span>'
             : reason==='tame'?'<span class="nt-mark tame" title="可御使的异兽在此">御</span>'
             : reason==='explore'?'<span class="nt-mark" title="尚未涉足，可前往探索">荐</span>':''}
@@ -931,7 +966,7 @@ UI.renderYudi = function(){
         <button class="btn-mini nd-info" type="button" data-tip data-tip-title="${esc(sel.name)} · 山志">山志全篇<span class="tip-body hidden">${shanZhi}</span></button>
       </div>
       <div class="meta">${esc(sel.chapter||'')} · 需舆地 ${sel.unlockLevel}${sel.hazard?` · <span class="haz-text">${esc(sel.hazard.detail||sel.hazard.type)}</span>`:''}</div>
-      ${!un?`<div class="lock-note">🔒 ${esc(nodeLockReason(sel))}</div>`:''}
+      ${!un?`<div class="lock-note">${typeof markIcon==='function'?markIcon('lock',13):'🔒'} ${esc(nodeLockReason(sel))}</div>`:''}
       ${rp.total>0?`<div class="node-prog">已著录 <b>${rp.done}</b>/${rp.total} 种<span class="prog-line"><i style="width:${(rp.total?rp.done/rp.total*100:0).toFixed(0)}%"></i></span>${rp.done===rp.total?'<em>此山录毕</em>':''}</div>`:''}
       <div class="actions">
         ${un ? gatherButtonsForNode(sel) : ''}
@@ -978,7 +1013,7 @@ function gatherButtonsForNode(node){
     const lvOk = levelOf(it.skill) >= it.lvl;
     out.push(`<button class="btn ${lvOk?'':'lock'}" ${lvOk?'':'disabled'}
       onclick="startActivity('gather','${it.id}')" title="${esc(it.note||'')}">
-      ${Skills[it.skill].icon} ${esc(it.name)}<i>${Skills[it.skill].name} ${it.lvl}</i></button>`);
+      ${typeof skillIcon==='function'?skillIcon(it.skill,17):Skills[it.skill].icon} ${esc(it.name)}<i>${Skills[it.skill].name} ${it.lvl}</i></button>`);
   }
   return out.join('');
 }
@@ -995,7 +1030,7 @@ function combatButtonsForNode(node){
   return beasts.map(m=>{
     const lvOk = levelOf('taofa') >= (m.needLvl||1);
     return `<button class="btn ${lvOk?'':'lock'}" ${lvOk?'':'disabled'} onclick="startCombat('${m.id}', {focus:true})">
-      ${m.boss?'🦹':'⚔️'} ${esc(m.name)}<i>讨伐 ${m.needLvl||1}</i></button>`;
+      ${m.boss?(typeof beastIcon==='function'?beastIcon({id:m.id}):'🦹'):(typeof markIcon==='function'?markIcon('bolt',14):'⚔️')} ${esc(m.name)}<i>讨伐 ${m.needLvl||1}</i></button>`;
   }).join('');
 }
 // 谒见神祇
@@ -1125,8 +1160,8 @@ UI.renderSkills = function(){
       const nf = nodeForSkill(id);
       const mns = nf ? null : materialNodesForSkill(id);
       const mst = nf ? null : materialStatusForSkill(id);
-      const matBtns = (mns && mns.length) ? `<div class="mat-src">材料来源：${mns.slice(0,3).map(m=>`<button class="btn-mini skill-go" onclick="UI.selRegion='${m.regionId}';UI.selNode='${m.nodeId}';UI.switchTab('yudi')">📍 ${esc(m.nodeName||'')}</button>`).join('')}${mns.length>3?`<span class="hint">等 ${mns.length} 处</span>`:''}</div>` : '';
-      const matInv = (mst && mst.length) ? `<div class="mat-inv">${mst.map(m=>`<span class="${m.ok?'ok':'gap'}">${esc(m.name)} ${m.have}/${m.need}${m.ok?'✓':'✗'}</span>`).join(' · ')}</div>` : '';
+      const matBtns = (mns && mns.length) ? `<div class="mat-src">材料来源：${mns.slice(0,3).map(m=>`<button class="btn-mini skill-go" onclick="UI.selRegion='${m.regionId}';UI.selNode='${m.nodeId}';UI.switchTab('yudi')">${typeof markIcon==='function'?markIcon('pin',13):'📍'} ${esc(m.nodeName||'')}</button>`).join('')}${mns.length>3?`<span class="hint">等 ${mns.length} 处</span>`:''}</div>` : '';
+      const matInv = (mst && mst.length) ? `<div class="mat-inv">${mst.map(m=>`<span class="${m.ok?'ok':'gap'}">${typeof itemIc==='function'?itemIc(m.id,13):''}${esc(m.name)} ${m.have}/${m.need}${m.ok?(typeof markIcon==='function'?markIcon('check',12):'✓'):(typeof markIcon==='function'?markIcon('warn',12):'✗')}</span>`).join(' · ')}</div>` : '';
       // 方块：图标 + 名 + 阶位，右上角等级，底部一条经验进度；
       // 描述 / 产出地 / 材料来源与持有缺口全在浮层（点按即开）
       const lv = levelOf(id);
@@ -1135,13 +1170,13 @@ UI.renderSkills = function(){
       const pct = xn > xc ? Math.min(100, (raw.xp - xc) / (xn - xc) * 100) : 100;
       return `<div class="tile skill-tile ${active?'active':''}" data-skill="${id}" data-tip data-tip-title="${esc(sk.name)}">
         <span class="sk-lv">${lv}</span>
-        <span class="tile-ic">${sk.icon}</span>
+        <span class="tile-ic bi-ic">${typeof skillIcon==='function'?skillIcon(sk):sk.icon}</span>
         <span class="tile-nm">${esc(sk.name)}</span>
         <span class="tile-tag">${TUNING.TIER_NAMES[tierOfLevel(lv)]}</span>
         <span class="sk-bar"><i style="width:${pct.toFixed(1)}%"></i></span>
         <span class="tip-body hidden">
           <div class="sc-desc">${esc(sk.desc||'')}</div>
-          ${nf?`<button class="btn-mini skill-go" onclick="UI.selRegion='${nf.regionId}';UI.selNode='${nf.nodeId}';UI.switchTab('yudi')">📍 产出地</button>`:''}
+          ${nf?`<button class="btn-mini skill-go" onclick="UI.selRegion='${nf.regionId}';UI.selNode='${nf.nodeId}';UI.switchTab('yudi')">${typeof markIcon==='function'?markIcon('pin',13):'📍'} 产出地</button>`:''}
           ${matBtns}${matInv}
         </span>
       </div>`;
@@ -1152,7 +1187,7 @@ UI.renderSkills = function(){
     <h3>制作配方</h3>
     <div class="filter-row">
       ${Object.entries(ActionKinds).filter(([k,d])=>d.mode==='recipe').map(([k,d])=>
-        `<button class="chip-btn ${this.recipeSkill===k?'on':''}" onclick="UI.recipeSkill='${k}';UI.renderSkills()">${d.icon} ${d.label}</button>`).join('')}
+        `<button class="chip-btn ${this.recipeSkill===k?'on':''}" onclick="UI.recipeSkill='${k}';UI.renderSkills()">${typeof skillIcon==='function'?skillIcon(k,15):d.icon} ${d.label}</button>`).join('')}
     </div>
     <div class="tile-grid recipe-grid">
     ${Recipes.filter(r=>r.type===this.recipeSkill).sort((a,b)=>a.lvl-b.lvl).map(r=>{
@@ -1164,7 +1199,7 @@ UI.renderSkills = function(){
       return `<div class="tile ${can?'':'lock'}" data-tip data-tip-title="${esc(it?it.name:r.out)}"
         role="button" tabindex="0"
         onclick="${can?`startActivity('craft','${r.type}::${r.out}',{times:1})`:`UI.craftDenied('${r.type}::${r.out}')`}">
-        <span class="tile-ic">${it?it.icon:'📦'}</span>
+        <span class="tile-ic bi-ic">${typeof itemIc==='function'?itemIc(it):(it?it.icon:'📦')}</span>
         <span class="tile-nm">${esc(it?it.name:r.out)}</span>
         <span class="tile-tag">${sk.name} ${r.lvl}</span>
         ${can?`<button class="tile-more" type="button" title="连作：做到材料用尽"
@@ -1225,7 +1260,7 @@ UI.seedMenu = function(slot){
     const lvOk = lv >= (s.lvl||1);
     const ok = have > 0 && lvOk;
     return `<button type="button" class="seed-row ${ok?'':'lock'}" ${ok?`onclick="UI.pickSeed('${slot}','${s.id}')"`:'disabled'}>
-      <span class="sr-ic">${s.icon||'🌱'}</span>
+      <span class="sr-ic">${typeof itemIc==='function'?itemIc(s.id,16):(s.icon||'🌱')}</span>
       <span class="sr-nm">${esc(s.name)}</span>
       <span class="sr-meta">${lvOk?`持有 <b>${have}</b>`:`需圃艺 ${s.lvl} 级`}</span>
     </button>`;
@@ -1287,7 +1322,7 @@ function wuxingAdvice(pe, me){
   else { rel = '相持'; cls = ''; arrow = '↔'; }
   const shengTip = rel === '相生' ? ' · 伤害 ×1.15' : '';
   const advise = (rel === '被克' || rel === '相持') && counter && counter !== me;
-  const btn = advise ? `<button class="btn-mini wux-btn" onclick="setCombatStyle('zhu');setZhuEl('${counter}');UI.renderTaofa()">⚡切「${counter}」属</button>` : '';
+  const btn = advise ? `<button class="btn-mini wux-btn" onclick="setCombatStyle('zhu');setZhuEl('${counter}');UI.renderTaofa()">${typeof markIcon==='function'?markIcon('bolt',13):'⚡'}切「${counter}」属</button>` : '';
   return `<div class="wuxing-tip ${cls}">五行：敌「${pe}」${arrow} ${rel} · 我「${me}」${shengTip}${advise?`（宜用「${counter}」属）`:''}${btn}</div>`;
 }
 // 战斗预估：预计击杀耗时、双方 DPS、能否撑住（hpNow 传入则为实时剩余血量）
@@ -1409,7 +1444,7 @@ function taofaListHtml(){
     return best;
   })();
   let list = `<div class="panel beast-panel"><h3>讨伐目标</h3>
-    <div class="loot-recent">最近所获：${(Game.recentLoot||[]).map(l=>`${(Items[l.itemId]||{}).icon||''}${esc((Items[l.itemId]||{}).name||l.itemId)}×${l.qty}`).join('　')||'无'}</div>`;
+    <div class="loot-recent">最近所获：${(Game.recentLoot||[]).map(l=>`${typeof itemIc==='function'?itemIc(l.itemId,13):((Items[l.itemId]||{}).icon||'')}${esc((Items[l.itemId]||{}).name||l.itemId)}×${l.qty}`).join('　')||'无'}</div>`;
   for (const g of groups){
     if (!g.list.length) continue;
     list += g.locked
@@ -1435,8 +1470,8 @@ function taofaListHtml(){
       // 威胁评估（✔ 推荐 / 可讨 / ⚠ 危险）与「宜讨」（经验效率最高）合并显示：
       // 两者兼具时只留一枚「✔ 宜讨」，不在卡头并排两个标签
       const thTag = (x===pick && th.level==='recommend')
-        ? `<span class="bc-pick" title="当前可讨伐中经验效率最高，且胜算充足">✔ 宜讨</span>`
-        : `${x===pick?'<span class="bc-pick" title="当前可讨伐中经验效率最高">宜讨</span>':''}<span class="th ${th.level}">${th.label}</span>`;
+        ? `<span class="bc-pick" title="当前可讨伐中经验效率最高，且胜算充足">${typeof markIcon==='function'?markIcon('check',13):'✔'} 宜讨</span>`
+        : `${x===pick?'<span class="bc-pick" title="当前可讨伐中经验效率最高">宜讨</span>':''}<span class="th ${th.level}">${th.mark&&typeof markIcon==='function'?markIcon(th.mark,13):''}${th.label}</span>`;
       // 方块：图标 + 名 + 「录 n · Lv n」，五行与宜讨做角标，威胁改边框色；
       // 气血/攻防/经验/掉落/产地/形态全进浮层——一屏能扫过整片山系
       return `<div class="tile beast-tile ${th.level}${x===pick?' pick':''}${(!un||!lvOk)?' lock':''}"
@@ -1451,10 +1486,10 @@ function taofaListHtml(){
         <span class="tip-body hidden">
           ${x.form?`<div class="bc-sub">${esc(x.form)}</div>`:''}
           <div class="bc-sub">气血 ${fmt(x.hp)} · 攻 ${fmt(x.atk)} · 防 ${fmt(x.def)} · 经验 ${fmt(x.xp)}</div>
-          <div class="bc-sub drop-line">📍 ${esc(node?node.name:'')}${drops?` · 掉落 ${esc(drops)}`:''}</div>
+          <div class="bc-sub drop-line">${typeof markIcon==='function'?markIcon('pin',13):'📍'} ${esc(node?node.name:'')}${drops?` · 掉落 ${esc(drops)}`:''}</div>
           ${counterEl?`<div class="bc-sub">宜用 ${counterEl} 属（${counterEl}克${x.el}，伤害 ×${TUNING.WUXING.KE}）</div>`:''}
           ${decayTag?`<div class="bc-sub">连续讨伐 ${streakN} 次，经验 ×${mobStreakMult(x.id).toFixed(2)}；换一只异兽即恢复全额</div>`:''}
-          <div class="bc-sub">${th.label}${(!un||!lvOk)?' · 尚不可讨':''}</div>
+          <div class="bc-sub">${th.mark&&typeof markIcon==='function'?markIcon(th.mark,13):''}${th.label}${(!un||!lvOk)?' · 尚不可讨':''}</div>
         </span>
       </div>`;
     }).join('');
@@ -1575,7 +1610,7 @@ UI.renderYushi = function(){
           <div class="bc-sub">著录 ${rec.count} 次${Monsters[b.id]&&Monsters[b.id].pair?' · 成对，占两槽':''}</div>
         </span>
       </div>`;
-    }).join('') || `<div class="hint">尚无达标异兽——往讨异兽并累积著录度<br><button class="btn small" style="margin-top:10px" onclick="UI.switchTab('taofa')">⚔️ 去征伐</button></div>`}
+    }).join('') || `<div class="hint">尚无达标异兽——往讨异兽并累积著录度<br><button class="btn small" style="margin-top:10px" onclick="UI.switchTab('taofa')">${typeof markIcon==='function'?markIcon('bolt',14):'⚔️'} 去征伐</button></div>`}
     </div>
   </div></div>
   <div class="panel lock-panel"><h3>未达标</h3>
@@ -1714,7 +1749,7 @@ function showCodexDetail(id){
   }).join('');
   const cn = codexNode(e);
   const cnLabel = e.cat === '异兽' ? '前往讨伐节点' : '前往产出节点';
-  const cnBtn = cn ? `<button class="btn on" onclick="UI.selRegion='${cn.regionId}';UI.selNode='${cn.nodeId}';UI.switchTab('yudi');UI.closeModal()">📍 ${cnLabel}</button>` : '';
+  const cnBtn = cn ? `<button class="btn on" onclick="UI.selRegion='${cn.regionId}';UI.selNode='${cn.nodeId}';UI.switchTab('yudi');UI.closeModal()">${typeof markIcon==='function'?markIcon('pin',13):'📍'} ${cnLabel}</button>` : '';
   // 异兽 / 神祇详情：绘形大像置顶（未著录也画——详情本就是「书中先有其名」）
   const icHtml = (typeof beastIcon === 'function' && (e.cat === '异兽' || e.cat === '神祇'))
     ? `<div class="cd-ic">${beastIcon(e.id)}</div>` : '';
@@ -1875,7 +1910,7 @@ function openOmenSummary(){
         }).join('')
       + '</div>';
   }
-  UI.modal(`<h3>⚡ 征兆总效应</h3>${body}<div class="modal-btns"><button class="btn" onclick="UI.closeModal()">闭</button></div>`);
+  UI.modal(`<h3><span class="mi-ic">${typeof markIcon==='function'?markIcon('bolt',17):'⚡'}</span> 征兆总效应</h3>${body}<div class="modal-btns"><button class="btn" onclick="UI.closeModal()">闭</button></div>`);
 }
 window.openOmenSummary = openOmenSummary; window.TABS = TABS;
 window.wuxingAdvice = wuxingAdvice; window.counterOf = counterOf;
@@ -1913,7 +1948,7 @@ UI.renderShichan = function(){
   for (const cat of SHOP_CATS){
     const items = ShopStock.filter(s=>s.cat===cat.id);
     if (!items.length) continue;
-    buy += `<h4>${cat.icon} ${cat.name}</h4><div class="shop-grid">`;
+    buy += `<h4><span class="cat-ic">${typeof itemIc==='function'?itemIc({ icon:cat.icon, name:cat.name, type:'material' },16):cat.icon}</span> ${cat.name}</h4><div class="shop-grid">`;
     buy += items.map((s,i)=>{
       const it = Items[s.itemId];
       const idx = ShopStock.indexOf(s);
@@ -1923,7 +1958,7 @@ UI.renderShichan = function(){
       // 方块：点按买一份（buyItem 自带等级与贝币校验），右上「×10」买十份
       return `<div class="tile shop-tile ${can?'':'lock'}" data-tip data-tip-title="${esc(it?it.name:s.itemId)}"
         role="button" tabindex="0" onclick="buyItem(${idx},1)">
-        <span class="tile-ic">${it?it.icon:'📦'}</span>
+        <span class="tile-ic bi-ic">${typeof itemIc==='function'?itemIc(it):(it?it.icon:'📦')}</span>
         <span class="tile-nm">${esc(it?it.name:s.itemId)}</span>
         <span class="tile-tag">${s.cost} 贝</span>
         ${can?`<button class="tile-more" type="button" title="买十份（${s.cost*10} 贝）"
@@ -1954,7 +1989,7 @@ UI.renderShichan = function(){
     // 单价 / 持有明细进浮层
     return `<div class="tile sell-tile" data-tip data-tip-title="${esc(it.name)}"
       role="button" tabindex="0" onclick="sellItem('${id}',1);UI.renderShichan()">
-      <span class="tile-ic">${it.icon}</span>
+      <span class="tile-ic bi-ic">${typeof itemIc==='function'?itemIc(it):it.icon}</span>
       <span class="tile-nm">${esc(it.name)}</span>
       <span class="tile-tag">${fmt(v)} 贝</span>
       <button class="tile-more" type="button" title="全售 ${q} 件，得 ${fmt(v)} 贝"
@@ -2000,7 +2035,7 @@ UI.renderShichan = function(){
       const have = Game.inventory[o.itemId]||0;
       const ok = !o.done && have >= o.qty;
       return `<div class="ob-card ${o.done?'done':''}" data-tip data-tip-title="${esc(it.name)}">
-        <div class="ob-top"><span class="rc-icon">${it.icon||'📦'}</span><b>${esc(it.name)}</b>
+        <div class="ob-top"><span class="rc-icon">${typeof itemIc==='function'?itemIc(o.itemId,16):(it.icon||'📦')}</span><b>${esc(it.name)}</b>
           ${region?`<span class="ob-region" title="此物产自${esc(region.regionName)}，方国${esc(region.regionAlias)}来求">${esc(region.regionAlias)}来求</span>`:''}</div>
         <div class="ob-meta">求 <b>${o.qty}</b> 件 · 溢价 <b>×${o.premium.toFixed(2)}</b> · 商旅经验 +${o.xp}</div>
         <div class="ob-foot">
@@ -2016,7 +2051,7 @@ UI.renderShichan = function(){
     board = '<div class="hint">方国使者未至——稍后再来，或「另访方国」主动求单</div>';
   }
   const orderBoard = `<div class="panel order-board">
-      <div class="ob-head"><h3>⚖️ 方国求购</h3>
+      <div class="ob-head"><h3><span class="mi-ic">${typeof markIcon==='function'?markIcon('scale',17):'⚖️'}</span> 方国求购</h3>
         <span class="ob-refresh">整批轮换 <b>${mm}:${ss}</b> 后
           <button class="btn small" onclick="rerollOrders();UI.renderShichan()">另访方国</button></span></div>
       <div class="ob-grid">${board}</div>
@@ -2034,7 +2069,7 @@ UI.renderShichan = function(){
         <button class="chip-btn ${this.invSort==='qty'?'on':''}" onclick="UI.invSort='qty';UI.renderShichan()">数量↓</button>
       </span>
     </div>
-    ${tips.length?`<div class="panel trade-tip"><h3>💡 推荐买卖</h3><ul>${tips.slice(0,3).map(t=>`<li>${t}</li>`).join('')}</ul></div>`:''}
+    ${tips.length?`<div class="panel trade-tip"><h3><span class="mi-ic">${typeof markIcon==='function'?markIcon('lamp',17):'💡'}</span> 推荐买卖</h3><ul>${tips.slice(0,3).map(t=>`<li>${t}</li>`).join('')}</ul></div>`:''}
     ${orderBoard}
     <div class="panel">${buy}</div>
     <div class="panel"><h3>出售</h3>
@@ -2066,7 +2101,7 @@ UI.renderYing = function(){
       // 方块：印记字 + 建筑名 + 营造等级，点按即营造；材料与效用进浮层
       return `<div class="tile build-tile ${done?'done':''} ${can?'':'lock'}" data-tip data-tip-title="${esc(b.name)}"
         role="button" tabindex="0" onclick="${can?`buildStructure('${b.id}');UI.renderYing()`:''}">
-        <span class="tile-seal">${esc(b.name.slice(0,1))}</span>
+        <span class="tile-ic bi-ic">${typeof structureIcon==='function'?structureIcon(b):esc(b.name.slice(0,1))}</span>
         <span class="tile-nm">${esc(b.name)}</span>
         <span class="tile-tag">${done?'已成':'营邑 '+b.lvl}</span>
         ${done?'<span class="tile-more bm-done" title="已经营造完毕">✓</span>':''}
@@ -2094,9 +2129,11 @@ UI.renderQueue = function(){
       <h3>巡历队列（${Game.queue.length}/${QUEUE_MAX}）${Game.queue.length?` · 预计一轮 ≈ ${fmtTime(estimateQueueSeconds())}`:''}</h3>
       ${Game.queue.map((e,i)=>{
         const st = entryCanRun(e);
-        // 讨伐条目：目标异兽的绘形小像（手绘特型 → form 解析），队列里一眼认得出打的是谁
+        // 条目前的小像：讨伐取目标异兽像，采集 / 制作取该行动的技艺像，一眼认得出在做什么
         const qiIc = (e.kind === 'taofa' && typeof beastIcon === 'function')
-          ? `<span class="qi-ic">${beastIcon({ id:e.target })}</span>` : '';
+          ? `<span class="qi-ic">${beastIcon({ id:e.target })}</span>`
+          : (typeof skillIcon === 'function' && entryDef(e) && entryDef(e).skill
+            ? `<span class="qi-ic">${skillIcon(entryDef(e).skill, 18)}</span>` : '');
         return `<div class="queue-item ${Game.queueIdx===i&&Game.queueRunning?'cur':''} ${st.ok?'':'blocked'}">
           <span class="qi-idx">${i+1}</span>
           <span class="qi-name">${qiIc}${esc(entryLabel(e))}</span>
@@ -2109,10 +2146,10 @@ UI.renderQueue = function(){
             <button class="btn tiny" onclick="removeQueueEntry('${e.id}');UI.renderQueue()">✕</button>
           </span>
         </div>`;
-      }).join('') || '<div class="hint">队列为空。不知从何开始？点「⚡ 快速挂机」按当前可达成目标自动排好巡历队列。</div>'}
+      }).join('') || `<div class="hint">队列为空。不知从何开始？点「快速挂机」按当前可达成目标自动排好巡历队列。</div>`}
       <div class="queue-ctrl">
         <button class="btn ${Game.queueRunning?'':'primary'}" onclick="toggleQueue();UI.renderQueue()">${Game.queueRunning?'暂停':'启动'}</button>
-        <button class="btn" onclick="quickIdlePreset()" title="按当前可达成目标自动排好巡历队列并启动">⚡ 快速挂机</button>
+        <button class="btn" onclick="quickIdlePreset()" title="按当前可达成目标自动排好巡历队列并启动">${typeof markIcon==='function'?markIcon('bolt',15):'⚡'} 快速挂机</button>
         <label><input type="checkbox" ${Game.queueLoop?'checked':''} onchange="Game.queueLoop=this.checked;saveGame()"> 循环</label>
         <button class="btn" onclick="clearQueue();UI.renderQueue()">清空</button>
         <span class="hint">已完成 ${Game.queueRound} 轮</span>
@@ -2121,18 +2158,18 @@ UI.renderQueue = function(){
         <h4>兜底动作</h4>
         <div class="filter-row">
           ${Object.entries(ActionKinds).map(([k,d])=>
-            `<button class="chip-btn ${fb&&fb.kind===k?'on':''}" onclick="setFallback('${k}',(actionTargets('${k}')[0]||{}).id||'',1);UI.renderQueue()">${d.icon} ${d.label}</button>`).join('')}
+            `<button class="chip-btn ${fb&&fb.kind===k?'on':''}" onclick="setFallback('${k}',(actionTargets('${k}')[0]||{}).id||'',1);UI.renderQueue()">${typeof skillIcon==='function'?skillIcon(d.skill,15):d.icon} ${d.label}</button>`).join('')}
           <button class="chip-btn ${fb&&fb.kind==='idle'?'on':''}" onclick="setFallback('idle','',1);UI.renderQueue()">空闲</button>
         </div>
         ${fb&&fb.kind!=='idle'?`<div class="hint">当前兜底：${esc(entryLabel({kind:fb.kind,target:fb.target}))} ×${fb.qty}</div>`:''}
       </div>
-      <div class="offline-line">🌙 离线：上限 <b>${offlineCapHours()}h</b> · 效率 <b>×${offlineEff().toFixed(2)}</b>${Game.queue.length?` · 当前队列将计入离线结算`:''}${(function(){ const p = estimateOfflineGains(); if (!p || p.xp<=0) return ''; const ks = Object.keys(p.items); const it = ks.length?`、+${fmt(p.items[ks[0]])} ${esc((Items[ks[0]]||{}).name||ks[0])}`:''; return ` · 挂满约 +${fmt(p.xp)} 经验${it}`; })()}</div>
+      <div class="offline-line">${typeof markIcon==='function'?markIcon('moon',13):'🌙'} 离线：上限 <b>${offlineCapHours()}h</b> · 效率 <b>×${offlineEff().toFixed(2)}</b>${Game.queue.length?` · 当前队列将计入离线结算`:''}${(function(){ const p = estimateOfflineGains(); if (!p || p.xp<=0) return ''; const ks = Object.keys(p.items); const it = ks.length?`、+${fmt(p.items[ks[0]])} ${esc((Items[ks[0]]||{}).name||ks[0])}`:''; return ` · 挂满约 +${fmt(p.xp)} 经验${it}`; })()}</div>
     </div>
     <div class="panel queue-add">
       <h3>添加任务</h3>
       <div class="form-row"><span>行动</span>
         <select onchange="UI.queueKind=this.value;UI.renderQueue()">
-          ${Object.entries(ActionKinds).map(([k,d])=>`<option value="${k}" ${this.queueKind===k?'selected':''}>${d.icon} ${d.label}</option>`).join('')}
+          ${Object.entries(ActionKinds).map(([k,d])=>`<option value="${k}" ${this.queueKind===k?'selected':''}>${d.label}</option>`).join('')}
         </select></div>
       <div class="form-row"><span>目标</span>
         <select id="queueTarget">
@@ -2224,7 +2261,7 @@ UI.renderPack = function(){
         return `<div class="tile gear-tile ${g?'':'empty'} ${g?rarityClass(g):''}"
              ${g?`title="${esc(g.name)} · ${esc(gearSubText(g))}" onclick="showItemDetail('${g.id}')"`:`title="${GearSlotLabels[slot]}·空"`}>
           <span class="gt-label">${GearSlotLabels[slot]}</span>
-          ${g?`<span class="tile-ic">${g.icon}</span>
+          ${g?`<span class="tile-ic bi-ic">${typeof itemIc==='function'?itemIc(g.id||g):g.icon}</span>
                <span class="tile-nm">${esc(g.name)}</span>
                <button class="tile-more" type="button" title="卸下" onclick="event.stopPropagation();unequip('${slot}',false);UI.renderPack()">脱</button>`
              :`<span class="gt-empty">空</span>`}
@@ -2251,7 +2288,7 @@ UI.renderPack = function(){
         ${(()=>{
           const p = bulkSellPreview(this.packSellTier||'COMMON');
           if (!p.rows.length) return '<div class="hint">当前档位下没有可清的原材料</div>';
-          const top = p.rows.slice(0,4).map(r=>`${r.icon}${esc(r.name)}×${r.qty}`).join('　');
+          const top = p.rows.slice(0,4).map(r=>`${typeof itemIc==='function'?itemIc(r.id,13):r.icon}${esc(r.name)}×${r.qty}`).join('　');
           const more = p.rows.length>4 ? `　等 ${p.rows.length} 种` : '';
           return `<div class="bs-preview">${top}${more}</div>
             <div class="bs-act">
@@ -2264,7 +2301,7 @@ UI.renderPack = function(){
       ${inv.map(([id,q])=>{
         const it = Items[id];
         return `<div class="inv-card ${rarityClass(it)}" onclick="showItemDetail('${id}')">
-          <span class="ic-icon">${it.icon}</span>
+          <span class="ic-icon">${typeof itemIc==='function'?itemIc(id,20):it.icon}</span>
           <span class="ic-name">${nameTag(it.name, it.py)}</span>
           <span class="ic-qty">×${q}</span>
           <span class="ic-val">${(it.value||0)*q} 贝</span>
@@ -2280,10 +2317,10 @@ function bulkSellRun(){
   const tier = UI.packSellTier || 'COMMON';
   const p = bulkSellPreview(tier);
   if (!p.rows.length){ UI.toast('没有可清的原材料'); return; }
-  const top = p.rows.slice(0,5).map(r=>`${r.icon}${esc(r.name)}×${r.qty}`).join('　');
+  const top = p.rows.slice(0,5).map(r=>`${typeof itemIc==='function'?itemIc(r.id,13):r.icon}${esc(r.name)}×${r.qty}`).join('　');
   const more = p.rows.length>5 ? `　等 ${p.rows.length} 种` : '';
   UI.modal(`
-    <h3>⚖️ 廛市清整</h3>
+    <h3><span class="mi-ic">${typeof markIcon==='function'?markIcon('scale',17):'⚖️'}</span> 廛市清整</h3>
     <p class="hint">将以「${rarityName({rarity:tier})}」及以下的价格，售出行囊中的原材料。食物 / 药品 / 装备 / 嘉种 / 嘉谷不在其列。</p>
     <div class="panel" style="margin:10px 0"><div class="yield-row"><b>所售</b>${top}${more}</div></div>
     <div class="form-row"><span>件数</span><b>${p.count}</b></div>
@@ -2325,7 +2362,7 @@ function showItemDetail(itemId){
   }
   if (it.heal || it.buff) actions.push(`<button class="btn primary" onclick="useConsumable('${itemId}');UI.closeModal()">${it.heal?'食用':'服用'}</button>`);
   if (it.value) actions.push(`<button class="btn" onclick="sellItem('${itemId}',1);UI.closeModal()">出售 1（${sellValue(itemId,1)} 贝）</button>`);
-  UI.modal(`<h3>${it.icon} ${esc(it.name)} <span class="tier">${rarityName(it)}</span></h3>
+  UI.modal(`<h3><span class="mi-ic">${typeof itemIc==='function'?itemIc(itemId,18):it.icon}</span> ${esc(it.name)} <span class="tier">${rarityName(it)}</span></h3>
     <div class="meta">行囊 ${qty} 件${rec?` · 著录 ${rec.count} 次（${TUNING.MASTERY.NAMES[rec.tier]}）`:''}</div>
     ${it.form?`<div class="reveal"><b>形态</b>${esc(it.form)}</div>`:''}
     ${it.effect?`<div class="reveal"><b>效果</b>${esc(it.effect)}</div>`:''}
@@ -2377,7 +2414,7 @@ UI.renderStats = function(){
       </div></div>
     <div class="panel stat-panel"><h3>长线成就</h3>
       <div class="stat-rows ms-rows">
-        ${(window.Milestones||[]).map((ms,i)=>`<span data-ms="${i}" class="${ms.check()?'done':''}">${ms.check()?'✔':'○'} ${esc(ms.name)}<i>${esc(ms.bonus)}</i></span>`).join('')}
+        ${(window.Milestones||[]).map((ms,i)=>`<span data-ms="${i}" class="${ms.check()?'done':''}"><span class="ms-mark">${ms.check()?(typeof markIcon==='function'?markIcon('check',13):'✔'):'<span class="ms-open"></span>'}</span> ${esc(ms.name)}<i>${esc(ms.bonus)}</i></span>`).join('')}
       </div></div>
     <div class="panel stat-panel"><h3>时间 / 离线</h3>
       <div class="stat-rows">
@@ -2573,8 +2610,12 @@ UI.patchStats = function(){
     if (!el) return;
     const ok = !!ms.check();
     el.classList.toggle('done', ok);
-    if (el.firstChild && el.firstChild.nodeType === 3){
-      el.firstChild.nodeValue = el.firstChild.nodeValue.replace(/^[✔○]/, ok ? '✔' : '○');
+    // 首个子节点是达成标记（矢量小图或未达成的空心圈），状态变化时重绘它
+    const mark = el.firstElementChild;
+    if (mark && mark.classList && mark.classList.contains('ms-mark')){
+      mark.innerHTML = ok
+        ? (typeof markIcon === 'function' ? markIcon('check',13) : '✔')
+        : '<span class="ms-open"></span>';
     }
   });
 };
@@ -2596,7 +2637,7 @@ UI.renderLog = function(){
   const box = $('logList');
   if (!box) return;
   const rows = this.logEntries.filter(e=>this.logFilter==='all'||e.cat===this.logFilter).slice(0, 300);
-  box.innerHTML = rows.map(e=>`<div class="log-row" style="color:${LOG_COLORS[e.color]||'inherit'}">${esc(e.msg)}</div>`).join('')
+  box.innerHTML = rows.map(e=>`<div class="log-row" style="color:${LOG_COLORS[e.color]||'inherit'}">${markHtml(e.msg,14)}</div>`).join('')
     || '<div class="hint">暂无记录</div>';
 };
 function exportSave(){

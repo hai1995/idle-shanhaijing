@@ -366,7 +366,7 @@ function doGather(itemId){
     UI && UI.toast(`🐝 ${special.gardenThreat.beast}蠚木则枯——一田焦枯`);
   }
   UI && UI.log(`${Skills[skillId].icon} 采得 ${it.name} ×${qty}`, skillId, 'skill');
-  UI && UI.actionFeedback(skillId, it.icon, qty);
+  UI && UI.actionFeedback(skillId, it.id, qty);
 }
 // 著录一个对象（含阶位提升、异兽征兆触发、关联著录）
 function recordObject(objId, n){
@@ -466,7 +466,7 @@ function processRecipe(recipe, count){
   gainXp(skillId, recipe.xp * count);
   recordObject(recipe.out, count);
   log(`✓ 制 ${Items[recipe.out].name} ×${outQty}`, 'good', 'skill');
-  UI && UI.actionFeedback(skillId, Items[recipe.out].icon, outQty);
+  UI && UI.actionFeedback(skillId, recipe.out, outQty);
   if ((recipe.type === 'smith' || (recipe.type === 'fletch' && Items[recipe.out].equip)) && UI && UI.forgeShow){
     UI.forgeShow(Items[recipe.out], { heavy: !!Items[recipe.out].equip, emoji: recipe.type==='smith' ? '⚒️' : '🪶' });
   }
@@ -1091,9 +1091,11 @@ function threatOf(m){
   const hp = playerMaxHp();
   const mDps = Math.max(1, m.atk - totalDefence()*0.3) * 0.6 / Math.max(1, monsterInterval(m, null));
   const ratio = (dps*hp) / Math.max(1, mDps*m.hp);
-  if (ratio >= 1.6) return { level:'recommend', label:'✔ 推荐' };
-  if (ratio >= 0.7) return { level:'fair', label:'可讨' };
-  return { level:'danger', label:'⚠ 危险' };
+  // label 只出文字；标记（✔ / ⚠）由渲染层按 mark 字段取矢量小图，
+  // 免得纯文本通道里夹着平台形态不一的 emoji。
+  if (ratio >= 1.6) return { level:'recommend', label:'推荐', mark:'check' };
+  if (ratio >= 0.7) return { level:'fair', label:'可讨', mark:'' };
+  return { level:'danger', label:'危险', mark:'warn' };
 }
 window.playerDpsEstimate = playerDpsEstimate; window.threatOf = threatOf;
 
