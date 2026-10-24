@@ -1351,6 +1351,8 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
 .t{ border-bottom:1px dashed var(--ink-4); cursor:help; }
 .t:hover{ border-bottom-color:var(--zhu); color:var(--zhu); }
 .tip-body{ display:none; }
+/* 长按锚点：禁选中与系统呼出菜单，免得长按看详情时弹出「拷贝/搜索」 */
+[data-tip]{ -webkit-touch-callout:none; user-select:none; }
 #tipLayer{
   position:fixed; z-index:85; max-width:min(400px, calc(100vw - 16px));
   max-height:min(70vh, 560px); overflow-y:auto; overscroll-behavior:contain;

@@ -1877,7 +1877,11 @@ section('制作：单件 / 连作 / 紧凑卡片');
   assert(/\.tile\{[^}]*aspect-ratio:1\/1/.test(css), '方形卡为正比例');
   assert(/\.recipe-grid\{ grid-template-columns:repeat\(3,1fr\); gap:6px; \}/.test(css), '窄屏配方三列');
   assert(uiSrc.includes("`UI.craftDenied('${r.type}::${r.out}')`") && uiSrc.includes('UI.craftDenied = function(key)'), '不可制作时点按给出缺料 / 等级提示');
-  assert(uiSrc.includes('e.target === a && a.hasAttribute && a.hasAttribute(\'onclick\')'), '浮层捕获层放行「点按即执行」的方块');
+  assert(uiSrc.includes("if (a.hasAttribute && a.hasAttribute('onclick')) return;"), '浮层捕获层放行「点按即执行」的方块（点卡面任意处均执行动作）');
+  assert(uiSrc.includes('pressTimer = setTimeout') && uiSrc.includes('longPressAt'), '移动端长按 500ms 开浮层看详情（单点恒为动作）');
+  assert(uiSrc.includes('longPressAnchor.contains(e.target)'), '长按后吞掉紧随的 click，不误触动作');
+  assert(/longPressAnchor\.contains\(e\.target\)\)\{\s*e\.stopPropagation\(\); e\.preventDefault\(\); return;/.test(uiSrc), '长按守卫必须 stopPropagation——capture 阶段仅 return 挡不住 inline onclick（浏览器实测回归）');
+  assert(css.includes('[data-tip]{ -webkit-touch-callout:none; user-select:none; }'), '长按锚点禁选中与系统菜单');
   assert(interactSrc.includes('const times = (opts && opts.times > 0)'), 'startActivity 支持 times 参数');
   assert(gameSrc.includes('if (done && a.remain != null)') && gameSrc.includes('a.remain--;'), '制作完成扣次数并收手');
 }

@@ -2629,6 +2629,34 @@ function hideTip(){
 let lastTouchAt = 0;
 const touchJustNow = ()=>Date.now() - lastTouchAt < 700;
 document.addEventListener('touchstart', ()=>{ lastTouchAt = Date.now(); }, { passive:true });
+// 移动端长按看详情：单点 = 执行动作（见 click 分支），长按 500ms 才开浮层。
+// 早年只有「点卡面空白处才执行、点图标文字就弹浮层」——因为 capture 阶段的
+// stopPropagation 把锚点的 onclick 一起吞了；现在单点恒为动作，长按补上详情入口。
+let pressTimer = null, longPressAt = 0, longPressAnchor = null;
+function clearPress(){ if (pressTimer){ clearTimeout(pressTimer); pressTimer = null; } }
+document.addEventListener('touchstart', e=>{
+  const a = e.target && e.target.closest && e.target.closest('[data-tip]');
+  if (!a || !a.hasAttribute || !a.hasAttribute('onclick')){ clearPress(); return; }
+  const t = e.touches && e.touches[0];
+  if (!t) return;
+  const x = t.clientX, y = t.clientY;
+  clearPress();
+  pressTimer = setTimeout(()=>{
+    longPressAt = Date.now();
+    longPressAnchor = a;
+    showTipFor(a);
+    if (navigator.vibrate) { try { navigator.vibrate(12); } catch(_){} }
+  }, 500);
+  // 手指挪动超过 10px 视为滚动意图，取消长按
+  const cancel = ev=>{
+    const tt = ev.touches && ev.touches[0];
+    if (!tt) return;
+    if (Math.abs(tt.clientX - x) > 10 || Math.abs(tt.clientY - y) > 10) clearPress();
+  };
+  document.addEventListener('touchmove', cancel, { passive:true, once:true });
+}, { passive:true });
+document.addEventListener('touchend', ()=>{ clearPress(); }, { passive:true });
+document.addEventListener('touchcancel', ()=>{ clearPress(); }, { passive:true });
 function bindTipEvents(){
   document.addEventListener('mouseover', e=>{
     if (touchJustNow()) return;
@@ -2645,14 +2673,22 @@ function bindTipEvents(){
     hideTip();
   });
   document.addEventListener('click', e=>{
+    // 长按刚开过浮层的那张卡：吞掉紧随的 click，免得动作也被执行。
+    // 注意必须 stopPropagation——本监听在 capture 阶段，仅 return 的话事件
+    // 仍会抵达目标阶段触发卡片的 inline onclick（长按=只看详情，不动作）。
+    if (Date.now() - longPressAt < 900 && longPressAnchor && longPressAnchor.contains(e.target)){
+      e.stopPropagation(); e.preventDefault(); return;
+    }
     if (e.target && e.target.closest && e.target.closest('.tip-close')){ hideTip(); return; }
     const a = e.target && e.target.closest && e.target.closest('[data-tip]');
     if (a){
       // 锚点内的按钮 / 表单元素自行处理，不触发浮层开关
       if (e.target.closest('button:not(.tip-close), a, select, input, textarea, label')) return;
-      // 「点按即执行」的方块（自带 onclick）：让动作先发生，不再被浮层吞掉。
-      // PC 端仍可靠悬停看详情；移动端以动作为主。
-      if (e.target === a && a.hasAttribute && a.hasAttribute('onclick')) return;
+      // 「点按即执行」的方块（自带 onclick）：点卡面任意处（图标 / 名字 / 空白）
+      // 都让动作先发生，不再被浮层吞掉。早先只放过 e.target===锚点本身，
+      // 点子元素时下面的 stopPropagation 会把锚点 onclick 一并吃掉。
+      // PC 端仍可靠悬停看详情；触屏用长按（见上）。
+      if (a.hasAttribute && a.hasAttribute('onclick')) return;
       if (Tip.anchor === a){ hideTip(); return; }
       showTipFor(a);
       e.stopPropagation();
