@@ -1669,7 +1669,7 @@ UI.renderSkills = function(){
         <span>修为 <b>+${gain}%</b></span>
         <span>采获 <b>+${yl}%</b></span>
         <span>转后起手 <b>${nextStart} 级</b></span>
-        <span>最高技艺 <b>${esc(best.name || '—')} ${best.level}</b></span>
+        <span>最高技艺 <b>${esc(best.name || '—')} ${best.level}<i class="rb-cap">/${TUNING.REBIRTH.MIN_LEVEL}</i></b></span>
         <span>修为累计 <b>${fmt(Game.stats.totalXp || 0)}</b></span>
       </div>
       <p class="hint">再著一卷，是从头写，不是从头认识：诸技归 ${nextStart} 级，舆地与履险不忘；著录、装备、贝币、营造、御使与修为俱在。</p>

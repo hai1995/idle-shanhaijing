@@ -4569,8 +4569,8 @@ section('轮回 · 再著一卷');
   assert(ST.canRebirth(), '任一技艺至九九方可轮回');
   const r1 = ST.doRebirth();
   assert(r1.ok && r1.count === 1, '第一次轮回成立');
-  assert(ST.Game.skills.taofa.level === 4, '技艺归起手 4 级');
-  assert(ST.Game.skills.caiyao.level === 4, '采集同样归 4 级');
+  assert(ST.Game.skills.taofa.level === 8, '技艺归起手 8 级');
+  assert(ST.Game.skills.caiyao.level === 8, '采集同样归 8 级');
   assert(ST.Game.skills.yudi.level === 60, '舆地保留（走过的路不忘）');
   assert(ST.Game.skills.lvxian.level === 55, '履险保留');
   assert(ST.Game.stats.totalXp === 1234567, '修为一分不少（终身累计）');
@@ -4581,16 +4581,16 @@ section('轮回 · 再著一卷');
   assert(ST.Game.buildings.zhai === true, '营造保留');
   assert(ST.Game.map['xishan-3-08'] === true, '地图保留');
   assert(ST.Game.deployed[0] === 'shengsheng', '御使保留');
-  assert(Math.abs(ST.xpMult() - (mult0 + 0.08)) < 1e-9, `修为乘区 ${mult0.toFixed(2)} → ${ST.xpMult().toFixed(2)}（+8%）`);
-  assert(Math.abs(ST.globalYieldBonus() - (yield0 + 0.05)) < 1e-9, '采获 +5%');
+  assert(Math.abs(ST.xpMult() - (mult0 + 0.30)) < 1e-9, `修为乘区 ${mult0.toFixed(2)} → ${ST.xpMult().toFixed(2)}（+30%）`);
+  assert(Math.abs(ST.globalYieldBonus() - (yield0 + 0.10)) < 1e-9, '采获 +10%');
   assert(ST.Game.combat === null && ST.Game.activity === null, '旧战斗与旧行动一并收掉');
   assert(ST.Game.node === 'nanshan-1-01', '送回南山起点（原处多半已打不动）');
 
   // 二次轮回：起手 +4、轮回印 +8%
   ST.Game.skills.taofa = { level: 81, xp: xpAt(81) };
   const r2 = ST.doRebirth();
-  assert(r2.ok && r2.count === 2 && r2.startLv === 8, '第二轮回起手 8 级');
-  assert(Math.abs(ST.rebirthGain() - 0.16) < 1e-9, '两枚轮回印 = 修为 +16%');
+  assert(r2.ok && r2.count === 2 && r2.startLv === 16, '第二轮回起手 16 级');
+  assert(Math.abs(ST.rebirthGain() - 0.60) < 1e-9, '两枚轮回印 = 修为 +60%');
   assert(ST.Game.rebirth.best >= 240, '记下历史最高总等级 ' + ST.Game.rebirth.best);
 
   // 未满级不可轮回
@@ -4598,6 +4598,21 @@ section('轮回 · 再著一卷');
   assert(ST.canRebirth() === false, '差一级也不许落笔');
   const r3 = ST.doRebirth();
   assert(!r3.ok && !!r3.reason, '不可轮回时给出原因：' + r3.reason);
+
+  // 转生必须真的提速。经验曲线是 L^2.15，前期占比极小，起手等级只省零点几个百分点，
+  // 提速全靠乘区——参数改小一点，「轮回」就退化成安慰奖（+8% 时只省 8%，转过跟没转一样）。
+  const hoursToMax = (startLv, mult) => {
+    let t = 0;
+    for (let L = startLv; L < ST.TUNING.MAX_LEVEL; L++){
+      const mobXp = 6 + 4.4 * Math.pow(L, 1.36);
+      t += ST.xpForNextLevel(L) / (mobXp * mult / 18.7);   // 18.7 秒：单杀中位 + 起手间隔
+    }
+    return t;
+  };
+  const h1 = hoursToMax(1, 1);
+  const h2 = hoursToMax(ST.TUNING.REBIRTH.START_PER, 1 + ST.TUNING.REBIRTH.XP);
+  assert(h2 / h1 <= 0.82,
+    `第一转后重回九九约 ${(h2/3600).toFixed(1)} 小时，比首轮 ${(h1/3600).toFixed(1)} 小时省 ${((1-h2/h1)*100).toFixed(0)}%`);
 
   // 入档与回读
   G.saveGame();
