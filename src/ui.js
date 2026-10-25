@@ -3000,11 +3000,26 @@ UI.renderYing = function(){
   if (!box) return;
   box.innerHTML = `<div class="panel">
     <h3>营造（营邑）</h3>
+    ${(() => {
+      const ready = Object.values(BUILDINGS).filter(b => !Game.buildings[b.id] && levelOf('yingyi') >= b.lvl && canAfford(b.cost)).length;
+      const next = Object.values(BUILDINGS).filter(b => !Game.buildings[b.id]).sort((x, y) => x.lvl - y.lvl)[0];
+      return `<div class="build-bar"><span class="hint">${ready ? `眼下可造 <b>${ready}</b> 座` : `尚无可造之筑${next ? `——下一座「${esc(next.name)}」需营邑 ${next.lvl} 级` : ''}`}</span></div>`;
+    })()}
     <div class="tile-grid building-grid">
-    ${Object.values(BUILDINGS).map(b=>{
-      const done = !!Game.buildings[b.id];
-      const lvOk = levelOf('yingyi') >= b.lvl;
-      const afford = canAfford(b.cost);
+    ${(() => {
+      // 与祠礼同一套思路：等级够、材料够的排前面，已成的沉底，段内按门槛从低到高
+      const rows = Object.values(BUILDINGS).map(b => ({
+        b, done: !!Game.buildings[b.id],
+        lvOk: levelOf('yingyi') >= b.lvl,
+        afford: canAfford(b.cost),
+      }));
+      rows.sort((x, y) => {
+        if (x.done !== y.done) return x.done ? 1 : -1;
+        if (x.lvOk !== y.lvOk) return x.lvOk ? -1 : 1;
+        if (x.afford !== y.afford) return x.afford ? -1 : 1;
+        return x.b.lvl - y.b.lvl;
+      });
+      return rows.map(({ b, done, lvOk, afford }) => {
       const can = !done && lvOk && afford;
       // 方块：印记字 + 建筑名 + 营造等级，点按即营造；材料与效用进浮层
       return `<div class="tile build-tile ${done?'done':''} ${can?'':'lock'}" data-tip data-tip-title="${esc(b.name)}"
@@ -3017,9 +3032,20 @@ UI.renderYing = function(){
           ${b.desc?`<div class="rc-sub">${esc(b.desc)}</div>`:''}
           <div class="rc-cost">${costChips(b.cost)}</div>
           ${done?'<div class="hint">已经营造完毕</div>':`${lvOk?'':'<div class="hint">需营邑 '+b.lvl+' 级（当前 '+levelOf('yingyi')+'）</div>'}${afford?'':'<div class="hint">材料不足</div>'}`}
+          ${(done || afford) ? '' : (() => {
+            // 缺什么、缺几件、去哪儿找——后期四座卡在料上最难受
+            const lacks = b.cost.filter(([iid, q]) => totalOf(iid) < q);
+            if (!lacks.length) return '';
+            return `<div class="rc-lack">缺 ${lacks.map(([iid, q]) => `${esc((Items[iid]||{}).name || iid)}×${q - totalOf(iid)}`).join('、')}</div>` +
+              lacks.slice(0, 2).map(([iid]) => {
+                const src = (typeof itemSources === 'function') ? itemSources(iid)[0] : null;
+                return src ? `<div class="rc-sub rc-src">${esc((Items[iid]||{}).name || iid)}：${esc(src.kind)} Lv${src.lvl}</div>` : '';
+              }).join('');
+          })()}
         </span>
       </div>`;
-    }).join('')}
+      }).join('');
+    })()}
     </div>
     <div class="hint">营邑等级随营造提升；造完一座所得经验足以开启下一座。学宫可加快著录度获取。</div>
     <div class="ying-repair">

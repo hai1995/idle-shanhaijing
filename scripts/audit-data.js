@@ -206,17 +206,37 @@ const stats = {
       if (loot.some(x => x[0] === id)) best = Math.min(best, m.needLvl || 1);
     });
     (W.ShopStock || []).forEach(x => { if (x.itemId === id) best = Math.min(best, x.lvl || 1); });
+    // 作物：种子的圃艺等级即它的门槛（稌米、白菅这类只走「种」这一条线）
+    Object.values(I).forEach(x => { if (x.crop === id) best = Math.min(best, x.lvl || 1); });
     return best;
   };
-  for (const [key, r] of Object.entries(W.RITES)){
+  // ⚠️ RITES 里没有 cost —— 祭品在 Recipes（type:'rite'）里。
+  // 早先这段直接读 r.cost，遍历的是空数组，整段检查一直在空转。
+  // 判据取「礼器配方等级」而不是「山系门槛」：能不能行祭，取决于能不能做出礼器。
+  for (const key of Object.keys(W.RITES)){
+    const r = W.RITES[key];
     const region = W.WORLD.regions.find(x => x.regionId === r.regionId);
     const gate = region ? region.unlockLevel : 1;
-    (r.cost || []).forEach(([mat]) => {
+    const rec = W.Recipes.find(x => x.type === 'rite' && x.out === key);
+    if (!rec) continue;
+    // ① 礼器配方不得比山系门槛晚太多，否则那套礼解锁时纯属摆设
+    if ((rec.lvl || 1) > gate + 10)
+      bad('祠礼', `${key}（${r.regionId} 门槛 ${gate}）礼器配方 Lv${rec.lvl}——解锁时无礼可祭，差 ${rec.lvl - gate} 级`);
+    // ② 祭品必须在能制作该礼器的等级内拿得到
+    (rec.cost || []).forEach(([mat]) => {
       const e = earliest(mat);
-      if (e !== Infinity && e > gate + 2)
-        bad('祠礼', `${key}（${r.regionId} 门槛 ${gate}）需 ${(I[mat]||{}).name || mat}（最早 ${e} 级才拿得到）`);
+      if (e !== Infinity && e > (rec.lvl || 1) + 8)
+        bad('祠礼', `${key}（礼器 Lv${rec.lvl}）需 ${(I[mat]||{}).name || mat}（最早 ${e} 级才拿得到）`);
     });
   }
+  // 营造：材料不得晚于营邑门槛太多，否则那座建筑在解锁时纯属摆设
+  Object.values(W.BUILDINGS || {}).forEach(b => {
+    (b.cost || []).forEach(([mat]) => {
+      const e = earliest(mat);
+      if (e !== Infinity && e > b.lvl + 6)
+        bad('营造', `${b.name}（营邑 ${b.lvl}）需 ${(I[mat]||{}).name || mat}（最早 ${e} 级才拿得到）`);
+    });
+  });
 }
 
 // ---------- 战斗节奏：怪血 / 怪攻的成长是否与玩家同阶 ----------

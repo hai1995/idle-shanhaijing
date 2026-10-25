@@ -4283,18 +4283,29 @@ section('战斗节奏');
       if (loot.some(x => x[0] === id)) best = Math.min(best, m.needLvl || 1);
     });
     (ST.ShopStock || []).forEach(x => { if (x.itemId === id) best = Math.min(best, x.lvl || 1); });
+    Object.values(ST.Items).forEach(x => { if (x.crop === id) best = Math.min(best, x.lvl || 1); });  // 作物只走「种」
     return best;
   };
+  // ⚠️ RITES 里没有 cost，祭品在 Recipes(type:'rite') 里。
+  // 早先这里直接读 r.cost，遍历的是空数组——那条断言其实什么都没查。
   const lateRites = [];
-  for (const [key, r] of Object.entries(ST.RITES)){
+  let riteChecked = 0;
+  for (const key of Object.keys(ST.RITES)){
+    const r = ST.RITES[key];
     const region = ST.WORLD.regions.find(x => x.regionId === r.regionId);
     const gate = region ? region.unlockLevel : 1;
-    (r.cost || []).forEach(([mat]) => {
+    const rec = ST.Recipes.find(x => x.type === 'rite' && x.out === key);
+    if (!rec) continue;
+    riteChecked++;
+    if ((rec.lvl || 1) > gate + 10) lateRites.push(`${key} 礼器Lv${rec.lvl} > 门槛${gate}+10`);
+    (rec.cost || []).forEach(([mat]) => {
       const e = earliest(mat);
-      if (e !== Infinity && e > gate + 2) lateRites.push(`${key}→${mat}(${e}>${gate}+2)`);
+      if (e !== Infinity && e > (rec.lvl || 1) + 8) lateRites.push(`${key}→${mat}(最早${e} > 礼器${rec.lvl}+8)`);
     });
   }
-  assert(lateRites.length === 0, '二十八套祠礼的祭品都在山系门槛内可得' + (lateRites.length ? '：' + lateRites.join('、') : ''));
+  assert(riteChecked >= 27, '确实逐套查過 ' + riteChecked + ' 套礼的配方（不是空转）');
+  assert(lateRites.length === 0,
+    '二十八套祠礼：礼器配方不晚于山系门槛 10 级，祭品在礼器等级内可得' + (lateRites.length ? '：' + lateRites.join('、') : ''));
 }
 
 // ============ 71. 阴阳嬗变：改战斗内的属性，不改静态表 ============

@@ -845,7 +845,7 @@ R('craft','siwang',1,80,10,[['sheng',3],['jin',2]]);
 R('craft','luowang',1,200,26,[['sheng',4],['nan',2]]);
 // 琢玉
 R('jade','zhang',1,40,5,[['yu',1]]);
-R('jade','bi',1,80,10,[['yu',2]]);
+R('jade','bi',1,80,6,[['yu',2]]);
 R('jade','zhenwu',1,60,20,[['yu',2],['tan',3]]);   // 镇物：玉为体、炭为用
 R('jade','migufu',1,90,5,[['migu',2],['yu',1]]);
 R('jade','lushufu',1,140,10,[['lushupi',1],['yu',1]]);
@@ -863,25 +863,25 @@ R('herb','xiushedangao',1,1100,68,[['xiushedan',1],['zhuyu',2],['shuiping',1]]);
 R('herb','fenghuanggao',1,1300,68,[['fenghuangyu',1],['baijiu',1],['zhuyu',2]]);
 // 祭祀（祠礼配方）
 R('rite','rite_ns1',1,400,5,[['zhang',1],['tu',1],['bi',1],['dao',1],['jian',1]]);
-R('rite','rite_ns2',1,500,20,[['bi',1],['tu',1]]);
-R('rite','rite_ns3',1,700,50,[['baiquan',1],['tu',1]]);
+R('rite','rite_ns2',1,500,10,[['bi',1],['tu',1]]);
+R('rite','rite_ns3',1,700,21,[['baiquan',1],['tu',1]]);
 R('rite','rite_chang',1,120,1,[['tu',1]]);   // 常祭：随时可行的薄祭，祭祀经验的稳定来源
 // 西山四套祠礼（南山三系 + 西山四系 = 七套，祭法各异）
-R('rite','rite_xs1',1,600,66,[['niu',1],['yang',1],['shi',1]]);                          // 西山首经·华山：太牢
-R('rite','rite_yu',1,3000,66,[['xi',100],['yu2',100],['jiu',100],['guiyu',100],['bi',100]]); // 羭山神：斋百日，百牺百瑜百樽百珪百璧
-R('rite','rite_xs2a',1,500,67,[['yang',1],['shi',1]]);                                    // 西次二经·飞兽之神：少牢，白菅为席
-R('rite','rite_xs2b',1,300,67,[['xiongji',1]]);                                           // 西次二经·十辈神：毛一雄鸡，钤而不糈
-R('rite','rite_xs3',1,700,68,[['jiyu2',1],['ji',1]]);                                      // 西次三经：一吉玉瘗，糈用稷米
-R('rite','rite_xs4',1,800,69,[['baiji',1],['dao',1],['jian',1]]);                         // 西次四经：一白鸡祈，糈以稻米，白菅为席
+R('rite','rite_xs1',1,600,30,[['niu',1],['yang',1],['shi',1]]);                          // 西山首经·华山：太牢
+R('rite','rite_yu',1,3000,30,[['xi',100],['yu2',100],['jiu',100],['guiyu',100],['bi',100]]); // 羭山神：斋百日，百牺百瑜百樽百珪百璧
+R('rite','rite_xs2a',1,500,33,[['yang',1],['shi',1]]);                                    // 西次二经·飞兽之神：少牢，白菅为席
+R('rite','rite_xs2b',1,300,33,[['xiongji',1]]);                                           // 西次二经·十辈神：毛一雄鸡，钤而不糈
+R('rite','rite_xs3',1,700,37,[['jiyu2',1],['ji',1]]);                                      // 西次三经：一吉玉瘗，糈用稷米
+R('rite','rite_xs4',1,800,42,[['baiji',1],['dao',1],['jian',1]]);                         // 西次四经：一白鸡祈，糈以稻米，白菅为席
 // 北山三套祠礼（南山三系 + 西山四系 + 北山三系 = 十套 + 常祭，祭法各异）
 // 北次一经：瘗（雄鸡+玉+稌）；北次二经：投（雄鸡+璧+玉）；北次三经：三种各异（玉瘗 / 玉不瘗 / 璧瘗）
-R('rite','rite_bs1',1,800,63,[['xiongji',1],['yu',1],['tu',1]]);                            // 北次一经：人面蛇身，瘗而不糈
-R('rite','rite_bs2',1,820,64,[['xiongji',1],['bi',1],['yu',1]]);                            // 北次二经：蛇身人面，投而不糈
-R('rite','rite_bs3',1,850,65,[['yu',1],['bi',1],['tu',1]]);                                   // 北次三经：神祇各异（廿神藻茝瘗／十四神玉不瘗／十神璧瘗），综合以玉+璧+糈
+R('rite','rite_bs1',1,800,46,[['xiongji',1],['yu',1],['tu',1]]);                            // 北次一经：人面蛇身，瘗而不糈
+R('rite','rite_bs2',1,820,50,[['xiongji',1],['bi',1],['yu',1]]);                            // 北次二经：蛇身人面，投而不糈
+R('rite','rite_bs3',1,850,53,[['yu',1],['bi',1],['tu',1]]);                                   // 北次三经：神祇各异（廿神藻茝瘗／十四神玉不瘗／十神璧瘗），综合以玉+璧+糈
 // 东山三套祠礼（终末章·荒经水路；东次四经无神无礼）
-R('rite','rite_ds1',1,850,71,[['baiquan',1],['yupei',1]]);   // 东山首经·人身龙首之神：毛用一犬祈，䎶用鱼（鱼牲以水族育沛当之）
-R('rite','rite_ds2',1,870,73,[['xiongji',1],['bi',1]]);      // 东次二经·兽身人面载觡之神：毛用一鸡祈，婴用一璧瘗
-R('rite','rite_ds3',1,900,77,[['yang',1],['shu',1]]);        // 东次三经·人身羊角之神：用一牡羊，米用黍
+R('rite','rite_ds1',1,850,60,[['baiquan',1],['yupei',1]]);   // 东山首经·人身龙首之神：毛用一犬祈，䎶用鱼（鱼牲以水族育沛当之）
+R('rite','rite_ds2',1,870,63,[['xiongji',1],['bi',1]]);      // 东次二经·兽身人面载觡之神：毛用一鸡祈，婴用一璧瘗
+R('rite','rite_ds3',1,900,67,[['yang',1],['shu',1]]);        // 东次三经·人身羊角之神：用一牡羊，米用黍
 // 中山三套祠礼（帝之密都·全书收卷；2026-10-24 首录三系）
 // 中次一经：历儿为冢用太牢之具、县婴以吉玉，其余十三山一羊+藻珪瘗而不糈——综合以羊+玉
 R('rite','rite_zs1',1,920,69,[['yang',1],['yu',1]]);
@@ -910,9 +910,9 @@ R('rite','rite_zs12',1,1140,80,[['xiongji',1],['zs_mutun',1],['tu',1]]);
 
 // ---- 西山制作链 ----
 // 琢玉：祠器与玉符
-R('jade','jiyu2',1,200,66,[['yu',2]]);
-R('jade','guiyu',1,160,66,[['yu',1]]);
-R('jade','yu2',1,240,66,[['meiyu',2]]);
+R('jade','jiyu2',1,200,32,[['yu',2]]);
+R('jade','guiyu',1,160,28,[['yu',1]]);
+R('jade','yu2',1,240,28,[['meiyu',2]]);
 R('jade','wenyaofu',1,320,68,[['wenyaoyi',1],['yu',2]]);      // 佩之天下大穰
 R('jade','danghufu',1,300,68,[['danghuran',1],['yu',2]]);     // 食之不眴目
 // 冶铸：西山兵刃
@@ -926,7 +926,7 @@ R('fletch','tiezu',5,260,72,[['zhu',1],['tie',1]]);
 R('craft','baihujia',1,420,72,[['baihupi',2],['sheng',2]]);
 // 调鼎：西山食物与酒
 R('cook','shatangshi',1,150,66,[['shatang',1]]);
-R('cook','jiu',1,60,66,[['ji',3]]);
+R('cook','jiu',1,60,28,[['ji',3]]);
 // 炼药：西山药剂
 R('herb','shilaisan',1,220,66,[['pingcao',1],['zhuyu',1],['shuiping',1]]);
 R('herb','yinaosan',1,260,68,[['xiongqiong',1],['zhuyu',2],['shuiping',1]]);
@@ -1351,9 +1351,9 @@ const ShopStock = [
   { itemId:'seed_ji',   qty:5, cost:260, lvl:66, cat:'seed', note:'稷——西次三经祠礼「糈用稷米」' },
   { itemId:'zs_mutun', qty:2, cost:220, lvl:78, cat:'rite', note:'牝豚——中次十二经祠礼所用（母猪）' },
   { itemId:'seed_shu',  qty:5, cost:300, lvl:70, cat:'seed', note:'黍——东次三经祠礼「米用黍」' },
-  { itemId:'baiquan',   qty:1, cost:600, lvl:25, cat:'beast', note:'三经祠礼「用一白狗祈」所需' },
-  { itemId:'xiongji',   qty:1, cost:400, lvl:67, cat:'beast', note:'西次二经十辈神「毛一雄鸡」' },
-  { itemId:'baiji',     qty:1, cost:1200,lvl:69, cat:'beast', note:'西次四经「用一白鸡祈」所需' },
+  { itemId:'baiquan',   qty:1, cost:600, lvl:20, cat:'beast', note:'三经祠礼「用一白狗祈」所需' },
+  { itemId:'xiongji',   qty:1, cost:400, lvl:32, cat:'beast', note:'西次二经十辈神「毛一雄鸡」' },
+  { itemId:'baiji',     qty:1, cost:1200,lvl:41, cat:'beast', note:'西次四经「用一白鸡祈」所需' },
   { itemId:'caiyi',     qty:1, cost:900, lvl:74, cat:'rite',  note:'中次四经祠礼「以彩衣之」所需' },
 ];
 
@@ -2382,8 +2382,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.25.0',
-  codename:'五臧 · 备礼',
+  version: '1.26.0',
+  codename:'五臧 · 齐礼',
   updated: '2026-10-25',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
