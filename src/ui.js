@@ -1063,7 +1063,7 @@ function pageLevelBar(tab){
       <span class="pl-name">技能总览</span>
       <b class="pl-lv">${sum} 级</b>
       <span class="pl-bar"><i style="width:${pct.toFixed(1)}%"></i></span>
-      <span class="pl-xp">二十六技合计 · 满级 ${max}</span>
+      <span class="pl-xp">二十六技合计 · 满级 ${max} · 修为 ${fmt(Game.stats.totalXp || 0)}</span>
     </div>`;
   }
   const pair = PAGE_SKILL[tab];
@@ -1162,7 +1162,7 @@ function skillLevelBarHtml(id, name){
     <span class="tier">${TUNING.TIER_NAMES[tierOfLevel(lv)] || ''}</span>
     <b class="pl-lv">Lv ${lv}</b>
     <span class="pl-bar"><i style="width:${pct.toFixed(1)}%"></i></span>
-    <span class="pl-xp">${maxed ? '已至九九' : `经验 ${fmt(got)} / ${fmt(need)}`}</span>
+    <span class="pl-xp">${maxed ? '九九圆满 · 余力化入修为' : `经验 ${fmt(got)} / ${fmt(need)}`}</span>
   </div>`;
 }
 
@@ -1577,6 +1577,7 @@ UI.renderSkills = function(){
   let html = `<div class="panel stats-bar">
     <span>总等级 <b>${totalSkillLevel()}</b></span>
     <span>最高 <b>${(function(){ let b='',l=0; for(const id in Game.skills) if(Game.skills[id].level>l){l=Game.skills[id].level;b=Skills[id].name;} return b?b+' '+l:'—'; })()}</b></span>
+    <span>修为 <b>${fmt(Game.stats.totalXp || 0)}</b><i class="hint">（累计经验，不设上限）</i></span>
     <span>经验倍率 <b>×${xpMult().toFixed(2)}</b></span>
     <span>采集速度 <b>×${gatherSpeedMult().toFixed(2)}</b></span>
     <span>采获 <b>+${Math.round(globalYieldBonus()*100)}%</b><i class="hint">（约合产量 +${typeof riteRealYield==='function'?riteRealYield(globalYieldBonus()):0}%）</i></span>
@@ -1919,11 +1920,25 @@ function taofaArenaHtml(){
     ${c&&m?wuxingAdvice((typeof foeElement === 'function') ? foeElement(m, c) : m.el, playerElement()):''}
     ${c&&m?combatEstimateHtml(m, c):''}
     ${c?`<div class="combat-stats" id="combatStats">回合 ${c.round||0} · 造成 ${c.dmgOut||0} · 承伤 ${c.dmgIn||0}${Game.stats.winStreak>1?` · 连胜 ${Game.stats.winStreak}`:''}${c.ults?` · 绝技 <b>${c.ults}</b> 次`:''}${c.repeat!=null?` · 本轮余 <b>${c.repeat}</b> 场`:''}</div>`:''}
+    ${(!c && Prefs.lastHuntId && Monsters[Prefs.lastHuntId]) ? `<div class="rematch-bar">
+      <button class="btn primary" type="button" onclick="UI.rematch()">⚔️ 再战 ${esc(Monsters[Prefs.lastHuntId].name)}${Prefs.lastHuntTimes ? ` · ${Prefs.lastHuntTimes} 场` : ' · ♾'}</button>
+      <span class="hint">沿用上次的场次；要改次数就在下方目标格里点那只异兽</span>
+    </div>` : ''}
     <div class="prefs-row">
       <label><input type="checkbox" ${Prefs.autoRevive?'checked':''} onchange="Prefs.autoRevive=this.checked;saveGame()"> 败后自动复讨</label>
     </div>
   </div>`;
 }
+// 再战：战斗结束后不必「回列表 → 点卡片 → 选场次 → 开战」走四步，
+// 上次打谁、打几场都记着，一键接上。目标不可达时交给 startCombat 自己说明原因。
+UI.rematch = function(){
+  const id = Prefs.lastHuntId;
+  if (!id || !Monsters[id]){ this.toast('上次的目标已不可寻'); return false; }
+  const times = Prefs.lastHuntTimes || null;
+  const ok = startCombat(id, times ? { times } : undefined);
+  if (ok){ this.patchCombatArena(); this.toast(`⚔️ 再战 ${Monsters[id].name}`); }
+  return ok;
+};
 
 // 目标列表：316 只异兽分组平铺，只在切页或数据真变时重建
 // 单张异兽卡（组内共用）：宜讨标记、连杀衰减、宜用属性都在这里算一遍
@@ -3075,16 +3090,46 @@ UI.autoEquipBest = function(){
   this.toast(changes.length ? ('已换上最优装：' + changes.join('；')) : '行囊中暂无更优的装备');
   this.renderPack();
 };
+// 行囊清单：搜索与排序共用这一个生成器。整页渲染和「边打字边筛」都走它，
+// 两处各写一遍迟早会长歪（一边认别名一边不认）。
+UI.packListHtml = function(){
+  const q = String(this.packQuery || '').trim().toLowerCase();
+  let inv = Object.entries(Game.inventory).filter(([id, n]) => n > 0);
+  if (q){
+    inv = inv.filter(([id]) => {
+      const it = Items[id] || {};
+      return String(it.name || id).toLowerCase().includes(q)
+        || String(it.py || '').toLowerCase().includes(q)
+        || String(id).toLowerCase().includes(q);
+    });
+  }
+  inv.sort((a, b) => {
+    if (this.invSort === 'value') return (Items[b[0]].value || 0) - (Items[a[0]].value || 0);
+    if (this.invSort === 'qty') return b[1] - a[1];
+    return 0;
+  });
+  if (!inv.length) return q ? '<div class="hint">行囊里没有对上的物件</div>' : '<div class="hint">行囊空空</div>';
+  return inv.map(([id, qty]) => {
+    const it = Items[id] || {};
+    return `<div class="inv-card ${rarityClass(it)}" onclick="showItemDetail('${id}')">
+      <span class="ic-icon">${typeof itemIc==='function'?itemIc(id,20):(it.icon||'⬜')}</span>
+      <span class="ic-name">${nameTag(it.name || id, it.py)}${it.equip?gradeBadge(it):''}</span>
+      <span class="ic-qty">×${qty}</span>
+      <span class="ic-val">${(it.value||0)*qty} 贝</span>
+    </div>`;
+  }).join('');
+};
+// 只换清单本身：输入框不重建，光标和焦点才留得住
+UI.patchPackList = function(){
+  const g = $('invGrid');
+  if (!g){ this.renderPack(); return; }
+  g.innerHTML = this.packListHtml();
+};
+
 UI.renderPack = function(){
   const box = $('content');
   if (!box) return;
   const slots = Object.keys(GearSlotLabels);
-  const inv = Object.entries(Game.inventory).filter(([id,q])=>q>0);
-  inv.sort((a,b)=>{
-    if (this.invSort==='value') return (Items[b[0]].value||0)-(Items[a[0]].value||0);
-    if (this.invSort==='qty') return b[1]-a[1];
-    return 0;
-  });
   let html = `<div class="pack-wrap">
     <div class="panel gear-panel">
       <h3>装备<button class="btn small gear-best" type="button" onclick="UI.autoEquipBest()">一键最优装</button></h3>
@@ -3109,7 +3154,12 @@ UI.renderPack = function(){
         <button class="chip-btn ${this.invSort==='default'?'on':''}" onclick="UI.invSort='default';UI.renderPack()">默认</button>
         <button class="chip-btn ${this.invSort==='value'?'on':''}" onclick="UI.invSort='value';UI.renderPack()">价值↓</button>
         <button class="chip-btn ${this.invSort==='qty'?'on':''}" onclick="UI.invSort='qty';UI.renderPack()">数量↓</button>
-        <span class="hint">仓廪暂无，材料尽在行囊</span>
+        <label class="search-box" title="按名称 / 注音检索行囊">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4 4"/></svg>
+          <input id="packQ" type="search" placeholder="检索名 / 注音" value="${esc(this.packQuery||'')}"
+            oninput="UI.packQuery=this.value;UI.patchPackList()"
+            onkeydown="if(event.key==='Escape'){this.value='';UI.packQuery='';UI.patchPackList()}">
+        </label>
       </div>
       <details class="bulk-sell">
         <summary class="bs-sum">廛市清整<i>批量售出原材料</i></summary>
@@ -3131,17 +3181,7 @@ UI.renderPack = function(){
             </div>`;
         })()}
       </details>
-      <div class="inv-grid">
-      ${inv.map(([id,q])=>{
-        const it = Items[id];
-        return `<div class="inv-card ${rarityClass(it)}" onclick="showItemDetail('${id}')">
-          <span class="ic-icon">${typeof itemIc==='function'?itemIc(id,20):it.icon}</span>
-          <span class="ic-name">${nameTag(it.name, it.py)}${it.equip?gradeBadge(it):''}</span>
-          <span class="ic-qty">×${q}</span>
-          <span class="ic-val">${(it.value||0)*q} 贝</span>
-        </div>`;
-      }).join('') || '<div class="hint">行囊空空</div>'}
-      </div>
+      <div class="inv-grid" id="invGrid">${this.packListHtml()}</div>
     </div>
   </div>`;
   box.innerHTML = html;
@@ -3354,7 +3394,15 @@ UI.itemDetailHtml = function(itemId){
     actions.push(`<button class="btn ${ok?'primary':''}" ${ok?'':'disabled'} onclick="equipItem('${itemId}');UI.closeModal()">装备${ok?'':'（'+why+'）'}</button>`);
   }
   if (it.heal || it.buff) actions.push(`<button class="btn primary" onclick="useConsumable('${itemId}');UI.closeModal()">${it.heal?'食用':'服用'}</button>`);
-  if (it.value) actions.push(`<button class="btn" onclick="sellItem('${itemId}',1);UI.closeModal()">出售 1（${sellValue(itemId,1)} 贝）</button>`);
+  if (it.value){
+    actions.push(`<button class="btn" onclick="sellItem('${itemId}',1);UI.closeModal()">出售 1（${sellValue(itemId,1)} 贝）</button>`);
+    if (qty > 1){
+      // 全售走「点两次」：第一下改成确认态、四秒后自动复原。
+      // 卖光一栈是不可逆的，弹一层新 modal 又会盖掉当前详情，二次点击最省事。
+      const armed = this._sellAllArm && this._sellAllArm.id === itemId && (Date.now() - this._sellAllArm.at < 4000);
+      actions.push(`<button class="btn ${armed?'primary':''}" onclick="UI.sellAllOf('${itemId}')">${armed ? `确认售出全部 ${qty} 件？` : `全售 ${qty}（${sellValue(itemId,qty)} 贝）`}</button>`);
+    }
+  }
 
   const hasAffix = it.equip && typeof affixSlotOf === 'function' && affixSlotOf(it);
   const afList = hasAffix ? affixOf(itemId) : [];
@@ -3495,6 +3543,28 @@ UI.enhanceTo = function(itemId){
   };
   if (played) setTimeout(run, 1450);
   else run();
+};
+
+// 全售：第一下只是上膛，第二下才真卖（四秒内有效）。卖光一栈不可逆，
+// 而详情本身已经是个 modal，再弹一层确认会把当前上下文顶掉。
+UI.sellAllOf = function(itemId){
+  const have = Game.inventory[itemId] || 0;
+  if (have <= 0){ this.toast('行囊里没有这件'); return 0; }
+  const arm = this._sellAllArm;
+  if (!arm || arm.id !== itemId || Date.now() - arm.at > 4000){
+    this._sellAllArm = { id:itemId, at:Date.now() };
+    this.refreshItemModal(itemId);
+    this.toast(`再点一次「确认」，售出全部 ${have} 件`);
+    return 0;
+  }
+  this._sellAllArm = null;
+  const gain = sellItem(itemId, have);
+  if (gain > 0){
+    this.toast(`⚖️ 售出 ${have} 件，得贝 ${gain}`);
+    if (this.currentTab === 'pack') this.renderPack();
+    else this.refreshItemModal(itemId);
+  }
+  return gain;
 };
 
 UI.reforgeNow = function(itemId){

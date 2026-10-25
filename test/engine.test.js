@@ -4519,6 +4519,31 @@ section('开机结算');
   assert(G.settleOnBoot() === null, '无落盘时间时安静跳过');
 }
 
+// ============ 77. 行囊检索与全售 ============
+// 682 种物品，行囊常常几十栈；找一件东西靠翻，清一栈要点几十下「出售 1」。
+section('行囊检索与全售');
+{
+  const uiSrc77 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  assert(uiSrc77.includes('UI.packListHtml') && uiSrc77.includes('id="invGrid"'),
+    '行囊清单抽成生成器，检索时只换清单');
+  assert(uiSrc77.includes("id=\"packQ\"") && uiSrc77.includes('UI.patchPackList()'),
+    '行囊有检索框，输入时只重绘清单（输入框不重建，光标才留得住）');
+  assert(uiSrc77.includes('UI.sellAllOf') && uiSrc77.includes('确认售出全部 ${qty} 件？'),
+    '全售需点两次确认，不弹新层遮挡当前详情');
+
+  // 底层口径：整栈卖出与「一件一件卖」总额一致，且清空该栈
+  G.resetToDefault();
+  ST.Game.inventory = { shougu: 12, lurou: 3 };
+  const onePrice = ST.sellValue('shougu', 1);
+  const allPrice = ST.sellValue('shougu', 12);
+  assert(allPrice === onePrice * 12, `整栈出售不折损：${onePrice} × 12 = ${allPrice}`);
+  const shells0 = ST.Game.shells;
+  ST.sellItem('shougu', 12);
+  assert((ST.Game.inventory.shougu || 0) === 0 && ST.Game.shells === shells0 + allPrice,
+    '全售后该栈清空、贝币入账 +' + allPrice);
+  assert((ST.Game.inventory.lurou || 0) === 3, '其它栈不受影响');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

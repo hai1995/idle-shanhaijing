@@ -1755,6 +1755,10 @@ function startCombat(monsterId, opts){
   if (style === 'attack' && !styleAvailable('attack')) style = 'zhu';
   // 次数：仅当显式传入 times 时生效（弹窗「战斗 N 场」）；不传 = 旧行为（击杀后无限连战）
   const times = (opts && opts.times > 0) ? Math.max(1, Math.min(99, Math.floor(opts.times))) : null;
+  // 记住这次打谁、打几场：战斗结束后「再战」按钮据此一键接上，
+  // 不必回列表重走「点卡片 → 弹窗 → 选场次 → 开战」四步。
+  Prefs.lastHuntId = monsterId;
+  Prefs.lastHuntTimes = times || null;
   Game.combat = { monsterId, monsterHp:m.hp, playerHp:playerMaxHp(), timer:0, maxtimer:0, spec:0,
     style, dmgOut:0, dmgIn:0, round:0, flee:0, repeat:times,
     el: m.el,                       // 敌方现属性（阴阳嬗变会改这一份，不动静态表）

@@ -1019,6 +1019,9 @@ svg.bi.mk{ vertical-align:-2px; }
 .attr-row{ display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--ink-3); }
 .attr-row b{ color:var(--ink); font-family:var(--f-num); }
 .prefs-row{ margin-top:10px; font-size:12px; color:var(--ink-3); }
+/* 再战条：战斗收场后最想做的一件事，单独一行给足份量 */
+.rematch-bar{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:10px; }
+.rematch-bar .hint{ font-size:11px; color:var(--ink-3); }
 
 /* 征伐目标 / 可御使异兽：与制作页同一套方块语言。191 只异兽平铺时，靠图标与边框色扫读 */
 .beast-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(104px,1fr)); gap:6px; }
