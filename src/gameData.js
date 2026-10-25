@@ -1220,7 +1220,7 @@ const BUILDINGS = {
   citan:   { id:'citan',   name:'祠坛',   lvl:6,  xp:4100,  cost:[['guaimu',10],['shashi',10],['yu',1]], desc:'祭祀效果 ×1.5' },
   shichan: { id:'shichan', name:'市廛',   lvl:9,  xp:8700,  cost:[['guaimu',15],['jin',2]],             desc:'商旅售价 +5%' },
   canglin: { id:'canglin', name:'仓廪',   lvl:12, xp:22000, cost:[['guaimu',20],['tu',10]],             desc:'离线上限 +2 小时' },
-  fenghuotai:{ id:'fenghuotai',name:'烽火台',lvl:16, xp:38200, cost:[['shashi',20],['tan',10]],         desc:'征兆可提前预知' },
+  fenghuotai:{ id:'fenghuotai',name:'烽火台',lvl:16, xp:38200, cost:[['shashi',20],['tan',10]],         desc:'征兆可提前预知 · 凶兆之害减半' },
   xuegong: { id:'xuegong', name:'学宫',   lvl:20, xp:20000, cost:[['guaimu',30],['yu',5],['jian',10]],  desc:'著录度获取 +25%' },
 };
 
@@ -2077,6 +2077,58 @@ function buildCodex(){
 }
 const CODEX = buildCodex();
 
+// ---------- 收集成就（图鉴的奖励闭环） ----------
+// 与 Milestones 的分工：Milestones 是「达成即生效」的被动加成；
+// 这里是「达到即待领」的收集回馈——要玩家到图鉴页领一次，奖励才落袋。
+// 两者都读同一份 Game.records，不增设计数，也不改既有的著录曲线。
+const CODEX_CATS = ['灵木','金玉','灵草','水族','嘉谷','百物','异兽','山川','祠典','神祇'];
+
+function buildCodexAch(){
+  const out = [];
+  const per = {};
+  Object.values(CODEX).forEach(e => { per[e.cat] = (per[e.cat] || 0) + 1; });
+  for (const cat of CODEX_CATS){
+    const total = per[cat] || 0;
+    if (!total) continue;
+    const half = Math.ceil(total * 0.5);
+    out.push({ id:'cat_half_' + cat, group:cat, name:cat + ' · 过半',
+      desc:`${cat} 著录 ${half} / ${total}`, cat, need:half, total,
+      reward:{ shells: 120 + total * 6, items:[['tan', Math.max(2, Math.round(total / 6))]] } });
+    out.push({ id:'cat_all_' + cat, group:cat, name:cat + ' · 尽收',
+      desc:`${cat} 著录 ${total} / ${total}`, cat, need:total, total,
+      reward:{ shells: 400 + total * 20, items:[['huozhong', 1]] } });
+  }
+  const totalAll = Object.keys(CODEX).length;
+  [
+    { p:0.25, name:'初窥门径', shells:600,  items:[['yu', 1]] },
+    { p:0.50, name:'半壁山海', shells:1600, items:[['jiyu2', 1]] },
+    { p:0.75, name:'胸有丘壑', shells:3200, items:[['guiyu', 1]] },
+    { p:1.00, name:'山海尽览', shells:8000, items:[['jin', 3]] },
+  ].forEach((t, i) => {
+    const need = Math.ceil(totalAll * t.p);
+    out.push({ id:'all_' + (i + 1), group:'总录', name:t.name,
+      desc:`图鉴总录 ${need} / ${totalAll}`, cat:null, need, total:totalAll,
+      reward:{ shells:t.shells, items:t.items } });
+  });
+  return out;
+}
+
+function codexDoneCount(cat){
+  let n = 0;
+  const rec = (typeof Game !== 'undefined' && Game.records) ? Game.records : {};
+  for (const id in rec){
+    const r = rec[id];
+    if (!r || !(r.count > 0)) continue;
+    const e = CODEX[id];
+    if (!e) continue;
+    if (cat && e.cat !== cat) continue;
+    n++;
+  }
+  return n;
+}
+
+const CODEX_ACHIEVEMENTS = buildCodexAch();
+
 // ---------- 工具函数 ----------
 function rarityId(it){
   if (it && it.rarity && RARITY[it.rarity]) return it.rarity;
@@ -2159,8 +2211,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.13.1',
-  codename:'五臧全录',
+  version: '1.14.0',
+  codename:'五臧 · 词锋',
   updated: '2026-10-25',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
@@ -2175,6 +2227,8 @@ if (typeof window !== 'undefined'){
   window.Monsters = Monsters; window.ShopStock = ShopStock; window.SHOP_CATS = SHOP_CATS;
   window.OMENS = OMENS; window.OBSERVE_SITES = OBSERVE_SITES; window.RITES = RITES;
   window.BUILDINGS = BUILDINGS; window.Milestones = Milestones; window.CODEX = CODEX;
+  window.CODEX_ACHIEVEMENTS = CODEX_ACHIEVEMENTS; window.CODEX_CATS = CODEX_CATS;
+  window.codexDoneCount = codexDoneCount;
   window.GATHER_POOLS = GATHER_POOLS; window.NANSHAN = NANSHAN;
   window.WORLD = WORLD; window.XISHAN = XISHAN; window.CHAPTERS = CHAPTERS; window.chapterOf = chapterOf;
   window.AUDIENCE_SITES = AUDIENCE_SITES; window.GROW_SITES = GROW_SITES;

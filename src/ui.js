@@ -829,6 +829,136 @@ const PAGE_SKILL = {
   ying:    ['yingyi',  '营邑'],
 };
 // 行装页顶栏：不显示技能等级（此处等级意义不大），改为当前一套战斗数值
+// 一行数值背后的来源：基础 / 技能 / 装备 / 淬炼 / 词条 / 成就 / 御使 / 药。
+// 「点开能看懂自己为什么是这个数」比数值本身更能促成养成决策。
+function combatStatBreakdown(key){
+  const af = (typeof affixTotals === 'function') ? affixTotals() : affixZero();
+  const db = (typeof deployedBonuses === 'function') ? deployedBonuses() : { hp:0, def:0, dmg:0, heal:0, build:0 };
+  const style = combatMode();
+  const styleName = { attack:'近战', ranged:'射术', zhu:'祝术' }[style] || '近战';
+  const statLv = style === 'ranged' ? levelOf('she') : style === 'zhu' ? levelOf('zhu') : levelOf('bing');
+  const ming = levelOf('ming');
+  const w = Game.gear.weapon, a = Game.gear.armor, q = Game.gear.quiver, ch = Game.gear.charm;
+  const beast = Game.combat ? Monsters[Game.combat.monsterId] : null;
+
+  if (key === 'hp'){
+    const rows = [
+      { label:'根柢', value:'20', note:'凡人本元' },
+      { label:`明 · ${ming} 级`, value:'+' + (ming * 4), note:'每级 +4' },
+    ];
+    if (db.hp > 0) rows.push({ label:'御使 · 体魄', value:`×${(1 + db.hp).toFixed(2)}`, note:`+${Math.round(db.hp * 100)}%（鯥 / 犀 / 象 / 驭兽）` });
+    return { title:'气血 · 构成', total: fmt(playerMaxHp()), rows,
+      foot:'气血只决定能站多久，不增一分输出——但恶战里先倒下的那方什么都拿不到。' };
+  }
+
+  if (key === 'atk'){
+    const wBase = w ? enhanceScaled(w.dmg || 0, enhanceLevel(w.id || w)) : 0;
+    const qDmg = (style === 'ranged' && q) ? (q.dmg || 0) : 0;
+    const skillDmg = statLv * 1.2;
+    const rows = [];
+    rows.push({ label: w ? `兵器 · ${w.name}` : '徒手',
+      value: w ? fmt(Math.round(wBase)) : '0',
+      note: w ? (enhanceLevel(w.id || w) ? `含淬炼 +${enhanceLevel(w.id || w)}（${w.dmg} 基础）` : `未淬炼（${w.dmg} 基础）`) : '无兵器' });
+    if (qDmg) rows.push({ label:`副手 · ${q.name}`, value:'+' + Math.round(qDmg), note:'射术另计' });
+    rows.push({ label:`${styleName} · ${statLv} 级`, value:'+' + skillDmg.toFixed(0), note:'每级 +1.2' });
+    if (af.dmgPct) rows.push({ label:'词条 · 锋', value:`+${af.dmgPct}%`, note:'伤害乘区' });
+    const mm = dmgMult();
+    if (Math.abs(mm - 1) > 0.001) rows.push({ label:'成就 · 御使 · 药', value:`×${mm.toFixed(2)}`, note:'合计伤害增幅' });
+    if (beast){
+      const m = wuxingMult(playerElement(), beast.el);
+      if (Math.abs(m - 1) > 0.001){
+        const boost = af.elBoost ? `（含「引」+${af.elBoost}%）` : '';
+        rows.push({ label:`五行 · ${playerElement()} 克 ${beast.el}`, value:`×${(1 + (m - 1) * (1 + af.elBoost / 100)).toFixed(2)}`, note:m > 1 ? '克制' + boost : '被克' + boost });
+      }
+      if (style === 'zhu' && wuxingSheng(playerElement(), beast.el)) rows.push({ label:'祝术 · 相生', value:`×${TUNING.WUXING.SHENG}`, note:'相生目标额外加成' });
+    }
+    const r = playerDamageRange();
+    return { title:'攻击 · 构成', total:`${r.lo}–${r.hi}`, rows,
+      foot:'区间为「均值 ×0.6 ~ ×1.4」的浮动。暴击、连击加成在战斗中另计，不体现在此处。' };
+  }
+
+  if (key === 'def'){
+    const aBase = a ? enhanceScaled(a.def || 0, enhanceLevel(a.id || a)) : 0;
+    const rows = [];
+    rows.push({ label: a ? `甲胄 · ${a.name}` : '无甲', value: a ? Math.round(aBase).toString() : '0',
+      note: a ? (enhanceLevel(a.id || a) ? `含淬炼 +${enhanceLevel(a.id || a)}` : `未淬炼（${a.def} 基础）`) : '赤身应战' });
+    rows.push({ label:`明 · ${ming} 级`, value:'+' + (ming * 0.2).toFixed(1), note:'每级 +0.2' });
+    const buffDef = (Game.buff && Game.buff.def && (Game.buff.def.def || 0)) || 0;
+    const gearDef = db.def + ((ch && ch.defBonus) || 0) + buffDef;
+    if (gearDef) rows.push({ label:'御使 · 玉符 · 药', value:'+' + gearDef.toFixed(1), note:'定值防御' });
+    if (af.def) rows.push({ label:'词条 · 固', value:'+' + af.def, note:'定值防御' });
+    if (af.dmgTaken) rows.push({ label:'词条 · 韧', value:`减伤 ${af.dmgTaken}%`, note:'受击时按比例削减' });
+    if (af.thorns) rows.push({ label:'词条 · 棘', value:`反伤 ${af.thorns}%`, note:'把承受伤害的一部分还给对手' });
+    return { title:'防御 · 构成', total: fmt(Math.round(totalDefence() * 10) / 10), rows,
+      foot:'防御按「减攻 ×0.3」折入伤害计算；「减伤」「反伤」是独立乘区，与防御叠加。' };
+  }
+
+  if (key === 'eva'){
+    const rows = [
+      { label:'甲胄在身', value: a ? '4%' : '0%', note: a ? '着甲即得' : '无甲则无' },
+      { label:`兵 · ${levelOf('bing')} 级`, value:'+' + (levelOf('bing') * 0.15).toFixed(1) + '%', note:'每级 +0.15%' },
+      { label:`明 · ${ming} 级`, value:'+' + (ming * 0.1).toFixed(1) + '%', note:'每级 +0.1%' },
+    ];
+    return { title:'闪避 · 构成', total: Math.round(playerEvasion() * 100) + '%', rows,
+      foot:`上限 50%。怪物另有一次固定 5% 的落空，与此处叠加。` };
+  }
+
+  if (key === 'el'){
+    const src = style === 'zhu'
+      ? `祝术主五行（可在竞技场切换）`
+      : (w && w.el ? `兵器「${w.name}」所禀` : (style === 'ranged' && q && q.el ? `箭矢所禀` : '默认金属'));
+    const rows = [
+      { label:'流派', value: styleName, note: '决定用哪一路本事' },
+      { label:'属性来源', value: playerElement(), note: src },
+    ];
+    const els = TUNING.ELEMENTS;
+    const rel = els.filter(e => e !== playerElement()).map(e => {
+      const m = wuxingMult(playerElement(), e);
+      return `${playerElement()}→${e} ×${m.toFixed(2)}`;
+    }).join('　');
+    return { title:'五行 · 构成', total: playerElement(), rows,
+      foot:'克制 ×' + TUNING.WUXING.KE + ' · 被克 ×' + TUNING.WUXING.BEIKE + ' · 同属 ×1.00。' + rel };
+  }
+
+  if (key === 'dps'){
+    const r = playerDamageRange();
+    const avg = (r.lo + r.hi) / 2;
+    const iv = playerAttackInterval();
+    const baseIv = (style === 'ranged' ? 2.4 : style === 'zhu' ? 3.2 : 2.8) - statLv * 0.008;
+    const rows = [
+      { label:'攻击均值', value: ((r.lo + r.hi) / 2).toFixed(1), note:`区间 ${r.lo}–${r.hi}` },
+      { label:'基础间隔', value: baseIv.toFixed(2) + 's', note: styleName + '基础 − 等级×0.008' },
+    ];
+    if (af.atkSpeed) rows.push({ label:'词条 · 疾', value:`÷${(1 + af.atkSpeed / 100).toFixed(2)}`, note:`攻势 +${af.atkSpeed}%` });
+    rows.push({ label:'实际间隔', value: iv.toFixed(2) + 's', note:'不低于 1.2s' });
+    return { title:'DPS · 构成', total: (avg / Math.max(0.5, iv)).toFixed(1), rows,
+      foot:'DPS 只算普攻期望，不含暴击、连击与绝技——实战输出会高于此值。' };
+  }
+  return null;
+}
+
+UI.openStatModal = function(key){
+  const b = combatStatBreakdown(key);
+  if (!b) return;
+  const afs = [];
+  for (const slot of ['weapon','armor','charm','quiver']){
+    const g = Game.gear[slot];
+    if (!g || !g.id) continue;
+    const list = (typeof affixOf === 'function') ? affixOf(g.id) : [];
+    if (!list.length) continue;
+    afs.push(`<div class="sb-af"><button class="sb-af-nm" onclick="UI.closeModal();showItemDetail('${g.id}')">${esc(g.name)}</button>
+      <span>${list.map(x => `<i>${esc(x.name)}</i> ${esc(x.text)}`).join('　')}</span></div>`);
+  }
+  UI.modal(`<h3>${esc(b.title)}</h3>
+    <div class="sb-total">${b.total}</div>
+    <div class="sb-rows">
+      ${b.rows.map(r => `<div class="sb-row"><span>${r.label}</span><b>${r.value}</b>${r.note ? `<em>${esc(r.note)}</em>` : ''}</div>`).join('')}
+    </div>
+    ${afs.length ? `<div class="sb-afs"><div class="sb-afs-lb">一词一性（点装备名可查看 / 重铸）</div>${afs.join('')}</div>` : ''}
+    ${b.foot ? `<div class="hm-line">${esc(b.foot)}</div>` : ''}
+    <div class="modal-btns"><button class="btn" onclick="UI.closeModal()">闭</button></div>`);
+};
+
 function combatStatBarHtml(){
   const hp = playerMaxHp();
   const r = playerDamageRange();
@@ -839,14 +969,16 @@ function combatStatBarHtml(){
   const style = (typeof combatMode === 'function') ? combatMode() : 'attack';
   const styleName = { attack:'近战', ranged:'射术', zhu:'祝术' }[style] || '近战';
   const el = (typeof playerElement === 'function') ? playerElement() : '—';
+  const cell = (k, label, val) =>
+    `<button type="button" class="cs-item" onclick="UI.openStatModal('${k}')" title="查看${label}构成"><i>${label}</i><b>${val}</b></button>`;
   return `<div class="page-lvbar combat-bar" data-plv="pack">
-    <span class="pl-name">${styleName}</span>
-    <span class="cs-item"><i>气血</i><b>${fmt(hp)}</b></span>
-    <span class="cs-item"><i>攻击</i><b>${r.lo}–${r.hi}</b></span>
-    <span class="cs-item"><i>防御</i><b>${defStr}</b></span>
-    <span class="cs-item"><i>闪避</i><b>${eva}%</b></span>
-    <span class="cs-item"><i>五行</i><b>${esc(el)}</b></span>
-    <span class="cs-item"><i>DPS</i><b>${dps.toFixed(1)}</b></span>
+    <span class="pl-name" role="button" tabindex="0" onclick="UI.switchTab('taofa')" title="前往竞技场切换流派">${styleName}</span>
+    ${cell('hp','气血', fmt(hp))}
+    ${cell('atk','攻击', `${r.lo}–${r.hi}`)}
+    ${cell('def','防御', defStr)}
+    ${cell('eva','闪避', eva + '%')}
+    ${cell('el','五行', esc(el))}
+    ${cell('dps','DPS', dps.toFixed(1))}
   </div>`;
 }
 
@@ -1560,6 +1692,22 @@ function estimateOfflineGains(hours){
 // 征伐页拆两块：竞技场（随战斗状态变）与目标列表（只随著录 / 等级变）。
 // 战斗开始、结束、切风格只重绘竞技场 + 补一张卡，不重建 194 张卡片——
 // 全量重建会让整页重排、滚动抖动、hover 状态丢失，连战时观感就是「卡」。
+// 势条：攒满 100 自动放绝技。连击数是「不被打断」的可视凭据，
+// 势满时整条转金，让玩家知道下一击会变成什么。
+function momentumRowHtml(c){
+  const mo = Math.max(0, Math.min(100, c.momentum || 0));
+  const style = (typeof combatMode === 'function') ? combatMode() : 'attack';
+  const ult = (window.ULTIMATE_NAMES || {})[style] || '绝技';
+  const full = mo >= 100;
+  return `<div class="momentum-row ${full?'full':''}" title="命中积势，受击折势；满 100 自动施放「${ult}」">
+    <span class="mo-lb">势</span>
+    <div class="mo-bar"><i style="width:${mo}%"></i></div>
+    <span class="mo-val">${Math.floor(mo)}</span>
+    ${c.combo>1?`<span class="mo-combo">${c.combo} 连</span>`:''}
+    <span class="mo-ult">${full?'▶ ':''}绝技 · ${esc(ult)}</span>
+  </div>`;
+}
+
 function taofaArenaHtml(){
   const c = Game.combat;
   const m = c ? Monsters[c.monsterId] : null;
@@ -1597,9 +1745,10 @@ function taofaArenaHtml(){
         <div class="f-empty">点下方「讨伐目标」中的任一方块即可开战</div>`}
       </div>
     </div>
+    ${c?momentumRowHtml(c):''}
     ${c&&m?wuxingAdvice(m.el, playerElement()):''}
     ${c&&m?combatEstimateHtml(m, c):''}
-    ${c?`<div class="combat-stats" id="combatStats">回合 ${c.round||0} · 造成 ${c.dmgOut||0} · 承伤 ${c.dmgIn||0}${Game.stats.winStreak>1?` · 连胜 ${Game.stats.winStreak}`:''}${c.repeat!=null?` · 本轮余 <b>${c.repeat}</b> 场`:''}</div>`:''}
+    ${c?`<div class="combat-stats" id="combatStats">回合 ${c.round||0} · 造成 ${c.dmgOut||0} · 承伤 ${c.dmgIn||0}${Game.stats.winStreak>1?` · 连胜 ${Game.stats.winStreak}`:''}${c.ults?` · 绝技 <b>${c.ults}</b> 次`:''}${c.repeat!=null?` · 本轮余 <b>${c.repeat}</b> 场`:''}</div>`:''}
     <div class="prefs-row">
       <label><input type="checkbox" ${Prefs.autoRevive?'checked':''} onchange="Prefs.autoRevive=this.checked;saveGame()"> 败后自动复讨</label>
     </div>
@@ -1967,6 +2116,39 @@ UI.openDeployModal = function(id){
       <button class="btn" onclick="UI.closeModal()">取消</button>
     </div>`);
 };
+// 收集成就弹窗：可领置顶，其次未达（按进度排），已领沉底
+UI.openAchModal = function(){
+  const all = window.CODEX_ACHIEVEMENTS || [];
+  const rows = all.map(a => ({ a, st: codexAchState(a), done: codexDoneCount(a.cat) }));
+  const rank = { claimable:0, locked:1, claimed:2 };
+  rows.sort((x, y) => rank[x.st] - rank[y.st] || (y.done / Math.max(1, y.a.need)) - (x.done / Math.max(1, x.a.need)));
+  const claimable = rows.filter(r => r.st === 'claimable').length;
+  const claimedN = rows.filter(r => r.st === 'claimed').length;
+  const stText = { claimable:'可领', locked:'未达', claimed:'已领' };
+  UI.modal(`<h3>收集成就 <span class="tier">已领 ${claimedN} / ${all.length}</span></h3>
+    <div class="hm-line">著录即是进益：每一类收满半数、收尽，皆有回馈；总录另有四档。达成后到此「领取」一次，奖励方入行囊。</div>
+    <div class="ach-list">
+      ${rows.map(({ a, st, done }) => {
+        const p = Math.min(100, Math.round(done / Math.max(1, a.need) * 100));
+        return `<div class="ach-row st-${st}">
+          <div class="ach-main">
+            <div class="ach-nm">${esc(a.name)}<span class="ach-tag">${stText[st]}</span></div>
+            <div class="ach-desc">${esc(a.desc)} · 当前 ${done}</div>
+            <div class="ach-pro"><i style="width:${p}%"></i></div>
+          </div>
+          <div class="ach-re">${esc(codexAchRewardText(a))}</div>
+          ${st === 'claimable'
+            ? `<button class="btn small primary" onclick="claimCodexAch('${a.id}');UI.openAchModal();UI.renderCodex()">领取</button>`
+            : st === 'claimed' ? '<span class="ach-ok">已领</span>' : ''}
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="modal-btns">
+      ${claimable ? `<button class="btn primary" onclick="claimAllCodexAch();UI.closeModal();UI.renderCodex()">一并领取（${claimable}）</button>` : ''}
+      <button class="btn" onclick="UI.closeModal()">闭</button>
+    </div>`);
+};
+
 UI.renderCodex = function(keepFocus){
   const box = $('content');
   if (!box) return;
@@ -1986,7 +2168,17 @@ UI.renderCodex = function(keepFocus){
   const shown = q
     ? entries.filter(e=> (e.name||'').toLowerCase().includes(q) || String(e.py||'').toLowerCase().includes(q))
     : entries;
-  let html = `<div class="filter-row">
+  // 收集成就：把奖励闭环挂在收集线自己的入口上，不必另开一页
+  const achAll = (window.CODEX_ACHIEVEMENTS || []);
+  let achClaim = 0, achDone = 0;
+  achAll.forEach(a => { const st = codexAchState(a); if (st === 'claimable') achClaim++; else if (st === 'claimed') achDone++; });
+  let html = `<div class="ach-bar">
+    <span class="ach-lb">收集成就</span>
+    <span class="ach-stat">已领 <b>${achDone}</b> / ${achAll.length}</span>
+    ${achClaim ? `<span class="ach-new">可领 ${achClaim}</span>` : '<span class="hint">暂无待领</span>'}
+    <button class="btn small" onclick="UI.openAchModal()">${achClaim ? '领取' : '查看'}</button>
+  </div>
+  <div class="filter-row">
     ${Object.entries(tabs).map(([k,v])=>`<button class="chip-btn ${this.codexTab===k?'on':''}" onclick="UI.codexTab='${k}';UI.codexQuery='';UI.renderCodex()">${v}</button>`).join('')}
     <label class="search-box" title="按名称或注音检索">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4 4"/></svg>
@@ -2422,6 +2614,42 @@ UI.renderYing = function(){
 };
 
 // 营造详情：材料 / 门槛 / 效用一屏说清，按钮依状态切换（营造 / 去采料 / 已营造）
+// 营造收益对比：读「现在」与「建成后」两端的真实数值并列，
+// 而不是只给一句文案——文案与实现脱节过一次（烽火台 / 学宫只有描述没有出口），
+// 让数值自己说话，接不上就会立刻显形。
+function structureEffectRows(id){
+  const built = !!Game.buildings[id];
+  const pct = v => (v >= 0 ? '+' : '') + Math.round(v * 100) + '%';
+  const row = (label, from, to) => ({ label, from, to: built ? '已生效' : to });
+  switch (id){
+    case 'zhai': {
+      const y = globalYieldBonus();
+      return [row('全局产出', pct(y), pct(y + 0.03))];
+    }
+    case 'zaoku':
+      return [{ label:'制作耗时', from: built ? '×0.90' : '×1.00', to: built ? '已生效' : '×0.90' }];
+    case 'tuku': {
+      const h = offlineCapHours();
+      return [row('离线上限', h + ' 小时', (h + 1) + ' 小时')];
+    }
+    case 'canglin': {
+      const h = offlineCapHours();
+      return [row('离线上限', h + ' 小时', (h + 2) + ' 小时'),
+              row('离线效率', pct(offlineEff()), pct(offlineEff() + 0.05))];
+    }
+    case 'citan':
+      return [{ label:'祭祀产出增益', from: built ? '×1.50' : '×1.00', to: built ? '已生效' : '×1.50' }];
+    case 'shichan':
+      return [{ label:'商旅售价', from: '×' + tradeMult().toFixed(2), to: built ? '已生效' : '×' + (tradeMult() + 0.05).toFixed(2) }];
+    case 'fenghuotai':
+      return [{ label:'凶兆之害', from: built ? '×0.50' : '×1.00', to: built ? '已生效' : '×0.50' }];
+    case 'xuegong':
+      return [{ label:'著录度获取', from: built ? '+25%' : '—', to: built ? '已生效' : '+25%' }];
+    default:
+      return [];
+  }
+}
+
 UI.openBuildModal = function(id){
   const b = BUILDINGS[id];
   if (!b) return;
@@ -2442,6 +2670,9 @@ UI.openBuildModal = function(id){
       <span>营邑门槛 <b>${b.lvl}</b>（当前 <b>${lv}</b>）</span>
       <span>营造经验 <b>${fmt(b.xp || 0)}</b></span>
     </div>
+    ${(() => { const rows = structureEffectRows(b.id); return rows.length ? `<div class="bm-eff"><div class="bm-lb">建成后</div>
+      ${rows.map(r => `<div class="bm-eff-row"><span>${r.label}</span><em>${esc(r.from)}</em><i>→</i><b>${esc(r.to)}</b></div>`).join('')}
+    </div>` : ''; })()}
     <div class="bm-costs"><div class="bm-lb">所需材料</div>${costChips(b.cost)}</div>
     ${done
       ? '<div class="hm-line">已经营造完毕。若营邑等级差一点，可用「修葺旧筑」补经验（约本级四分之一）。</div>'
@@ -2705,6 +2936,14 @@ function showItemDetail(itemId){
       ? `<button class="btn ${enough?'primary':''}" ${enough?'':'disabled'} onclick="enhanceItem('${itemId}');UI.closeModal();UI.renderPack()">淬炼 +${enhLv+1}（炭×${enhCost.tan} · ${enhCost.shells} 贝）</button>`
       : `<button class="btn" disabled>已至 +9</button>`);
   }
+  // 词条：与淬炼并行的第二条养成线——淬炼抬基础值，词条换战斗乘区
+  const hasAffix = it.equip && typeof affixSlotOf === 'function' && affixSlotOf(it);
+  const afList = hasAffix ? affixOf(itemId) : [];
+  const afCost = hasAffix ? affixReforgeCost(itemId) : null;
+  if (hasAffix && afCost){
+    const afOk = (Game.inventory.tan || 0) >= afCost.tan && Game.shells >= afCost.shells;
+    actions.push(`<button class="btn ${afOk ? 'primary' : ''}" ${afOk ? '' : 'disabled'} onclick="reforgeItem('${itemId}');UI.closeModal();UI.renderPack()">重铸词条（炭×${afCost.tan} · ${afCost.shells} 贝）</button>`);
+  }
   if (it.value) actions.push(`<button class="btn" onclick="sellItem('${itemId}',1);UI.closeModal()">出售 1（${sellValue(itemId,1)} 贝）</button>`);
   UI.modal(`<h3><span class="mi-ic">${typeof itemIc==='function'?itemIc(itemId,18):it.icon}</span> ${esc(it.name)} <span class="tier">${rarityName(it)}</span></h3>
     <div class="meta">行囊 ${qty} 件${rec?` · 著录 ${rec.count} 次（${TUNING.MASTERY.NAMES[rec.tier]}）`:''}</div>
@@ -2712,6 +2951,7 @@ function showItemDetail(itemId){
     ${it.effect?`<div class="reveal"><b>效果</b>${esc(it.effect)}</div>`:''}
     ${it.note?`<div class="reveal"><b>出处</b>${esc(it.note)}</div>`:''}
     ${it.equip&&(it.dmg||it.def)?`<div class="reveal"><b>淬炼</b>+${enhLv} · ${it.dmg?'伤害':'防御'} ${Math.floor(enhanceScaled(it.dmg||it.def, enhLv))} → 下一级 ${Math.floor(enhanceScaled(it.dmg||it.def, enhLv+1))}（炭×${enhCost.tan} · ${enhCost.shells} 贝）</div>`:''}
+    ${afList.length?`<div class="reveal"><b>词条</b>${afList.map(x=>`<span class="af-txt"><i>${esc(x.name)}</i>${esc(x.text)}</span>`).join('')}</div>`:''}
     ${it.buff?`<div class="reveal"><b>服用</b>${esc(it.buff.name)}（${it.buff.dur}s）</div>`:''}
     ${it.heal?`<div class="reveal"><b>食用</b>回血 ${it.heal}</div>`:''}
     <div class="modal-btns">${actions.join('')}<button class="btn" onclick="UI.closeModal()">闭</button></div>`);

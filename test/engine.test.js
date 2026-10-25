@@ -38,7 +38,7 @@ vm.createContext(context);
 
 const base = path.join(__dirname, '..', 'src');
 function loadJS(file){ vm.runInContext(fs.readFileSync(path.join(base, file), 'utf8'), context, {filename:file}); }
-['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','zhongshanData.js','gameData.js','save.js','engine.js','game.js','queue.js','interact.js','fx.js','beastIcon.js','riteIcon.js','structureIcon.js','skillIcon.js','itemIcon.js','markIcon.js'].forEach(loadJS);
+['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','zhongshanData.js','gameData.js','affix.js','save.js','engine.js','game.js','queue.js','interact.js','fx.js','beastIcon.js','riteIcon.js','structureIcon.js','skillIcon.js','itemIcon.js','markIcon.js'].forEach(loadJS);
 const G = context;
 const ST = context.window;
 
@@ -122,8 +122,10 @@ assert(Object.keys(ST.RITES).length === 3 + 6 + 1 + 3 + 3 + 12, '祠礼 3 + 6 + 
     '营造方块点击开详情弹窗（不再单击即造）');
   assert(uiSrc2.includes('function combatStatBarHtml') && uiSrc2.includes("if (tab === 'pack') return combatStatBarHtml();"),
     '行装页顶栏改走战斗数值条');
-  ['气血', '攻击', '防御', '闪避', '五行', 'DPS'].forEach(k =>
-    assert(uiSrc2.indexOf('<i>' + k + '</i>') >= 0, '行装页顶栏显示「' + k + '」'));
+  [['hp','气血'],['atk','攻击'],['def','防御'],['eva','闪避'],['el','五行'],['dps','DPS']].forEach(([k, label]) =>
+    assert(uiSrc2.indexOf("cell('" + k + "','" + label + "'") >= 0, '行装页顶栏显示「' + label + '」'));
+  assert(uiSrc2.includes('UI.openStatModal') && uiSrc2.includes('function combatStatBreakdown'),
+    '数值条可点开构成弹窗（气血 / 攻击 / 防御 / 闪避 / 五行 / DPS 各一项）');
   assert(!uiSrc2.includes("pack:    ['bing',    '兵']"), '行装页顶栏不再挂「兵」技能等级');
 }
 
@@ -2786,6 +2788,128 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
 
   // 42.10 移动端操作按钮统一近直角
   assert(/@media \(max-width:760px\)\{[\s\S]{0,500}\.btn[^{]*\{[^}]*border-radius:1px !important/.test(css2), '窄屏操作按钮统一近直角');
+}
+
+// ============ 44. 装备词条 / 势与绝技 / 数值构成 / 收集成就（v1.14） ============
+{
+  const affixSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'affix.js'), 'utf8');
+  const uiSrc44 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  const gameSrc44 = fs.readFileSync(path.join(__dirname, '..', 'src', 'game.js'), 'utf8');
+
+  // 44.1 词条体系：池 / 条数 / 确定性 / 槽位
+  assert(Array.isArray(ST.AFFIX_POOL) && ST.AFFIX_POOL.length >= 8, '词条池至少八类（' + ST.AFFIX_POOL.length + '）');
+  assert(affixSrc.includes('affixSeed') && affixSrc.includes('rollAffixes'), '词条按 id + salt 确定性派生');
+  G.resetToDefault();
+  assert(ST.affixOf('muge').length === 1, '1 级兵器一条词条');
+  assert(ST.affixOf('jinjian').length === 2, '10 级兵器两条词条');
+  assert(ST.affixOf('baijinqi').length === 3, '30 级以上兵器三条词条');
+  assert(ST.affixOf('yuwang').length === 0, '渔网无战斗槽位，不出词条');
+  assert(JSON.stringify(ST.affixOf('jinjian')) === JSON.stringify(ST.affixOf('jinjian')), '同 id 同 salt 词条恒定（可复现，不必写明细进存档）');
+  assert(ST.affixOf('pijia').every(x => ['def','dmgTaken','thorns','atkSpeed','lifesteal'].includes(x.stat)), '甲胄只出甲类词条');
+
+  // 44.2 词条计入数值（同一件兵器、不同 salt 对照，排除装备差异）
+  Object.keys(ST.Game.skills).forEach(k => { ST.Game.skills[k].level = 30; });
+  ST.Game.inventory.jinjian = 1; ST.Game.inventory.pijia = 1;
+  ST.equipItem('jinjian'); ST.equipItem('pijia');
+  ST.Game.combat = null;
+  let saltFeng = -1, saltPlain = -1, saltJi = -1;
+  for (let s = 0; s < 80; s++){
+    ST.Game.affixSalt = { jinjian: s }; ST.invalidateAffixes();
+    const list = ST.affixOf('jinjian');
+    if (saltFeng < 0 && list.some(x => x.stat === 'dmgPct')) saltFeng = s;
+    if (saltJi  < 0 && list.some(x => x.stat === 'atkSpeed')) saltJi = s;
+    // 基线只需不含「锋」——其余词条在「无当前目标、不暴击」的区间计算里不参与
+    if (saltPlain < 0 && !list.some(x => x.stat === 'dmgPct')) saltPlain = s;
+  }
+  assert(saltFeng >= 0 && saltPlain >= 0, 'salt 枚举可找到「锋」与「无输出词条」两类组合');
+  ST.Game.affixSalt = { jinjian: saltFeng }; ST.invalidateAffixes();
+  const rFeng = G.playerDamageRange();
+  ST.Game.affixSalt = { jinjian: saltPlain }; ST.invalidateAffixes();
+  const rPlain = G.playerDamageRange();
+  assert(rFeng.hi > rPlain.hi, '词条「锋」确实抬高伤害区间（接入生效，不是摆设）');
+  if (saltJi >= 0){
+    ST.Game.affixSalt = { jinjian: saltJi }; ST.invalidateAffixes();
+    const ivFast = G.playerAttackInterval();
+    ST.Game.affixSalt = { jinjian: saltPlain }; ST.invalidateAffixes();
+    const ivPlain = G.playerAttackInterval();
+    assert(ivFast < ivPlain, '词条「疾」确实缩短攻击间隔');
+  }
+  const defBase44 = ST.enhanceScaled(ST.Game.gear.armor.def || 0, 0)
+    + ST.levelOf('ming') * 0.2 + ST.deployedBonuses().def
+    + ((ST.Game.gear.charm && ST.Game.gear.charm.defBonus) || 0);
+  assert(Math.abs(ST.totalDefence() - defBase44 - ST.affixTotals().def) < 0.01, '防御 = 甲 + 明 + 御使/符 + 词条「固」');
+
+  // 44.3 重铸：代价 / salt 记账 / 词条改变 / 入档
+  ST.Game.inventory.tan = 60; ST.Game.shells = 30000;
+  ST.Game.affixSalt = {}; ST.invalidateAffixes();     // 归零，便于断言 salt 从 1 起算
+  const cost44 = ST.affixReforgeCost('jinjian');
+  assert(cost44.tan > 0 && cost44.shells > 0, '重铸有代价（炭 / 贝币）');
+  const beforIds = ST.affixOf('jinjian').map(x => x.id).join(',');
+  assert(ST.reforgeItem('jinjian') === true, '词条可重铸');
+  assert(ST.Game.affixSalt.jinjian === 1, '重铸以 salt 递增记账');
+  assert(ST.affixOf('jinjian').map(x => x.id).join(',') !== beforIds, '重铸后词条组合改变');
+  const ser44 = ST.serializeSave();
+  assert(ser44 && ser44.affixSalt && ser44.affixSalt.jinjian === 1, 'salt 写入存档（词条本身不占存档明细）');
+
+  // 44.4 势与绝技
+  G.resetToDefault();
+  ST.Game.skills.bing.level = 30; ST.Game.skills.yudi.level = 5;
+  const mid44 = Object.keys(ST.Monsters).find(k => !ST.Monsters[k].boss && ST.Monsters[k].nodeId);
+  ST.Game.combat = { monsterId: mid44, monsterHp: 5e6, playerHp: 9999, timer: 0, maxtimer: 0, spec: 0,
+    style: 'attack', dmgOut: 0, dmgIn: 0, round: 0, flee: 0, momentum: 100, combo: 0, ults: 0 };
+  G.combatTick(6);
+  assert(ST.Game.combat && ST.Game.combat.ults === 1, '势满 100 自动施放绝技');
+  assert(ST.Game.combat.momentum < 100, '绝技释放后势归零重蓄');
+  assert(ST.ULTIMATE_NAMES.attack === '断岳' && ST.ULTIMATE_NAMES.ranged === '穿云' && ST.ULTIMATE_NAMES.zhu === '五行合', '三式绝技各有其名');
+  const c44 = ST.Game.combat;
+  c44.combo = 7; c44.momentum = 50;
+  const dmgIn44 = c44.dmgIn || 0;
+  for (let i = 0; i < 20 && (c44.dmgIn || 0) === dmgIn44; i++) G.doMonsterAttack(c44, ST.Monsters[mid44]);
+  assert(c44.combo === 7, '普通受击不破连击（连击断在自己未命中）');
+  ST.Game.combat = null;
+
+  // 44.5 数值构成弹窗
+  ['hp','atk','def','eva','el','dps'].forEach(k => {
+    const b = G.combatStatBreakdown(k);
+    assert(b && Array.isArray(b.rows) && b.rows.length >= 2, '数值构成「' + k + '」给出至少两行来源');
+  });
+  assert(uiSrc44.includes('UI.openStatModal') && uiSrc44.includes('onclick="UI.openStatModal(\''), '数值条各项可点开构成');
+
+  // 44.6 营造收益对比
+  ['zhai','zaoku','tuku','citan','shichan','canglin','fenghuotai','xuegong'].forEach(id => {
+    const rows = G.structureEffectRows(id);
+    assert(Array.isArray(rows) && rows.length > 0 && rows.every(r => r.from && r.to), '营造「' + id + '」有「现 → 建成后」对比');
+  });
+
+  // 44.7 御使三处空转加成的接线 / 两座空转建筑的落地
+  assert(gameSrc44.includes('(1 + deployedBonuses().hp)'), '气血接入御使 hp 加成');
+  assert(gameSrc44.includes('deployedBonuses().build'), '营造经验接入御使「土功」');
+  assert(gameSrc44.includes('deployedBonuses().heal'), '食物回血接入御使「不肿」');
+  assert(gameSrc44.includes('Game.buildings.fenghuotai') && gameSrc44.includes('Game.buildings.xuegong'), '烽火台 / 学宫效果落地（此前只有文案）');
+
+  // 44.7b 单文件构建的文件清单必须含新模块（漏一个就等于单文件版少一块功能）
+  const buildSrc44 = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'build-standalone.js'), 'utf8');
+  assert(buildSrc44.includes("'affix.js'"), '单文件构建清单含 affix.js');
+  assert(buildSrc44.indexOf("'gameData.js'") < buildSrc44.indexOf("'affix.js'"), 'affix.js 在 gameData.js 之后内联（依赖 Items）');
+
+  // 44.8 收集成就：状态流转 · 领取 · 不可重复 · 入档
+  G.resetToDefault();
+  assert(Array.isArray(ST.CODEX_ACHIEVEMENTS) && ST.CODEX_ACHIEVEMENTS.length >= 20, '收集成就至少二十项（' + ST.CODEX_ACHIEVEMENTS.length + '）');
+  assert(ST.CODEX_ACHIEVEMENTS.filter(a => a.group === '总录').length === 4, '总录四档（25 / 50 / 75 / 100%）');
+  const halfWood = ST.CODEX_ACHIEVEMENTS.find(a => a.id === 'cat_half_灵木');
+  assert(halfWood && ST.codexAchState(halfWood) === 'locked', '未达标时成就为「未达」');
+  Object.values(ST.CODEX).filter(e => e.cat === '灵木').slice(0, halfWood.need)
+    .forEach(e => { ST.Game.records[e.id] = { count: 2, tier: 1 }; });
+  assert(ST.codexAchState(halfWood) === 'claimable', '达标后转为「可领」');
+  const shells44 = ST.Game.shells, tan44 = ST.Game.inventory.tan || 0;
+  assert(ST.claimCodexAch(halfWood.id) === true, '成就可领取');
+  assert(ST.Game.shells === shells44 + halfWood.reward.shells, '领取入贝币');
+  assert((ST.Game.inventory.tan || 0) === tan44 + halfWood.reward.items[0][1], '领取给材料');
+  assert(ST.claimCodexAch(halfWood.id) === false, '同一成就不可重复领取');
+  assert(ST.codexAchState(halfWood) === 'claimed', '领取后状态为「已领」');
+  const ser44b = ST.serializeSave();
+  assert(ser44b.stats.claimed[halfWood.id] === true, '领取记录随存档保存');
+  assert(typeof ST.UI.openAchModal === 'function' && uiSrc44.includes('class="ach-bar"'), '图鉴页有成就条与弹窗入口');
 }
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）

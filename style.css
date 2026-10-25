@@ -1943,3 +1943,104 @@ mark.hit{
 .bm-costs{ margin:10px 0 8px; }
 .bm-costs .bm-lb{ font-size:11.5px; color:var(--ink-3); margin-bottom:6px; letter-spacing:.08em; }
 .bm-costs .chip.cost{ margin:0 6px 6px 0; }
+
+/* ===== 战斗 · 势条（攒满放绝技） ===== */
+.momentum-row{
+  display:flex; align-items:center; gap:8px; margin:9px 0 2px;
+  padding:6px 9px; background:var(--paper-2); border:1px solid var(--rule);
+  border-left:2px solid var(--qing); border-radius:var(--r); font-size:11.5px;
+}
+.momentum-row .mo-lb{ font-family:var(--f-kai); color:var(--qing); letter-spacing:.1em; flex:0 0 auto; }
+.momentum-row .mo-bar{ flex:1 1 auto; height:6px; background:var(--rule-3); border-radius:1px; overflow:hidden; }
+.momentum-row .mo-bar i{ display:block; height:100%; background:linear-gradient(90deg, var(--qing), var(--tai)); transition:width .2s; }
+.momentum-row .mo-val{ font-variant-numeric:tabular-nums; color:var(--ink-2); min-width:24px; text-align:right; }
+.momentum-row .mo-combo{ color:var(--zhu); font-variant-numeric:tabular-nums; }
+.momentum-row .mo-ult{ margin-left:auto; color:var(--ink-3); }
+.momentum-row.full{ border-left-color:var(--jin); background:var(--paper-3); }
+.momentum-row.full .mo-bar i{ background:linear-gradient(90deg, var(--jin), #f0b429); }
+.momentum-row.full .mo-ult{ color:var(--jin); font-weight:500; }
+
+/* ===== 行装页数值条：各项可点开构成 ===== */
+.combat-bar .cs-item{
+  font: inherit; font-family: inherit; color: inherit; background: none; border: none;
+  padding: 1px 2px; cursor: pointer; border-radius: 1px;
+  transition: background .12s, color .12s;
+}
+.combat-bar .cs-item:hover{ background: var(--rule-3); }
+.combat-bar .cs-item:active{ background: var(--rule-2); }
+.combat-bar .cs-item::after{ content:'?'; font-size:9px; color:var(--ink-3); margin-left:2px;
+  opacity:0; transition:opacity .12s; }
+.combat-bar .cs-item:hover::after{ opacity:.7; }
+.combat-bar .pl-name{ cursor:pointer; }
+.combat-bar .pl-name:hover{ text-decoration:underline; text-underline-offset:3px; }
+
+/* ===== 构成弹窗 ===== */
+.sb-total{
+  font-family:var(--f-num); font-size:30px; line-height:1.1; color:var(--ink);
+  margin:6px 0 12px; letter-spacing:.02em; font-variant-numeric:tabular-nums;
+}
+.sb-rows{ border-top:1px solid var(--rule); }
+.sb-row{
+  display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;
+  padding:7px 0; border-bottom:1px solid var(--rule-3); font-size:12.5px;
+}
+.sb-row > span{ color:var(--ink-2); flex:0 0 auto; }
+.sb-row > b{ color:var(--ink); font-variant-numeric:tabular-nums; margin-left:auto; }
+.sb-row > em{ flex:1 1 100%; font-style:normal; font-size:11.5px; color:var(--ink-3); }
+.sb-afs{ margin:12px 0 6px; padding:9px 11px; background:var(--paper-2);
+  border:1px solid var(--rule); border-left:2px solid var(--tai); }
+.sb-afs-lb{ font-size:11.5px; color:var(--ink-3); margin-bottom:6px; letter-spacing:.06em; }
+.sb-af{ display:flex; gap:8px; flex-wrap:wrap; align-items:baseline; padding:4px 0; font-size:12px; }
+.sb-af + .sb-af{ border-top:1px dashed var(--rule-3); }
+.sb-af-nm{ font:inherit; color:var(--qing); background:none; border:none; padding:0;
+  cursor:pointer; border-bottom:1px dashed var(--rule-2); }
+.sb-af-nm:hover{ color:var(--zhu); }
+.sb-af > span{ color:var(--ink-2); }
+.sb-af i{ font-style:normal; color:var(--tai); margin-right:2px; }
+
+/* 物品详情里的词条行 */
+.af-txt{ display:inline-block; margin:0 10px 2px 0; font-size:12px; color:var(--ink-2); }
+.af-txt i{ font-style:normal; color:var(--tai); margin-right:3px; }
+
+/* ===== 营造弹窗：建成后收益对比 ===== */
+.bm-eff{ margin:10px 0 4px; padding:8px 10px; background:var(--paper-2);
+  border:1px solid var(--rule); border-left:2px solid var(--tai); border-radius:var(--r); }
+.bm-eff .bm-lb{ font-size:11.5px; color:var(--ink-3); margin-bottom:5px; letter-spacing:.08em; }
+.bm-eff-row{ display:flex; align-items:baseline; gap:7px; font-size:12px; padding:2px 0; }
+.bm-eff-row > span{ color:var(--ink-2); flex:1 1 auto; }
+.bm-eff-row > em{ font-style:normal; color:var(--ink-3); font-variant-numeric:tabular-nums; }
+.bm-eff-row > i{ font-style:normal; color:var(--ink-3); font-size:10px; }
+.bm-eff-row > b{ color:var(--tai); font-variant-numeric:tabular-nums; min-width:44px; text-align:right; }
+
+/* ===== 图鉴 · 收集成就 ===== */
+.ach-bar{
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  margin:0 0 10px; padding:7px 11px;
+  background:var(--paper-2); border:1px solid var(--rule); border-left:2px solid var(--jin);
+  border-radius:var(--r); font-size:12px; color:var(--ink-2);
+}
+.ach-bar .ach-lb{ font-family:var(--f-kai); color:var(--jin); letter-spacing:.1em; }
+.ach-bar .ach-stat b{ color:var(--ink); font-variant-numeric:tabular-nums; }
+.ach-bar .ach-new{ color:var(--zhu); }
+.ach-bar .btn.small{ margin-left:auto; }
+
+.ach-list{ max-height:52vh; overflow-y:auto; margin:8px 0 4px; }
+.ach-row{
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  padding:8px 0; border-bottom:1px solid var(--rule-3);
+}
+.ach-row.st-claimable{ background:var(--paper-3); }
+.ach-main{ flex:1 1 190px; min-width:150px; }
+.ach-nm{ font-size:13px; color:var(--ink); }
+.ach-tag{
+  margin-left:6px; padding:1px 4px; font-size:10px; border-radius:1px;
+  color:var(--ink-3); border:1px solid var(--rule-2);
+}
+.ach-row.st-claimable .ach-tag{ color:#fff; background:var(--zhu); border-color:var(--zhu); }
+.ach-row.st-claimed .ach-tag{ color:var(--ink-3); }
+.ach-desc{ font-size:11.5px; color:var(--ink-3); margin:2px 0 4px; }
+.ach-pro{ height:3px; background:var(--rule-3); border-radius:1px; overflow:hidden; max-width:190px; }
+.ach-pro i{ display:block; height:100%; background:var(--tai); }
+.ach-row.st-claimed .ach-pro i{ background:var(--ink-3); }
+.ach-re{ flex:0 1 auto; font-size:11.5px; color:var(--tai); text-align:right; }
+.ach-ok{ font-size:11.5px; color:var(--ink-3); }

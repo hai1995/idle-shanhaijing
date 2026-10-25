@@ -79,7 +79,7 @@ function serializeSave(){
     queue: G.queue || [], queueIdx: G.queueIdx || 0, queueRound: G.queueRound || 0,
     queueRunning: !!G.queueRunning, queueLoop: G.queueLoop !== false, fallback: G.fallback || null,
     mobStreak: G.mobStreak || {}, orders: G.orders || [], ordersAt: G.ordersAt || 0,
-    enhance: G.enhance || {},
+    enhance: G.enhance || {}, affixSalt: G.affixSalt || {},
   };
 }
 

@@ -238,6 +238,9 @@ function omenMod(key){
     if (!def || def[key] === undefined) continue;
     m += def[key] * (o.soft || 1);
   }
+  // 烽火台「征兆可提前预知」：既已望见烽烟，凶兆之害减半（吉兆不受影响）。
+  // 此前这座建筑只有文案、没有任何数值出口。
+  if (m < 0 && Game.buildings && Game.buildings.fenghuotai) m *= 0.5;
   return m;
 }
 function tickOmens(){
@@ -285,8 +288,9 @@ function useConsumable(itemId){
     Game.inventory[itemId]--;
     if (Game.inventory[itemId]<=0) delete Game.inventory[itemId];
     if (Game.combat){
-      Game.combat.playerHp = Math.min(playerMaxHp(), Game.combat.playerHp + it.heal);
-      UI && UI.floatText(playerEl(), `+${it.heal} ❤️`, '#58b368');
+      const heal = healAmount(it);
+      Game.combat.playerHp = Math.min(playerMaxHp(), Game.combat.playerHp + heal);
+      UI && UI.floatText(playerEl(), `+${heal} ❤️`, '#58b368');
     }
     log(`🍖 食${it.name}${it.effect?`，${it.effect}`:''}`, 'good', 'sys');
     UI && UI.toast(`🍖 ${it.name}${it.heal?` 回血 ${it.heal}`:''}`);
@@ -370,6 +374,9 @@ function doGather(itemId){
 }
 // 著录一个对象（含阶位提升、异兽征兆触发、关联著录）
 function recordObject(objId, n){
+  // 学宫「著录度获取 +25%」：记录以整数计，故折算为 1/4 概率多记一次（期望 +25%），
+  // 不引入小数计数。此前这座建筑同样只有文案。
+  if (Game.buildings && Game.buildings.xuegong && n > 0 && typeof chance === 'function' && chance(0.25)) n += 1;
   const r = addRecord(objId, n);
   const beast = Monsters[objId];   // Monsters 以 id 为键，直接查表（原为 Object.values 全量遍历）
   if (r.first){
@@ -394,7 +401,50 @@ function recordObject(objId, n){
   }
   return r;
 }
+// ---------- 收集成就：领取 ----------
+// 与 Milestones 的区别就在这一步「领」：那边达成即生效，这边要玩家到图鉴页领一次。
+// 领完记在 stats.claimed，随存档走；旧档没有此字段，缺省为空。
+function codexAchState(a){
+  if (!a) return 'locked';
+  if (Game.stats.claimed && Game.stats.claimed[a.id]) return 'claimed';
+  return codexDoneCount(a.cat) >= a.need ? 'claimable' : 'locked';
+}
+function codexAchRewardText(a){
+  const r = (a && a.reward) || {};
+  const parts = [];
+  if (r.shells) parts.push(`${r.shells} 贝`);
+  (r.items || []).forEach(([i, q]) => parts.push(`${(Items[i] || {}).name || i}×${q}`));
+  return parts.join(' · ');
+}
+function claimCodexAch(id, quiet){
+  const a = (window.CODEX_ACHIEVEMENTS || []).find(x => x.id === id);
+  if (!a) return false;
+  if (codexAchState(a) !== 'claimable') return false;
+  Game.stats.claimed = Game.stats.claimed || {};
+  Game.stats.claimed[a.id] = true;
+  const r = a.reward || {};
+  if (r.shells){ Game.shells += r.shells; Game.stats.totalEarned += r.shells; }
+  (r.items || []).forEach(([i, q]) => { if (Items[i]) giveItem(i, q, false); });
+  if (!quiet){
+    log(`🏅 收集成就「${a.name}」：${codexAchRewardText(a)}`, 'gold', 'sys');
+    UI && UI.toast(`🏅 ${a.name} —— ${codexAchRewardText(a)}`);
+  }
+  saveGame();
+  return true;
+}
+function claimAllCodexAch(){
+  let n = 0;
+  (window.CODEX_ACHIEVEMENTS || []).forEach(a => { if (codexAchState(a) === 'claimable' && claimCodexAch(a.id, true)) n++; });
+  if (n){
+    log(`🏅 一并领取 ${n} 项收集成就`, 'gold', 'sys');
+    UI && UI.toast(`🏅 已领 ${n} 项成就`);
+  }
+  return n;
+}
+
 window.doGather = doGather; window.recordObject = recordObject;
+window.codexAchState = codexAchState; window.codexAchRewardText = codexAchRewardText;
+window.claimCodexAch = claimCodexAch; window.claimAllCodexAch = claimAllCodexAch;
 
 // ---------- 圃艺 ----------
 function farmTick(elapsed){
@@ -686,7 +736,9 @@ function buildStructure(id){
   if (!canAfford(b.cost)){ UI && UI.toast('材用不足'); return false; }
   payCost(b.cost);
   Game.buildings[id] = true;
-  gainXp('yingyi', b.xp);
+  const buildBonus = 1 + deployedBonuses().build;   // 狸力「土功」、猾褢「大繇」
+  const gain = Math.round(b.xp * buildBonus);
+  gainXp('yingyi', gain);
   log(`🏘️ 营造${b.name}：${b.desc}`, 'gold', 'sys');
   UI && UI.toast(`🏘️ ${b.name} 已成\n${b.desc}`);
   saveGame();
@@ -824,10 +876,14 @@ function playerWeaponDmg(){
 function playerDamageRange(){
   const style = combatMode();
   const stat = style==='ranged' ? levelOf('she') : style==='zhu' ? levelOf('zhu') : levelOf('bing');
+  const af = (typeof affixTotals === 'function') ? affixTotals() : affixZero();
   let dmg = playerWeaponDmg() + stat*1.2;
+  dmg *= (1 + af.dmgPct/100);                     // 词条「锋」：伤害乘区
   const beast = Game.combat ? Monsters[Game.combat.monsterId] : null;
   if (beast){
-    dmg *= wuxingMult(playerElement(), beast.el);
+    // 词条「引」只放大「克制关系带来的偏离」，不改基线：同属 ×1.00 仍是 ×1.00
+    const m = wuxingMult(playerElement(), beast.el);
+    dmg *= (1 + (m - 1) * (1 + af.elBoost/100));
     if (style === 'zhu' && wuxingSheng(playerElement(), beast.el)) dmg *= TUNING.WUXING.SHENG;
   }
   dmg *= dmgMult();
@@ -838,7 +894,9 @@ function playerAttackInterval(){
   let base = skill==='ranged' ? 2.4 : skill==='zhu' ? 3.2 : 2.8;
   const lvl = skill==='ranged' ? levelOf('she') : skill==='zhu' ? levelOf('zhu') : levelOf('bing');
   base -= lvl*0.008;
-  return Math.max(1.5, base);
+  const af = (typeof affixTotals === 'function') ? affixTotals() : affixZero();
+  base /= (1 + af.atkSpeed/100);                  // 词条「疾」：攻势
+  return Math.max(1.2, base);
 }
 function playerEvasion(){
   return Math.min(0.5, (Game.gear.armor ? 0.04 : 0) + levelOf('bing')*0.0015 + levelOf('ming')*0.001);
@@ -849,10 +907,19 @@ function totalDefence(){
     : 0;
   d += levelOf('ming')*0.2;
   d += defBonus();
+  const af = (typeof affixTotals === 'function') ? affixTotals() : affixZero();
+  d += af.def;                                    // 词条「固」：定值防御
   return d;
 }
 function playerMaxHp(){
-  return Math.floor(20 + levelOf('ming')*4);
+  // 御使的 hp 类增益（鯥·无肿疾、犀、象、驭兽）此前只写进了 BEAST_BUFFS 却没人读，
+  // 等于白占槽位；此处并入气血，才让「体魄型」御使有实际去处。
+  return Math.floor((20 + levelOf('ming')*4) * (1 + deployedBonuses().hp));
+}
+// 食物回血：御使「虎蛟·不肿」的 heal 加成同样需要落地
+function healAmount(it){
+  if (!it || !it.heal) return 0;
+  return Math.max(1, Math.round(it.heal * (1 + deployedBonuses().heal)));
 }
 function monsterInterval(m, c){
   let base = Math.max(2.0, 3.2 - m.hp*0.002);
@@ -893,7 +960,9 @@ function combatTick(elapsed){
   let spin = 0;
   while (c.timer >= atkSpeed && c.monsterHp > 0 && c.playerHp > 0 && spin++ < 64){
     c.timer -= atkSpeed;
-    doPlayerAttack(c, m);
+    // 势满：这一击改为绝技，不再走普攻（「攒势 → 放绝技」是战斗里唯一的手动节奏）
+    if ((c.momentum||0) >= 100) doPlayerUltimate(c, m);
+    else doPlayerAttack(c, m);
   }
   if (c.monsterHp <= 0){ meetKill(c, m); return; }
   // 怪物进攻
@@ -910,6 +979,38 @@ function combatTick(elapsed){
     if (c.spec >= m.special.every){ c.spec = 0; doMonsterSpecial(c, m); }
   }
   if (c.playerHp <= 0) onPlayerDeath(c, m);
+}
+
+// 绝技：按流派取一式，势满（100）自动释放，放完归零。
+// 三式的差别不只是倍率——近战最重、射术必中且不耗矢、祝术吃「相生」加成。
+const ULTIMATE_NAMES = { attack:'断岳', ranged:'穿云', zhu:'五行合' };
+const ULTIMATE_MULT  = { attack:2.8,    ranged:2.4,    zhu:2.2 };
+function doPlayerUltimate(c, m){
+  const style = combatMode();
+  const name = ULTIMATE_NAMES[style] || ULTIMATE_NAMES.attack;
+  const range = playerDamageRange();
+  const af = (typeof affixTotals === 'function') ? affixTotals() : affixZero();
+  let dmg = Math.floor(roll(range.lo, range.hi) * (ULTIMATE_MULT[style] || 2.4));
+  if (style === 'zhu' && wuxingSheng(playerElement(), m.el)) dmg = Math.floor(dmg * TUNING.WUXING.SHENG);
+  let crit = false;
+  if (af.critRate > 0 && chance(af.critRate/100)){
+    crit = true;
+    dmg = Math.floor(dmg * (1.5 + af.critDmg/100));
+  }
+  c.monsterHp -= dmg;
+  c.dmgOut = (c.dmgOut||0) + dmg;
+  c.round = (c.round||0) + 1;
+  c.combo = (c.combo||0) + 1;
+  c.momentum = 0;
+  c.ults = (c.ults||0) + 1;
+  Game.stats.damageDealt += dmg;
+  Game.stats.hits++;
+  gainXp(style === 'zhu' ? 'zhu' : style === 'ranged' ? 'she' : 'bing', 8);
+  gainXp('taofa', 5);
+  UI && UI.attackFx && UI.attackFx('player');
+  UI && UI.hit(monsterEl(), `绝技·${name} -${dmg}`, '#ffd166');
+  log(`✨ 绝技「${name}」造成 ${dmg} 伤害${crit?'（暴击）':''}`, 'gold', 'combat');
+  if (c.playerHp > 0 && c.playerHp <= playerMaxHp() * Prefs.autoEat) autoEat(c);
 }
 
 function doPlayerAttack(c, m){
@@ -936,20 +1037,45 @@ function doPlayerAttack(c, m){
     armorPierce = m.special.armor * (1 - c.armorPierce);
   }
   const range = playerDamageRange();
+  const af = (typeof affixTotals === 'function') ? affixTotals() : affixZero();
   let dmg = roll(range.lo, range.hi);
   if (armorPierce > 0) dmg = Math.max(1, Math.floor(dmg * (1 - armorPierce)));
+  // 连击：连续命中每 5 次 +5% 伤害（上限 +30%）——「不被打断」本身就是一种打法
+  const comboBonus = Math.min(0.30, Math.floor((c.combo||0)/5) * 0.05);
+  if (comboBonus > 0) dmg = Math.floor(dmg * (1 + comboBonus));
   const fearPenalty = (c.fearUntil && c.fearUntil > gameTime()) ? 0.30 : 0;   // 西王母震慑
-  const miss = chance(Math.max(0.02, 0.08 - levelOf('bing')*0.001) + fearPenalty);
-  if (miss){ UI && UI.floatText(monsterEl(), '未命中', '#8b96ac'); return; }
+  const miss = chance(Math.max(0.01, 0.08 - levelOf('bing')*0.001 - af.hit/100) + fearPenalty);
+  if (miss){
+    UI && UI.floatText(monsterEl(), '未命中', '#8b96ac');
+    c.combo = 0;
+    if ((c.momentum||0) < 100) c.momentum = Math.max(0, (c.momentum||0) - 6);
+    return;
+  }
+  // 暴击：基础 ×1.5，词条「烈」再加
+  let crit = false;
+  if (af.critRate > 0 && chance(af.critRate/100)){
+    crit = true;
+    dmg = Math.floor(dmg * (1.5 + af.critDmg/100));
+  }
   c.monsterHp -= dmg;
   c.dmgOut = (c.dmgOut||0) + dmg;
   c.round = (c.round||0) + 1;
+  c.combo = (c.combo||0) + 1;
+  // 势：命中即积，连击时更快（每 5 连额外 +4）
+  c.momentum = Math.min(100, (c.momentum||0) + 16 + Math.min(12, Math.floor(c.combo/5)*4));
+  // 吸血：命中回血（词条「饮」）
+  if (af.lifesteal > 0){
+    const heal = Math.max(1, Math.floor(dmg * af.lifesteal / 100));
+    const before = c.playerHp;
+    c.playerHp = Math.min(playerMaxHp(), c.playerHp + heal);
+    if (c.playerHp > before) UI && UI.floatText(playerEl(), `+${c.playerHp - before}`, '#5ec97a');
+  }
   Game.stats.damageDealt += dmg;
   Game.stats.hits++;
   gainXp(style === 'zhu' ? 'zhu' : style === 'ranged' ? 'she' : 'bing', 4);
   gainXp('taofa', 3);
   UI && UI.attackFx && UI.attackFx('player');
-  UI && UI.hit(monsterEl(), `-${dmg}`, '#ff6b6b');
+  UI && UI.hit(monsterEl(), crit ? `暴击 -${dmg}` : `-${dmg}`, crit ? '#ffb03a' : '#ff6b6b');
   if (c.playerHp > 0 && c.playerHp <= playerMaxHp() * Prefs.autoEat) autoEat(c);
 }
 
@@ -957,14 +1083,27 @@ function doMonsterAttack(c, m){
   const maxHp = playerMaxHp();
   const ev = playerEvasion() + 0.05;
   if (chance(ev)){ UI && UI.floatText(playerEl(), '闪避', '#8b96ac'); return; }
+  const af = (typeof affixTotals === 'function') ? affixTotals() : affixZero();
   const def = totalDefence();
   let dmg = roll(1, Math.max(1, m.atk - def*0.3));
+  if (af.dmgTaken > 0) dmg = Math.max(1, Math.floor(dmg * (1 - af.dmgTaken/100)));   // 词条「韧」
   c.playerHp -= dmg;
   c.dmgIn = (c.dmgIn||0) + dmg;
+  // 受击折势，但不破连击：连击断在「自己没打中」上，而不是「挨了一下」——
+  // 否则怪物攻速略快于玩家时，连击永远归零，这套机制等于不存在。
+  if ((c.momentum||0) < 100) c.momentum = Math.max(0, (c.momentum||0) - 8);
   Game.stats.damageTaken += dmg;
   gainXp('ming', 3);
   UI && UI.attackFx && UI.attackFx('monster');
   UI && UI.hit(playerEl(), `-${dmg}`, '#ff4444');
+  // 反伤（词条「棘」）：甲胄上的刺，打在谁身上就还给谁
+  if (af.thorns > 0 && m && m.hp){
+    const back = Math.max(1, Math.floor(dmg * af.thorns / 100));
+    c.monsterHp -= back;
+    c.dmgOut = (c.dmgOut||0) + back;
+    Game.stats.damageDealt += back;
+    UI && UI.floatText(monsterEl(), `反 ${back}`, '#c39bd3');
+  }
   if (c.playerHp > 0 && c.playerHp <= maxHp * Prefs.autoEat) autoEat(c);
 }
 
@@ -1001,6 +1140,8 @@ function doMonsterSpecial(c, m){
     const dmg = roll(1, Math.max(1, m.atk*(sp.dmg||1.5) - def*0.3));
     c.playerHp -= dmg;
     c.dmgIn = (c.dmgIn||0) + dmg;
+    c.combo = 0;                                     // 特殊技命中：连击断
+    if ((c.momentum||0) < 100) c.momentum = Math.max(0, (c.momentum||0) - 20);
     Game.stats.damageTaken += dmg;
     UI && UI.hit(playerEl(), `-${dmg}`, '#ff8800');
   }
@@ -1018,7 +1159,8 @@ function autoEat(c){
   }
   if (!candidates.length) return;
   candidates.sort((a,b)=>b[1]-a[1]);
-  const [id, heal] = candidates[0];
+  const [id] = candidates[0];
+  const heal = healAmount(Items[id]);
   Game.inventory[id]--;
   if (Game.inventory[id] <= 0) delete Game.inventory[id];
   c.playerHp = Math.min(playerMaxHp(), c.playerHp + heal);
@@ -1151,7 +1293,8 @@ function startCombat(monsterId, opts){
   // 次数：仅当显式传入 times 时生效（弹窗「战斗 N 场」）；不传 = 旧行为（击杀后无限连战）
   const times = (opts && opts.times > 0) ? Math.max(1, Math.min(99, Math.floor(opts.times))) : null;
   Game.combat = { monsterId, monsterHp:m.hp, playerHp:playerMaxHp(), timer:0, maxtimer:0, spec:0,
-    style, dmgOut:0, dmgIn:0, round:0, flee:0, repeat:times };
+    style, dmgOut:0, dmgIn:0, round:0, flee:0, repeat:times,
+    momentum:0, combo:0, ults:0 };   // 势 / 连击 / 绝技次数：每场重蓄
   autoAttack = true;
   saveGame();
   UI && UI.startCombat(m, opts);
@@ -1159,6 +1302,9 @@ function startCombat(monsterId, opts){
   return true;
 }
 window.startCombat = startCombat;
+window.ULTIMATE_NAMES = ULTIMATE_NAMES; window.ULTIMATE_MULT = ULTIMATE_MULT;
+window.doPlayerUltimate = doPlayerUltimate;
+window.healAmount = healAmount;
 
 // 威胁评估：估算 dps 比
 function playerDpsEstimate(){

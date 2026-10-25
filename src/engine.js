@@ -71,7 +71,7 @@ function cloneDefaultGame(){
   g.stats = { kills:0, deaths:0, actions:0, totalXp:0, time:0, bossKills:{}, totalEarned:0,
               harvests:0, purchases:0, sales:0, spent:0, sold:0, gathers:{}, crafts:0,
               damageDealt:0, damageTaken:0, hits:0, omens:{}, rites:0, observes:0, divines:0,
-              seenMilestones:{}, winStreak:0, seenDeployHint:false, seenFallbackHint:false, _unlockedRegions:[],
+              seenMilestones:{}, claimed:{}, winStreak:0, seenDeployHint:false, seenFallbackHint:false, _unlockedRegions:[],
               // 离线结算累计（统计页展示）：次数 / 时长 / 经验 / 物品件数 / 最近一次
               offlineCount:0, offlineSec:0, offlineXp:0, offlineItems:0, lastOffline:null };
   return g;
@@ -138,6 +138,15 @@ function applySave(d){
         if (isFinite(v) && v > 0) Game.enhance[k] = Math.min(9, v);
       }
     }
+    // 装备词条重铸次数（旧档无此字段：salt=0 即「初次派生」的词条，与新版一致）
+    Game.affixSalt = {};
+    if (d.affixSalt && typeof d.affixSalt === 'object'){
+      for (const k in d.affixSalt){
+        const v = parseInt(d.affixSalt[k], 10);
+        if (isFinite(v) && v > 0) Game.affixSalt[k] = Math.min(9999, v);
+      }
+    }
+    if (typeof invalidateAffixes === 'function') invalidateAffixes();
     // 方国求购订单（旧档无此字段，读档后由 refreshOrders 补生成）
     Game.orders = Array.isArray(d.orders) ? d.orders.filter(o=>o && o.itemId && o.qty>0) : [];
     Game.ordersAt = isFinite(d.ordersAt) ? d.ordersAt : 0;
