@@ -4888,6 +4888,63 @@ section('异迹索引');
   ST.UI.renderYudi();
   const spCnt = ((renderTargets.content.innerHTML.match(/class="special-note"/g)) || []).length;
   assert(spCnt === 2, `特殊节点的「地气」只出现两处（山志浮层 1 + 正文 1，实为 ${spCnt}）`);
+
+  // 统计页也要给一条去路：报完「还差几处」，点一下就到索引，别让人看完数字再一座座山翻
+  ST.UI.currentTab = 'stats'; ST.UI.renderStats();
+  const htmlStat = (renderTargets.content || {}).innerHTML || '';
+  const hsAll = ST.heteroSites();
+  assert(htmlStat.includes('data-stat="hetero"') && htmlStat.includes(`异迹 <b data-stat="hetero">${hsAll.filter(x => x.done).length}/${hsAll.length}</b>`),
+    '统计页报异迹进度，并指出可查看');
+  ST.UI.heteroOpen = false;
+  ST.UI.currentTab = 'skills';
+  ST.UI.gotoHetero();
+  assert(ST.UI.currentTab === 'yudi', '点「查看索引」切到舆地页');
+  assert(ST.UI.heteroOpen === true, '并顺手把索引展开');
+  assert((renderTargets.content.innerHTML.match(/<details class="hetero-panel" open/) || []).length === 1, '落地时索引已是展开态');
+  ST.UI.heteroOpen = false;
+}
+
+// ============ 83. 谒见必有赐：二十处，初谒一物 ============
+// 中山十神此前一件赐物都没有：谒见一趟只换一条图鉴，而七十三级往后它们
+// 恰恰是不可讨伐、唯一能做的动作。西山诸神却各赐鸟羽——两份表对不上。
+// 现在补齐，且中山赐的正是本系祠礼要用的那件祭品：谒见 → 得料 → 行祭。
+section('谒见之赐');
+{
+  G.resetToDefault();
+  const sites = Object.entries(ST.AUDIENCE_SITES);
+  assert(sites.length === 20, '谒见点共 ' + sites.length + ' 处');
+  const empty = sites.filter(([, s2]) => !(s2.deities || []).some(d => d.gift)).map(([k]) => k);
+  assert(empty.length === 0, '每处至少一位神祇带初谒之赐' + (empty.length ? '：' + empty.join('、') : ''));
+
+  // 中山诸神：赐物必须是本系祠礼要用的那一样，否则「谒见」与「行祭」还是两张皮
+  const offRite = [];
+  for (const [nodeId, s2] of sites){
+    if (nodeId.indexOf('zhongshan-') !== 0) continue;
+    const regionId = nodeId.replace(/-\d+$/, '');
+    const rite = ST.Recipes.find(r => r.type === 'rite' && (ST.RITES[r.out] || {}).regionId === regionId);
+    if (!rite) continue;
+    const cost = new Set((rite.cost || []).map(([id]) => id));
+    if (!s2.deities.some(d => d.gift && cost.has(d.gift)))
+      offRite.push(`${s2.name}→${s2.deities.map(d => d.gift || '无').join('/')}`);
+  }
+  assert(offRite.length === 0, '中山诸神的赐物都在本系礼单之内' + (offRite.length ? '：' + offRite.join('、') : ''));
+
+  // 实发：只在初谒给一次，且赐物真进背包
+  ST.Game.inventory = {};
+  const nid = 'zhongshan-6-01';                 // 平逢之山 · 骄虫（赐吉玉）
+  const god = ST.AUDIENCE_SITES[nid].deities[0];
+  assert(god.gift === 'jiyu2', '骄虫赐吉玉（' + god.gift + '）');
+  const shells0 = ST.Game.shells;
+  ST.doAudience(nid);
+  assert((ST.Game.inventory.jiyu2 || 0) === 1, '初谒得吉玉×1（实有 ' + (ST.Game.inventory.jiyu2 || 0) + '）');
+  assert(((ST.Game.records[god.id] || {}).count || 0) === 1, '神祇同时入录');
+  ST.doAudience(nid);
+  assert((ST.Game.inventory.jiyu2 || 0) === 1, '再谒不再赐（赐物只认首见）');
+  assert(ST.Game.shells === shells0, '谒见不发贝币（不另开一条刷钱路）');
+
+  // 赐物写进异迹索引：玩家挑这一趟值不值，得先看见给什么
+  const row = ST.heteroSites().find(x => x.kind === '谒见' && x.id === nid);
+  assert(row && row.gain.indexOf('初谒赐') >= 0 && row.gain.indexOf('吉玉') >= 0, '索引写明赐物：' + (row || {}).gain);
 }
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）

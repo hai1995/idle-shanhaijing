@@ -2339,3 +2339,9 @@ details.hetero-panel .hp-left{ margin-left:auto; font-style:normal; color:var(--
   .hetero-row{ grid-template-columns:3em 1fr 4em; }
   .hetero-row .hr-where, .hetero-row .hr-gain{ display:none; }
 }
+
+/* 统计页「异迹 N/32 · 查看索引」：数字后面给一条去路 */
+.stat-link{ cursor:pointer; }
+.stat-link:hover b{ color:var(--zhu-d); }
+.stat-link .stat-go{ font-style:normal; margin-left:4px; font-size:11px; color:var(--ink-4); }
+.stat-link:hover .stat-go{ color:var(--zhu-d); }

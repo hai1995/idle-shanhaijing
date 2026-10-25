@@ -1247,6 +1247,16 @@ UI.faunaChipHtml = function(sel, f){
   return `<span class="fauna-chip ${rec && rec.count>0 ? 'seen':''}"${f.effect?` title="${esc(f.effect)}"`:''}><span class="fc-ic">${ic}</span>${esc(f.name)}${tag}</span>`;
 };
 
+// 统计页「异迹」那一格点进来：展开索引并滚到它跟前。
+// 光给数字不给去路，玩家看完还是得一座座山翻。
+UI.gotoHetero = function(){
+  this.heteroOpen = true;
+  if (this.currentTab !== 'yudi') this.switchTab('yudi');
+  else this.renderYudi();
+  const el = document.querySelector('details.hetero-panel');
+  if (el && el.scrollIntoView) el.scrollIntoView({ block:'center', behavior:'smooth' });
+};
+
 // 异迹索引：观象 9 处、谒见 20 处、灌木 3 处散在 447 座山里，
 // 每处的按钮只在该山的详情里出现。统计页写着「观象处 3/9」，玩家却没有办法
 // 知道差的那 6 处在哪——只能一座一座山点开看。这里一张表列全：
@@ -3819,6 +3829,13 @@ UI.renderStats = function(){
         <span>已录 <b data-stat="recorded">${recordedCount()}/${Object.keys(CODEX).length}</b></span>
         <span>山已涉 <b data-stat="nodes">${Object.keys(Game.map).length}/${WORLD.regions.reduce((s,r)=>s+r.nodes.length,0)}</b></span>
         <span>观象处 <b data-stat="observed">${Object.values(Game.observed).filter(Boolean).length}/${Object.keys(OBSERVE_SITES).length}</b></span>
+        ${(() => {
+          // 统计报「还差几处」，得给一条去路——否则玩家看完数字还是得一座座山翻
+          const hs = (typeof heteroSites === 'function') ? heteroSites() : [];
+          if (!hs.length) return '';
+          const done = hs.filter(x => x.done).length;
+          return `<span class="stat-link" onclick="UI.gotoHetero()" title="观象 / 谒见 / 灌木三类一次性地点">异迹 <b data-stat="hetero">${done}/${hs.length}</b><i class="stat-go">查看索引</i></span>`;
+        })()}
         <span>营造 <b data-stat="buildings">${Object.keys(Game.buildings).length}/${Object.keys(BUILDINGS).length}</b></span>
       </div></div>
     <div class="panel stat-panel"><h3>长线成就</h3>

@@ -1137,9 +1137,12 @@ function heteroSites(){
     const total = (s.deities || []).length;
     let got = 0;
     for (const d of (s.deities || [])) if (((Game.records || {})[d.id] || {}).count > 0) got++;
+    // 赐物写进索引：「初谒赐 吉玉」比「初谒得赐」有用——玩家能判断这一趟值不值
+    const gifts = [...new Set((s.deities || []).map(d => d.gift).filter(Boolean))]
+      .map(g => (Items[g] || {}).name || g);
     put({ kind: '谒见', id: nodeId, name: s.name, nodeId,
       done: total > 0 && got >= total, prog: { got, total },
-      gain: '神祇入录' + ((s.deities || []).some(d => d.gift) ? ' · 初谒得赐' : ''),
+      gain: '神祇入录' + (gifts.length ? ` · 初谒赐 ${gifts.join('/')}` : ''),
       act: `startAudience('${nodeId}')` });
   }
   for (const [id, s] of Object.entries(GROW_SITES || {})){

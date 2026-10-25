@@ -138,6 +138,26 @@ for (const [name, map] of [['观象', W.OBSERVE_SITES], ['养成', W.GROW_SITES]
   const listed = (typeof W.heteroSites === 'function') ? W.heteroSites().length : -1;
   if (listed !== total)
     bad('异迹', `异迹索引列出 ${listed} 处，三表合计 ${total} 处——有同类没接进索引`);
+  // 谒见必须有回报：二十处里若有整处一件赐物都不给，那一趟只剩一条图鉴，
+  // 而它偏偏是七十级往后唯一的动作（中山诸神不可讨伐）。
+  for (const [nodeId, s] of Object.entries(W.AUDIENCE_SITES || {})){
+    const gifts = (s.deities || []).map(d => d.gift).filter(Boolean);
+    if (!gifts.length) bad('谒见', `${s.name}（${nodeId}）诸神皆无初谒之赐——谒见一趟只得一条图鉴`);
+    gifts.forEach(g => { if (!I[g]) bad('谒见', `${s.name} 的赐物不存在 ${g}`); });
+  }
+  // 中山诸神赐的是「本系祠礼要用的那件祭品」：谒见 → 得料 → 行祭，一条闭环。
+  // 改礼单时若忘了同步赐物，这条会报——免得又变成两份互不相干的表。
+  for (const [nodeId, s] of Object.entries(W.AUDIENCE_SITES || {})){
+    if (String(nodeId).indexOf('zhongshan-') !== 0) continue;
+    const regionId = nodeId.replace(/-\d+$/, '');
+    const rite = W.Recipes.find(r => r.type === 'rite'
+      && (W.RITES[r.out] || {}).regionId === regionId);
+    if (!rite) continue;
+    const cost = new Set((rite.cost || []).map(([id]) => id));
+    const hit = (s.deities || []).some(d => d.gift && cost.has(d.gift));
+    if (!hit)
+      bad('谒见', `${s.name} 的赐物（${(s.deities || []).map(d => d.gift || '无').join('/')}）都不在本系祠礼（${rite.out}）之内——谒见与行祭接不上`);
+  }
   (typeof W.heteroSites === 'function' ? W.heteroSites() : []).forEach(x => {
     if (!x.gain) bad('异迹', `${x.kind} ${x.name} 没写收益，索引那一格会是空白`);
     if (!x.regionId) bad('异迹', `${x.kind} ${x.name} 找不到所属山系（${x.nodeId}）`);
