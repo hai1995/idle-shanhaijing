@@ -2140,26 +2140,53 @@ const SIX_BEASTS = ['zaochi','jiuying','dafeng','yayu','xiushe','fenghui'];
 window.SIX_BEASTS = SIX_BEASTS;
 
 // ---------- 长线成就（里程碑） ----------
+// 每条都写 prog()：返回 [已得, 目标]。check 由它派生（见数组下面的循环），
+// 于是「界面上的进度条」与「判定是否达成」永远读同一份数，不可能走岔。
+//
+// 反面教材：「南山舆图」原本的 check 数的是 Object.keys(Game.map).length，
+// 也就是**全部**到访节点——在南山西山北山各逛十几座也能凑满 39，
+// 南山一座没走完就亮了；而界面上根本不显示进度，谁也没发现。
+const chapterNodes = (prefix) => WORLD.regions
+  .filter(r => r.regionId.indexOf(prefix) === 0)
+  .reduce((a, r) => a + r.nodes.length, 0);
+const chapterVisited = (prefix) => Object.keys(Game.map || {})
+  .filter(id => id.indexOf(prefix) === 0).length;
+const bossKilled = (id) => !!((Game.stats.bossKills || {})[id]);
+// 「三谷观象」只指南山那三处观象点（日次 / 凯风 / 条风）。
+// 原来数的是 observed 的总数 ≥ 3——把观瑞（凤皇 / 鹓雏）和东山的四处也算进去了。
+const NS_OBSERVE = Object.keys(OBSERVE_SITES).filter(k => OBSERVE_SITES[k].kind === '观象'
+  && String(OBSERVE_SITES[k].nodeId).indexOf('nanshan-') === 0);
+
 const Milestones = [
-  { id:'rec_5',    name:'初识山川',   desc:'著录 5 种对象',     check:()=>recordedCount()>=5,     bonus:'经验 +2%',   xp:0.02 },
-  { id:'rec_30',   name:'簿录渐成',   desc:'著录 30 种对象',    check:()=>recordedCount()>=30,    bonus:'经验 +3%',   xp:0.03 },
-  { id:'yudi_all', name:'南山舆图',   desc:'南山经 39 山全部解锁', check:()=>Object.keys(Game.map||{}).length>=39, bonus:'采集 +5%', gather:0.05 },
-  { id:'boss_all', name:'六凶伏诛',   desc:'击败六凶全部',      check:()=>SIX_BEASTS.every(id=>Game.stats.bossKills && Game.stats.bossKills[id]), bonus:'伤害 +10%', dmg:0.10 },
-  { id:'feng_omen',name:'凤皇来仪',   desc:'触发「天下安宁」吉兆', check:()=>!!Game.stats.omens?.fenghuang, bonus:'采获 +5%', yield:0.05 },
-  { id:'guan_all', name:'三谷观象',   desc:'三处观象全部完成',  check:()=>Object.values(Game.observed||{}).filter(Boolean).length>=3, bonus:'离线上限 +1h', offlineCap:3600 },
-  { id:'jingwei',  name:'精卫填海',   desc:'樵采累计 10000 次', check:()=>(Game.stats.gathers?.qiaocai||0)>=10000, bonus:'采集速度 +8%', gather:0.08 },
-  { id:'dayu',     name:'大禹治水',   desc:'全部营造完成',      check:()=>Object.keys(BUILDINGS).every(id=>Game.buildings?.[id]), bonus:'离线效率 +5%', offlineEff:0.05 },
-  { id:'yushi_9',  name:'百兽率舞',   desc:'御使槽位全部启用',  check:()=>beastSlots()>=9 && Object.values(Game.deployed||{}).filter(Boolean).length>=9, bonus:'全技能经验 +3%', xp:0.03 },
+  { id:'rec_5',    name:'初识山川',   desc:'著录 5 种对象',     prog:()=>[recordedCount(), 5],    bonus:'经验 +2%',   xp:0.02 },
+  { id:'rec_30',   name:'簿录渐成',   desc:'著录 30 种对象',    prog:()=>[recordedCount(), 30],   bonus:'经验 +3%',   xp:0.03 },
+  { id:'yudi_all', name:'南山舆图',   desc:`南山经 ${chapterNodes('nanshan-')} 山全部解锁`,
+    prog:()=>[chapterVisited('nanshan-'), chapterNodes('nanshan-')], bonus:'采集 +5%', gather:0.05 },
+  { id:'boss_all', name:'六凶伏诛',   desc:'击败六凶全部',
+    prog:()=>[SIX_BEASTS.filter(bossKilled).length, SIX_BEASTS.length], bonus:'伤害 +10%', dmg:0.10 },
+  { id:'feng_omen',name:'凤皇来仪',   desc:'触发「天下安宁」吉兆',
+    prog:()=>[(Game.stats.omens && Game.stats.omens.fenghuang) ? 1 : 0, 1], bonus:'采获 +5%', yield:0.05 },
+  { id:'guan_all', name:'三谷观象',   desc:`南山 ${NS_OBSERVE.length} 处观象全部完成`,
+    prog:()=>[NS_OBSERVE.filter(k => Game.observed && Game.observed[k]).length, NS_OBSERVE.length],
+    bonus:'离线上限 +1h', offlineCap:3600 },
+  { id:'jingwei',  name:'精卫填海',   desc:'樵采累计 10000 次',
+    prog:()=>[Math.min(10000, (Game.stats.gathers && Game.stats.gathers.qiaocai) || 0), 10000], bonus:'采集速度 +8%', gather:0.08 },
+  { id:'dayu',     name:'大禹治水',   desc:'全部营造完成',
+    prog:()=>[Object.keys(BUILDINGS).filter(id => Game.buildings && Game.buildings[id]).length, Object.keys(BUILDINGS).length],
+    bonus:'离线效率 +5%', offlineEff:0.05 },
+  { id:'yushi_9',  name:'百兽率舞',   desc:'御使槽位全部启用',
+    prog:()=>[Math.min(beastSlots(), Object.values(Game.deployed || {}).filter(Boolean).length), 9],
+    bonus:'全技能经验 +3%', xp:0.03 },
   // ---- 西山经长线成就 ----
-  { id:'xs_yudi',  name:'西山舆图',   desc:'西山经 77 山全部解锁', check:()=>Object.keys(Game.map||{}).filter(id=>id.indexOf('xishan-')===0).length>=77, bonus:'采获 +8%', yield:0.08 },
-  { id:'xs_luwu',  name:'昆吾守关',   desc:'击败陆吾',          check:()=>!!(Game.stats.bossKills&&Game.stats.bossKills.luwu), bonus:'采集 +5%', gather:0.05 },
-  { id:'xs_xiwm',  name:'玉山谒母',   desc:'击败西王母',        check:()=>!!(Game.stats.bossKills&&Game.stats.bossKills.xiwangmu), bonus:'伤害 +10%', dmg:0.10 },
-  { id:'xs_dijiang',name:'天山混沌',  desc:'击败帝江',          check:()=>!!(Game.stats.bossKills&&Game.stats.bossKills.dijiang), bonus:'采获 +10%', yield:0.10 },
-  { id:'xs_danmu', name:'丹木五岁',   desc:'峚山养成完成一次',  check:()=>(Game.danmu||{}).done>=1, bonus:'采集速度 +15%', gather:0.15 },
+  { id:'xs_yudi',  name:'西山舆图',   desc:`西山经 ${chapterNodes('xishan-')} 山全部解锁`,
+    prog:()=>[chapterVisited('xishan-'), chapterNodes('xishan-')], bonus:'采获 +8%', yield:0.08 },
+  { id:'xs_luwu',  name:'昆吾守关',   desc:'击败陆吾',          prog:()=>[bossKilled('luwu') ? 1 : 0, 1], bonus:'采集 +5%', gather:0.05 },
+  { id:'xs_xiwm',  name:'玉山谒母',   desc:'击败西王母',        prog:()=>[bossKilled('xiwangmu') ? 1 : 0, 1], bonus:'伤害 +10%', dmg:0.10 },
+  { id:'xs_dijiang',name:'天山混沌',  desc:'击败帝江',          prog:()=>[bossKilled('dijiang') ? 1 : 0, 1], bonus:'采获 +10%', yield:0.10 },
+  { id:'xs_danmu', name:'丹木五岁',   desc:'峚山养成完成一次',  prog:()=>[Math.min(1, (Game.danmu || {}).done || 0), 1], bonus:'采集速度 +15%', gather:0.15 },
   // 原先数的是 records 里 deity_ 开头的键（那是祠礼的神祇，27 个），与「谒见」无关；
   // 达成口径与 desc 对不上，玩家谒见完全部西山神祇反而不亮。现在按谒见点实计。
-  // ⚠️ 两个数都从 AUDIENCE_SITES 现算，不写死：以后给西山添一位神祇，
-  // 门槛会自动跟着涨——写死的话就成了「谒见十一位也算圆满」。
+  // ⚠️ 位数从 AUDIENCE_SITES 现算，不写死：以后给西山添一位神祇，门槛自动跟着涨。
   (() => {
     const xsDeities = [];
     for (const site of Object.values(AUDIENCE_SITES || {})){
@@ -2167,17 +2194,22 @@ const Milestones = [
       for (const d of (site.deities || [])) xsDeities.push(d.id);
     }
     return { id:'xs_deity', name:'西山百神', desc:`谒见西山全部 ${xsDeities.length} 位神祇`,
-      check:()=>{
-        let n = 0;
-        for (const id of xsDeities) if (((Game.records || {})[id] || {}).count > 0) n++;
-        return xsDeities.length > 0 && n >= xsDeities.length;
-      }, bonus:'祭祀经验 +20%', jisi:0.20 };
+      prog:()=>[xsDeities.filter(id => ((Game.records || {})[id] || {}).count > 0).length, xsDeities.length],
+      bonus:'祭祀经验 +20%', jisi:0.20 };
   })(),
   // ---- 北山经长线成就 ----
-  { id:'bs_yudi',  name:'北山舆图',   desc:'北山经 88 山全部解锁', check:()=>Object.keys(Game.map||{}).filter(id=>id.indexOf('beishan-')===0).length>=88, bonus:'采获 +10%', yield:0.10 },
-  { id:'bs_qisuan',name:'器酸三岁',   desc:'咸山器酸养成完成',    check:()=>!!(Game.grow&&Game.grow.qisuan&&Game.grow.qisuan.done), bonus:'采集速度 +10%', gather:0.10 },
-  { id:'bs_jingwei',name:'东海渐浅',  desc:'发鸠山精卫填海养成完成', check:()=>!!(Game.grow&&Game.grow.jingwei&&Game.grow.jingwei.done), bonus:'采集速度 +10%', gather:0.10 },
+  { id:'bs_yudi',  name:'北山舆图',   desc:`北山经 ${chapterNodes('beishan-')} 山全部解锁`,
+    prog:()=>[chapterVisited('beishan-'), chapterNodes('beishan-')], bonus:'采获 +10%', yield:0.10 },
+  { id:'bs_qisuan',name:'器酸三岁',   desc:'咸山器酸养成完成',
+    prog:()=>[(Game.grow && Game.grow.qisuan && Game.grow.qisuan.done) ? 1 : 0, 1], bonus:'采集速度 +10%', gather:0.10 },
+  { id:'bs_jingwei',name:'东海渐浅',  desc:'发鸠山精卫填海养成完成',
+    prog:()=>[(Game.grow && Game.grow.jingwei && Game.grow.jingwei.done) ? 1 : 0, 1], bonus:'采集速度 +10%', gather:0.10 },
 ];
+// 达成判定一律从 prog 派生——只有一份数，界面进度与判定不可能走岔。
+Milestones.forEach(ms => {
+  if (typeof ms.prog === 'function')
+    ms.check = () => { const p = ms.prog(); return p[1] > 0 && p[0] >= p[1]; };
+});
 
 // ---------- 采集物的等级阶梯 ----------
 // 采集物的 lvl 原本直接来自所在山的门槛（autoLvl ≈ 门槛 × 0.86），于是出现
@@ -2402,8 +2434,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.28.1',
-  codename:'五臧 · 神赐',
+  version: '1.29.0',
+  codename:'五臧 · 程限',
   updated: '2026-10-25',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',

@@ -2345,3 +2345,29 @@ details.hetero-panel .hp-left{ margin-left:auto; font-style:normal; color:var(--
 .stat-link:hover b{ color:var(--zhu-d); }
 .stat-link .stat-go{ font-style:normal; margin-left:4px; font-size:11px; color:var(--ink-4); }
 .stat-link:hover .stat-go{ color:var(--zhu-d); }
+
+/* 长线成就：名 + 进度数 + 加成 + 一条细进度条；三样横排，扫一眼就知道还差多远 */
+.stat-rows.ms-rows > span{ display:flex; align-items:center; gap:6px; }
+.stat-rows.ms-rows .ms-name{ flex:0 1 auto; }
+.stat-rows.ms-rows .ms-prog{ font-family:var(--f-num); font-size:11px; color:var(--ink-3); }
+.stat-rows.ms-rows span.done .ms-prog{ color:var(--tai); }
+.stat-rows.ms-rows i{ margin-left:auto; }
+.stat-rows.ms-rows .ms-bar{ flex:0 0 52px; height:3px; background:var(--paper-3); border:1px solid var(--rule); }
+.stat-rows.ms-rows .ms-bar > i{ display:block; height:100%; margin:0; background:var(--ink-4); }
+.stat-rows.ms-rows span.done .ms-bar > i{ background:var(--tai); }
+.stat-rows.ms-rows span.done .ms-bar{ border-color:var(--tai); }
+
+/* 长线成就独占一行：十八条挤在 256px 的格子里，名字与进度会互相挤压 */
+.stat-panel.ms-panel{ grid-column:1 / -1; }
+.stat-panel.ms-panel h3 .ms-note{ font-weight:400; font-size:11px; color:var(--ink-4); margin-left:8px; }
+.stat-rows.ms-rows > span{ display:flex; align-items:center; gap:8px; }
+.stat-rows.ms-rows .ms-name{ white-space:nowrap; }
+/* .stat-rows > span b 是「数值靠右」用的 margin-left:auto，进度跟在名字后面，不能吃这条 */
+.stat-rows.ms-rows .ms-prog{ margin-left:0; white-space:nowrap; font-family:var(--f-num); font-size:11px; color:var(--ink-3); }
+.stat-rows.ms-rows span.done .ms-prog{ color:var(--tai); }
+.stat-rows.ms-rows i{ margin-left:auto; white-space:nowrap; }
+.stat-rows.ms-rows .ms-bar{ flex:0 0 56px; height:3px; background:var(--paper-3); border:1px solid var(--rule); }
+.stat-rows.ms-rows .ms-bar > i{ display:block; height:100%; margin:0; background:var(--ink-4); }
+.stat-rows.ms-rows span.done .ms-bar > i{ background:var(--tai); }
+.stat-rows.ms-rows span.done .ms-bar{ border-color:var(--tai); }
+@media (max-width:720px){ .stat-panel.ms-panel{ grid-column:auto; } }

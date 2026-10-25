@@ -198,6 +198,28 @@ for (const [name, map] of [['观象', W.OBSERVE_SITES], ['养成', W.GROW_SITES]
   }
 }
 
+// ---------- 6.3 里程碑：进度与判定必须是同一份数 ----------
+// 每条成就都要有 prog()（返回 [已得, 目标]），check 由它派生。
+// 缺了 prog 的，界面就无从显示「还差多少」；而 check 各写各的时候，
+// 「南山舆图」曾把全部到访节点当成南山进度，逛别处也能点亮。
+{
+  const ms = W.Milestones || [];
+  const noProg = ms.filter(m => typeof m.prog !== 'function').map(m => m.name);
+  if (noProg.length) bad('成就', `没有 prog 的成就：${noProg.join('、')}——界面显示不了进度`);
+  ms.forEach(m => {
+    if (typeof m.prog !== 'function') return;
+    let p;
+    try { p = m.prog(); } catch(e){ bad('成就', `${m.name} 的 prog 抛错：${e.message}`); return; }
+    if (!Array.isArray(p) || p.length !== 2 || !isFinite(p[0]) || !isFinite(p[1])){
+      bad('成就', `${m.name} 的 prog 应返回 [已得, 目标]，实为 ${JSON.stringify(p)}`);
+      return;
+    }
+    if (p[1] <= 0) bad('成就', `${m.name} 的目标为 0，永远点不亮`);
+    if (typeof m.check !== 'function' || m.check() !== (p[0] >= p[1]))
+      bad('成就', `${m.name} 的 check 与 prog 不一致（进度 ${p[0]}/${p[1]}）`);
+  });
+}
+
 // ---------- 输出 ----------
 const stats = {
   山: W.WORLD.regions.reduce((a, r) => a + r.nodes.length, 0),

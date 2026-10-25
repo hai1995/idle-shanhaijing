@@ -3793,6 +3793,9 @@ UI.reforgeNow = function(itemId){
 window.showItemDetail = showItemDetail;
 
 // ================= 统计 =================
+// 进度数字用原样整数（不足一万不缩写）：10000 次写成「10.0K」反而不如「10000」直观
+const prNum = (v) => (v > 10000 ? fmt(v) : String(v));
+
 UI.renderStats = function(){
   const box = $('content');
   if (!box) return;
@@ -3808,8 +3811,8 @@ UI.renderStats = function(){
       <div class="stat-rows">
         <span>击杀 <b data-stat="kills">${s.kills}</b></span>
         <span>败北 <b data-stat="deaths">${s.deaths}</b></span>
-        <span>六凶 <b data-stat="six">${sixDone}/${SIX_BEASTS.length}</b></span>
-        <span>凶神 <b data-stat="bosses">${bossDone}/${bossAll}</b></span>
+        <span class="stat-link" onclick="UI.switchTab('taofa')" title="前往征伐页">六凶 <b data-stat="six">${sixDone}/${SIX_BEASTS.length}</b></span>
+        <span class="stat-link" onclick="UI.switchTab('taofa')" title="前往征伐页">凶神 <b data-stat="bosses">${bossDone}/${bossAll}</b></span>
         <span>造成伤害 <b data-stat="damageDealt">${fmt(s.damageDealt)}</b></span>
         <span>承受伤害 <b data-stat="damageTaken">${fmt(s.damageTaken)}</b></span>
       </div></div>
@@ -3844,9 +3847,21 @@ UI.renderStats = function(){
         })()}
         <span>营造 <b data-stat="buildings">${Object.keys(Game.buildings).length}/${Object.keys(BUILDINGS).length}</b></span>
       </div></div>
-    <div class="panel stat-panel"><h3>长线成就</h3>
+    <div class="panel stat-panel ms-panel"><h3>长线成就<span class="hint ms-note">进度与达成同源</span></h3>
       <div class="stat-rows ms-rows">
-        ${(window.Milestones||[]).map((ms,i)=>`<span data-ms="${i}" class="${ms.check()?'done':''}"><span class="ms-mark">${ms.check()?(typeof markIcon==='function'?markIcon('check',13):'✔'):'<span class="ms-open"></span>'}</span> ${esc(ms.name)}<i>${esc(ms.bonus)}</i></span>`).join('')}
+        ${(window.Milestones||[]).map((ms,i)=>{
+          // 进度条与判定读同一份数（ms.prog），不会出现「显示 38/39 却已点亮」
+          const done = ms.check();
+          const pr = (typeof ms.prog === 'function') ? ms.prog() : null;
+          const pct = pr ? Math.min(100, pr[0] / Math.max(1, pr[1]) * 100) : (done ? 100 : 0);
+          return `<span data-ms="${i}" class="${done?'done':''}" title="${esc(ms.desc)}">
+            <span class="ms-mark">${done?(typeof markIcon==='function'?markIcon('check',13):'✔'):'<span class="ms-open"></span>'}</span>
+            <span class="ms-name">${esc(ms.name)}</span>
+            ${pr?`<b class="ms-prog">${prNum(pr[0])}/${prNum(pr[1])}</b>`:''}
+            <i>${esc(ms.bonus)}</i>
+            ${pr?`<span class="ms-bar"><i style="width:${pct.toFixed(1)}%"></i></span>`:''}
+          </span>`;
+        }).join('')}
       </div></div>
     <div class="panel stat-panel"><h3>时间 / 离线</h3>
       <div class="stat-rows">

@@ -4961,8 +4961,8 @@ section('六凶名单与统计口径');
   // 名单是单一出处：成就与征伐页分组都得读它，不许再抄一份 id 列表
   const dataSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'gameData.js'), 'utf8');
   const uiSrc84 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
-  const msSrc = dataSrc.slice(dataSrc.indexOf("id:'boss_all'"), dataSrc.indexOf("id:'boss_all'") + 260);
-  assert(msSrc.includes('SIX_BEASTS.every'), '六凶伏诛按名单判定（不另写 id 数组）');
+  const msSrc = dataSrc.slice(dataSrc.indexOf("id:'boss_all'"), dataSrc.indexOf("id:'boss_all'") + 320);
+  assert(/SIX_BEASTS\.(every|filter)/.test(msSrc), '六凶伏诛按名单判定（不另写 id 数组）');
   assert(uiSrc84.includes('SIX_BEASTS.includes'), '征伐页的六凶分组按名单筛');
   assert(!uiSrc84.includes('bosses">${Object.keys(s.bossKills||{}).length}/7'),
     '统计页不再写死 /7');
@@ -4974,6 +4974,7 @@ section('六凶名单与统计口径');
   const bossAll = Object.values(ST.Monsters).filter(m => m.boss).length;
   assert(html84.includes(`六凶 <b data-stat="six">1/6</b>`), '六凶 1/6（刑天不计入）');
   assert(html84.includes(`凶神 <b data-stat="bosses">2/${bossAll}</b>`), `凶神 2/${bossAll}（全部 BOSS 单列）`);
+  assert((html84.match(/stat-link" onclick="UI\.switchTab\('taofa'\)"/g) || []).length >= 2, '两格都能点进征伐页（数字后面给去路）');
 
   // 成就：差一位不亮，六位齐了才亮
   const ms = ST.Milestones.find(m => m.id === 'boss_all');
@@ -4995,6 +4996,60 @@ section('六凶名单与统计口径');
   G.saveGame(); G.loadGame();
   const pj = ST.Game.gear.weapon;
   assert(pj && pj.def === ST.Items.pijia.def && pj.grade === ST.Items.pijia.grade, '正常装备仍按物品表重建（不沿用旧快照）');
+}
+
+// ============ 85. 长线成就：进度与判定读同一份数 ============
+// 「南山舆图」原先数的是 Object.keys(Game.map).length —— 全部到访节点，
+// 在南山西山北山各逛十几座也能凑满 39，南山一座没走完就亮了；
+// 「三谷观象」数的是 observed 总数 ≥3，观瑞与东山四处也算进去。
+// 界面又不显示进度，所以两处错了很久都没人发现。
+section('长线成就进度');
+{
+  G.resetToDefault();
+  const msOf = (id) => ST.Milestones.find(m => m.id === id);
+  const nsTotal = ST.WORLD.regions.filter(r => r.regionId.indexOf('nanshan-') === 0).reduce((a, r) => a + r.nodes.length, 0);
+  assert(nsTotal === 39, '南山经 ' + nsTotal + ' 山');
+
+  // 每条都有 prog，返回 [已得, 目标]，目标为正
+  const bad = [];
+  ST.Milestones.forEach(m => {
+    if (typeof m.prog !== 'function') return bad.push(m.name + '(无 prog)');
+    const p = m.prog();
+    if (!Array.isArray(p) || p.length !== 2 || !isFinite(p[0]) || !isFinite(p[1]) || p[1] <= 0) bad.push(m.name + JSON.stringify(p));
+    else if (m.check() !== (p[0] >= p[1])) bad.push(m.name + '(check 与 prog 不一致)');
+  });
+  assert(bad.length === 0, `${ST.Milestones.length} 条成就都有可读进度且判定一致` + (bad.length ? '：' + bad.join('、') : ''));
+
+  // 南山舆图：别处的节点不算数
+  const ns = msOf('yudi_all');
+  const foreign = Object.keys(ST.WORLD.regions.filter(r => r.regionId.indexOf('nanshan-') !== 0)
+    .flatMap(r => r.nodes.map(n => n.id))).slice(0, 39);
+  ST.Game.map = {};
+  foreign.forEach(id => { ST.Game.map[id] = true; });
+  assert(foreign.length >= 39, '拿 ' + foreign.length + ' 座外系山头充数');
+  assert(ns.prog()[0] === 0, '南山进度仍是 0（别处走过的不算）');
+  assert(ns.check() === false, '别处凑满 39 座不点亮「南山舆图」');
+  const nsIds = ST.WORLD.regions.filter(r => r.regionId.indexOf('nanshan-') === 0).flatMap(r => r.nodes.map(n => n.id));
+  nsIds.forEach(id => { ST.Game.map[id] = true; });
+  assert(ns.prog()[0] === 39 && ns.check() === true, '南山 39 座走遍才点亮');
+
+  // 三谷观象：只认南山那三处（观瑞与东山四处不算）
+  const gu = msOf('guan_all');
+  assert(gu.prog()[1] === 3, '目标为三处观象');
+  ST.Game.observed = { danxue: true, nanyu: true, ds_dongshan_2_01: true, ds_dongshan_3_01: true };
+  assert(gu.prog()[0] === 0 && gu.check() === false, '观瑞与东山观象不计入「三谷观象」');
+  ST.Game.observed = { qiuwu: true, yugu: true, zhonggu: true };
+  assert(gu.prog()[0] === 3 && gu.check() === true, '南山三处观象齐了点亮');
+
+  // 界面：进度数与细进度条都渲染出来，且与 prog 同源
+  ST.Game.stats.bossKills = { zaochi: true };
+  ST.UI.currentTab = 'stats'; ST.UI.renderStats();
+  const html85 = (renderTargets.content || {}).innerHTML || '';
+  const sixP = msOf('boss_all').prog();
+  assert(html85.includes(`>${sixP[0]}/${sixP[1]}<`) || html85.includes(`>${sixP[0]}/${sixP[1]}</b>`),
+    `六凶伏诛显示进度 ${sixP[0]}/${sixP[1]}`);
+  assert((html85.match(/class="ms-bar"/g) || []).length === ST.Milestones.length, '每条都带进度条');
+  assert(html85.includes('title="击败六凶全部"'), '悬停可见达成条件（名字太短，光看「六凶伏诛」猜不出要几位）');
 }
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
