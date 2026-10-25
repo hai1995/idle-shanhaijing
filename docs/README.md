@@ -40,10 +40,12 @@
 - **发布流程**（顺序不能变）：
 
   ```
-  node test/engine.test.js          # 全绿
-  node scripts/audit-data.js        # 零悬空
-  node scripts/build-standalone.js   # 重建单文件版（会自检脚本数）
+  npm run check                      # 版本一致 + 测试 + 审计 + 单文件版，任一步失败即中止
+  # 需要单跑某一步时：
+  npm test / npm run audit / npm run build
   # 浏览器实测：首页、舆地、征伐、行装、统计、叙录
   ```
+
+  `check` 还会核对 **package.json 的 version 与 `GAME_META.version` 是否一致**——两处漂移时，页面底部显示的版本与 npm 包版本会对不上，排查线上问题最容易误导人。
 
 - **提交信息**：`类型(模块): 一句话结论` + 正文写「原来错在哪、怎么发现的、怎么防复发」。这个仓库的历史信息是后来判断「某段代码为什么这样写」的主要线索。
