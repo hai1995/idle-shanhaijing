@@ -2791,6 +2791,20 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   assert(/@media \(max-width:760px\)\{[\s\S]{0,500}\.btn[^{]*\{[^}]*border-radius:1px !important/.test(css2), '窄屏操作按钮统一近直角');
 }
 
+// ============ 47. 物品用途面板（v1.14.3） ============
+{
+  G.resetToDefault();
+  assert(typeof ST.itemUses === 'function', 'itemUses 已导出');
+  const usesYu = ST.itemUses('yu');
+  assert(usesYu.length >= 5, '「玉」列出多处用途（' + usesYu.length + ' 处）');
+  assert(usesYu.some(u => u.kind === '祠礼'), '用途区分出祠礼祭品');
+  assert(usesYu.some(u => u.kind === '琢玉'), '用途区分出琢玉配方');
+  const noUse = Object.values(ST.Items).find(i => i.skill && ST.itemUses(i.id).length === 0);
+  assert(!!noUse, '存在「暂无合用之方」的物品（如 ' + (noUse && noUse.name) + '）——详情里会直说并给回收价');
+  const uiSrc47 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  assert(uiSrc47.includes('class="use-box"') && uiSrc47.includes('暂无合用之方'), '详情弹窗有用途行与空态文案');
+}
+
 // ============ 46. 采集等级阶梯与越级采集（v1.14.2） ============
 {
   const gameSrc46 = fs.readFileSync(path.join(__dirname, '..', 'src', 'game.js'), 'utf8');

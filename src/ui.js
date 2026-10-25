@@ -2954,6 +2954,26 @@ function gearSubText(g){
   if (g.effect) parts.push(g.effect);
   return parts.join(' · ');
 }
+// 「这东西有什么用」——671 件物品里有 514 件不参与任何配方，玩家点开只见出处，
+// 采完之后不知道该留着还是卖掉。这里把用途一次说清：哪些配方拿它当料、
+// 是否祠礼祭品、能否作种，若一无所用则直说「暂无合用之方」并给出回收价。
+const RECIPE_KIND = { burn:'燔燎', cook:'调鼎', smith:'锻冶', fletch:'制箭', craft:'制作', jade:'琢玉', herb:'合药', rite:'祠礼' };
+function itemUses(id){
+  const out = [];
+  const seen = {};
+  for (const r of Recipes){
+    if (!Array.isArray(r.cost)) continue;
+    if (!r.cost.some(c => c && c[0] === id)) continue;
+    const kind = RECIPE_KIND[r.type] || '制作';
+    const name = (Items[r.out] || {}).name || r.out;
+    const key = kind + '/' + name;
+    if (seen[key]) continue;
+    seen[key] = 1;
+    out.push({ kind, name, rite: r.type === 'rite' });
+  }
+  return out;
+}
+
 function showItemDetail(itemId){
   const it = Items[itemId];
   if (!it) return;
@@ -2991,6 +3011,15 @@ function showItemDetail(itemId){
     ${it.form?`<div class="reveal"><b>形态</b>${esc(it.form)}</div>`:''}
     ${it.effect?`<div class="reveal"><b>效果</b>${esc(it.effect)}</div>`:''}
     ${it.note?`<div class="reveal"><b>出处</b>${esc(it.note)}</div>`:''}
+    ${(() => {
+      const uses = itemUses(itemId);
+      const crop = it.crop ? `<span class="use-chip">可作嘉种（收 ${esc((Items[it.crop]||{}).name || it.crop)}）</span>` : '';
+      const body = uses.length
+        ? uses.slice(0, 10).map(u => `<span class="use-chip ${u.rite ? 'rite' : ''}">${u.kind}·${esc(u.name)}</span>`).join('') + (uses.length > 10 ? `<span class="hint">等 ${uses.length} 处</span>` : '')
+        : (crop ? '' : '<span class="hint">暂无合用之方——可售或留作图鉴</span>');
+      const price = (typeof sellValue === 'function' && it.value) ? `<span class="hint">回收 ${sellValue(itemId, 1)} 贝 / 件</span>` : '';
+      return (body || crop) ? `<div class="reveal"><b>用途</b><span class="use-box">${crop}${body}${price}</span></div>` : '';
+    })()}
     ${it.equip&&(it.dmg||it.def)?`<div class="reveal"><b>淬炼</b>+${enhLv} · ${it.dmg?'伤害':'防御'} ${Math.floor(enhanceScaled(it.dmg||it.def, enhLv))} → 下一级 ${Math.floor(enhanceScaled(it.dmg||it.def, enhLv+1))}（炭×${enhCost.tan} · ${enhCost.shells} 贝）</div>`:''}
     ${afList.length?`<div class="reveal"><b>词条</b>${afList.map(x=>`<span class="af-txt"><i>${esc(x.name)}</i>${esc(x.text)}</span>`).join('')}</div>`:''}
     ${it.buff?`<div class="reveal"><b>服用</b>${esc(it.buff.name)}（${it.buff.dur}s）</div>`:''}
@@ -3555,6 +3584,13 @@ Object.keys(TAB_RENDER).forEach(tab=>{
     return r;
   };
 });
+
+// 纯函数式的小工具挂到 window：浏览器里 window === globalThis 本无差别，
+// 但测试在 vm 里跑，顶层 function 声明只落 context、不落 window，显式导出才可断言。
+window.itemUses = itemUses;
+window.gatherGate = gatherGate;
+window.combatStatBreakdown = combatStatBreakdown;
+window.structureEffectRows = structureEffectRows;
 
 window.init = init;
 window.UI = UI;

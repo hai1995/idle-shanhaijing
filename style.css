@@ -2076,3 +2076,13 @@ mark.hit{
   color:var(--ink-2);
 }
 .btn.over i{ color:var(--jin); }
+
+/* 物品详情·用途 */
+.use-box{ flex:1 1 auto; display:flex; flex-wrap:wrap; align-items:center; gap:3px 6px; line-height:1.5; }
+.use-chip{
+  display:inline-block; margin:0; padding:1px 6px; white-space:nowrap;
+  font-size:11.5px; color:var(--ink-2); background:var(--paper-3);
+  border:1px solid var(--rule-2); border-radius:1px;
+}
+.use-chip.rite{ color:var(--zhu-d); border-color:var(--zhu); background:transparent; }
+.reveal .hint + .hint{ margin-left:8px; }
