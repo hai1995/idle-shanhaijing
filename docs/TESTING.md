@@ -3,7 +3,7 @@
 ## 一、怎么跑
 
 ```bash
-node test/engine.test.js        # 1837 条断言，91 节，约 1.5 秒
+node test/engine.test.js        # 1856 条断言，92 节，约 1.5 秒
 node scripts/audit-data.js      # 数据跨表审计，零悬空才算过（有问题退出码 1）
 ```
 

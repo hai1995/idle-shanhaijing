@@ -262,10 +262,21 @@ const UI = {
   // ⚠️ 顶栏不再显示气血（征伐页的战斗面板里已有，重复一遍纯属冗余）。
   refreshCombatHud(){
     const c = Game.combat;
+    // 顶栏状态条：限次往讨要报「还剩几场」。无限连战（repeat == null）不报，
+    // 那种打法本来就没有「还剩」这回事，写个 ∞ 反而添乱。
+    if (c && c.repeat != null){
+      const t = $('activityText');
+      if (t){
+        const nm = (Monsters[c.monsterId] || {}).name || '';
+        const txt = `往讨：${nm}（余 ${c.repeat} 场）`;
+        if (t.textContent !== txt) t.textContent = txt;
+      }
+    }
     if (!c){
       if (this._combatActive){
         this._combatActive = false;
         this.afterCombatEnd(this._lastMobId);
+        if (this.refreshActivity) this.refreshActivity();   // 收兵：顶栏从「余 N 场」回到实际状态
       }
       return;
     }
@@ -355,15 +366,36 @@ const UI = {
   },
 
   // ---------- 弹窗 ----------
+  // 三段式：标题 / 内容（可滚） / 按钮（固定底部）。
+  // 原先整个盒子一起滚，物品详情、离线归来这类长内容一往下翻，按钮就跟着滑走了；
+  // 手机上想点「售出」还得先滚回底部。现在按钮永远在下方，内容只在中间滚。
   modal(html){
     const m = $('modal'), box = $('modalBox');
     if (!m || !box) return;
     box.innerHTML = html;
+    // 无头环境（测试 stub）没有 querySelector：跳过分段，别把渲染整条路拖垮
+    if (typeof box.querySelector === 'function' && !box.querySelector(':scope > .modal-body')) this._splitModal(box);
     m.classList.remove('hidden');
+    if (document.body) document.body.classList.add('no-scroll');   // 弹窗开着时，背景不跟着滚
+  },
+  _splitModal(box){
+    const head = box.querySelector(':scope > h3');
+    const btns = box.querySelector('.modal-btns');
+    const body = document.createElement('div');
+    body.className = 'modal-body';
+    [...box.children].forEach(ch => { if (ch !== head && ch !== btns) body.appendChild(ch); });
+    box.appendChild(body);
+    if (btns){
+      const foot = document.createElement('div');
+      foot.className = 'modal-foot';
+      foot.appendChild(btns);          // appendChild 会把它从原位置摘走
+      box.appendChild(foot);
+    }
   },
   closeModal(){
     const m = $('modal');
     if (m) m.classList.add('hidden');
+    if (document.body) document.body.classList.remove('no-scroll');
   },
 
   // ---------- 离线归来汇总 ----------
@@ -1675,7 +1707,8 @@ UI.renderSkills = function(){
       const raw = Game.skills[id];
       const xc = xpForLevel(raw.level), xn = xpForLevel(raw.level + 1);
       const pct = xn > xc ? Math.min(100, (raw.xp - xc) / (xn - xc) * 100) : 100;
-      return `<div class="tile skill-tile ${active?'active':''}" data-skill="${id}" data-tip data-tip-title="${esc(sk.name)}">
+      return `<div class="tile skill-tile ${active?'active':''}" data-skill="${id}" data-tip data-tip-title="${esc(sk.name)}"
+        role="button" tabindex="0" onclick="showSkillDetail('${id}')">
         <span class="sk-lv">${lv}</span>
         <span class="tile-ic bi-ic">${typeof skillIcon==='function'?skillIcon(sk):sk.icon}</span>
         <span class="tile-nm">${esc(sk.name)}</span>
@@ -1709,7 +1742,7 @@ UI.renderSkills = function(){
       const can = lvOk && afford;
       return `<div class="tile ${can?'':'lock'}" data-tip data-tip-title="${esc(it?it.name:r.out)}"
         role="button" tabindex="0"
-        onclick="${can?`startActivity('craft','${r.type}::${r.out}',{times:1})`:`UI.craftDenied('${r.type}::${r.out}')`}">
+        onclick="showRecipeDetail('${r.type}::${r.out}')">
         <span class="tile-ic bi-ic">${typeof itemIc==='function'?itemIc(it):(it?it.icon:'📦')}</span>
         <span class="tile-nm">${esc(it?it.name:r.out)}</span>
         <span class="tile-tag">${sk.name} ${r.lvl}</span>
@@ -2958,9 +2991,9 @@ UI.renderShichan = function(){
       const lvOk = levelOf('shanglv') >= s.lvl;
       const afford = Game.shells >= s.cost;
       const can = lvOk && afford;
-      // 方块：点按买一份（buyItem 自带等级与贝币校验），右上「×10」买十份
+      // 方块：点按开详情（数量自填），右上「×10」仍作快捷；详情里再做等级与贝币校验
       return `<div class="tile shop-tile ${can?'':'lock'}" data-tip data-tip-title="${esc(it?it.name:s.itemId)}"
-        role="button" tabindex="0" onclick="buyItem(${idx},1)">
+        role="button" tabindex="0" onclick="showShopItem(${idx})">
         <span class="tile-ic bi-ic">${typeof itemIc==='function'?itemIc(it):(it?it.icon:'📦')}</span>
         <span class="tile-nm">${esc(it?it.name:s.itemId)}</span>
         <span class="tile-tag">${s.cost} 贝</span>
@@ -2988,10 +3021,9 @@ UI.renderShichan = function(){
     const it = Items[id];
     const v = sellValue(id, q);
     const unit = sellValue(id, 1);
-    // 方块：图标 + 名 + 整摞售价，点按售 1，右上角「全」售清；
-    // 单价 / 持有明细进浮层
+    // 方块：图标 + 名 + 整摞售价，点按开物品详情（数量自填），右上角「全」售清
     return `<div class="tile sell-tile" data-tip data-tip-title="${esc(it.name)}"
-      role="button" tabindex="0" onclick="sellItem('${id}',1);UI.renderShichan()">
+      role="button" tabindex="0" onclick="showItemDetail('${id}')">
       <span class="tile-ic bi-ic">${typeof itemIc==='function'?itemIc(it):it.icon}</span>
       <span class="tile-nm">${esc(it.name)}</span>
       <span class="tile-tag">${fmt(v)} 贝</span>
@@ -3254,9 +3286,11 @@ UI.renderQueue = function(){
         return `<div class="queue-item ${Game.queueIdx===i&&Game.queueRunning?'cur':''} ${st.ok?'':'blocked'}">
           <span class="qi-idx">${i+1}</span>
           <span class="qi-name">${qiIc}${esc(entryLabel(e))}</span>
-          <span class="qi-prog">${esc(entryProgressText(e))}</span>
-          <span class="qi-eta">约 ${fmtTime(estimateEntrySeconds(e))}</span>
-          ${!st.ok?`<span class="qi-reason">${esc(st.reason)}</span>`:''}
+          <span class="qi-meta">
+            <span class="qi-prog">${esc(entryProgressText(e))}</span>
+            <span class="qi-eta">约 ${fmtTime(estimateEntrySeconds(e))}</span>
+            ${!st.ok?`<span class="qi-reason">${esc(st.reason)}</span>`:''}
+          </span>
           <span class="qi-btns">
             <button class="btn tiny" onclick="moveQueueEntry('${e.id}',-1);UI.renderQueue()">↑</button>
             <button class="btn tiny" onclick="moveQueueEntry('${e.id}',1);UI.renderQueue()">↓</button>
@@ -3317,11 +3351,12 @@ UI.patchQueueProgress = function(){
     el.classList.toggle('cur', Game.queueIdx === i && Game.queueRunning);
     el.classList.toggle('blocked', !st.ok);
     let reason = el.querySelector('.qi-reason');
+    const meta = el.querySelector('.qi-meta') || el;
     if (!st.ok){
       if (!reason){
         reason = document.createElement('span');
         reason.className = 'qi-reason';
-        el.appendChild(reason);
+        meta.appendChild(reason);
       }
       if (reason.textContent !== st.reason) reason.textContent = st.reason;
     } else if (reason){
@@ -3659,15 +3694,7 @@ UI.itemDetailHtml = function(itemId){
     actions.push(`<button class="btn ${ok?'primary':''}" ${ok?'':'disabled'} onclick="equipItem('${itemId}');UI.closeModal()">装备${ok?'':'（'+why+'）'}</button>`);
   }
   if (it.heal || it.buff) actions.push(`<button class="btn primary" onclick="useConsumable('${itemId}');UI.closeModal()">${it.heal?'食用':'服用'}</button>`);
-  if (it.value){
-    actions.push(`<button class="btn" onclick="sellItem('${itemId}',1);UI.closeModal()">出售 1（${sellValue(itemId,1)} 贝）</button>`);
-    if (qty > 1){
-      // 全售走「点两次」：第一下改成确认态、四秒后自动复原。
-      // 卖光一栈是不可逆的，弹一层新 modal 又会盖掉当前详情，二次点击最省事。
-      const armed = this._sellAllArm && this._sellAllArm.id === itemId && (Date.now() - this._sellAllArm.at < 4000);
-      actions.push(`<button class="btn ${armed?'primary':''}" onclick="UI.sellAllOf('${itemId}')">${armed ? `确认售出全部 ${qty} 件？` : `全售 ${qty}（${sellValue(itemId,qty)} 贝）`}</button>`);
-    }
-  }
+  // 出售改成「数量可填」的交易区（见下方 tradeBlock），不再放死档位按钮
 
   const hasAffix = it.equip && typeof affixSlotOf === 'function' && affixSlotOf(it);
   const afList = hasAffix ? affixOf(itemId) : [];
@@ -3708,6 +3735,18 @@ UI.itemDetailHtml = function(itemId){
       <button class="btn small ${afOk?'primary':''}" ${afOk?'':'disabled'} onclick="UI.reforgeNow('${itemId}')">重铸</button></div>`:''}
     ${it.buff?`<div class="reveal"><b>服用</b>${esc(it.buff.name)}（${it.buff.dur}s）</div>`:''}
     ${it.heal?`<div class="reveal"><b>食用</b>回血 ${it.heal}</div>`:''}
+    ${(it.value && qty > 0) ? `<div class="reveal trade-block">
+      <b>售出</b>
+      <div class="qty-line">
+        <button class="btn tiny" type="button" title="减一件" onclick="qtyStep('sellQty',-1)">−</button>
+        <input id="sellQty" class="qty-input" type="number" inputmode="numeric" min="1" max="${qty}" value="1"
+          oninput="syncSell('${itemId}')">
+        <button class="btn tiny" type="button" title="加一件" onclick="qtyStep('sellQty',1)">＋</button>
+        <button class="btn tiny" type="button" onclick="qtySet('sellQty',${qty})">全部</button>
+        <button class="btn primary" onclick="sellN('${itemId}')">售出</button>
+      </div>
+      <div class="hint">可得 <b class="qty-gain" id="sellGain">${fmt(sellValue(itemId, 1))} 贝</b> · 单价 ${fmt(sellValue(itemId,1))} 贝 · 持有 ×${qty}</div>
+    </div>` : ''}
     <div class="modal-btns">${actions.join('')}<button class="btn" onclick="UI.closeModal()">闭</button></div>`;
 };
 
@@ -3718,13 +3757,197 @@ function showItemDetail(itemId){
   UI.modal(UI.itemDetailHtml(itemId));
 }
 
+// ---------- 数量操作（售卖 / 购入共用） ----------
+// 上限写在 input 的 max 上，步进与「全部」都读它——三个入口各写一遍迟早对不上。
+function qtyStep(id, d){
+  const el = $(id);
+  if (!el) return;
+  const max = Math.max(1, parseInt(el.max, 10) || 1);
+  el.value = Math.max(1, Math.min(max, (parseInt(el.value, 10) || 1) + d));
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+}
+function qtySet(id, v){
+  const el = $(id);
+  if (!el) return;
+  const max = Math.max(1, parseInt(el.max, 10) || 1);
+  el.value = Math.max(1, Math.min(max, v));
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+}
+function syncSell(itemId){
+  const el = $('sellQty'), g = $('sellGain');
+  if (!el || !g) return;
+  const have = Math.max(1, Game.inventory[itemId] || 1);
+  const n = Math.max(1, Math.min(have, parseInt(el.value, 10) || 1));
+  g.textContent = fmt(sellValue(itemId, n)) + ' 贝';
+}
+function sellN(itemId){
+  const el = $('sellQty');
+  const have = Game.inventory[itemId] || 0;
+  if (have <= 0){ UI.closeModal(); return; }
+  const n = Math.max(1, Math.min(have, parseInt(el && el.value, 10) || 1));
+  const gain = sellItem(itemId, n);
+  if (gain > 0) UI.toast(`⚖️ 售出 ${(Items[itemId]||{}).name||''} ×${n}，得贝 ${fmt(gain)}`);
+  if ((Game.inventory[itemId] || 0) > 0) UI.refreshItemModal(itemId);
+  else UI.closeModal();
+}
+window.qtyStep = qtyStep; window.qtySet = qtySet;
+window.syncSell = syncSell; window.sellN = sellN;
+
+// ---------- 市廛：商品详情与批量购入 ----------
+// 原先点一下直接买 1 份、右上「×10」买十份——想买 37 份得点四次。
+// 现在单击先看详情，数量自填；「×10」仍留作快捷。
+function showShopItem(idx){
+  const s = ShopStock[idx];
+  const it = s && Items[s.itemId];
+  if (!it) return;
+  const lvOk = levelOf('shanglv') >= s.lvl;
+  const afford = Math.floor(Game.shells / Math.max(1, s.cost));
+  const max = lvOk ? Math.max(0, Math.min(99, afford)) : 0;
+  const uses = (typeof itemUses === 'function') ? itemUses(s.itemId) : [];
+  UI.modal(`<h3><span class="mi-ic">${typeof itemIc==='function'?itemIc(s.itemId,18):(it.icon||'📦')}</span> ${esc(it.name)} <span class="tier">${rarityName(it)}</span></h3>
+    <div class="meta">${s.qty} 件 / 份 · 单价 ${s.cost} 贝 · 需商旅 ${s.lvl} 级</div>
+    ${it.note?`<div class="reveal"><b>出处</b>${esc(it.note)}</div>`:''}
+    ${it.effect?`<div class="reveal"><b>效果</b>${esc(it.effect)}</div>`:''}
+    ${uses.length?`<div class="reveal"><b>用途</b><span class="use-box">${uses.slice(0,8).map(u=>`<span class="use-chip ${u.rite?'rite':''}">${u.kind}·${esc(u.name)}</span>`).join('')}</span></div>`:''}
+    <div class="reveal trade-block">
+      <b>购入</b>
+      <div class="qty-line">
+        <button class="btn tiny" type="button" title="减一份" onclick="qtyStep('buyQty',-1)" ${max?'':'disabled'}>−</button>
+        <input id="buyQty" class="qty-input" type="number" inputmode="numeric" min="1" max="${Math.max(1,max)}" value="1"
+          oninput="syncBuy(${idx})" ${max?'':'disabled'}>
+        <button class="btn tiny" type="button" title="加一份" onclick="qtyStep('buyQty',1)" ${max?'':'disabled'}>＋</button>
+        <button class="btn tiny" type="button" onclick="qtySet('buyQty',${Math.max(1,max)})" ${max?'':'disabled'}>至多</button>
+      </div>
+      <div class="hint">共计 <b class="qty-gain" id="buyCost">${fmt(s.cost)} 贝</b> · 持有 ×${Game.inventory[s.itemId]||0} · 贝币 ${fmt(Game.shells)} · ${lvOk?`至多可买 ${max} 份`:`需商旅 ${s.lvl} 级（现 ${levelOf('shanglv')}）`}</div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn primary" id="buyGo" onclick="buyN(${idx})" ${max?'':'disabled'}>购入 1 份（${fmt(s.cost)} 贝）</button>
+      <button class="btn" onclick="UI.closeModal()">闭</button>
+    </div>`);
+}
+function syncBuy(idx){
+  const s = ShopStock[idx], el = $('buyQty'), g = $('buyCost'), go = $('buyGo');
+  if (!s || !el || !g) return;
+  const max = Math.max(1, parseInt(el.max, 10) || 1);
+  const n = Math.max(1, Math.min(max, parseInt(el.value, 10) || 1));
+  const cost = fmt(s.cost * n) + ' 贝';
+  g.textContent = cost;
+  if (go) go.textContent = `购入 ${n} 份（${cost}）`;   // 底部按钮跟着数量走
+}
+function buyN(idx){
+  const s = ShopStock[idx], el = $('buyQty');
+  if (!s) return;
+  const max = Math.max(1, parseInt(el && el.max, 10) || 1);
+  const n = Math.max(1, Math.min(max, parseInt(el && el.value, 10) || 1));
+  if (buyItem(idx, n)) UI.toast(`⚖️ 购入 ${(Items[s.itemId]||{}).name||''} ×${s.qty*n}`);
+  if (UI.currentTab === 'shichan') UI.renderShichan();
+  showShopItem(idx);           // 重开一层，数量与「持有 / 贝币」跟着变
+}
+window.showShopItem = showShopItem; window.syncBuy = syncBuy; window.buyN = buyN;
+
+// ---------- 技能 / 配方的详情弹窗 ----------
+// 手机没有 hover：技能卡浮层里的「产出地 / 材料来源 / 将至」在触屏上等于不存在。
+// 点一下就把同一份信息摆进弹窗，并且能直接跳去产地。
+function showSkillDetail(id){
+  const sk = Skills[id];
+  if (!sk) return;
+  const raw = Game.skills[id] || { level:1, xp:0 };
+  const lv = levelOf(id);
+  const cur = xpForLevel(raw.level), next = xpForLevel(raw.level + 1);
+  const need = Math.max(0, next - (raw.xp || 0));
+  const nf = nodeForSkill(id);
+  const mns = nf ? [] : materialNodesForSkill(id);
+  const mst = nf ? [] : materialStatusForSkill(id);
+  const nx = nextUnlocks(id, 8);
+  UI.modal(`<h3><span class="mi-ic">${typeof skillIcon==='function'?skillIcon(sk,18):(sk.icon||'')}</span> ${esc(sk.name)}
+      <span class="tier">${TUNING.TIER_NAMES[tierOfLevel(lv)] || ''}</span></h3>
+    <div class="meta">Lv ${lv}${lv < TUNING.MAX_LEVEL ? ` · 距下一级 ${fmt(need)} 经验` : ' · 已至本卷上限'}</div>
+    ${sk.desc?`<div class="reveal"><b>所能</b>${esc(sk.desc)}</div>`:''}
+    ${nf?`<div class="reveal"><b>产出地</b><button class="btn-mini skill-go"
+      onclick="UI.selRegion='${nf.regionId}';UI.selNode='${nf.nodeId}';UI.closeModal();UI.switchTab('yudi')">${typeof markIcon==='function'?markIcon('pin',13):'📍'} ${esc((nodeOf(nf.nodeId)||{}).name||'')}</button></div>`:''}
+    ${mns.length?`<div class="reveal"><b>材料来源</b><span class="use-box">${mns.slice(0,5).map(m=>`<button class="btn-mini skill-go"
+      onclick="UI.selRegion='${m.regionId}';UI.selNode='${m.nodeId}';UI.closeModal();UI.switchTab('yudi')">${esc(m.itemName)}·${esc(m.nodeName||'')}</button>`).join('')}</span></div>`:''}
+    ${mst.length?`<div class="reveal"><b>材料存余</b><span class="mat-inv">${mst.map(m=>`<span class="${m.ok?'ok':'gap'}">${esc(m.name)} ${m.have}/${m.need}</span>`).join(' · ')}</span></div>`:''}
+    ${nx.length?`<div class="reveal"><b>将至</b>${esc(nextUnlockText(nx))}</div>`:''}
+    <div class="modal-btns"><button class="btn" onclick="UI.closeModal()">闭</button></div>`);
+}
+window.showSkillDetail = showSkillDetail;
+
+// 配方详情：点一下先看「做什么、要什么、够做几次」，再决定做几次。
+// 原先点一下直接做 1 次，手机上连材料缺口都看不到（浮层要 hover）。
+function showRecipeDetail(key){
+  const parts = String(key).split('::');
+  const r = Recipes.find(x => x.type === parts[0] && x.out === parts[1]);
+  if (!r) return;
+  const it = Items[r.out] || { name:r.out, icon:'📦' };
+  const skId = mapRecipeSkill(r.type);
+  const sk = Skills[skId] || { name:'' };
+  const lvOk = levelOf(skId) >= r.lvl;
+  let maxN = Infinity;
+  for (const [iid, q] of (r.cost || [])){
+    maxN = Math.min(maxN, Math.floor((Game.inventory[iid] || 0) / Math.max(1, q)));
+  }
+  if (!isFinite(maxN)) maxN = 0;
+  const capN = Math.min(99, Math.max(0, maxN));
+  const per = r.qty || 1;
+  const rows = (r.cost || []).map(([iid, q]) => {
+    const have = totalOf(iid);
+    const ok = have >= q;
+    return `<span class="${ok?'ok':'gap'}">${typeof itemIc==='function'?itemIc(iid,13):''}${esc((Items[iid]||{}).name||iid)} ${have}/${q}</span>`;
+  }).join(' · ');
+  UI.modal(`<h3><span class="mi-ic">${typeof itemIc==='function'?itemIc(r.out,18):(it.icon||'📦')}</span> ${esc(it.name)}
+      ${it.equip?gradeBadge(it):`<span class="tier">${rarityName(it)}</span>`}</h3>
+    <div class="meta">每次出 ${per} 件 · ${esc(sk.name)} ${r.lvl} 级 · 经验 ${r.xp || 0}</div>
+    <div class="reveal"><b>材料</b><span class="mat-inv">${rows}</span></div>
+    ${it.note?`<div class="reveal"><b>出处</b>${esc(it.note)}</div>`:''}
+    ${it.effect?`<div class="reveal"><b>效果</b>${esc(it.effect)}</div>`:''}
+    <div class="reveal trade-block">
+      <b>制作</b>
+      <div class="qty-line">
+        <button class="btn tiny" type="button" title="减一次" onclick="qtyStep('craftQty',-1)" ${capN?'':'disabled'}>−</button>
+        <input id="craftQty" class="qty-input" type="number" inputmode="numeric" min="1" max="${Math.max(1,capN)}" value="1"
+          oninput="syncCraft(${capN},${per})" ${capN?'':'disabled'}>
+        <button class="btn tiny" type="button" title="加一次" onclick="qtyStep('craftQty',1)" ${capN?'':'disabled'}>＋</button>
+        <button class="btn tiny" type="button" onclick="qtySet('craftQty',${Math.max(1,capN)})" ${capN?'':'disabled'}>至多</button>
+      </div>
+      <div class="hint">共得 <b class="qty-gain" id="craftGain">${per} 件</b> · ${lvOk ? `材料可做 ${maxN} 次` : `需${esc(sk.name)} ${r.lvl} 级（现 ${levelOf(skId)}）`}</div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn primary" id="craftGo" onclick="craftN('${key}')" ${capN?'':'disabled'}>做 1 次</button>
+      ${capN?`<button class="btn" onclick="craftAll('${key}')">连作至料尽</button>`:''}
+      <button class="btn" onclick="UI.closeModal()">闭</button>
+    </div>`);
+}
+function syncCraft(capN, per){
+  const el = $('craftQty'), g = $('craftGain'), go = $('craftGo');
+  if (!el || !g) return;
+  const n = Math.max(1, Math.min(Math.max(1, capN), parseInt(el.value, 10) || 1));
+  g.textContent = `得 ${n * per} 件`;
+  if (go) go.textContent = `做 ${n} 次（${n * per} 件）`;
+}
+function craftN(key){
+  const el = $('craftQty');
+  const n = Math.max(1, parseInt(el && el.value, 10) || 1);
+  UI.closeModal();
+  startActivity('craft', key, { times: n });
+}
+function craftAll(key){
+  UI.closeModal();
+  startActivity('craft', key);
+}
+window.showRecipeDetail = showRecipeDetail; window.syncCraft = syncCraft;
+window.craftN = craftN; window.craftAll = craftAll;
+
 // 就地重绘：保持滚动位置，免得强化一下就被弹回顶部
 UI.refreshItemModal = function(itemId){
   const box = $('modalBox');
-  const y = box ? box.scrollTop : 0;
+  const body = box && box.querySelector('.modal-body');
+  const y = body ? body.scrollTop : (box ? box.scrollTop : 0);
   UI.modal(UI.itemDetailHtml(itemId));
   const box2 = $('modalBox');
-  if (box2) box2.scrollTop = y;
+  const body2 = box2 && box2.querySelector('.modal-body');
+  if (body2) body2.scrollTop = y;
+  else if (box2) box2.scrollTop = y;
 };
 
 // 锁定面板上的强化按钮：演出期间不接受第二次点击
@@ -3808,28 +4031,6 @@ UI.enhanceTo = function(itemId){
   };
   if (played) setTimeout(run, 1450);
   else run();
-};
-
-// 全售：第一下只是上膛，第二下才真卖（四秒内有效）。卖光一栈不可逆，
-// 而详情本身已经是个 modal，再弹一层确认会把当前上下文顶掉。
-UI.sellAllOf = function(itemId){
-  const have = Game.inventory[itemId] || 0;
-  if (have <= 0){ this.toast('行囊里没有这件'); return 0; }
-  const arm = this._sellAllArm;
-  if (!arm || arm.id !== itemId || Date.now() - arm.at > 4000){
-    this._sellAllArm = { id:itemId, at:Date.now() };
-    this.refreshItemModal(itemId);
-    this.toast(`再点一次「确认」，售出全部 ${have} 件`);
-    return 0;
-  }
-  this._sellAllArm = null;
-  const gain = sellItem(itemId, have);
-  if (gain > 0){
-    this.toast(`⚖️ 售出 ${have} 件，得贝 ${gain}`);
-    if (this.currentTab === 'pack') this.renderPack();
-    else this.refreshItemModal(itemId);
-  }
-  return gain;
 };
 
 UI.reforgeNow = function(itemId){
@@ -3951,17 +4152,6 @@ UI.renderStats = function(){
     if (this.currentTab !== 'stats'){ clearInterval(this._statTicker); this._statTicker = null; return; }
     UI.patchStats();
   }, 800);
-};
-// 点按不可制作的方块：说清差在哪（缺哪几样材料，差多少）
-UI.craftDenied = function(key){
-  const [type, out] = String(key || '').split('::');
-  const rec = Recipes.find(r => r.type === type && r.out === out);
-  if (!rec) return;
-  const sk = mapRecipeSkill(type);
-  if (levelOf(sk) < rec.lvl){ UI.toast(`🔒 需${Skills[sk].name} ${rec.lvl} 级`); return; }
-  const lacks = rec.cost.filter(([id, q]) => totalOf(id) < q)
-    .map(([id, q]) => `${(Items[id] || {}).name || id} ${totalOf(id)}/${q}`);
-  UI.toast(lacks.length ? `原料不足：缺 ${lacks.join('、')}` : '原料不足');
 };
 // ================= 叙录（关于本作） =================
 // 「叙录」者，古者校书，每一书毕，条其篇目、撮其指意而奏之。
@@ -4464,6 +4654,8 @@ function init(){
     onScroll();
   })();
   $('btnStop') && $('btnStop').addEventListener('click', ()=>{ stopActivity(); if (typeof pauseQueue==='function') pauseQueue('手动停止'); UI.refreshActivity(); });
+  // 点遮罩关弹窗（点内容区不关）：手机上右下角「闭」有时够不着，遮罩是最顺手的出口
+  $('modal') && $('modal').addEventListener('click', e => { if (e.target && e.target.id === 'modal') UI.closeModal(); });
   $('modal') && $('modal').addEventListener('click', (e)=>{ if (e.target === $('modal')) UI.closeModal(); });
   document.addEventListener('keydown', (e)=>{
     if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;

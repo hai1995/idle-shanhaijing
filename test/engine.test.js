@@ -12,6 +12,7 @@ class LocalStorageStub {
   removeItem(k){ delete this.store[k]; }
 }
 const document = {
+  body: { classList:{ add(){}, remove(){}, toggle(){}, contains:()=>false } },
   getElementById: () => ({ textContent:'', innerHTML:'', classList:{ add(){}, remove(){}, toggle(){} },
     appendChild(){}, addEventListener(){}, style:{}, querySelector:()=>null, querySelectorAll:()=>[],
     value:'', checked:false, dataset:{} }),
@@ -2012,7 +2013,11 @@ section('制作：单件 / 连作 / 紧凑卡片');
   assert(!/class="recipe-card[^"]*"[^>]*>\s*<div class="rc-head">/.test(uiSrc), '制作卡不再套 rc-head 三行结构');
   assert(/\.tile\{[^}]*aspect-ratio:1\/1/.test(css), '方形卡为正比例');
   assert(/\.recipe-grid\{ grid-template-columns:repeat\(3,minmax\(0,1fr\)\); gap:6px; \}/.test(css), '窄屏配方三列');
-  assert(uiSrc.includes("`UI.craftDenied('${r.type}::${r.out}')`") && uiSrc.includes('UI.craftDenied = function(key)'), '不可制作时点按给出缺料 / 等级提示');
+  // v1.31.6：点配方不再直接做 1 次，也不再只弹一个 toast——改为详情弹窗，
+  // 材料缺口、可做几次、等级门槛都在里面（手机上原本 hover 才看得到）
+  assert(uiSrc.includes("onclick=\"showRecipeDetail('${r.type}::${r.out}')\""), '配方点按开详情弹窗');
+  assert(uiSrc.includes('function showRecipeDetail') && uiSrc.includes('id="craftQty"'), '详情里可填制作次数');
+  assert(!uiSrc.includes('craftDenied'), '旧的「缺料 toast」已撤（详情弹窗说更清楚）');
   assert(uiSrc.includes("if (a.hasAttribute && a.hasAttribute('onclick')) return;"), '浮层捕获层放行「点按即执行」的方块（点卡面任意处均执行动作）');
   assert(!uiSrc.includes('pressTimer') && !uiSrc.includes('longPressAnchor'), '长按逻辑已移除（v1.7 起统一为单击交互）');
   assert(uiSrc.includes('UI.openHuntModal') && uiSrc.includes("onclick=\"UI.openHuntModal('${x.id}')\""), '征伐目标单击开交互弹窗');
@@ -2035,7 +2040,9 @@ section('方块语言：技能 / 祠礼 / 墟市');
   assert(uiSrc.includes('祭品不备') && uiSrc.includes('class="lack-row"'), '缺祭品时开弹窗逐项列缺（附产地/掉落/市价）');
   assert(/\.rite-grid\{[^}]*minmax\(92px,1fr\)/.test(css), '祠礼方格 92px');
 
-  assert(uiSrc.includes('class="tile shop-tile') && uiSrc.includes("onclick=\"buyItem(${idx},1)\""), '商品方块点按买一份');
+  // v1.31.6：点一下不再直接买 1 份（想买 37 份要点四次），改为开详情、数量自填
+  assert(uiSrc.includes('class="tile shop-tile') && uiSrc.includes('onclick="showShopItem(${idx})"'), '商品方块点按开详情');
+  assert(uiSrc.includes('id="buyQty"') && uiSrc.includes('function buyN('), '详情里可填数量购入');
   assert(uiSrc.includes("event.stopPropagation();buyItem(${idx},10)"), '商品方块右上 ×10 买十份');
   assert(/\.shop-grid\{[^}]*minmax\(92px,1fr\)/.test(css), '墟市方格 92px');
   assert(/\.panel \.inv-grid, \.panel \.codex-grid,[\s\S]{0,80}\.panel \.rite-grid, \.panel \.shop-grid\{ grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/.test(css), '窄屏行装/图鉴/祠礼/墟市统一三列');
@@ -2056,7 +2063,7 @@ section('方块语言补完：御使 / 征兆 / 出售 / 营造');
   assert(uiSrc.includes('tile-grid omen-grid'), '征兆总效应弹窗同步方块化');
 
   // 41.3 廛市出售：sell-card → sell-tile，点按售 1、右上「全」售清，售价金色
-  assert(uiSrc.includes('class="tile sell-tile') && uiSrc.includes("sellItem('${id}',1);UI.renderShichan()"), '出售方块点按售 1');
+  assert(uiSrc.includes('class="tile sell-tile') && uiSrc.includes("onclick=\"showItemDetail('${id}')\""), '出售方块点按开物品详情');
   assert(uiSrc.includes("event.stopPropagation();sellItem('${id}',${q});UI.renderShichan()"), '出售方块右上「全」售清');
   assert(css.includes('.sell-tile .tile-tag{ color:var(--jin); }'), '出售方块售价用金色');
   assert(uiSrc.indexOf('sell-card') < 0, '廛市出售不再用旧行状卡');
@@ -4551,8 +4558,11 @@ section('行囊检索与全售');
     '行囊清单抽成生成器，检索时只换清单');
   assert(uiSrc77.includes("id=\"packQ\"") && uiSrc77.includes('UI.patchPackList()'),
     '行囊有检索框，输入时只重绘清单（输入框不重建，光标才留得住）');
-  assert(uiSrc77.includes('UI.sellAllOf') && uiSrc77.includes('确认售出全部 ${qty} 件？'),
-    '全售需点两次确认，不弹新层遮挡当前详情');
+  // 出售从「1 件 / 全部」两个死档位改成可填数量（v1.31.6）。
+  // 原先想卖 37 件里的 20 件，只能点二十次，或先卖光再买回。
+  assert(uiSrc77.includes('id="sellQty"') && uiSrc77.includes('sellN(') && uiSrc77.includes('qtyStep('),
+    '物品详情可填数量出售（步进 / 全部 / 直接输入）');
+  assert(!uiSrc77.includes('sellAllOf'), '旧的「全售点两次」入口已撤（与新交易区重复）');
 
   // 底层口径：整栈卖出与「一件一件卖」总额一致，且清空该栈
   G.resetToDefault();
@@ -5368,6 +5378,51 @@ section('离线结算与线上同口径');
     '祠礼浮层显示「祭品折价 / 本域时采 / 此礼多得 / 回本」');
   const css91 = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
   assert(css91.includes('.rc-worth'), 'rc-worth 有样式');
+}
+
+// ============ 92. 交互一致性：单击出弹窗、数量自填、弹窗分段（v1.31.6） ============
+{
+  const uiSrc92 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  const css92 = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
+
+  // 92.1 物件卡单击一律先出详情：技能、配方、市廛买 / 卖（行囊与图鉴原本就是）
+  assert(/class="tile skill-tile[^>]*onclick="showSkillDetail\('\$\{id\}'\)"/.test(uiSrc92), '技能卡单击开详情');
+  assert(uiSrc92.includes("onclick=\"showRecipeDetail('${r.type}::${r.out}')\""), '配方卡单击开详情');
+  assert(uiSrc92.includes('onclick="showShopItem(${idx})"'), '市廛商品单击开详情');
+  assert(uiSrc92.includes("onclick=\"showItemDetail('${id}')\""), '市廛出售格单击开详情');
+
+  // 92.2 售卖 / 购买 / 制作都能填数量，步进与「至多 / 全部」共用 input.max
+  assert(uiSrc92.includes('function qtyStep(') && uiSrc92.includes("parseInt(el.max, 10)"),
+    '数量步进以 input.max 为上限（三个入口不各写一遍）');
+  assert(uiSrc92.includes('function sellN(') && uiSrc92.includes('function buyN(') && uiSrc92.includes('function craftN('),
+    '售出 / 购入 / 制作各有定量执行入口');
+
+  // 92.3 弹窗三段：标题固定、内容滚动、按钮固定底部
+  assert(uiSrc92.includes('_splitModal') && uiSrc92.includes("body.className = 'modal-body'")
+    && uiSrc92.includes("foot.className = 'modal-foot'"), '弹窗拆成 body / foot 两段');
+  assert(/\.modal-body\{[^}]*overflow-y:auto/.test(css92), '内容区自己滚');
+  assert(/\.modal-foot\{[^}]*flex:0 0 auto/.test(css92), '按钮区不参与滚动');
+  assert(/#modalBox\{[^}]*display:flex; flex-direction:column/.test(css92), '弹窗纵向排布');
+  assert(/#modalBox\{[^}]*max-height:min\(86vh/.test(css92), '弹窗高度不越视口');
+
+  // 92.4 移动端行动页：队列条目分两行，不再把名字挤成竖排
+  assert(/\.qi-meta\{/.test(css92) && /\.qi-meta\{[^}]*order:5/.test(css92), '窄屏队列第二行放进度与原因');
+
+  // 92.5 顶栏：限次往讨报剩余场次，无限连战不报
+  G.resetToDefault();
+  for (const sk in ST.Skills) ST.Game.skills[sk] = { level:30, xp:ST.xpForLevel(30) + 1 };
+  ST.Game.map['nanshan-2-01'] = true;
+  ST.Game.node = 'nanshan-2-01';
+  const ok3 = ST.startCombat('zhu', { times:3 });
+  assert(ok3, '能对鴸开战（3 场）');
+  ST.UI.refreshCombatHud();
+  assert(/余 3 场/.test(renderTargets.activityText.textContent),
+    '顶栏显示剩余场次：' + renderTargets.activityText.textContent);
+  ST.Game.combat = null;
+  const okInf = ST.startCombat('zhu', {});
+  ST.UI.refreshCombatHud();
+  assert(okInf && !/余/.test(renderTargets.activityText.textContent), '无限连战不写「余 N 场」');
+  ST.Game.combat = null;
 }
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）

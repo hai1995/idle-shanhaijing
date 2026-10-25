@@ -1408,8 +1408,9 @@ svg.bi.mk{ vertical-align:-2px; }
 .qi-name{ flex:1; min-width:0; }
 /* 队列讨伐条目的异兽绘形小像 */
 .qi-ic{ width:20px; height:20px; display:inline-flex; vertical-align:-5px; margin-right:5px; flex:none; }
-.qi-prog{ font-family:var(--f-num); font-size:10.5px; color:var(--qing); }
-.qi-eta{ font-family:var(--f-num); font-size:10.5px; color:var(--ink-4); margin-left:4px; }
+.qi-meta{ display:flex; align-items:center; gap:6px; flex:0 0 auto; min-width:0; }
+.qi-prog{ font-family:var(--f-num); font-size:10.5px; color:var(--qing); white-space:nowrap; }
+.qi-eta{ font-family:var(--f-num); font-size:10.5px; color:var(--ink-4); margin-left:4px; white-space:nowrap; }
 .qi-reason{ font-size:10px; color:var(--zhu); }
 .qi-btns{ display:flex; gap:2px; }
 .queue-ctrl{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:12px; font-size:12px; }
@@ -1505,13 +1506,21 @@ details.bulk-sell .bs-preview, details.bulk-sell .bs-act{ margin-left:11px; marg
 @keyframes veil{ from{ opacity:0; } to{ opacity:1; } }
 #modalBox{
   background:var(--paper-2); border-radius:var(--r); padding:20px 22px;
-  max-width:540px; width:100%; max-height:86vh; overflow-y:auto;
+  max-width:540px; width:100%; max-height:min(86vh, 780px); overflow:hidden;
+  display:flex; flex-direction:column;
   box-shadow:0 24px 64px -12px rgba(20,18,14,.5), 0 0 0 1px rgba(255,255,255,.5) inset;
   border-top:2px solid var(--zhu);
   animation:sheet .22s cubic-bezier(.2,.75,.3,1);
   position:relative;
 }
+/* 内容区滚、按钮不滚：长弹窗（物品详情 / 离线归来 / 帮助）翻到底也看得到操作 */
+#modalBox > h3{ flex:0 0 auto; }
+.modal-body{ flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding-right:2px; }
+.modal-foot{ flex:0 0 auto; margin-top:10px; padding-top:10px; border-top:1px solid var(--rule-2); }
+.modal-foot .modal-btns{ margin-top:0; }
 @keyframes sheet{ from{ opacity:0; transform:translateY(10px) scale(.994); } to{ opacity:1; transform:none; } }
+/* 弹窗打开时锁住背景滚动（移动端尤其明显：手指一滑，底下的页面跟着跑） */
+body.no-scroll{ overflow:hidden; }
 #modalBox h3{
   font-family:var(--f-kai); font-size:17px; color:var(--qing-d); letter-spacing:.1em;
   margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid var(--rule-2);
@@ -1523,6 +1532,15 @@ details.bulk-sell .bs-preview, details.bulk-sell .bs-act{ margin-left:11px; marg
   line-height:1.6; resize:vertical; color:var(--ink-2);
 }
 .help-body{ max-height:60vh; overflow-y:auto; margin:2px 0; padding-right:4px; }
+
+/* 交易区（物品详情 / 市廛详情共用）：数量步进 + 收益预览 + 执行 */
+/* .reveal 是「标签 + 内容」横排的 flex；交易区要竖排，得显式改回来 */
+.reveal.trade-block{ display:block; margin-top:10px; padding-top:8px; border-top:1px dashed var(--rule); }
+.trade-block > b{ display:block; flex:none; margin-bottom:6px; color:var(--ink-3); font-weight:400; letter-spacing:.06em; }
+.qty-line{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.qty-input{ width:68px; text-align:center; font-family:var(--f-num); font-size:13px; color:var(--ink);
+  border:1px solid var(--rule); border-radius:var(--r); padding:4px 6px; background:var(--paper-3); }
+.qty-gain{ font-family:var(--f-num); font-size:12px; color:var(--gamboge); min-width:4.8em; }
 .help-sec{ padding:10px 0; border-bottom:1px solid var(--rule-2); }
 .help-sec:last-child{ border-bottom:none; }
 .help-sec > b{
@@ -1680,6 +1698,13 @@ details.bulk-sell .bs-preview, details.bulk-sell .bs-act{ margin-left:11px; marg
 @media (max-width:1080px){
   .map-wrap{ grid-template-columns:172px 200px minmax(0,1fr); }
   .queue-wrap,.pack-wrap{ grid-template-columns:1fr; }
+  /* 窄屏下「名 + 进度 + 时间 + 原因 + 三键」挤在一行，名字会被压成每行一两个字。
+     分两行：第一行 序号 / 名 / 按钮，第二行 进度·耗时·原因。 */
+  .queue-item{ flex-wrap:wrap; row-gap:3px; }
+  .qi-name{ flex:1 1 auto; min-width:0; }
+  .qi-name > *{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .qi-meta{ order:5; flex:1 1 100%; padding-left:25px; flex-wrap:wrap; row-gap:2px; }
+  .qi-btns{ margin-left:auto; }
   #topbar .stat .meter{ width:48px; }
 }
 @media (max-width:900px){
@@ -1844,7 +1869,8 @@ details.bulk-sell .bs-preview, details.bulk-sell .bs-act{ margin-left:11px; marg
   .form-row{ flex-wrap:wrap; }
   .form-row select,.form-row input[type=text],.form-row input[type=number],.form-row input[type=password]{ font-size:15px; }
   #modal{ padding:12px; }
-  #modalBox{ max-width:100%; padding:16px 16px 18px; border-radius:var(--r); }
+  .qty-input{ font-size:16px; width:72px; }
+  #modalBox{ max-width:100%; max-height:calc(100dvh - 24px); padding:16px 16px 18px; border-radius:var(--r); }
   #modalBox h3{ font-size:16px; }
 }
 
