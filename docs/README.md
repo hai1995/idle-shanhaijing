@@ -23,7 +23,7 @@
 | 源码 | `src/` 共 20 个文件、约 2.76 万行；`src/ui.js` 单文件约 4500 行 |
 | 数据 | 山系 26 / 山川 447 / 物品 682 / 异兽 316 / 配方 104 / 图鉴 1122 / 祠礼 28 / 征兆 45 / 建造 12 / 成就 18 |
 | 存档 | `localStorage`，键 `shj_zhulu_save_v1`（`SAVE_VERSION = 4`），另记落盘时间 `…_time` |
-| 测试 | `node test/engine.test.js` —— 1790 条断言，89 节，单进程约 1.5 秒 |
+| 测试 | `node test/engine.test.js` —— 1799 条断言，90 节，单进程约 1.5 秒 |
 | 数据审计 | `node scripts/audit-data.js` —— 14 类跨表检查，零悬空才算过 |
 
 ## 心智模型（三句话）

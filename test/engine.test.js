@@ -5255,6 +5255,79 @@ section('构建产物一致');
   assert(outTxt.length > 800 * 1024, '单文件版体积合理（' + Math.round(outTxt.length / 1024) + ' KB）');
 }
 
+// ============ 90. 离线结算：三条与线上不一致的账 ============
+// 1) 采集只认主产地（`it.node === Game.node`），而 309 件物产有 nodes[]——
+//    站在次产地下线，一小时颗粒无收，在线却照采；
+// 2) 离线采集不认「越级 8 级内可硬采」，比在线更严，等于离线把在线的选择权收走；
+// 3) 离线制作把每件写死 2.0 秒，于是灶窟（×0.9）与毕方「讹火」（−20%）在离线下不存在。
+section('离线结算与线上同口径');
+{
+  const xpAt = (lv) => ST.xpForLevel(lv);
+  const setLv = (L, ids) => ids.forEach(k => { if (ST.Game.skills[k]) ST.Game.skills[k] = { level: L, xp: xpAt(L) }; });
+
+  // 1) 多产地：次产地也要算
+  G.resetToDefault();
+  setLv(40, ['yudi','qiaocai']);
+  const multi = Object.values(ST.Items).find(i => i.skill && i.nodes && i.nodes.length > 1);
+  assert(!!multi, '找得到一件多产地物产');
+  ST.Game.node = multi.nodes[1];
+  ST.Game.inventory = {};
+  ST.Game.activity = { kind:'gather', skill:multi.skill, itemId:multi.id, src:'manual' };
+  G.settleAway(3600);
+  assert((ST.Game.inventory[multi.id] || 0) > 0,
+    `${multi.name} 站在次产地（${multi.nodes[1]}）离线一小时仍有所得：${ST.Game.inventory[multi.id] || 0}`);
+
+  // 不在产地的山：仍然不给（不能因为放宽就乱给）
+  ST.Game.node = 'nanshan-1-01';
+  ST.Game.inventory = {};
+  ST.Game.activity = { kind:'gather', skill:multi.skill, itemId:multi.id, src:'manual' };
+  const okHere = (multi.nodes || [multi.node]).indexOf('nanshan-1-01') >= 0;
+  G.settleAway(3600);
+  if (!okHere) assert(!(ST.Game.inventory[multi.id] > 0), '不在产地照样颗粒无收');
+
+  // 2) 越级：差 6 级可采（打折），差 9 级不可
+  G.resetToDefault();
+  setLv(40, ['yudi','qiaocai','caiyao','caiyu','yu']);
+  const near = Object.values(ST.Items).find(i => i.skill === 'qiaocai' && i.lvl === 46);
+  if (near){
+    ST.Game.node = (near.nodes || [near.node])[0];
+    ST.Game.inventory = {};
+    ST.Game.activity = { kind:'gather', skill:'qiaocai', itemId:near.id, src:'manual' };
+    G.settleAway(3600);
+    assert((ST.Game.inventory[near.id] || 0) > 0, `差 6 级硬采 ${near.name}：${ST.Game.inventory[near.id] || 0}`);
+  }
+  const far = Object.values(ST.Items).find(i => i.skill === 'qiaocai' && i.lvl >= 50);
+  if (far){
+    ST.Game.node = (far.nodes || [far.node])[0];
+    ST.Game.inventory = {};
+    ST.Game.activity = { kind:'gather', skill:'qiaocai', itemId:far.id, src:'manual' };
+    G.settleAway(3600);
+    assert(!(ST.Game.inventory[far.id] > 0), `差 ${far.lvl - 40} 级仍不给（${far.name}）`);
+  }
+
+  // 3) 制作：灶窟要真的在离线下省时间，材料也照扣
+  const craftHour = (withZaoku) => {
+    G.resetToDefault();
+    setLv(40, ['yudi','qiaocai','fanliao','zhiqi','zhuoyu']);
+    const rec = ST.Recipes.find(r => r.out === 'sheng');
+    ST.Game.inventory = {};
+    rec.cost.forEach(([id, q]) => { ST.Game.inventory[id] = q * 100000; });
+    const matBefore = ST.Game.inventory[rec.cost[0][0]];
+    if (withZaoku) ST.Game.buildings = { zaoku: true };
+    ST.Game.activity = { kind:'craft', recipe:rec, src:'manual' };
+    G.settleAway(3600);
+    return { out: ST.Game.inventory[rec.out] || 0, spent: matBefore - (ST.Game.inventory[rec.cost[0][0]] || 0) };
+  };
+  const plain = craftHour(false), zaoku = craftHour(true);
+  assert(plain.out > 0, '离线制作一小时出 ' + plain.out + ' 件');
+  assert(plain.spent > 0, '材料照扣（' + plain.spent + ' 份）');
+  assert(zaoku.out > plain.out, `灶窟在离线下也省时：${plain.out} → ${zaoku.out} 件`);
+
+  // 每件耗时来自 currentActionInterval，不写死
+  const gameSrc90 = fs.readFileSync(path.join(__dirname, '..', 'src', 'game.js'), 'utf8');
+  assert(!/Math\.floor\(seconds \/ 2\.0\)/.test(gameSrc90), '离线制作不再写死 2.0 秒');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

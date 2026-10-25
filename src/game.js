@@ -2669,21 +2669,31 @@ function settleAway(seconds){
   const a = Game.activity;
   if (a && a.kind === 'gather'){
     const it = Items[a.itemId];
-    if (it && it.node === Game.node && levelOf(it.skill) >= it.lvl){
+    // ⚠️ 这里原写 `it.node === Game.node`：只认主产地。309 件物产有 nodes[] 多产地，
+    // 站在次产地下线，离线一小时的收获是 0（而在线是照采的）。
+    // 顺带对齐越级规则：在线允许差 8 级内硬采（效率打折），离线原先是直接不给。
+    const nodes = (it && (it.nodes || (it.node ? [it.node] : []))) || [];
+    const allYield = !!((window.SPECIAL_NODES || {})[Game.node] || {}).allYield;
+    const gap = it ? ((it.lvl || 1) - levelOf(it.skill)) : 99;
+    const overEff = gap <= 0 ? 1 : Math.max(0.35, 1 - gap * 0.08);
+    if (it && (allYield || nodes.indexOf(Game.node) >= 0) && gap <= 8){
       const times = Math.floor(seconds / (gatherInterval(it.skill) * geoGatherMul(Game.node)));
       summary.acts.gather = times;
       addXp(it.skill, it.xp * times);
       // 离线采集也算祠礼加成，否则「挂着挖矿」反而是唯一吃不到礼的玩法
       const rb = 1 + regionRiteBonus((regionOf(Game.node)||{}).regionId);
-      const q = Math.floor(times * 1.4 * eff * rb);
+      const q = Math.floor(times * 1.4 * eff * rb * overEff);
       if (q > 0){ giveItem(a.itemId, q, false); summary.items[a.itemId] = q; }
       const recs = Math.floor(times * eff * 1.2);
       for (let i=0;i<recs;i++) recordObject(a.itemId, 1);
       summary.records += recs;
     }
   } else if (a && a.kind === 'craft'){
-    // 限量制作（remain）离线时也只算这么多件，不能借离线做出整仓
-    const times = a.remain != null ? Math.min(Math.floor(seconds / 2.0), a.remain) : Math.floor(seconds / 2.0);
+    // 每件耗时按 currentActionInterval() 现算：线上制作会吃到毕方「讹火」的 -20%
+    // 与灶窟的 ×0.9，离线原先写死 2.0 秒，等于这两样在离线下不存在。
+    // 限量制作（remain）离线时也只算这么多件，不能借离线做出整仓。
+    const per = Math.max(0.5, currentActionInterval() || 2);
+    const times = a.remain != null ? Math.min(Math.floor(seconds / per), a.remain) : Math.floor(seconds / per);
     let t = 0;
     while (t < times && canAfford(a.recipe.cost)){ payCost(a.recipe.cost); t++; }
     summary.acts.craft = t;
