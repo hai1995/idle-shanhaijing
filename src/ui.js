@@ -4789,7 +4789,61 @@ function init(){
   // 开机结算：关页再开的那段时长交给离线结算（此前只认页面活着时累积的时间）
   try { if (typeof settleOnBoot === 'function') settleOnBoot(); } catch(e){ console.error('离线结算失败', e); }
   setInterval(gameLoop, 250);
+  initA11y();
 }
+
+// ---------- 键盘可达性 ----------
+// 全站两百多个带 onclick 的 div（区域卡、节点条、图鉴卡、配方格……）鼠标点得动，
+// 键盘却 Tab 不到。逐个改模板不现实（新增一处就可能漏一处），改成两件事：
+//   1. 渲染后统一给这类元素补 role="button" + tabindex="0"（MutationObserver，只盯新节点）；
+//   2. 一处全局 keydown 委托，把 Enter / 空格转成 click。
+// 这样以后新写的卡片也自动获得键盘能力，不需要谁记得加属性。
+const A11Y_SKIP = { BUTTON:1, A:1, INPUT:1, SELECT:1, TEXTAREA:1, LABEL:1, SUMMARY:1 };
+function a11ySweep(root){
+  const scope = root || document;
+  if (!scope || !scope.querySelectorAll) return 0;
+  let n = 0;
+  scope.querySelectorAll('[onclick]').forEach(el => {
+    if (A11Y_SKIP[el.tagName]) return;
+    if (el.getAttribute('role') !== 'button') el.setAttribute('role', 'button');
+    if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
+    n++;
+  });
+  return n;
+}
+function initA11y(){
+  a11ySweep(document);
+  // Enter / 空格 → click。只认「自己有 onclick 且 role=button」的目标，
+  // 免得把输入框里的空格也吃掉。
+  document.addEventListener('keydown', function(e){
+    if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+    const t = e.target;
+    if (!t || !t.tagName) return;
+    if (/^(INPUT|TEXTAREA|SELECT|BUTTON|A)$/.test(t.tagName)) return;
+    const el = t.closest ? t.closest('[role="button"][onclick]') : null;
+    if (!el) return;
+    e.preventDefault();
+    el.click();
+  });
+  if (typeof MutationObserver !== 'function') return;
+  let queued = false;
+  const flush = () => {
+    queued = false;
+    a11ySweep($('content'));
+    a11ySweep($('modalBox'));
+  };
+  const obs = new MutationObserver(() => {
+    if (queued) return;
+    queued = true;
+    if (window.requestAnimationFrame) window.requestAnimationFrame(flush);
+    else setTimeout(flush, 16);
+  });
+  ['content', 'modalBox'].forEach(id => {
+    const el = $(id);
+    if (el) obs.observe(el, { childList: true, subtree: true });   // 只盯增删，不盯属性（否则自己改属性会自激）
+  });
+}
+window.a11ySweep = a11ySweep;
 // 各页渲染统一包一层：任何一次就地重绘（装备 / 淬炼 / 行祭 / 营造 / 买卖 / 切属性…）
 // 之后都补回页头等级条与页尾「下一步」。此前只有 renderCurrent 负责插入，
 // 页面内一次局部重绘（box.innerHTML = …）就把它冲掉了。

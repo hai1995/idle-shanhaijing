@@ -5546,6 +5546,21 @@ section('离线结算与线上同口径');
   assert(/name="viewport"[^>]*viewport-fit=cover/.test(html), 'viewport-fit=cover（safe-area 的前提）');
 }
 
+// ============ 98. 键盘可达性：卡片能 Tab 到、能 Enter 打开 ============
+// 全站两百多个带 onclick 的 div，鼠标点得动、键盘 Tab 不到。
+// 现在渲染后统一补 role/tabindex，并由一处 keydown 委托把 Enter/空格转成 click。
+{
+  const uiSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
+  assert(uiSrc.includes('function a11ySweep') && uiSrc.includes("setAttribute('tabindex', '0')"),
+    '渲染后给可点击元素补 role/tabindex');
+  assert(uiSrc.includes('MutationObserver') && uiSrc.includes("childList: true, subtree: true"),
+    '用 MutationObserver 跟进新渲染的节点（只盯增删，不盯属性）');
+  assert(uiSrc.includes("closest('[role=\"button\"][onclick]')") && uiSrc.includes("e.key !== ' '"),
+    'keydown 委托：Enter / 空格触发 click');
+  assert(css.includes('[role="button"][tabindex]:focus-visible'), '键盘焦点有可见描边');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

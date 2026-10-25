@@ -1521,6 +1521,8 @@ details.bulk-sell .bs-preview, details.bulk-sell .bs-act{ margin-left:11px; marg
 @keyframes sheet{ from{ opacity:0; transform:translateY(10px) scale(.994); } to{ opacity:1; transform:none; } }
 /* 弹窗打开时锁住背景滚动（移动端尤其明显：手指一滑，底下的页面跟着跑） */
 body.no-scroll{ overflow:hidden; }
+/* 键盘焦点：只在键盘操作时现形（鼠标点击不闪框），朱色描边与印章同色 */
+[role="button"][tabindex]:focus-visible{ outline:2px solid var(--zhu); outline-offset:2px; border-radius:2px; }
 #modalBox h3{
   font-family:var(--f-kai); font-size:17px; color:var(--qing-d); letter-spacing:.1em;
   margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid var(--rule-2);
