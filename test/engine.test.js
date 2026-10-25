@@ -3281,6 +3281,52 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   assert(tabBtn.test(uiSrc58), '切分类只清检索词，保留「仅未录」');
 }
 
+// ============ 59. 装备梯度不断档、不倒退（v1.15.9） ============
+{
+  G.resetToDefault();
+  const all = Object.values(ST.Items).filter(i => i.equip);
+  const fam = it => {
+    if (it.ranged) return 'bow';
+    if (it.slot === 'quiver' || it.type === 'arrow') return 'quiver';
+    if (it.axePower) return 'axe';
+    if (it.pickPower) return 'pick';
+    if (it.netPower) return 'net';
+    if (it.slot === 'armor') return 'armor';
+    if (it.slot === 'charm') return 'charm';
+    return 'melee';
+  };
+  const val = it => it.dmg || it.def || it.axePower || it.pickPower || it.netPower || 0;
+
+  const groups = {};
+  all.forEach(it => { (groups[fam(it)] = groups[fam(it)] || []).push(it); });
+  for (const [name, list] of Object.entries(groups)){
+    if (name === 'charm') continue;                 // 护符按效果分强弱，不比数值
+    const rows = list.filter(i => i.lvl).sort((a, b) => a.lvl - b.lvl);
+    for (let i = 1; i < rows.length; i++){
+      const cur = val(rows[i]), prev = val(rows[i - 1]);
+      // 允许 10% 的回落：BOSS 材料装可以「等级低但更强」（封豨钺 Lv58 却强过
+      // 苍玉钺 Lv72，因为它的牙要打 76 级的封豨）。再低就是真的倒挂了。
+      assert(cur >= prev * 0.9,
+        `${name}：${rows[i].name}(Lv${rows[i].lvl}, ${cur}) 较 ${rows[i - 1].name}(Lv${rows[i - 1].lvl}, ${prev}) 倒退超过一成`);
+    }
+  }
+
+  // 中期不断档：36→55 原本 19 级没有新兵器，现在 44 级有三件过渡装
+  const mid = all.filter(i => i.lvl === 44).map(i => i.name);
+  assert(mid.length >= 3, '44 级一组过渡装（' + mid.join('、') + '）');
+  assert(ST.Items.bailianjian && ST.Items.bailianjian.dmg > ST.Items.baijinqi.dmg, '百炼剑强于白金戚');
+  assert(ST.Items.bailianjian.dmg < ST.Items.zaochimao.dmg, '又弱于 55 级的凿齿矛（留出 BOSS 装的空间）');
+  assert(ST.Items.yuzhanggong.dmg > ST.Items.dafenggong.dmg, '豫章弓(70) 强于大风弓(58)——此前 40 < 45');
+  assert(ST.Items.cangyuyue.dmg > ST.Items.zaochimao.dmg, '苍玉钺(72) 强于凿齿矛(55)——此前 54 < 55');
+
+  // 三件都能造，且材料都在既有来源里
+  for (const id of ['bailianjian', 'xisihejia', 'sangzhegong']){
+    const rec = ST.Recipes.find(r => r.out === id);
+    assert(!!rec, id + ' 有配方');
+    assert(Array.isArray(rec.cost) && rec.cost.every(([m]) => !!ST.Items[m]), id + ' 的材料都是既有物品');
+  }
+}
+
 // ============ 47. 物品用途面板（v1.14.3） ============
 {
   G.resetToDefault();

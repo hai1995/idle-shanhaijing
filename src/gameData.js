@@ -666,6 +666,11 @@ addItem(
   I('jinjian','金剑','weapon',{ equip:true, weapon:true, dmg:15, lvl:10, value:160, icon:'🗡️', el:'金' }),
   I('chijinyue','赤金钺','weapon',{ equip:true, weapon:true, dmg:26, lvl:26, value:400, icon:'🪓', el:'金' }),
   I('baijinqi','白金戚','weapon',{ equip:true, weapon:true, dmg:38, lvl:36, value:700, icon:'⚔️', el:'金' }),
+  // 36 级到 55 级之间原本没有任何新兵器（下一把是凿齿矛，要 BOSS 之牙），
+  // 甲胄 34→60、弓 26→58 同样断档近三十级。补一组 44 级过渡装，走寻常材料。
+  I('bailianjian','百炼剑','weapon',{ equip:true, weapon:true, dmg:46, lvl:44, value:760, icon:'⚔️', el:'金' }),
+  I('xisihejia','犀兕合甲','armor',{ equip:true, slot:'armor', def:15, lvl:44, value:640, icon:'🥋' }),
+  I('sangzhegong','桑柘弓','bow',{ equip:true, weapon:true, ranged:true, dmg:34, lvl:44, value:560, icon:'🏹', el:'木' }),
   I('zaochimao','凿齿矛','weapon',{ equip:true, weapon:true, dmg:55, lvl:55, value:1600, icon:'🔱', el:'金', rarity:'RARE' }),
   I('fenghuiyue','封豨钺','weapon',{ equip:true, weapon:true, dmg:62, lvl:58, value:1900, icon:'🪓', el:'水', rarity:'RARE', py:'fēng xī' }),
 );
@@ -738,6 +743,9 @@ R('smith','chijinyue',1,220,26,[['chijin',2],['tan',2]]);
 R('smith','chijinfu',1,200,26,[['chijin',2],['tan',2]]);
 R('smith','chijinkuo',1,200,26,[['chijin',2],['tan',2]]);
 R('smith','baijinqi',1,380,36,[['baijin',2],['tan',3]]);
+R('smith','bailianjian',1,460,44,[['baijin',2],['tan',3]]);
+R('craft','xisihejia',1,300,44,[['sipi',3],['jin',2]]);
+R('fletch','sangzhegong',1,320,44,[['zi',2],['sheng',3]]);
 R('smith','zaochimao',1,900,55,[['zaochiya',1],['baijin',2],['tan',3]]);
 R('smith','fenghuiyue',1,1000,58,[['fenghuiya',1],['chijin',3],['tan',4]]);
 // 削羽
@@ -886,9 +894,9 @@ addItem(
 // ---- 西山新制成品 ----
 addItem(
   I('shatangshi','沙棠实','food', { value:90, heal:300, lvl:66, icon:'🍑', edible:true, effect:'可以御水，食之不溺' }),
-  I('cangyuyue','苍玉钺','weapon',{ equip:true, weapon:true, dmg:54, lvl:72, value:1400, icon:'🪓', el:'金', rarity:'RARE' }),
+  I('cangyuyue','苍玉钺','weapon',{ equip:true, weapon:true, dmg:58, lvl:72, value:1400, icon:'🪓', el:'金', rarity:'RARE' }),
   I('langganjian','琅玕剑','weapon',{ equip:true, weapon:true, dmg:60, lvl:74, value:1700, icon:'🗡️', el:'水', rarity:'RARE', py:'láng gān' }),
-  I('yuzhanggong','豫章弓','bow',{ equip:true, weapon:true, ranged:true, dmg:40, lvl:70, value:1200, icon:'🏹', el:'木', rarity:'RARE' }),
+  I('yuzhanggong','豫章弓','bow',{ equip:true, weapon:true, ranged:true, dmg:52, lvl:70, value:1200, icon:'🏹', el:'木', rarity:'RARE' }),
   I('tongzu','铜镞矢','arrow',{ equip:true, slot:'quiver', dmg:12, lvl:66, value:60, icon:'➶', el:'金' }),
   I('tiezu','铁镞矢','arrow',{ equip:true, slot:'quiver', dmg:16, lvl:72, value:110, icon:'➶', el:'金' }),
   I('baihujia','白虎甲','armor',{ equip:true, slot:'armor', def:26, lvl:72, value:1500, icon:'🥋', rarity:'RARE' }),
@@ -2246,7 +2254,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.15.8',
+  version: '1.15.9',
   codename:'五臧 · 续火',
   updated: '2026-10-25',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
