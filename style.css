@@ -2274,6 +2274,7 @@ mark.hit{
 .rebirth-panel .rb-grid{ display:flex; flex-wrap:wrap; gap:6px 18px; font-size:12px; color:var(--ink-2); margin:8px 0; }
 .rebirth-panel .rb-grid b{ color:var(--ink); font-family:var(--f-num); }
 .rebirth-panel .rb-cap{ font-style:normal; color:var(--ink-4); font-size:11px; }
+.rebirth-panel .rb-hist{ color:var(--qing); }
 .rebirth-panel .hint{ margin:6px 0 10px; }
 .rb-cols{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin:12px 0; }
 @media (max-width:720px){ .rb-cols{ grid-template-columns:minmax(0,1fr); } }

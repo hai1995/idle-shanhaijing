@@ -167,10 +167,19 @@ function doRebirth(){
   const totalBefore = totalSkillLevel();
   const bestBefore = bestSkillLevel();
   const count = rebirthCount() + 1;
+  const now = Date.now();
+  // 本轮成绩：从上次落笔（或建档）到此刻。记下来是为了让玩家能「刷新纪录」，
+  // 也给将来的排行榜一个可比的「单轮耗时」维度。
+  const roundStart = (Game.rebirth && Game.rebirth.startedAt) || Game.startedAt || now;
+  const roundSec = Math.max(0, Math.round((now - roundStart) / 1000));
+  const history = ((Game.rebirth && Game.rebirth.history) || []).slice(-9);
+  history.push({ at: now, sec: roundSec, total: totalBefore, best: bestBefore.level });
   Game.rebirth = {
     count,
-    at: Date.now(),
+    at: now,
     best: Math.max((Game.rebirth && Game.rebirth.best) || 0, totalBefore),
+    startedAt: now,
+    history,
   };
   const startLv = Math.min(TUNING.REBIRTH.START_CAP, count * TUNING.REBIRTH.START_PER);
   const xpAt = (typeof xpForLevel === 'function') ? xpForLevel(startLv) : 0;
@@ -192,7 +201,7 @@ function doRebirth(){
   if (typeof invalidateMilestones === 'function') invalidateMilestones();
   saveGame();
   return { ok:true, count, startLv, gain: rebirthGain(),
-           totalBefore, best: bestBefore.level, bestName: bestBefore.name };
+           totalBefore, best: bestBefore.level, bestName: bestBefore.name, roundSec };
 }
 window.rebirthCount = rebirthCount; window.rebirthGain = rebirthGain; window.rebirthYield = rebirthYield;
 window.rebirthStartLevel = rebirthStartLevel; window.canRebirth = canRebirth;

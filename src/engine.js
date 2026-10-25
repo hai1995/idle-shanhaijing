@@ -40,8 +40,9 @@ const Game = {
     damageDealt:0, damageTaken:0, hits:0, omens:{}, rites:0, observes:0, divines:0,
     seenMilestones:{}, winStreak:0, deathStreak:0, deathStreakOf:null, seenDeployHint:false, seenFallbackHint:false, _unlockedRegions:[],
   },
-  // 轮回：count 转生次数（轮回印 = count × TUNING.REBIRTH.XP）、at 上次转生时刻、best 历史最高总等级
-  rebirth: { count: 0, at: 0, best: 0 },
+  // 轮回：count 转生次数（轮回印 = count × TUNING.REBIRTH.XP）、at 上次转生时刻、
+  // best 历史最高总等级、startedAt 本轮起点、history 每轮成绩（最近 10 条）
+  rebirth: { count: 0, at: 0, best: 0, startedAt: 0, history: [] },
   startedAt: Date.now(),
   version: 2,
 };
@@ -146,6 +147,14 @@ function applySave(d){
         count: isFinite(c) && c > 0 ? Math.min(999, c) : 0,
         at: isFinite(r.at) ? r.at : 0,
         best: isFinite(r.best) && r.best > 0 ? r.best : 0,
+        startedAt: isFinite(r.startedAt) ? r.startedAt : 0,
+        // 每轮成绩：{ at, sec, total, best }。非法项剔除，最多留十条——
+        // 这是给「刷新纪录」用的，不是流水账。
+        history: Array.isArray(r.history)
+          ? r.history.filter(x => x && isFinite(x.sec) && x.sec >= 0)
+              .map(x => ({ at:+x.at || 0, sec:Math.round(x.sec), total:+x.total || 0, best:+x.best || 0 }))
+              .slice(-10)
+          : [],
       };
     }
     Game.startedAt = d.startedAt || Date.now();

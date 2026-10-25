@@ -4614,12 +4614,21 @@ section('轮回 · 再著一卷');
   assert(h2 / h1 <= 0.82,
     `第一转后重回九九约 ${(h2/3600).toFixed(1)} 小时，比首轮 ${(h1/3600).toFixed(1)} 小时省 ${((1-h2/h1)*100).toFixed(0)}%`);
 
+  // 每轮成绩入册：用时 + 本轮总等级，供「刷新纪录」与将来的单轮排行
+  const hist = ST.Game.rebirth.history;
+  assert(hist.length === 2, '两轮成绩都已入册（' + hist.length + ' 条）');
+  assert(hist.every(x => isFinite(x.sec) && x.sec >= 0 && x.total > 0), '每条含用时与本轮总等级');
+  assert(hist[1].total >= hist[0].total, '第二轮的起点总等级不低于首轮（起手更高）');
+  assert(ST.Game.rebirth.startedAt > 0, '本轮起点已重置');
+
   // 入档与回读
   G.saveGame();
   const raw = JSON.parse(ST.localStorage.getItem('shj_zhulu_save_v1'));
   assert(raw.rebirth && raw.rebirth.count === 2, '轮回记录入档');
+  assert(Array.isArray(raw.rebirth.history) && raw.rebirth.history.length === 2, '轮次成绩随档保存');
   G.loadGame();
   assert(ST.Game.rebirth.count === 2, '读档后转数仍在');
+  assert(ST.Game.rebirth.history.length === 2, '读档后成绩仍在');
   assert(ST.Game.stats.totalXp === 1234567, '读档后修为仍在');
 }
 

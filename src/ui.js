@@ -1672,6 +1672,15 @@ UI.renderSkills = function(){
         <span>最高技艺 <b>${esc(best.name || '—')} ${best.level}<i class="rb-cap">/${TUNING.REBIRTH.MIN_LEVEL}</i></b></span>
         <span>修为累计 <b>${fmt(Game.stats.totalXp || 0)}</b></span>
       </div>
+      ${(() => {
+        const hist = (Game.rebirth && Game.rebirth.history) || [];
+        if (!hist.length) return '<p class="hint">这一卷尚未落笔，成绩会自动记下。</p>';
+        const last = hist[hist.length - 1];
+        const fastest = hist.reduce((a, b) => (b.sec < a.sec ? b : a), hist[0]);
+        const isBest = fastest.sec === last.sec;
+        const dur = (sec) => (sec < 60 ? '不足一分' : fmtTime(sec));
+        return `<p class="hint rb-hist">上轮 ${dur(last.sec)} · 总等级 ${last.total}${isBest ? ' · <b>本卷最快</b>' : ` · 最快 ${dur(fastest.sec)}`}</p>`;
+      })()}
       <p class="hint">再著一卷，是从头写，不是从头认识：诸技归 ${nextStart} 级，舆地与履险不忘；著录、装备、贝币、营造、御使与修为俱在。</p>
       ${ok
         ? `<button class="btn primary" type="button" onclick="UI.openRebirth()">再著一卷</button>`
@@ -1702,7 +1711,7 @@ UI.openRebirth = function(){
       <div class="rb-col keep"><b>将保留</b>
         <ul><li>修为 ${fmt(Game.stats.totalXp || 0)}（终身累计）</li><li>著录 ${recordedCount()} 条 · 图鉴与成就</li><li>装备、贝币、营造、御使</li><li>舆地与履险（走过的路不忘）</li></ul></div>
       <div class="rb-col gain"><b>将得到</b>
-        <ul><li>第 ${cnt} 枚轮回印</li><li>修为 +${gain}%（终身）</li><li>采获 +${yl}%</li><li>起手 ${start} 级</li></ul></div>
+        <ul><li>第 ${cnt} 枚轮回印</li><li>修为 +${gain}%（终身）</li><li>采获 +${yl}%</li><li>起手 ${start} 级</li><li>本轮 ${fmtTime(Math.max(0, Math.round((Date.now() - ((Game.rebirth && Game.rebirth.startedAt) || Game.startedAt || Date.now())) / 1000)))} 入册</li></ul></div>
     </div>
     <div class="modal-btns">
       <button class="btn" onclick="UI.closeModal()">再想想</button>
