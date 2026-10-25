@@ -8,6 +8,7 @@
 |---|---|---|---|---|
 | 00:21 | 基线 | 起点 `815a06b`（v1.31.6）：测试 1856 全绿、审计零悬空、单文件版 1388.5 KB | — | — |
 | 00:27 | 战斗 HUD | 每 250ms 的 `refreshCombatHud` 改为「值未变不写 DOM」；估值块用 cls+html 签名，避免反复重建节点 | 低 | 本批 |
+| 02:05 | 数值测量 | 新增 `scripts/measure-rebirth.js`：量出「单位时间修为 ∝ 乘区²」与第 6→7 转的 6% 凹陷（起手封顶台阶，非 bug）。写进 BALANCE 六，ROADMAP 第 6 条划掉；版本升 1.31.7 | 低 | 本批 |
 | 01:50 | 数值测量 | 新增 `scripts/measure-ttk.js`（按等级段给 TTK 中位/p90/max 与存活比）；量出四段中位 10.2/15.3/16.5/17.1 秒、无一越 32 秒——**整条线是平的**。结论写进 BALANCE 五，ROADMAP 第 5 条划掉 | 低 | 本批 |
 | 01:35 | 工程化 | 新增 `package.json`（scripts: test/audit/build/check/serve）与 `scripts/check.js`：版本一致 → 测试 → 审计 → 构建，一条命令 1.6 秒；文档发布流程改用 `npm run check` | 低 | 本批 |
 | 01:18 | 存档健壮性 | 读档补全缺失技艺（补 1 级）、等级夹到上限、xp 非法则按等级回填；新增第 93 节 7 条断言。实测：删掉 `Game.skills.yu` 后渲染技能页必抛 `reading 'level'` | 低-中 | 待推 |
