@@ -5475,6 +5475,21 @@ section('离线结算与线上同口径');
   G.resetToDefault();
 }
 
+// ============ 94. 技能页「材料存余」读的是真库存 ============
+// materialStatusForSkill 曾被写成读 Game.inv（不存在的字段），
+// 于是技能卡浮层与详情里每一行都是 0/N、标着缺料——材料备齐了也一样。
+{
+  G.resetToDefault();
+  ST.Game.inventory = { guaimu: 7, zi: 0 };
+  const rows = G.materialStatusForSkill('fanliao') || [];
+  const row = rows.find(x => x.id === 'guaimu');
+  assert(!!row, '燔燎的材料表里有怪木（' + rows.map(r => r.id).join(',') + '）');
+  assert(row.have === 7, '材料存余读到 7（原先恒为 0）');
+  assert(row.ok === true, '备齐时标 ok');
+  const zero = rows.find(x => x.id === 'zi');
+  if (zero) assert(zero.have === 0 && zero.ok === false, '没有的那种仍标缺料');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

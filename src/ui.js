@@ -174,10 +174,17 @@ const UI = {
   toast(text){
     const box = $('toasts');
     if (!box) return;
+    // 同一句话连着弹（解锁多个山系、连战收兵）只留最上面一条：
+    // 挂机回来时能一次叠出七八条，把整个屏幕下半截盖住。
+    const last = box.lastElementChild;
+    if (last && last._toastText === text) return;
     const d = document.createElement('div');
     d.className = 'toast';
+    d._toastText = text;
     d.innerHTML = markHtml(text, 15);
     box.appendChild(d);
+    // 至多四条同屏：更早的立刻收掉（它们本来也快到期了）
+    if (box.children) while (box.children.length > 4) box.removeChild(box.firstElementChild);
     setTimeout(()=>d.remove(), 2600);
   },
   floatText(el, text, color, big){
@@ -1706,7 +1713,9 @@ function materialStatusForSkill(skillId){
     const need = c[1]||1;
     if (!map[c[0]] || need > map[c[0]].need) map[c[0]] = { id:c[0], name:(Items[c[0]]||{}).name||c[0], need };
   }
-  return Object.values(map).map(m=>{ const have = (Game.inv && Game.inv[m.id])||0; return { ...m, have, ok: have>=m.need }; });
+  // ⚠️ 这里原写 Game.inv —— 库存字段叫 Game.inventory。于是「材料存余」永远是 0/N，
+  // 技能卡浮层与详情里每一行都标着缺料，玩家备齐了也一样。
+  return Object.values(map).map(m=>{ const have = (Game.inventory && Game.inventory[m.id]) || 0; return { ...m, have, ok: have >= m.need }; });
 }
 // 图鉴条目 → 其产出/讨伐节点
 function codexNode(e){
