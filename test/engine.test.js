@@ -3255,6 +3255,32 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   ST.Game.combat = null;
 }
 
+// ============ 58. 图鉴「仅未录」（v1.15.8） ============
+{
+  G.resetToDefault();
+  const uiSrc58 = readText('src/ui.js');
+  assert(uiSrc58.includes('codexOnlyMiss'), '图鉴有「仅未录」状态');
+  assert(uiSrc58.includes('仅未录 ${tabTotal-tabDone}'), '筛选按钮标出还缺多少条');
+  assert(uiSrc58.includes("shown = shown.filter(e => !(((Game.records||{})[e.id]||{}).count > 0))"),
+    '筛选排除已录条目（与检索叠加，不是二选一）');
+  assert(uiSrc58.includes('本类已尽收——没有未著录的条目了。'), '尽收时给正面反馈，而不是「无此条目」');
+
+  // 状态开关可切
+  ST.UI.codexOnlyMiss = false;
+  ST.UI.codexTab = 'beast';
+  ST.UI.renderCodex();
+  assert(ST.UI.codexOnlyMiss === false, '默认不筛');
+  ST.UI.codexOnlyMiss = true;
+  ST.UI.renderCodex();
+  assert(ST.UI.codexOnlyMiss === true, '可切到仅未录');
+  ST.UI.codexOnlyMiss = false;
+  ST.UI.renderCodex();
+
+  // 切分类时不该把筛选状态清掉（清的是检索词）
+  const tabBtn = /onclick="UI\.codexTab='\$\{k\}';UI\.codexQuery='';UI\.renderCodex\(\)"/;
+  assert(tabBtn.test(uiSrc58), '切分类只清检索词，保留「仅未录」');
+}
+
 // ============ 47. 物品用途面板（v1.14.3） ============
 {
   G.resetToDefault();

@@ -2279,9 +2279,12 @@ UI.renderCodex = function(keepFocus){
   const tabPct = tabTotal ? Math.round(tabDone/tabTotal*100) : 0;
   // 632 条图鉴靠翻页找一条太慢：给一个名/注音检索框
   const q = String(this.codexQuery||'').trim().toLowerCase();
-  const shown = q
+  // 「仅未录」：收集到后期，满屏已录的卡里找剩下那几条实在费眼
+  const onlyMiss = !!this.codexOnlyMiss;
+  let shown = q
     ? entries.filter(e=> (e.name||'').toLowerCase().includes(q) || String(e.py||'').toLowerCase().includes(q))
     : entries;
+  if (onlyMiss) shown = shown.filter(e => !(((Game.records||{})[e.id]||{}).count > 0));
   // 收集成就：把奖励闭环挂在收集线自己的入口上，不必另开一页
   const achAll = (window.CODEX_ACHIEVEMENTS || []);
   let achClaim = 0, achDone = 0;
@@ -2294,12 +2297,14 @@ UI.renderCodex = function(keepFocus){
   </div>
   <div class="filter-row">
     ${Object.entries(tabs).map(([k,v])=>`<button class="chip-btn ${this.codexTab===k?'on':''}" onclick="UI.codexTab='${k}';UI.codexQuery='';UI.renderCodex()">${v}</button>`).join('')}
+    <button class="chip-btn ${onlyMiss?'on':''}" title="只列本类尚未著录的条目"
+      onclick="UI.codexOnlyMiss=!UI.codexOnlyMiss;UI.renderCodex()">仅未录 ${tabTotal-tabDone}</button>
     <label class="search-box" title="按名称或注音检索">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4 4"/></svg>
       <input id="codexSearch" type="search" placeholder="检索名 / 注音" value="${esc(this.codexQuery||'')}"
         oninput="UI.codexQuery=this.value;UI.renderCodex(true)">
     </label>
-    <span class="hint">本类 ${tabDone}/${tabTotal}${q?` · 命中 ${shown.length}`:''} · 总录 ${done}/${total}</span>
+    <span class="hint">本类 ${tabDone}/${tabTotal}${q?` · 命中 ${shown.length}`:''}${onlyMiss?` · 未录 ${shown.length}`:''} · 总录 ${done}/${total}</span>
   </div>
   <div class="codex-bar" title="本类已著录 ${tabPct}%"><div class="fill" style="width:${tabPct}%"></div></div>
   <div class="codex-grid">
@@ -2335,7 +2340,9 @@ UI.renderCodex = function(keepFocus){
         <div class="tier-dots" aria-hidden="true">${dots}</div>
         <div class="cc-tier">${TUNING.MASTERY.NAMES[rec.tier]}<span class="cc-count">${countHtml}</span></div>
       </div>`;
-    }).join('') : `<div class="empty-note">${esc(this.codexQuery||'')} —— 无此条目。换个字或注音试试，例如「鸟」「yú」。</div>`}
+    }).join('') : `<div class="empty-note">${onlyMiss
+      ? (q ? '未录条目里没有匹配的。' : '本类已尽收——没有未著录的条目了。')
+      : `${esc(this.codexQuery||'')} —— 无此条目。换个字或注音试试，例如「鸟」「yú」。`}</div>`}
   </div>`;
   box.innerHTML = html;
   // 输入时重渲染会丢焦点：把光标放回检索框末尾，保持连续输入
