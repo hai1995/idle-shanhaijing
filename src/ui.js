@@ -19,6 +19,11 @@ const TABS = [
   { id:'stats',   label:'统计', icon:ICON('<path d="M4 19.6h16"/><path d="M7.4 19.6v-6.2M12 19.6V7.6M16.6 19.6v-9.2"/>') },
   { id:'about',   label:'叙录', icon:ICON('<rect x="4.6" y="3.4" width="14.8" height="17.2" rx="1.4"/><path d="M8.2 8.2h7.6M8.2 11.6h7.6M8.2 15h4.6"/>') },
 ];
+// 页签 → 页面渲染函数（renderCurrent 与页头包装层共用）
+const TAB_RENDER = { yudi:'renderYudi', skills:'renderSkills', taofa:'renderTaofa', yushi:'renderYushi',
+  codex:'renderCodex', jisi:'renderJisi', shichan:'renderShichan', ying:'renderYing',
+  queue:'renderQueue', pack:'renderPack', stats:'renderStats', settings:'renderSettings',
+  about:'renderAbout' };
 const CAT_EMOJI = { 兽:'🐾', 鸟:'🪶', 水族:'🐟', 蛇:'🐍' };
 const LOG_COLORS = { good:'#4A7C59', bad:'#C3272B', gold:'#D9A521', sys:'#8C5A3C' };
 
@@ -309,8 +314,7 @@ const UI = {
     this.tickProgress();
     refreshTabBadges();
     this.updateGuidance();
-    // 技能页会就地重绘整页（采集进度），页头条与「下一步」随之被冲掉——补回
-    if (this.currentTab === 'skills'){ this.renderSkills(); this.renderPageLevel(); }
+    if (this.currentTab === 'skills') this.renderSkills();
   },
   // 仪表带的行动文字可点：直达该行动所在页（采集/制作→技能，观象/谒见/灌木→舆地，往讨→征伐）
   gotoActivity(){
@@ -447,12 +451,8 @@ const UI = {
   },
   renderCurrent(){
     if (typeof hideTip === 'function') hideTip();   // 重渲染后锚点已销毁，浮层随之关闭
-    const fn = { yudi:'renderYudi', skills:'renderSkills', taofa:'renderTaofa', yushi:'renderYushi',
-      codex:'renderCodex', jisi:'renderJisi', shichan:'renderShichan', ying:'renderYing',
-      queue:'renderQueue', pack:'renderPack', stats:'renderStats', settings:'renderSettings',
-      about:'renderAbout' }[this.currentTab];
-    if (fn && this[fn]) this[fn]();
-    this.renderPageLevel();
+    const fn = TAB_RENDER[this.currentTab];
+    if (fn && this[fn]) this[fn]();                  // 包装层已负责补页头条
     this.renderTopbar();
     this.refreshActivity();
     this.fitGhostScrollbar();
@@ -916,6 +916,7 @@ const PAGE_SKILL = {
   jisi:    ['jisi',    '祭祀'],
   shichan: ['shanglv', '商旅'],
   ying:    ['yingyi',  '营邑'],
+  pack:    ['bing',    '兵'],
 };
 function pageLevelBar(tab){
   if (tab === 'skills'){
@@ -975,9 +976,13 @@ function nextStepHtml(tab){
     const better = Object.values(Items).some(it=>it.equip && (Game.inventory[it.id]||0) > 0 && (it.lvl||1) <= relevantLevel(it));
     if (better) out.push({ label:'一键最优装', act:'UI.autoEquipBest()' });
   }
+  if (tab === 'yushi'){
+    if (!out.length) out.push({ label:'去征伐攒著录（至通形可御使）', tab:'taofa' });
+  }
   if (tab === 'ying'){
     const b = Object.values(BUILDINGS).find(x=>!Game.buildings[x.id] && levelOf('yingyi') >= x.lvl && canAfford(x.cost));
     if (b) out.push({ label:`营造「${b.name}」`, act:`buildStructure('${b.id}');UI.renderYing()` });
+    else if (!out.length) out.push({ label:'去采集营造材料（怪木 / 沙石）', tab:'skills' });
   }
   if (!out.length) return '';
   return `<div class="next-step-bar"><span class="ns-lb">下一步</span>${
@@ -1519,7 +1524,10 @@ UI.plantAll = function(){
     if (plantSeed(slot, s.id, true)) n++;
   }
   this.renderSkills();
-  this.toast(n ? `🌱 一键植 ${n} 田` : '未能植入');
+  let soon = Infinity;
+  for (const k in Game.farms) soon = Math.min(soon, (Game.farms[k].grow || 0));
+  const eta = isFinite(soon) ? `（最早约 ${fmtTime(soon / Math.max(0.1, farmSpeedMult()))} 后熟）` : '';
+  this.toast(n ? `🌱 一键植 ${n} 田${eta}` : '未能植入');
 };
 // 田地就地补绘：收获 / 植入后卡片还显示着旧状态，切页才变是不合理的
 UI.patchFarms = function(){
@@ -1657,7 +1665,7 @@ function taofaArenaHtml(){
     </div>
     ${c&&m?wuxingAdvice(m.el, playerElement()):''}
     ${c&&m?combatEstimateHtml(m, c):''}
-    ${c?`<div class="combat-stats" id="combatStats">回合 ${c.round||0} · 造成 ${c.dmgOut||0} · 承伤 ${c.dmgIn||0}${Game.stats.winStreak>1?` · 连胜 ${Game.stats.winStreak}`:''}</div>`:''}
+    ${c?`<div class="combat-stats" id="combatStats">回合 ${c.round||0} · 造成 ${c.dmgOut||0} · 承伤 ${c.dmgIn||0}${Game.stats.winStreak>1?` · 连胜 ${Game.stats.winStreak}`:''}${c.repeat!=null?` · 本轮余 <b>${c.repeat}</b> 场`:''}</div>`:''}
     <div class="prefs-row">
       <label><input type="checkbox" ${Prefs.autoRevive?'checked':''} onchange="Prefs.autoRevive=this.checked;saveGame()"> 败后自动复讨</label>
     </div>
@@ -1833,6 +1841,7 @@ UI.openHuntModal = function(id){
     <div class="hint">一场胜后自动接战，直至场次用尽或败北；换一只异兽即重置连杀递减。</div>
     <div class="modal-btns">
       <button class="btn primary" onclick="UI.startHuntTimes('${id}')">战斗</button>
+      ${counterEl?`<button class="btn" onclick="setCombatStyle('zhu');setZhuEl('${counterEl}');UI.closeModal();UI.renderTaofa()">切${counterEl}属（克敌）</button>`:''}
       <button class="btn" onclick="UI.closeModal()">取消</button>
     </div>` : `
     <div class="hm-lock">${esc(lockMsg)}</div>
@@ -3296,5 +3305,19 @@ function init(){
   window.addEventListener('beforeunload', ()=>{ if (typeof flushCloudSave === 'function') flushCloudSave(); });
   setInterval(gameLoop, 250);
 }
+// 各页渲染统一包一层：任何一次就地重绘（装备 / 淬炼 / 行祭 / 营造 / 买卖 / 切属性…）
+// 之后都补回页头等级条与页尾「下一步」。此前只有 renderCurrent 负责插入，
+// 页面内一次局部重绘（box.innerHTML = …）就把它冲掉了。
+Object.keys(TAB_RENDER).forEach(tab=>{
+  const name = TAB_RENDER[tab];
+  const fn = UI[name];
+  if (typeof fn !== 'function') return;
+  UI[name] = function(){
+    const r = fn.apply(this, arguments);
+    if (this.currentTab === tab) this.renderPageLevel();
+    return r;
+  };
+});
+
 window.init = init;
 window.UI = UI;
