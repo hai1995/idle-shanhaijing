@@ -62,8 +62,8 @@ const CHAPTERS = [
   { id:'xishan',  name:'第二章 · 西山经', sub:'神话舞台', regionIds:['xishan-1','xishan-2','xishan-3','xishan-4'] },
   { id:'beishan', name:'第三章 · 北山经', sub:'长篇养成', regionIds:['beishan-1','beishan-2','beishan-3'] },
   { id:'dongshan',name:'第四章 · 东山经', sub:'荒经水路', regionIds:['dongshan-1','dongshan-2','dongshan-3','dongshan-4'] },
-  // 第五章先挂已入录十系（中次一至十经）；中次十一经、十二经 nodes 补录后逐一加入
-  { id:'zhongshan',name:'第五章 · 中山经', sub:'帝之密都', regionIds:['zhongshan-1','zhongshan-2','zhongshan-3','zhongshan-4','zhongshan-5','zhongshan-6','zhongshan-7','zhongshan-8','zhongshan-9','zhongshan-10'] },
+  // 第五章先挂已入录十一系（中次一至十一经）；中次十二经 nodes 补录后加入
+  { id:'zhongshan',name:'第五章 · 中山经', sub:'帝之密都', regionIds:['zhongshan-1','zhongshan-2','zhongshan-3','zhongshan-4','zhongshan-5','zhongshan-6','zhongshan-7','zhongshan-8','zhongshan-9','zhongshan-10','zhongshan-11'] },
 ];
 function chapterOf(regionId){ return CHAPTERS.find(c=>c.regionIds.includes(regionId)) || null; }
 
@@ -562,7 +562,7 @@ addItem(
   XW('zs_pi','罴','beast',['zhongshan-9-07'],{ icon:'🐻', skill:'lie', note:'熊之大者，黄白文——力能拔木', py:'pí' }),
   XW('zs_yuan2','猿','beast',['zhongshan-9-07'],{ icon:'🐒', skill:'lie', note:'猿——臂长善攀', py:'yuán' }),
   XW('zs_wei','蜼','beast',['zhongshan-9-07'],{ icon:'🐒', skill:'lie', note:'蜼——似猿而鼻露，尾长', py:'wèi' }),
-  XW('zs_qi','芑','herb',['zhongshan-9-14'],{ icon:'🌾', skill:'caiyao', note:'芑——似苦菜而白茎（有本作「芭」）', py:'qǐ' }),
+  XW('zs_qi','芑','wood',['zhongshan-9-14','zhongshan-11-42'],{ icon:'🌾', skill:'qiaocai', note:'芑——似苦菜而白茎，原文列于「其木多」，属木类（有本作「芭」）', py:'qǐ' }),
   XW('zs_jianshi','瑊石','mineral',['zhongshan-9-15'],{ icon:'🪨', skill:'caiyu', note:'瑊石——似玉之石而次之', py:'jiān' }),
   XW('zs_longxiu','龙修','herb',['zhongshan-9-16'],{ icon:'🌾', skill:'caiyao', note:'即龙须草——可为席', py:'lóng xiū' }),
   XW('zs_meizhe','美赭','mineral',['zhongshan-9-16'],{ icon:'🟤', skill:'caiyu', note:'优质赭土——可染赤', py:'měi zhě' }),
@@ -573,6 +573,26 @@ addItem(
   XW('zs_qizhong','跂踵','bird',['zhongshan-10-05'],{ icon:'🦉', skill:'lie', note:'状如鸮而一足、彘尾——见则其国大疫', py:'qí zhǒng' }),
   XW('zs_qiyu','鸜鹆','bird',['zhongshan-10-07'],{ icon:'🐦', skill:'lie', note:'即八哥——黑羽白点，能效人言', py:'qú yù' }),
   XW('zs_shenniu','弞杻','wood',['zhongshan-10-09'],{ icon:'🪵', skill:'qiaocai', note:'弞杻——杻之一种，木理细（弞音 shěn）', py:'shěn niǔ' }),
+  // ---- 中次十一经（荆山四十八山，全书最长系；raw 874–921 → L78–80）----
+  XW('zs_jiao2','蛟','fish',['zhongshan-11-01','zhongshan-11-20','zhongshan-11-22','zhongshan-11-31'],{ icon:'🐉', skill:'yu', note:'水中蛟龙——似蛇而四足，能兴云雨', py:'jiāo' }),
+  XW('zs_renyu','人鱼','fish',['zhongshan-11-02','zhongshan-11-22'],{ icon:'🧜', skill:'yu', note:'即娃娃鱼（大鲵）——啼声如儿', py:'rén yú' }),
+  XW('zs_qianyang','羬羊','beast',['zhongshan-11-10'],{ icon:'🐐', skill:'lie', note:'羬羊——羊而马尾，其脂可已腊', py:'qián' }),
+  XW('zs_xie3','颉','fish',['zhongshan-11-22'],{ icon:'🐟', skill:'yu', note:'㵗水多颉——鱼名，一说即鲒', py:'xié' }),
+  XW('zs_mangcao2','莽草','herb',['zhongshan-11-02'],{ icon:'🌿', skill:'caiyao', note:'可以毒鱼——渔者捣汁投水', py:'mǎng cǎo' }),
+  XW('zs_jigu','鸡榖','herb',['zhongshan-11-07','zhongshan-11-34'],{ icon:'🌾', skill:'caiyao', note:'其本如鸡卵，其味酸甘——食者利于人', py:'jī gǔ' }),
+  XW('zs_zhu5','槠','wood',['zhongshan-11-05'],{ icon:'🌳', skill:'qiaocai', note:'槠木——结实如橡，可为粉', py:'zhū' }),
+  XW('zs_shu2','薯','wood',['zhongshan-11-07'],{ icon:'🍠', skill:'qiaocai', note:'薯——山药之属，根可食', py:'shǔ' }),
+  XW('zs_huan','桓','wood',['zhongshan-11-11'],{ icon:'🌳', skill:'qiaocai', note:'桓木——即无患子，实可浣垢', py:'huán' }),
+  XW('zs_danhuo','丹雘','mineral',['zhongshan-11-12'],{ icon:'🔴', skill:'caiyu', note:'红色颜料——丹砂与雘土之属', py:'dān huò' }),
+  XW('zs_ju3','苴','wood',['zhongshan-11-13','zhongshan-11-24','zhongshan-11-27','zhongshan-11-30','zhongshan-11-35','zhongshan-11-38','zhongshan-11-43','zhongshan-11-46'],{ icon:'🍎', skill:'qiaocai', note:'苴——即山楂，实酸可食', py:'jū' }),
+  XW('zs_chou','椆','wood',['zhongshan-11-24','zhongshan-11-44'],{ icon:'🌳', skill:'qiaocai', note:'椆木——坚韧可为车', py:'chóu' }),
+  XW('zs_lei','累','herb',['zhongshan-11-27'],{ icon:'🌿', skill:'caiyao', note:'累——即紫藤，蔓生花紫', py:'léi' }),
+  XW('zs_yangtao','羊桃','wood',['zhongshan-11-33'],{ icon:'🥝', skill:'qiaocai', note:'状如桃而方茎——可以为皮张（消肿）', py:'yáng táo' }),
+  XW('zs_cuishi','脆石','mineral',['zhongshan-11-36'],{ icon:'🪨', skill:'caiyu', note:'皋水多脆石——石之易碎者', py:'cuì shí' }),
+  XW('zs_wei2','䉋','herb',['zhongshan-11-43'],{ icon:'🎋', skill:'caiyao', note:'䉋——竹之一种，可为箭', py:'mèi' }),
+  XW('zs_xiangcao','香草','herb',['zhongshan-11-48'],{ icon:'🌸', skill:'caiyao', note:'凡山多香草——可佩可浴', py:'xiāng cǎo' }),
+  XW('zs_xuanbao','玄豹','beast',['zhongshan-11-14'],{ icon:'🐆', skill:'lie', note:'黑豹——豹之玄者，皮可为裘', py:'xuán bào' }),
+  XW('zs_dinv','帝女之桑','wood',['zhongshan-11-31'],{ icon:'🌳', skill:'qiaocai', note:'大五十尺，枝四衢，叶大尺余，赤理黄华青柎——宣山之神木', py:'dì nǚ zhī sāng' }),
 );
 
 // ---- 长尾产出自动派生 ----
@@ -783,6 +803,8 @@ R('rite','rite_zs8',1,1060,77,[['xiongji',1],['zs_zaogui',1],['tu',2]]);
 R('rite','rite_zs9',1,1080,78,[['xiongji',1],['jiyu2',1],['tu',1]]);
 // 中次十经：山神皆龙身人面——其祠毛用一雄鸡瘗，糈用五种之糈（稌黍稻稷粱五种米）
 R('rite','rite_zs10',1,1100,78,[['xiongji',1],['tu',1],['shu',1],['dao',1]]);
+// 中次十一经：山神皆彘身人首——其祠毛用一雄鸡祈瘗，用一珪，糈用五种之精
+R('rite','rite_zs11',1,1120,79,[['xiongji',1],['gui',1],['tu',1],['shu',1]]);
 
 // ---- 西山制作链 ----
 // 琢玉：祠器与玉符
@@ -840,6 +862,7 @@ addItem(
   I('rite_zs8','雄鸡藻圭','rite',{ value:0, icon:'🕯️', note:'中次八经·荆山二十三山神：其神状皆鸟身而人面，其祠用一雄鸡祈瘗，用一藻圭，糈用稌；骄山冢也，其祠用羞酒少牢祈瘗，婴毛一璧' }),
   I('rite_zs9','雄鸡吉玉','rite',{ value:0, icon:'🕯️', note:'中次九经·岷山十六山神：其神状皆马身而龙首，其祠毛用一雄鸡瘗，糈用稌；文山、勾檷、风雨、騩之山皆冢也，其祠羞酒少牢具，婴毛一吉玉；熊山席也，其祠羞酒太牢具，婴毛一璧，干舞用兵以禳，祈璆冕舞' }),
   I('rite_zs10','雄鸡五种','rite',{ value:0, icon:'🕯️', note:'中次十经·首阳九山神：其神状皆龙身而人面，其祠毛用一雄鸡瘗，糈用五种之糈（黍稻稷麦粱）。末句另有「堵山冢也，少牢具，羞酒祠，婴毛一璧瘗；騩山帝也，羞酒太牢具，合巫祝二人舞，婴一璧」——二山不在本经正文，存疑照录' }),
+  I('rite_zs11','雄鸡珪糈','rite',{ value:0, icon:'🕯️', note:'中次十一经·荆山四十八山神：其神状皆彘身人首，其祠毛用一雄鸡祈瘗，用一珪，糈用五种之精。末句另有「禾山帝也，太牢之具，羞瘗倒毛，用一璧，牛无常；堵山、玉山冢也，皆倒祠，羞毛少牢，婴毛吉玉」——三山不在本经正文，存疑照录' }),
   I('caiyi','彩衣','rite',{ value:60, icon:'🎀', note:'中次四经祠礼「以彩衣之」——彩衣供奉' }),
 );
 // ---- 西山新制成品 ----
@@ -902,13 +925,13 @@ addItem(
 // 跨章共享材料：中山经首录三系产地并入既有物品（避免同名双 id）
 (function mergeZhongshanNodes(){
   const SHARED = {
-    '杻木':['zhongshan-1-01'], '橿':['zhongshan-1-02'], '竹':['zhongshan-1-03','zhongshan-2-09','zhongshan-8-02','zhongshan-8-12','zhongshan-8-22'],
+    '杻木':['zhongshan-1-01'], '橿':['zhongshan-1-02'], '竹':['zhongshan-1-03','zhongshan-2-09','zhongshan-8-02','zhongshan-8-12','zhongshan-8-22','zhongshan-11-18'],
     '赤铜':['zhongshan-1-05','zhongshan-1-09','zhongshan-1-15','zhongshan-2-06'],
     '铁':['zhongshan-1-05','zhongshan-1-08'], '砺石':['zhongshan-1-14'], '文石':['zhongshan-1-14'],
     '金':['zhongshan-2-02','zhongshan-2-03','zhongshan-2-04','zhongshan-2-07','zhongshan-2-09','zhongshan-3-04'],
     '玉':['zhongshan-2-02','zhongshan-2-03','zhongshan-2-04','zhongshan-2-07','zhongshan-2-09','zhongshan-3-04'],
     '砥砺':['zhongshan-2-02'], '桑':['zhongshan-2-01'], '美枣':['zhongshan-3-03'],
-    '赭':['zhongshan-3-01'], '黄金':['zhongshan-3-01','zhongshan-8-02','zhongshan-8-04','zhongshan-9-03','zhongshan-9-06','zhongshan-9-10','zhongshan-10-05'], '㻬琈之玉':['zhongshan-3-01','zhongshan-3-03','zhongshan-4-04','zhongshan-5-02'],
+    '赭':['zhongshan-3-01'], '黄金':['zhongshan-3-01','zhongshan-8-02','zhongshan-8-04','zhongshan-9-03','zhongshan-9-06','zhongshan-9-10','zhongshan-10-05','zhongshan-11-42'], '㻬琈之玉':['zhongshan-3-01','zhongshan-3-03','zhongshan-4-04','zhongshan-5-02'],
     '铜':['zhongshan-4-05'], '漆':['zhongshan-4-07'], '棕':['zhongshan-4-07'],
     '榖':['xishan-1-11','zhongshan-5-02','zhongshan-5-12','zhongshan-5-14'],
     '柞':['xishan-1-11','zhongshan-5-02','zhongshan-5-12','zhongshan-5-14'],
@@ -917,8 +940,8 @@ addItem(
     '桐':['zhongshan-5-05'],
     '芍药':['beishan-3-27','zhongshan-5-05'],
     '苍玉':['xishan-1-12','zhongshan-5-06','zhongshan-5-11'],
-    '金':['zhongshan-2-02','zhongshan-2-03','zhongshan-2-04','zhongshan-2-07','zhongshan-2-09','zhongshan-3-04','zhongshan-5-09','zhongshan-5-15','zhongshan-6-02','zhongshan-6-05','zhongshan-6-09','zhongshan-6-11','zhongshan-6-14','zhongshan-8-01','zhongshan-8-02','zhongshan-8-05','zhongshan-8-09','zhongshan-8-10','zhongshan-8-11','zhongshan-8-13','zhongshan-8-16','zhongshan-8-19','zhongshan-9-02','zhongshan-9-07','zhongshan-9-08','zhongshan-10-01'],
-    '玉':['zhongshan-2-02','zhongshan-2-03','zhongshan-2-04','zhongshan-2-07','zhongshan-2-09','zhongshan-3-04','zhongshan-5-02','zhongshan-5-10','zhongshan-6-02','zhongshan-6-05','zhongshan-6-08','zhongshan-6-09','zhongshan-6-11','zhongshan-6-13','zhongshan-6-14','zhongshan-7-09','zhongshan-7-11','zhongshan-8-01','zhongshan-8-03','zhongshan-8-04','zhongshan-8-05','zhongshan-8-09','zhongshan-8-13','zhongshan-8-19','zhongshan-9-02','zhongshan-9-08','zhongshan-9-10','zhongshan-10-01'],
+    '金':['zhongshan-2-02','zhongshan-2-03','zhongshan-2-04','zhongshan-2-07','zhongshan-2-09','zhongshan-3-04','zhongshan-5-09','zhongshan-5-15','zhongshan-6-02','zhongshan-6-05','zhongshan-6-09','zhongshan-6-11','zhongshan-6-14','zhongshan-8-01','zhongshan-8-02','zhongshan-8-05','zhongshan-8-09','zhongshan-8-10','zhongshan-8-11','zhongshan-8-13','zhongshan-8-16','zhongshan-8-19','zhongshan-9-02','zhongshan-9-07','zhongshan-9-08','zhongshan-10-01','zhongshan-11-04','zhongshan-11-05','zhongshan-11-06','zhongshan-11-12','zhongshan-11-16','zhongshan-11-23','zhongshan-11-28','zhongshan-11-29','zhongshan-11-34','zhongshan-11-35','zhongshan-11-36','zhongshan-11-37','zhongshan-11-43','zhongshan-11-47'],
+    '玉':['zhongshan-2-02','zhongshan-2-03','zhongshan-2-04','zhongshan-2-07','zhongshan-2-09','zhongshan-3-04','zhongshan-5-02','zhongshan-5-10','zhongshan-6-02','zhongshan-6-05','zhongshan-6-08','zhongshan-6-09','zhongshan-6-11','zhongshan-6-13','zhongshan-6-14','zhongshan-7-09','zhongshan-7-11','zhongshan-8-01','zhongshan-8-03','zhongshan-8-04','zhongshan-8-05','zhongshan-8-09','zhongshan-8-13','zhongshan-8-19','zhongshan-9-02','zhongshan-9-08','zhongshan-9-10','zhongshan-10-01','zhongshan-11-04','zhongshan-11-17','zhongshan-11-23','zhongshan-11-28','zhongshan-11-39','zhongshan-11-47'],
     '美玉':['zhongshan-5-11'],
     '砺石':['zhongshan-1-14','zhongshan-5-13'],
     '赤铜':['zhongshan-1-05','zhongshan-1-09','zhongshan-1-15','zhongshan-2-06','zhongshan-5-13'],
@@ -926,19 +949,20 @@ addItem(
     '蕙':['xishan-4-01','zhongshan-5-14'],
     // 中次六经补录（其余同名产出已由世界派生自动挂号，此三味需手工补产地）
     '沙石':['nanshan-1-09','zhongshan-6-01'],
-    '水玉':['nanshan-1-02','zhongshan-6-06'],
-    '枏':['nanshan-2-14','zhongshan-6-13','zhongshan-8-06'],
-    '赤金':['nanshan-1-04','zhongshan-7-16','zhongshan-8-02','zhongshan-8-09','zhongshan-8-21','zhongshan-9-12','zhongshan-9-14','zhongshan-9-15','zhongshan-10-02'],
-    '白金':['nanshan-1-04','zhongshan-7-17','zhongshan-9-09','zhongshan-9-11','zhongshan-9-13','zhongshan-10-04'],
+    '水玉':['nanshan-1-02','zhongshan-6-06','zhongshan-11-20'],
+    '枏':['nanshan-2-14','zhongshan-6-13','zhongshan-8-06','zhongshan-11-02','zhongshan-11-09'],
+    '赤金':['nanshan-1-04','zhongshan-7-16','zhongshan-8-02','zhongshan-8-09','zhongshan-8-21','zhongshan-9-12','zhongshan-9-14','zhongshan-9-15','zhongshan-10-02','zhongshan-11-01','zhongshan-11-30','zhongshan-11-40'],
+    '白金':['nanshan-1-04','zhongshan-7-17','zhongshan-9-09','zhongshan-9-11','zhongshan-9-13','zhongshan-10-04','zhongshan-11-09'],
     // 中次八经补录（荆山二十三山；上述同名产出多由派生自动挂号，此五味需手工补产地）
     '丹粟':['nanshan-2-01','zhongshan-8-01','zhongshan-9-08'],
-    '青雘':['nanshan-1-08','zhongshan-8-03','zhongshan-8-05','zhongshan-8-09','zhongshan-8-11','zhongshan-8-13','zhongshan-8-16','zhongshan-8-22','zhongshan-9-08','zhongshan-10-07'],
-    '梓':['zhongshan-2-06','zhongshan-8-06','zhongshan-8-12','zhongshan-9-04','zhongshan-9-08','zhongshan-9-09','zhongshan-10-09'],
+    '青雘':['nanshan-1-08','zhongshan-8-03','zhongshan-8-05','zhongshan-8-09','zhongshan-8-11','zhongshan-8-13','zhongshan-8-16','zhongshan-8-22','zhongshan-9-08','zhongshan-10-07','zhongshan-11-09','zhongshan-11-14','zhongshan-11-23','zhongshan-11-29','zhongshan-11-32'],
+    '梓':['zhongshan-2-06','zhongshan-8-06','zhongshan-8-12','zhongshan-9-04','zhongshan-9-08','zhongshan-9-09','zhongshan-10-09','zhongshan-11-01','zhongshan-11-02','zhongshan-11-09','zhongshan-11-12','zhongshan-11-15','zhongshan-11-19','zhongshan-11-27'],
     '桃枝':['xishan-2-01','zhongshan-8-14'],
     '钩端':['xishan-2-01','zhongshan-8-14'],
     // 中次九经补录（岷山十六山）
     '茈':['xishan-3-16','zhongshan-9-08'],
-    '荆':['nanshan-2-14','zhongshan-9-14'],
+    '荆':['nanshan-2-14','zhongshan-9-14','zhongshan-11-42'],
+    '芑':['zhongshan-9-14','zhongshan-11-42'],
     '雄黄':['nanshan-1-05','zhongshan-9-01'],
     '少辛':['zhongshan-7-13','zhongshan-9-06'],
   };
@@ -1003,7 +1027,7 @@ const RITES = {
   rite_ds1: { regionId:'dongshan-1', yieldBonus:0.30, dur:3600, xp:850, deity:'deity_dongshan-1' },
   rite_ds2: { regionId:'dongshan-2', yieldBonus:0.30, dur:3600, xp:870, deity:'deity_dongshan-2' },
   rite_ds3: { regionId:'dongshan-3', yieldBonus:0.30, dur:3600, xp:900, deity:'deity_dongshan-3' },
-  // 中山十套祠礼（帝之密都·全书收卷；2026-10-25 首录十系）
+  // 中山十一套祠礼（帝之密都·全书收卷；2026-10-25 首录十一系）
   rite_zs1: { regionId:'zhongshan-1', yieldBonus:0.30, dur:3600, xp:920, deity:'deity_zhongshan-1' },
   rite_zs2: { regionId:'zhongshan-2', yieldBonus:0.30, dur:3600, xp:940, deity:'deity_zhongshan-2' },
   rite_zs3: { regionId:'zhongshan-3', yieldBonus:0.35, dur:3600, xp:960, deity:'deity_zhongshan-3' },
@@ -1014,6 +1038,7 @@ const RITES = {
   rite_zs8: { regionId:'zhongshan-8', yieldBonus:0.30, dur:3600, xp:1060, deity:'deity_zhongshan-8' },
   rite_zs9: { regionId:'zhongshan-9', yieldBonus:0.30, dur:3600, xp:1080, deity:'deity_zhongshan-9' },
   rite_zs10: { regionId:'zhongshan-10', yieldBonus:0.30, dur:3600, xp:1100, deity:'deity_zhongshan-10' },
+  rite_zs11: { regionId:'zhongshan-11', yieldBonus:0.32, dur:3600, xp:1120, deity:'deity_zhongshan-11' },
 };
 
 // ---------- 征兆系统（原文「见则X」，首次著录触发） ----------
@@ -1504,6 +1529,18 @@ const FAUNA_META = {
   // 中次十经：复州跂踵（见则大疫）、又原鸜鹆（八哥）
   '跂踵':   { id:'zs_qizhong', el:'火', drop:'zs_qizhong_r', py:'qí zhǒng', note:'状如鸮而一足、彘尾，见则其国大疫' },
   '鸜鹆':   { id:'zs_qiyu',    el:'木', drop:'zs_qiyu_r',    py:'qú yù',    note:'即八哥——黑羽白点，能效人言' },
+  // 中次十一经：雍和/青耕/獜/𤜢/狙如/𤝻即/梁渠/䳅鵌/闻𧲂/三足鳖/婴勺
+  '雍和':   { id:'zs_yonghe',  el:'土', drop:'zs_yonghe_r',  py:'yōng hé', note:'其状如猿，赤目、赤喙、黄身，见则国有大恐' },
+  '青耕':   { id:'zs_qinggeng',el:'木', drop:'zs_qinggeng_r',py:'qīng gēng',note:'其状如鹊，青身白喙，白目白尾，可以御疫' },
+  '獜':     { id:'zs_lin',     el:'金', drop:'zs_lin_r',     py:'lín',     note:'其状如犬，虎爪有甲，善駚𤘝，食者不风' },
+  '𤜢':     { id:'zs_li',      el:'火', drop:'zs_li_r',      py:'lì',      note:'其状如汇（猬），赤如丹火，见则其国大疫' },
+  '狙如':   { id:'zs_juru',    el:'金', drop:'zs_juru_r',    py:'jū rú',   note:'其状如鼣鼠，白耳白喙，见则其国有大兵' },
+  '𤝻即':   { id:'zs_yiji',    el:'火', drop:'zs_yiji_r',    py:'yí jí',   note:'其状如膜大，赤喙、赤目、白尾，见则其邑有火' },
+  '梁渠':   { id:'zs_liangqu', el:'金', drop:'zs_liangqu_r', py:'liáng qú',note:'其状如狸而白首虎爪，见则其国有大兵' },
+  '䳅鵌':   { id:'zs_zhetu',   el:'火', drop:'zs_zhetu_r',   py:'zhǐ tú',  note:'其状如乌而赤足，可以御火' },
+  '闻𧲂':   { id:'zs_wenlin',  el:'木', drop:'zs_wenlin_r',  py:'wén lín', note:'其状如彘，黄身、白头、白尾，见则天下大风' },
+  '三足鳖': { id:'zs_sanzubie',el:'水', drop:'zs_sanzubie_r',py:'sān zú biē',note:'三足而枝尾，食之无蛊疫' },
+  '婴勺':   { id:'zs_yingshao',el:'水', drop:'zs_yingshao_r',py:'yīng sháo',note:'其状如鹊，赤目、赤喙、白身，其尾若勺，其鸣自呼' },
   // ===== 东山经（四系 46 山）=====  —— 常兽虎/麋/鹿/大蛇/䱻鱼已在他经存在，复用其 meta
   '鳙鳙之鱼':{ id:'ds_yongyu',  el:'水', drop:'ds_yongyu_r' },
   '从从':    { id:'ds_congcong',el:'土', drop:'ds_congcong_r' },
@@ -1639,8 +1676,8 @@ addItem(
   I('bs_puyi_r','蒲夷之鱼鳞','material',{value:48,xp:116,lvl:69,icon:'🐟',py:'pú yí zhī yú'}),
 );
 
-// 中山经首录十系具名异兽掉落物（自研；形态/效果以原文为准，数值与节点等次挂钩）
-// 帝之密都十系 L69–78：主治草木线收官区，数值较北山同阶上浮约三成
+// 中山经首录十一系具名异兽掉落物（自研；形态/效果以原文为准，数值与节点等次挂钩）
+// 帝之密都十一系 L69–80：主治草木线收官区，数值较北山同阶上浮约三成
 addItem(
   I('zs_nao_r','㔮肉','food',{value:22,xp:52,lvl:69,icon:'🍖',heal:55,effect:'食之已瘿',py:'náo'}),
   I('zs_haoyu_r','豪鱼肉','food',{value:22,xp:52,lvl:69,icon:'🐟',heal:55,effect:'可以已白癣',py:'háo'}),
@@ -1683,6 +1720,18 @@ addItem(
   // 中次十经：跂踵、鸜鹆
   I('zs_qizhong_r','跂踵之羽','material',{value:44,xp:90,lvl:78,icon:'🪶',py:'qí zhǒng',note:'状如鸮而一足、彘尾——见则其国大疫'}),
   I('zs_qiyu_r','鸜鹆之舌','material',{value:36,xp:78,lvl:78,icon:'🐦',py:'qú yù',note:'八哥舌——剪而捻之，能效人言'}),
+  // 中次十一经：雍和、青耕、獜、𤜢、狙如、𤝻即、梁渠、䳅鵌、闻𧲂、三足鳖、婴勺
+  I('zs_yonghe_r','雍和之皮','material',{value:56,xp:106,lvl:79,icon:'🐒',py:'yōng hé',note:'赤目赤喙黄身——见则国有大恐'}),
+  I('zs_qinggeng_r','青耕之羽','material',{value:50,xp:98,lvl:79,icon:'🪶',py:'qīng gēng',note:'青身白喙——可以御疫'}),
+  I('zs_lin_r','獜之甲','material',{value:58,xp:110,lvl:79,icon:'🛡️',py:'lín',note:'虎爪有甲——食者不风'}),
+  I('zs_li_r','𤜢之毛','material',{value:54,xp:102,lvl:79,icon:'🦔',py:'lì',note:'赤如丹火——见则其国大疫'}),
+  I('zs_juru_r','狙如之耳','material',{value:52,xp:100,lvl:79,icon:'🐭',py:'jū rú',note:'白耳白喙——见则其国有大兵'}),
+  I('zs_yiji_r','𤝻即之尾','material',{value:52,xp:100,lvl:80,icon:'🦊',py:'yí jí',note:'赤喙赤目白尾——见则其邑有火'}),
+  I('zs_liangqu_r','梁渠之爪','material',{value:56,xp:106,lvl:80,icon:'🐆',py:'liáng qú',note:'白首虎爪——见则其国有大兵'}),
+  I('zs_zhetu_r','䳅鵌之羽','material',{value:48,xp:94,lvl:80,icon:'🐦',py:'zhǐ tú',note:'状如乌而赤足——可以御火'}),
+  I('zs_wenlin_r','闻𧲂之革','material',{value:60,xp:114,lvl:80,icon:'🐖',py:'wén lín',note:'黄身白头白尾——见则天下大风'}),
+  I('zs_sanzubie_r','三足鳖甲','food',{value:46,xp:92,lvl:79,icon:'🐢',heal:90,effect:'食之无蛊疫',py:'sān zú biē',note:'三足而枝尾'}),
+  I('zs_yingshao_r','婴勺之尾','material',{value:44,xp:88,lvl:79,icon:'🐦',py:'yīng sháo',note:'其尾若勺——其鸣自呼'}),
 );
 
 // 祷过之山「多犀、兕、多象」——可猎之兽（非异兽）
@@ -1951,7 +2000,7 @@ function buildCodex(){
     deity_xs3:'西次三经 · 羊身人面之神', deity_xs4:'西次四经 · 山神',
     deity_bs1:'北次一经 · 人面蛇身之神', deity_bs2:'北次二经 · 蛇身人面之神',
     deity_bs3:'北次三经 · 神祇（廿神藻茝瘗／十四神玉不瘗／十神璧瘗）',
-    // 中山经（帝之密都；首录十系）
+    // 中山经（帝之密都；首录十一系）
     deity_zs1:'中次一经 · 薄山十五山神（历儿为冢）',
     deity_zs2:'中次二经 · 人面鸟身之神',
     deity_zs3:'中次三经 · 帝之密都群神（熏池／武罗／泰逢）',
@@ -1962,6 +2011,7 @@ function buildCodex(){
     deity_zs8:'中次八经 · 荆山二十三山神（鸟身人面；骄山为冢）',
     deity_zs9:'中次九经 · 岷山十六山神（马身龙首；文山/勾檷/风雨/騩为冢，熊山为席）',
     deity_zs10:'中次十经 · 首阳九山神（龙身人面；末句另称堵山为冢、騩山为帝）',
+    deity_zs11:'中次十一经 · 荆山四十八山神（彘身人首；末句另称禾山为帝、堵山玉山为冢）',
   };
   for (const def of Object.values(RITES)){
     if (cx[def.deity] || !RITE_DEITY_NAMES[def.deity]) continue;
@@ -2063,8 +2113,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.11.0',
-  codename:'密都 · 首阳',
+  version: '1.12.0',
+  codename:'密都 · 帝女桑',
   updated: '2026-10-25',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
