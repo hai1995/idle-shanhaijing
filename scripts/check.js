@@ -48,6 +48,10 @@ step('版本一致（package.json = GAME_META）', () => {
 });
 
 step('引擎测试', () => run(path.join('test', 'engine.test.js')));
+// --full：额外跑一轮随机动作压测。默认不跑（多 2 秒），但改过引擎 / 拆分过文件时值得跑。
+if (process.argv.includes('--full')){
+  step('随机动作压测（500 轮）', () => run(path.join('scripts', 'fuzz.js'), ['500']));
+}
 step('数据审计', () => run(path.join('scripts', 'audit-data.js')));
 step('单文件版构建', () => run(path.join('scripts', 'build-standalone.js')));
 
