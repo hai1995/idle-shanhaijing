@@ -5134,6 +5134,64 @@ section('战绩文本');
   assert(!/(^|[^w.])fmt\(/.test(fnBody) && !fnBody.includes('fmtTime('), 'shareText 只用自带格式化，不借 ui.js 的');
 }
 
+// ============ 88. 问神：录满之后再谒，问的是「此地还缺什么」 ============
+// 二十处谒见点录满之后原本就是摆设——再谒只剩一句「再谒山川之神」。
+// 现在山神报出本系未录的物产 / 异兽 / 神祇，并指到具体那座山。
+// 纯信息，不产任何物件，所以不设冷却，也不会破坏经济。
+section('问神');
+{
+  G.resetToDefault();
+  const m1 = ST.regionMissing('nanshan-1');
+  assert(m1.items.length > 0 && m1.beasts.length > 0, `南次一经未录：物 ${m1.items.length} · 兽 ${m1.beasts.length}`);
+  assert(m1.items.every(x => x.nodeId.indexOf('nanshan-1') === 0), '只报本山系的东西');
+  assert(m1.items.every(x => x.name && x.nodeName && x.lvl > 0 && x.how), '每条都带名、山、门槛与拿法');
+  assert(m1.items[0].lvl <= m1.items[m1.items.length - 1].lvl, '按门槛升序排（顺着路走）');
+
+  const before = m1.items.length;
+  const one = m1.items[0];
+  ST.Game.records[one.id] = { count: 1, tier: 1 };
+  assert(ST.regionMissing('nanshan-1').items.length === before - 1, '录下一样，清单就少一样');
+  delete ST.Game.records[one.id];
+
+  // 谒见：诸神未录时只入录，不弹问神；录满之后改问
+  const nid = 'xishan-3-05';
+  const site = ST.AUDIENCE_SITES[nid];
+  let oracle = null;
+  const oldOracle = ST.UI.showOracle;
+  ST.UI.showOracle = (rid, nm) => { oracle = { rid, nm }; };
+  try {
+    ST.doAudience(nid);
+    assert(oracle === null, '初谒只录神祇，不弹问神');
+    assert(((ST.Game.records[site.deities[0].id] || {}).count || 0) === 1, '神祇已入录');
+    site.deities.forEach(d => { ST.Game.records[d.id] = { count: 1, tier: 1 }; });
+    ST.doAudience(nid);
+    assert(oracle && oracle.rid === 'xishan-3', '录满之后再谒 → 问神（' + (oracle && oracle.rid) + '）');
+  } finally {
+    ST.UI.showOracle = oldOracle;
+  }
+
+  // 弹窗：按类分组、写明山系、条目可点
+  let html88 = '';
+  const oldModal = ST.UI.modal;
+  ST.UI.modal = (h) => { html88 = h; };
+  try { ST.UI.showOracle('xishan-3', '鼓・钦䲹'); } finally { ST.UI.modal = oldModal; }
+  assert(html88.includes('问神') && html88.includes('西次三经'), '弹窗写明是哪一系在答');
+  assert((html88.match(/class="orc-group"/g) || []).length >= 2, '按物产 / 异兽 / 神祇分组');
+  assert((html88.match(/class="orc-row"/g) || []).length > 0, '每条都可点（定位那座山）');
+  assert(!/<button[^>]*>.*?买/.test(html88), '只报有什么，不代买代采');
+
+  // 按钮文案：录满前「谒见」，录满后「问神」
+  ST.Game.skills.yudi.level = 81; ST.Game.skills.lvxian.level = 81;
+  ST.Game.records = {};
+  ST.UI.selRegion = 'xishan-3'; ST.UI.selNode = nid; ST.UI.renderYudi();
+  const h1 = (renderTargets.content || {}).innerHTML || '';
+  assert(h1.includes('🕯️ 谒见'), '未录满时按钮仍是「谒见」');
+  site.deities.forEach(d => { ST.Game.records[d.id] = { count: 1, tier: 1 }; });
+  ST.UI.renderYudi();
+  const h2 = (renderTargets.content || {}).innerHTML || '';
+  assert(h2.includes('🕯️ 问神') && h2.includes('此地未录之物'), '录满后改称「问神」并说明去问什么');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

@@ -1502,13 +1502,15 @@ function combatButtonsForNode(node){
       ${m.boss?(typeof beastIcon==='function'?beastIcon({id:m.id}):'🦹'):(typeof markIcon==='function'?markIcon('bolt',14):'⚔️')} ${esc(m.name)}<i>讨伐 ${m.needLvl||1}</i></button>`;
   }).join('');
 }
-// 谒见神祇
+// 谒见神祇。诸神都录过之后改称「问神」——这一趟是去问此地还有什么没录，
+// 而不是再听一遍已经写下的名姓。
 function audienceButtonForNode(node){
   const site = AUDIENCE_SITES[node.id];
   if (!site) return '';
   const un = nodeUnlocked(node);
-  return `<button class="btn ${un?'primary':''}" ${un?'':'disabled'} onclick="startAudience('${node.id}')"
-    title="神祇不可讨伐，以谒见入录">🕯️ 谒见 ${esc(site.name)}<i>${site.deities.length} 位神祇</i></button>`;
+  const done = (site.deities || []).every(d => ((Game.records || {})[d.id] || {}).count > 0);
+  return `<button class="btn ${un && !done ? 'primary' : ''}" ${un?'':'disabled'} onclick="startAudience('${node.id}')"
+    title="${done ? '诸神已录：问此地未录之物' : '神祇不可讨伐，以谒见入录'}">🕯️ ${done ? '问神' : '谒见'} ${esc(site.name)}<i>${done ? '此地未录之物' : (site.deities.length + ' 位神祇')}</i></button>`;
 }
 // 峚山 · 玉膏灌丹木
 function growButtonForNode(node){
@@ -2719,6 +2721,34 @@ UI.autoRiteAll = function(){
   this.renderJisi();
   this.toast(`🕯️ 已为 ${n} 套礼开续祭`);
   return n;
+};
+
+// 问神：山神报出本系未录之物。纯信息（不产物件，故无冷却），
+// 点一行即定位那座山——省得在图鉴 1122 条里翻。
+UI.showOracle = function(regionId, siteName){
+  const miss = (typeof regionMissing === 'function') ? regionMissing(regionId)
+    : { items: [], beasts: [], deities: [] };
+  const region = (WORLD.regions || []).find(r => r.regionId === regionId);
+  const rn = region ? region.regionName : regionId;
+  const total = miss.items.length + miss.beasts.length + miss.deities.length;
+  const group = (title, list, cap) => {
+    if (!list.length) return '';
+    const shown = list.slice(0, cap);
+    return `<div class="orc-group"><b>${title}<span class="orc-n">${list.length}</span></b>
+      ${shown.map(x => `<div class="orc-row" role="button" tabindex="0"
+          onclick="UI.selRegion='${esc(x.nodeId).replace(/-\d+$/, '')}';UI.selNode='${esc(x.nodeId)}';UI.switchTab('yudi');UI.closeModal()">
+        <span class="orc-name">${esc(x.name)}</span>
+        <span class="orc-where">${esc(x.nodeName)}</span>
+        <span class="orc-how">${esc(x.how)} · ${x.lvl} 级</span>
+      </div>`).join('')}
+      ${list.length > shown.length ? `<div class="hint orc-more">另有 ${list.length - shown.length} 条，可在「图鉴 · 仅未录」里看全</div>` : ''}
+    </div>`;
+  };
+  this.modal(`<h3><span class="mi-ic">${typeof markIcon === 'function' ? markIcon('lamp', 16) : '🕯️'}</span> ${esc(siteName)} · 问神</h3>
+    <p class="hint">${esc(rn)} 尚有 ${total} 条未录。点一行即定位到那座山——神只说有什么，怎么拿还得自己走一趟。</p>
+    ${total ? group('物产', miss.items, 8) + group('异兽', miss.beasts, 8) + group('神祇', miss.deities, 4)
+      : '<p class="ab-p">此系已录尽——山中所有物类皆在简上。</p>'}
+    <div class="modal-btns"><button class="btn primary" onclick="UI.closeModal()">领命</button></div>`);
 };
 
 UI.renderJisi = function(){

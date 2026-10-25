@@ -1112,9 +1112,50 @@ function doAudience(nodeId){
   }
   gainXp('jisi', 200 + (n ? n.unlockLevel*4 : 0));
   gainXp('zhulu', 20);
-  if (!recorded) UI && UI.log('🕯️ 再谒山川之神', 'jisi', 'skill');
+  if (!recorded){
+    // 诸神已录：这一趟不再只是「再谒」，改问「此地还有何物未录」
+    const regionId = String(nodeId).replace(/-\d+$/, '');
+    if (typeof log === 'function') log(`🕯️ 再谒${site.name}，问此地未录之物`, 'jisi', 'skill');
+    if (UI && UI.showOracle) UI.showOracle(regionId, site.name);
+  }
   saveGame();
 }
+// ---------- 问神：此山系还缺什么 ----------
+// 二十处谒见点在录满之后原本就成了摆设：再谒只剩一句「再谒山川之神」。
+// 现在让山神干点正事——报出本系尚未著录的物产、异兽与神祇，并指到具体那座山。
+// 纯信息，不产任何物件，所以不必设冷却，随便问。
+function regionMissing(regionId){
+  const items = [], beasts = [], deities = [];
+  for (const it of Object.values(Items)){
+    const nodes = it.nodes || (it.node ? [it.node] : []);
+    const hit = nodes.find(nid => String(nid).indexOf(regionId) === 0);
+    if (!hit) continue;
+    if (((Game.records || {})[it.id] || {}).count > 0) continue;
+    const n = nodeOf(hit);
+    items.push({ id: it.id, name: it.name, cat: '物产', how: (Skills[it.skill] || {}).name || '采集',
+      nodeId: hit, nodeName: n ? n.name : hit, lvl: n ? (n.unlockLevel || 1) : 1 });
+  }
+  for (const m of Object.values(Monsters)){
+    if (!m.nodeId || String(m.nodeId).indexOf(regionId) !== 0) continue;
+    if (((Game.records || {})[m.id] || {}).count > 0) continue;
+    const n = nodeOf(m.nodeId);
+    beasts.push({ id: m.id, name: m.name, cat: '异兽', how: m.boss ? '讨伐（凶神）' : '讨伐',
+      nodeId: m.nodeId, nodeName: n ? n.name : m.nodeId, lvl: m.needLvl || 1 });
+  }
+  for (const [nodeId, site] of Object.entries(AUDIENCE_SITES || {})){
+    if (String(nodeId).indexOf(regionId) !== 0) continue;
+    for (const d of (site.deities || [])){
+      if (((Game.records || {})[d.id] || {}).count > 0) continue;
+      const n = nodeOf(nodeId);
+      deities.push({ id: d.id, name: d.name, cat: '神祇', how: '谒见',
+        nodeId, nodeName: n ? n.name : nodeId, lvl: n ? (n.unlockLevel || 1) : 1 });
+    }
+  }
+  const byLvl = (a, b) => a.lvl - b.lvl || String(a.name).localeCompare(String(b.name));
+  return { items: items.sort(byLvl), beasts: beasts.sort(byLvl), deities: deities.sort(byLvl) };
+}
+window.regionMissing = regionMissing;
+
 window.startAudience = startAudience; window.doAudience = doAudience;
 
 // ---------- 养成（峚山丹木五岁 / 北山器酸三岁 / 北山精卫填海） ----------

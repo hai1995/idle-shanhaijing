@@ -2384,3 +2384,21 @@ details.hetero-panel .hp-left{ margin-left:auto; font-style:normal; color:var(--
 /* 关于页 · 战绩：一颗按钮 + 一句说明，横排不抢位 */
 .ab-share{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:10px 0 6px; }
 .ab-share .hint{ margin:0; }
+
+/* 问神：按类分组的缺录清单，一行一物，末尾给「往」的去处 */
+.orc-group{ margin:10px 0; border:1px solid var(--rule); background:var(--paper-2); }
+.orc-group > b{ display:flex; align-items:center; gap:6px; padding:5px 10px; font-size:12px;
+  color:var(--ink-2); border-bottom:1px solid var(--rule); }
+.orc-group .orc-n{ font-family:var(--f-num); color:var(--ink-4); font-weight:400; }
+.orc-row{ display:grid; grid-template-columns:minmax(5em,1fr) minmax(6em,1.2fr) minmax(6em,auto);
+  gap:8px; padding:4px 10px; font-size:12px; cursor:pointer; border-bottom:1px dashed var(--rule-2); }
+.orc-row:last-child{ border-bottom:none; }
+.orc-row:hover{ background:var(--paper-3); }
+.orc-row .orc-name{ color:var(--ink); }
+.orc-row .orc-where{ color:var(--ink-3); font-size:11px; }
+.orc-row .orc-how{ color:var(--ink-4); font-size:11px; text-align:right; }
+.orc-more{ margin:6px 10px 8px; }
+@media (max-width:720px){
+  .orc-row{ grid-template-columns:1fr auto; }
+  .orc-row .orc-where{ display:none; }
+}
