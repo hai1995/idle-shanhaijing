@@ -2304,6 +2304,8 @@ mark.hit{
 .rite-bar .hint{ margin:0; }
 .rc-lack{ color:var(--zhu-d); font-size:12px; margin-top:4px; }
 .rc-src{ color:var(--ink-3); font-size:11px; }
+/* 这一礼值不值：祭品折价 vs 该域一小时增益，一行说完 */
+.rc-worth{ color:var(--ink-2); font-size:11px; margin-top:5px; padding-top:5px; border-top:1px dashed var(--rule); }
 .build-bar{ margin:6px 0 8px; }
 
 /* 异迹索引：观象 / 谒见 / 灌木散在四百多座山里，一张表列全，点一行即选中那座山 */

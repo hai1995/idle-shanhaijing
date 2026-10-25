@@ -2806,6 +2806,18 @@ UI.renderJisi = function(){
           <div class="hint">${def.regionId?`此域采获 +${Math.round(def.yieldBonus*(Game.buildings.citan?1.5:1)*100)}%（约合产量 +${typeof riteRealYield==='function'?riteRealYield(def.yieldBonus*(Game.buildings.citan?1.5:1)):'—'}%），持续 ${Math.round(def.dur/3600)} 小时`:'常祭，无区域增益'}</div>
           ${st.active?`<div class="hint">生效中，余 ${fmtTime(st.left)}</div>`:''}
           <div class="hint">现备材料可续 ${st.times} 次${auto?(st.stall?'　·　续祭待料':'　·　已开续祭'):''}</div>
+          ${(() => {
+            // 这一礼值不值：把祭品折成贝币，与「该域挂一小时的增益」摆在一起。
+            // 原先只有「+15%」这种看不见的量，玩家没法判断该不该祭。
+            const w = (typeof riteWorth === 'function') ? riteWorth(id) : null;
+            if (!w) return '';
+            // 技艺差太远时该域一件也采不动，增益无从折算——别装作算得出来，
+            // 也不能让这一行凭空消失（玩家会以为礼没用）。
+            if (!(w.gain > 0))
+              return `<div class="rc-worth">祭品折价约 ${fmt(w.cost)} 贝 · 以现有技艺此域尚无可采之物，增益无从折算</div>`;
+            const pay = w.payback < 60 ? '不到一分钟即回本' : `${fmtTime(w.payback)}回本`;
+            return `<div class="rc-worth">祭品折价约 ${fmt(w.cost)} 贝 · 本域挂一小时约采 ${fmt(w.vpsHour)} 贝 → 此礼多得约 ${fmt(w.gain)} 贝，${pay}</div>`;
+          })()}
           ${(Items[id]||{}).note?`<div class="hint">${esc((Items[id]||{}).note)}</div>`:''}
           ${!lvOk?`<div class="hint">需祭祀 ${rec.lvl} 级（现 ${levelOf('jisi')} 级）</div>`:''}
           ${(() => {
@@ -2816,7 +2828,7 @@ UI.renderJisi = function(){
               lacks.slice(0, 2).map(([iid]) => {
                 const src = (typeof itemSources === 'function') ? itemSources(iid)[0] : null;
                 if (!src) return '';
-                return `<div class="rc-sub rc-src">${esc((Items[iid]||{}).name || iid)}：${esc(src.kind)} Lv${src.lvl}${src.where ? ' · ' + esc(src.where) : ''}</div>`;
+                return `<div class="rc-sub rc-src">${esc((Items[iid]||{}).name || iid)}：${esc(src.kind)}${src.lvl ? ' Lv' + src.lvl : ''}${src.where ? ' · ' + esc(src.where) : ''}</div>`;
               }).join('');
           })()}
         </span>
@@ -3122,7 +3134,7 @@ UI.renderYing = function(){
             return `<div class="rc-lack">缺 ${lacks.map(([iid, q]) => `${esc((Items[iid]||{}).name || iid)}×${q - totalOf(iid)}`).join('、')}</div>` +
               lacks.slice(0, 2).map(([iid]) => {
                 const src = (typeof itemSources === 'function') ? itemSources(iid)[0] : null;
-                return src ? `<div class="rc-sub rc-src">${esc((Items[iid]||{}).name || iid)}：${esc(src.kind)} Lv${src.lvl}</div>` : '';
+                return src ? `<div class="rc-sub rc-src">${esc((Items[iid]||{}).name || iid)}：${esc(src.kind)}${src.lvl ? ' Lv' + src.lvl : ''}</div>` : '';
               }).join('');
           })()}
         </span>
@@ -3522,6 +3534,7 @@ function itemSources(id){
   // 同名异兽散在各山（㸲牛一类的写法在原文里遍地都是），按名去重再计数
   const drops = [];
   const seenDrop = {};
+  let dropLvl = Infinity;      // 界面会拼「讨伐 Lv${lvl}」，不填就是 Lvundefined
   for (const m of Object.values(typeof Monsters !== 'undefined' ? Monsters : {})){
     // BOSS 走单值 drop，小妖走 loot 表；两者都要看（m.loot 可能是空数组，别被真值骗了）
     const loot = (Array.isArray(m.loot) && m.loot.length) ? m.loot : [];
@@ -3530,8 +3543,10 @@ function itemSources(id){
     if (!m.name || seenDrop[m.name]) continue;
     seenDrop[m.name] = 1;
     drops.push(m.name);
+    if (m.needLvl) dropLvl = Math.min(dropLvl, m.needLvl);
   }
-  if (drops.length) out.push({ kind:'讨伐', where: drops.slice(0, 3).join('、') + (drops.length > 3 ? ` 等 ${drops.length} 种` : '') });
+  if (drops.length) out.push({ kind:'讨伐', lvl: dropLvl === Infinity ? 1 : dropLvl,
+    where: drops.slice(0, 3).join('、') + (drops.length > 3 ? ` 等 ${drops.length} 种` : '') });
   // 神兵：只在 BOSS 的 divine 字段上，普通掉落表里没有
   for (const mb of Object.values(typeof Monsters !== 'undefined' ? Monsters : {})){
     if (mb.divine !== id) continue;

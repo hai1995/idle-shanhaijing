@@ -2826,8 +2826,13 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   // 二十八套礼制「行祭 +30%」只是句文案，采集那边一分都没多给
   assert(gameSrc48.includes('regionRiteBonus((regionOf(Game.node)||{}).regionId)'),
     '采集加成并入祠礼（regionRiteBonus 真正被读取）');
-  assert(gameSrc48.includes('1 + regionRiteBonus(') && gameSrc48.includes('eff * rb'),
+  assert(gameSrc48.includes('riteRealYield(regionRiteBonus(') && gameSrc48.includes('eff * rb'),
     '离线采集同样吃祠礼加成（不至于挂着挖矿反而吃不到礼）');
+  // 但离线必须与线上同一折算：线上 +30% 加的是「得两份/三份」的几率，实际只有约 +15% 产量。
+  // 原先离线直接乘 1.30，等于离线白拿一倍于线上的礼。
+  assert(Math.abs((1 + ST.riteRealYield(0.30) / 100) - 1.15) < 0.005,
+    '离线祠礼加成按产量口径折算（+30% → 约 +15%，与线上一致）');
+  assert(!/1 \+ regionRiteBonus\(/.test(gameSrc48), '没有别处再直接乘 1 + 原始加成');
 
   // 48.2 同一山系两套礼：按 riteOf 定归属，大祭不被小祭顶掉
   G.resetToDefault();
@@ -2994,6 +2999,11 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   const niu = ST.itemSources('niu').filter(x => x.kind === '讨伐')[0];
   assert(!!niu, '牛牲指到讨伐来路');
   assert(!/㸲牛、㸲牛/.test(niu.where), '同名异兽去重（不再「㸲牛、㸲牛、㸲牛」）');
+  // 「讨伐 Lvundefined」：来历行会拼 Lv${lvl}，讨伐来源原先没填 lvl
+  const dropSrcs = Object.values(ST.Items).flatMap(i => ST.itemSources(i.id)).filter(x => x.kind === '讨伐');
+  assert(dropSrcs.length > 100, '讨伐来路确实查过 ' + dropSrcs.length + ' 条');
+  assert(dropSrcs.every(x => x.lvl > 0), '讨伐来路条条带等级（不再 Lvundefined）');
+  assert(niu.lvl > 0 && niu.lvl <= 30, `牛牲最低可讨于 ${niu.lvl} 级（取最低的那座山）`);
 
   assert(ST.itemSources('fenghuangyu').some(x => x.kind === '观瑞'), '凤皇羽来自观瑞');
   assert(ST.itemSources('shenlingzu').some(x => x.kind === '谒见'), '神𩲜之足来自谒见（神祇不讨伐）');
@@ -5326,6 +5336,38 @@ section('离线结算与线上同口径');
   // 每件耗时来自 currentActionInterval，不写死
   const gameSrc90 = fs.readFileSync(path.join(__dirname, '..', 'src', 'game.js'), 'utf8');
   assert(!/Math\.floor\(seconds \/ 2\.0\)/.test(gameSrc90), '离线制作不再写死 2.0 秒');
+}
+
+// ============ 91. 祠礼的账：祭品折价 vs 该域一小时增益 ============
+// docs/BALANCE.md 里那张表就是这里算出来的。把结论钉成断言，
+// 将来谁动了祭品配方或产量曲线，这条账会先叫。
+{
+  G.resetToDefault();
+  const setSkillToLv = (sk, L) => { ST.Game.skills[sk] = { level: L, xp: ST.xpForLevel(L) + 1 }; };
+  let n = 0, worstPay = 0, worstId = '', yuPay = 0;
+  for (const [rid, def] of Object.entries(ST.RITES)){
+    if (!def.regionId) continue;
+    const reg = ST.WORLD.regions.find(r => r.regionId === def.regionId);
+    for (const sk in ST.Skills) setSkillToLv(sk, reg.unlockLevel);   // 玩家在此域时的等级 ≈ 该域门槛
+    const w = ST.riteWorth(rid);
+    assert(!!w && w.cost > 0 && w.gain > 0 && isFinite(w.payback), `祠礼算得出账：${rid}`);
+    if (w && w.payback > worstPay && !def.grand){ worstPay = w.payback; worstId = rid; }
+    if (def.grand) yuPay = w.payback;
+    n++;
+  }
+  assert(n === 27, '27 套带山系的礼都算过（常祭无域，单列）-> ' + n);
+  assert(ST.riteWorth('rite_chang') === null, '常祭无区域增益，不给「值不值」（不编数字骗人）');
+  // 小礼的定价远低于其增益：最慢的一签也在 5 分钟内回本（实测 82 秒）
+  assert(worstPay < 300, `小礼最慢 ${Math.round(worstPay)} 秒回本（${worstId}）`);
+  // 羭山百牲斋是唯一「有分量」的一套：五百件祭品，回本以半小时计
+  assert(yuPay > 1800, `羭山大祭回本 ${Math.round(yuPay)} 秒，是唯一需要盘算的一礼`);
+
+  // 面板上要把这行账露出来，否则算了也没人看见
+  const uiSrc91 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  assert(uiSrc91.includes('class="rc-worth"') && uiSrc91.includes('riteWorth(id)'),
+    '祠礼浮层显示「祭品折价 / 本域时采 / 此礼多得 / 回本」');
+  const css91 = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
+  assert(css91.includes('.rc-worth'), 'rc-worth 有样式');
 }
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）

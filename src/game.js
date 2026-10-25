@@ -1007,6 +1007,52 @@ function riteRealYield(bonus){
   if (!(bonus > 0)) return 0;
   return Math.round((bonus * 0.5 + bonus * 0.12) / 1.25 * 100);
 }
+// ---------- 祠礼的账 ----------
+// 「行这一趟祭到底值不值」：祭品按市价折贝币，收益按该域一小时的实采价值折。
+// 面板上那行小字、docs/BALANCE.md 里那张表，都从这里出——同一套口径只写一次。
+const REGION_ITEM_INDEX = {};
+function regionGatherItems(regionId){
+  if (REGION_ITEM_INDEX[regionId]) return REGION_ITEM_INDEX[regionId];
+  const reg = (typeof WORLD !== 'undefined' ? WORLD.regions : []).find(r => r.regionId === regionId);
+  const out = [];
+  if (reg){
+    const ids = new Set(reg.nodes.map(n => n.id));
+    for (const iid in Items){
+      const it = Items[iid];
+      if (!it.skill || !it.value) continue;
+      const ns = it.nodes || (it.node ? [it.node] : []);
+      if (ns.some(n => ids.has(n))) out.push(iid);
+    }
+  }
+  return (REGION_ITEM_INDEX[regionId] = out);
+}
+// 该域「一小时能采出多少贝」：取最值钱的那件可采物，按基础期望 1.25 件/次算
+// （不叠精通、征兆、地力——那几项各行其是，混进来就说不清这行数字是谁的功劳）。
+function regionGatherVps(regionId){
+  let best = 0, bestId = null;
+  for (const iid of regionGatherItems(regionId)){
+    const it = Items[iid];
+    if (levelOf(it.skill) + 8 < (it.lvl || 1)) continue;   // 越级 8 级以上采不动
+    const v = 1.25 / gatherInterval(it.skill) * it.value;
+    if (v > best){ best = v; bestId = iid; }
+  }
+  return { vps: best, itemId: bestId };
+}
+function riteWorth(riteId){
+  const def = RITES[riteId];
+  if (!def || !def.regionId || !def.dur) return null;
+  const rec = Recipes.find(r => r.type === 'rite' && r.out === riteId);
+  if (!rec) return null;
+  let cost = 0;
+  for (const [iid, q] of rec.cost) cost += ((Items[iid] || {}).value || 0) * q;
+  const real = riteRealYield(def.yieldBonus * (Game.buildings.citan ? 1.5 : 1)) / 100;
+  const { vps, itemId } = regionGatherVps(def.regionId);
+  const vpsHour = vps * 3600;
+  const gain = vps * def.dur * real;
+  return { cost, gain, vpsHour, net: gain - cost, itemId, realPct: Math.round(real * 100),
+           durH: def.dur / 3600, payback: (vps > 0 && real > 0) ? cost / (vps * real) : Infinity };
+}
+
 // 某山系此刻在供的是哪一礼（舆地页据此提示「此域产出 +X% · 余 42:10」）
 // 行祭给的是看不见的百分比，玩家不翻祠礼页就不知道它还在不在供——
 // 把它摆到山系名旁边，礼才有存在感。
@@ -1025,6 +1071,7 @@ window.riteState = riteState; window.toggleRiteAuto = toggleRiteAuto;
 window.tickAutoRites = tickAutoRites; window.riteAutoOn = riteAutoOn;
 window.riteAutoCount = riteAutoCount; window.activeRiteOf = activeRiteOf;
 window.riteRealYield = riteRealYield;
+window.riteWorth = riteWorth; window.regionGatherVps = regionGatherVps;
 
 // ---------- 观象 / 观瑞 ----------
 function startObserve(siteId){
@@ -2680,8 +2727,11 @@ function settleAway(seconds){
       const times = Math.floor(seconds / (gatherInterval(it.skill) * geoGatherMul(Game.node)));
       summary.acts.gather = times;
       addXp(it.skill, it.xp * times);
-      // 离线采集也算祠礼加成，否则「挂着挖矿」反而是唯一吃不到礼的玩法
-      const rb = 1 + regionRiteBonus((regionOf(Game.node)||{}).regionId);
+      // 离线采集也算祠礼加成，否则「挂着挖矿」反而是唯一吃不到礼的玩法。
+      // ⚠️ 但必须用与线上同一个换算：线上加成落在「得两份 / 三份」的几率上，
+      // +30% 实际只有约 +15% 产量（riteRealYield）。原先这里直接乘 1.30，
+      // 等于离线白拿一倍于线上的礼——同一件事又写成了两处口径。
+      const rb = 1 + riteRealYield(regionRiteBonus((regionOf(Game.node)||{}).regionId)) / 100;
       const q = Math.floor(times * 1.4 * eff * rb * overEff);
       if (q > 0){ giveItem(a.itemId, q, false); summary.items[a.itemId] = q; }
       const recs = Math.floor(times * eff * 1.2);
