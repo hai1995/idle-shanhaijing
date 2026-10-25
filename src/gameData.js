@@ -149,7 +149,7 @@ addItem(
 // ---- 渔 · 水族 ----
 addItem(
   I('yupei','育沛','fish',  { value:15, xp:16, lvl:1,  icon:'🐚', skill:'yu', node:'nanshan-1-01', water:'丽麂之水', effect:'佩之无瘕疾', py:'pèi', note:'丽麂之水多育沛' }),
-  I('jiyu','鮆鱼','fish',   { value:30, xp:70, lvl:30, icon:'🐟', skill:'yu', node:'nanshan-2-07', water:'苕水', effect:'可食', py:'jì', note:'苕水多鮆鱼' }),
+  I('jiyu','鮆鱼','fish',   { value:30, xp:70, lvl:8,  icon:'🐟', skill:'yu', node:'nanshan-2-07', water:'苕水', effect:'可食', py:'jì', note:'苕水多鮆鱼' }),
   I('piluo','芘蠃','fish',  { value:35, xp:80, lvl:39, icon:'🐌', skill:'yu', node:'nanshan-2-13', water:'洵水', effect:'可食', py:'pí luǒ', note:'洵水多芘蠃' }),
 );
 
@@ -166,7 +166,7 @@ addItem(
   I('seed_jian','菅苗','seed',{ value:10, lvl:5, icon:'🌿', grow:18, crop:'jian',skill:'puyi', py:'jiān' }),
   // 黍：原文仅东次三经祠礼「用一牡羊，米用黍」用到，故种子上架等级压在 70——
   // 此前只有黍米、没有黍籽，也没有任何其它来源，导致该祠礼永远做不出（断链）。
-  I('seed_shu','黍籽','seed',{ value:8,  lvl:70, icon:'🌾', grow:16, crop:'shu', skill:'puyi', py:'shǔ' }),
+  I('seed_shu','黍籽','seed',{ value:8,  lvl:34, icon:'🌾', grow:16, crop:'shu', skill:'puyi', py:'shǔ' }),
   I('tu','稌米','crop',   { value:4,  xp:14, lvl:1, icon:'🍚', note:'糈用稌米', py:'tú' }),
   I('shu','黍米','crop',  { value:6,  xp:16, lvl:71, icon:'🌾', note:'米用黍——东次三经祠礼糈', py:'shǔ' }),
   I('dao','稻米','crop',  { value:7,  xp:22, lvl:3, icon:'🍚' }),
@@ -330,8 +330,8 @@ addItem(
 
 // ---- 西山灵草（采药）----
 addItem(
-  XW('bili','萆荔','herb',['xishan-1-02'],{ icon:'🌿', skill:'caiyao', note:'食之已心痛', py:'bì lì' }),
-  XW('xuncao','薰草','herb',['xishan-1-10'],{ icon:'🌿', skill:'caiyao', note:'佩之可以已疠——麻台之山' }),
+  XW('bili','萆荔','herb',['xishan-1-02'],{ icon:'🌿', skill:'caiyao', lvl:8, value:30, xp:70, note:'食之已心痛', py:'bì lì' }),
+  XW('xuncao','薰草','herb',['xishan-1-10'],{ icon:'🌿', skill:'caiyao', lvl:12, value:44, xp:92, note:'佩之可以已疠——麻台之山' }),
   XW('gurong','蓇蓉','herb',['xishan-4-01'],{ icon:'🌺', skill:'caiyao', note:'食之使人无子——高效而有代价', py:'gū róng' }),
   XW('pingcao','薲草','herb',['xishan-3-08'],{ icon:'🌿', skill:'caiyao', note:'其状如葵，其味如葱——食之已劳', py:'píng' }),
   XW('mao','茆','herb',['xishan-4-01'],{ icon:'🌿', skill:'caiyao', py:'mǎo' }),
@@ -339,14 +339,14 @@ addItem(
   XW('hui','蕙','herb',['xishan-4-01'],{ icon:'🌷', skill:'caiyao', py:'huì' }),
   XW('duheng','杜衡','herb',['xishan-4-01'],{ icon:'🌿', skill:'caiyao', py:'dù héng' }),
   XW('zicao','茈草','herb',['xishan-3-07'],{ icon:'🟣', skill:'caiyao', py:'zǐ' }),
-  XW('huangguan','黄雚','herb',['xishan-1-10'],{ icon:'🌿', skill:'caiyao', py:'huáng guàn' }),
+  XW('huangguan','黄雚','herb',['xishan-1-10'],{ icon:'🌿', skill:'caiyao', lvl:14, value:52, xp:100, py:'huáng guàn' }),
   XW('xiao','虈','herb',['xishan-4-19'],{ icon:'🌿', skill:'caiyao', py:'xiāo' }),
 );
 
 // ---- 嘉谷 · 稷（圃艺）----
 addItem(
-  XW('seed_ji','稷籽','seed',[],{ icon:'🌾', skill:'puyi', lvl:autoLvl('xishan-3-04'), grow:14, crop:'ji', py:'jì' }),
-  XW('ji','稷米','crop',[],{ icon:'🍚', skill:'puyi', lvl:autoLvl('xishan-3-04'), note:'糈用稷米——西次三经祠礼' }),
+  XW('seed_ji','稷籽','seed',[],{ icon:'🌾', skill:'puyi', lvl:12, value:30, xp:70, grow:14, crop:'ji', py:'jì' }),
+  XW('ji','稷米','crop',[],{ icon:'🍚', skill:'puyi', lvl:14, value:38, xp:80, note:'糈用稷米——西次三经祠礼' }),
 );
 
 // ---- 水族渔获 ----
@@ -2012,6 +2012,30 @@ const Milestones = [
   { id:'bs_jingwei',name:'东海渐浅',  desc:'发鸠山精卫填海养成完成', check:()=>!!(Game.grow&&Game.grow.jingwei&&Game.grow.jingwei.done), bonus:'樵采产出 +10%', gather:0.10 },
 ];
 
+// ---------- 采集物的等级阶梯 ----------
+// 采集物的 lvl 原本直接来自所在山的门槛（autoLvl ≈ 门槛 × 0.86），于是出现
+// 「渔 1 级只能捞育沛，下一条鱼要 30 级」这类断崖：玩家在南山把渔从 1 练到 30，
+// 只能反复捞同一种东西（实测 24000 次）。这里把同技能的物品按等级排成阶梯，
+// 相邻不得相差 8 级以上——只降不升，且保留原有的 value / xp（那是内容价值，
+// 不该因为「更早能采到」而贬值）。
+(function ladderizeGather(){
+  const STEP = 8;
+  const bySkill = {};
+  for (const it of Object.values(Items)){
+    if (!it.skill || !it.lvl || it.type === 'rite') continue;
+    (bySkill[it.skill] = bySkill[it.skill] || []).push(it);
+  }
+  for (const key of Object.keys(bySkill)){
+    const list = bySkill[key].sort((a, b) => a.lvl - b.lvl || a.id.localeCompare(b.id));
+    let prev = 0;
+    for (const it of list){
+      const nv = Math.max(1, Math.min(it.lvl, prev + STEP));
+      it.lvl = nv;
+      prev = nv;
+    }
+  }
+})();
+
 // ---------- 著录元数据（图鉴） ----------
 // 每阶揭示文案：初见 → 识名 → 明性 → 通形 → 得御
 function buildCodex(){
@@ -2211,7 +2235,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.14.1',
+  version: '1.14.2',
   codename:'五臧 · 词锋',
   updated: '2026-10-25',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',

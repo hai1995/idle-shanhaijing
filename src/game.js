@@ -330,7 +330,21 @@ function doGather(itemId){
   const it = Items[itemId];
   if (!it || !it.skill) return;
   const skillId = it.skill;
-  if (levelOf(skillId) < it.lvl){ Game.activity = null; UI && UI.toast(`🔒 需${Skills[skillId].name} ${it.lvl} 级`); return; }
+  // 越级采集：技能差 8 级以内仍可动手，效率按差距衰减（越 8 级 ≈ 36%）——
+  // 某些技能（渔 / 药 / 圃艺）在早期山系没有低阶产物，硬门槛会把玩家钉死在
+  // 「只能刷同一种」的死循环里；允许硬采，但收益明显打折，探索仍有价值。
+  const need = it.lvl || 1;
+  const cur = levelOf(skillId);
+  let overEff = 1;
+  if (cur < need){
+    const gap = need - cur;
+    if (gap > 8){
+      Game.activity = null;
+      UI && UI.toast(`🔒 需${Skills[skillId].name} ${need} 级（至多越级 8 级）`);
+      return;
+    }
+    overEff = Math.max(0.35, 1 - gap * 0.08);
+  }
   // 产地校验（同名产物可分布多山）；积石之山「万物无不有焉」不受产地限制
   const nodes = it.nodes || (it.node ? [it.node] : []);
   const special = (window.SPECIAL_NODES||{})[Game.node];
@@ -345,9 +359,10 @@ function doGather(itemId){
   let qty = 1;
   if (chance(TUNING.GATHER_DOUBLE + bonus*0.5)) qty = 2;
   if (chance(bonus*0.12)) qty += 1;
+  if (overEff < 1 && qty > 1) qty = Math.max(1, Math.round(qty * overEff));   // 越级：多产概率折半
   giveItem(itemId, qty, false);
   Game.stats.gathers[skillId] = (Game.stats.gathers[skillId]||0) + 1;
-  gainXp(skillId, it.xp * qty * (1 + bonus*0.5));
+  gainXp(skillId, it.xp * qty * (1 + bonus*0.5) * overEff);
   recordObject(itemId, qty);
   // 渔获兼得：𩶯魮之鱼「是生珠玉」
   const gb = (window.GATHER_BONUS||{})[itemId];
@@ -369,7 +384,7 @@ function doGather(itemId){
     log(`🐝 ${special.gardenThreat.beast}蠚木，田地${slotIdNum(victim)}之${crop?crop.name:'苗'}枯死`, 'bad', 'sys');
     UI && UI.toast(`🐝 ${special.gardenThreat.beast}蠚木则枯——一田焦枯`);
   }
-  UI && UI.log(`${Skills[skillId].icon} 采得 ${it.name} ×${qty}`, skillId, 'skill');
+  UI && UI.log(`${Skills[skillId].icon} 采得 ${it.name} ×${qty}${overEff < 1 ? `（越级 · 效 ${Math.round(overEff*100)}%）` : ''}`, skillId, 'skill');
   UI && UI.actionFeedback(skillId, it.id, qty);
 }
 // 著录一个对象（含阶位提升、异兽征兆触发、关联著录）

@@ -1307,7 +1307,7 @@ function nodeHasUsableAction(node){
   for (const it of Object.values(Items)){
     if (!it.skill) continue;
     const nodes = it.nodes || (it.node ? [it.node] : []);
-    if (nodes.includes(node.id) && levelOf(it.skill) >= it.lvl) return true;
+    if (nodes.includes(node.id) && gatherGate(it).usable) return true;
   }
   if (Object.values(OBSERVE_SITES).some(s=>s.nodeId === node.id)) return true;
   if (typeof AUDIENCE_SITES !== 'undefined' && AUDIENCE_SITES[node.id]) return true;
@@ -1315,16 +1315,26 @@ function nodeHasUsableAction(node){
   if (Object.values(Monsters).some(m=>m.nodeId === node.id && levelOf('taofa') >= (m.needLvl||1))) return true;
   return false;
 }
+// 采集可用性：与 game.js 的 doGather 同口径——差 8 级内可「越级」，效率按差距折减。
+// 早期山系并非每个手艺都有低阶产物（渔在南山只有育沛），硬门槛会把路堵死。
+function gatherGate(it){
+  const need = it.lvl || 1;
+  const cur = levelOf(it.skill);
+  const gap = need - cur;
+  return { need, cur, gap, usable: gap <= 8, eff: gap <= 0 ? 1 : Math.max(0.35, 1 - gap * 0.08) };
+}
+
 function gatherButtonsForNode(node){
   const out = [];
   for (const it of Object.values(Items)){
     if (!it.skill) continue;
     const nodes = it.nodes || (it.node ? [it.node] : []);
     if (!nodes.includes(node.id)) continue;
-    const lvOk = levelOf(it.skill) >= it.lvl;
-    out.push(`<button class="btn ${lvOk?'':'lock'}" ${lvOk?'':'disabled'}
-      onclick="startActivity('gather','${it.id}')" title="${esc(it.note||'')}">
-      ${typeof skillIcon==='function'?skillIcon(it.skill,17):Skills[it.skill].icon} ${esc(it.name)}<i>${Skills[it.skill].name} ${it.lvl}</i></button>`);
+    const g = gatherGate(it);
+    const tag = g.gap > 0 ? ` · 越级 ${Math.round(g.eff * 100)}%` : '';
+    out.push(`<button class="btn ${g.usable ? (g.gap > 0 ? 'over' : '') : 'lock'}" ${g.usable ? '' : 'disabled'}
+      onclick="startActivity('gather','${it.id}')" title="${esc(it.note||'')}${g.gap > 0 ? '（越级采集：效率 ' + Math.round(g.eff*100) + '%）' : ''}">
+      ${typeof skillIcon==='function'?skillIcon(it.skill,17):Skills[it.skill].icon} ${esc(it.name)}<i>${Skills[it.skill].name} ${it.lvl}${tag}</i></button>`);
   }
   return out.join('');
 }

@@ -2068,3 +2068,11 @@ mark.hit{
 @media (prefers-reduced-motion: reduce){
   #monsterFighter.ult-hit{ animation:none; }
 }
+
+/* 越级采集：可点，但用虚线描边标明「不是本职等级」 */
+.btn.over{
+  border-style:dashed !important;
+  border-color:var(--jin) !important;
+  color:var(--ink-2);
+}
+.btn.over i{ color:var(--jin); }

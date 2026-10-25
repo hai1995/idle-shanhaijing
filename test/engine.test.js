@@ -2791,6 +2791,46 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   assert(/@media \(max-width:760px\)\{[\s\S]{0,500}\.btn[^{]*\{[^}]*border-radius:1px !important/.test(css2), '窄屏操作按钮统一近直角');
 }
 
+// ============ 46. 采集等级阶梯与越级采集（v1.14.2） ============
+{
+  const gameSrc46 = fs.readFileSync(path.join(__dirname, '..', 'src', 'game.js'), 'utf8');
+  G.resetToDefault();
+
+  // 46.1 同技能相邻物品等级差 ≤ 8（否则玩家只能反复刷同一种，实测渔 1→30 需 24000 次）
+  ['qiaocai','caiyu','caiyao','yu','puyi'].forEach(sk => {
+    const list = Object.values(ST.Items).filter(i => i.skill === sk && i.lvl).sort((a, b) => a.lvl - b.lvl);
+    let worst = 0, at = '';
+    for (let i = 1; i < list.length; i++){
+      const d = list[i].lvl - list[i-1].lvl;
+      if (d > worst){ worst = d; at = list[i-1].name + '→' + list[i].name; }
+    }
+    assert(worst <= 8, sk + ' 相邻物品等级差 ≤ 8（最大 ' + worst + ' ' + at + '）');
+  });
+  const yuList = Object.values(ST.Items).filter(i => i.skill === 'yu').sort((a, b) => a.lvl - b.lvl);
+  assert(yuList[0].lvl === 1 && yuList[1].lvl <= 9, '渔有起步阶梯（' + yuList[0].lvl + '→' + yuList[1].lvl + '）');
+
+  // 46.2 越级采集：≤8 级可硬采，效率打折；超过则拒绝
+  const mid = Object.values(ST.Items).find(i => i.skill === 'yu' && i.lvl === 8);
+  assert(!!mid, '存在 8 级鱼（' + (mid && mid.name) + '）');
+  ST.WORLD.regions.forEach(r => r.nodes.forEach(n => { ST.Game.map[n.id] = true; }));
+  ST.Game.node = (mid.nodes || [mid.node])[0];
+  ST.Game.skills.yu.level = 1;
+  const before46 = ST.Game.inventory[mid.id] || 0;
+  G.doGather(mid.id);
+  assert((ST.Game.inventory[mid.id] || 0) > before46, '渔 1 级仍可越 7 级采 8 级鱼（不再被硬门槛钉死）');
+
+  const high46 = Object.values(ST.Items).find(i => i.skill === 'yu' && i.lvl >= 60);
+  if (high46){
+    ST.Game.node = (high46.nodes || [high46.node])[0];
+    const b2 = ST.Game.inventory[high46.id] || 0;
+    ST.Game.skills.yu.level = 1;
+    G.doGather(high46.id);
+    assert((ST.Game.inventory[high46.id] || 0) === b2, '渔 1 级采 ' + high46.lvl + ' 级鱼被拒（差超 8 级）');
+  }
+  assert(gameSrc46.includes('至多越级 8 级') && gameSrc46.includes('overEff'), '越级采集有明确提示与效率折减');
+  assert(gameSrc46.includes('gainXp(skillId, it.xp * qty * (1 + bonus*0.5) * overEff)'), '越级时的经验按效率打折');
+}
+
 // ============ 45. 战法姿态 / 连战残势 / 荒山文案（v1.14.1） ============
 {
   const uiSrc45 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
