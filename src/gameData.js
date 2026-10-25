@@ -2106,6 +2106,26 @@ const AUDIENCE_SITES = {};
   }
 })();
 
+// ---------- 三签（本轮短目标） ----------
+// 里程碑是长线的：达成一次、永久加成。但挂机游戏最常遇到的是「上线不知道干什么」，
+// 所以另设一层短目标——常挂三条，做完一条立刻补一条，赏贝币。
+// 目标一律写成「相对增量」（base 记下抽签那一刻的计数），同一条签在 5 级和 60 级都成立；
+// 数量与赏钱按综合等级缩放，前期不至于一签顶半天，后期也不至于一签只值一顿饭。
+// 目标次数按「约八到十分钟一签」定：采集一秒一下、讨伐十几秒一只、祠礼要备祭品，
+// 各自的节奏差着数量级，所以 n() 必须分开写，不能用同一个系数乘。
+// 赏钱同理——采集签若按讨伐签给，一小时能刷出上万贝，经济当场崩。
+const BOUNTIES = [
+  { id:'hunt',    name:'往讨异兽', desc:'讨伐',   key:'kills',    n:l=>4 + Math.round(l*0.5),   shells:l=>12 + l*1.6 },
+  { id:'gather',  name:'采集动作', desc:'采获',   key:'gathered', n:l=>60 + Math.round(l*6),    shells:l=>12 + l*1.6 },
+  { id:'craft',   name:'制作器物', desc:'制成',   key:'crafts',   n:l=>8 + Math.round(l*0.6),   shells:l=>14 + l*1.8 },
+  { id:'sell',    name:'廛市售物', desc:'售出',   key:'sales',    n:l=>5 + Math.round(l*0.4),   shells:l=>14 + l*1.8 },
+  { id:'rite',    name:'行祠礼',   desc:'行祭',   key:'rites',    n:l=>1 + Math.floor(l/40),    shells:l=>40 + l*5 },
+  { id:'observe', name:'观象',     desc:'观象',   key:'observes', n:l=>1 + Math.floor(l/50),    shells:l=>50 + l*6 },
+  { id:'record',  name:'新著录',   desc:'新录',   key:'recorded', n:l=>2 + Math.floor(l/25),    shells:l=>24 + l*3 },
+  { id:'harvest', name:'圃艺收成', desc:'收成',   key:'harvests', n:l=>2 + Math.floor(l/30),    shells:l=>20 + l*2.5 },
+];
+window.BOUNTIES = BOUNTIES;
+
 // ---------- 长线成就（里程碑） ----------
 const Milestones = [
   { id:'rec_5',    name:'初识山川',   desc:'著录 5 种对象',     check:()=>recordedCount()>=5,     bonus:'经验 +2%',   xp:0.02 },
@@ -2362,8 +2382,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.22.2',
-  codename:'五臧 · 轮回',
+  version: '1.23.0',
+  codename:'五臧 · 三签',
   updated: '2026-10-25',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',

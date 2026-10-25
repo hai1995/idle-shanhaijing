@@ -4632,6 +4632,59 @@ section('轮回 · 再著一卷');
   assert(ST.Game.stats.totalXp === 1234567, '读档后修为仍在');
 }
 
+// ============ 79. 三签：本轮短课，做完一条补一条 ============
+// 里程碑是长线的（达成一次、永久加成），日常得有「现在做什么」。
+// 三签常挂三条，记的是「相对增量」（base 是抽签那刻的计数），不做时间刷新、不占行动位。
+section('三签 · 本轮短课');
+{
+  G.resetToDefault();
+  assert(Array.isArray(ST.Game.bounties) && ST.Game.bounties.length === 0, '新档三签为空');
+  ST.bountyTick();
+  assert(ST.Game.bounties.length === 3, '首次 tick 补满三条');
+  const ids = ST.Game.bounties.map(b => b.id);
+  assert(new Set(ids).size === 3, '三条不重样（' + ids.join('/') + '）');
+
+  // 必成的一条：讨伐 2 只
+  ST.Game.bounties = [{ id:'hunt', base: ST.Game.stats.kills, target: 2 }];
+  const shells0 = ST.Game.shells;
+  ST.bountyTick();
+  assert(ST.Game.shells === shells0, '没进展不发奖');
+  ST.Game.stats.kills += 2;
+  ST.bountyTick();
+  const pay = ST.Game.shells - shells0;
+  assert(pay > 0, '签成得贝 +' + pay);
+  assert(ST.Game.stats.bounties === 1, '签成记数');
+  assert(ST.Game.bounties.length === 1 && ST.Game.bounties[0].id !== 'hunt', '完成后立刻换了一条新签');
+
+  // 增量口径：抽签之前的旧计数不能算进去
+  ST.Game.stats.crafts = 500;
+  ST.Game.bounties = [{ id:'craft', base: ST.Game.stats.crafts, target: 1 }];
+  const s2 = ST.Game.shells;
+  ST.bountyTick();
+  assert(ST.Game.shells === s2, '五百次老纪录不算今天的账');
+  ST.Game.stats.crafts += 1;
+  ST.bountyTick();
+  assert(ST.Game.shells > s2, '只认抽签之后的那一次');
+
+  // 目标随等级缩放：等级越高，要的次数越多、赏钱越厚
+  const lo = ST.BOUNTIES.find(b => b.id === 'hunt');
+  assert(lo.n(5) < lo.n(60) && lo.shells(5) < lo.shells(60), `往讨签随级缩放：${lo.n(5)}→${lo.n(60)} 次，${lo.shells(5)}→${lo.shells(60)} 贝`);
+  // 经济闸门：三签是「顺带完成」的额外收入，不能盖过主玩法。
+  // 采集一秒一下、祠礼要备祭品，节奏差着数量级——若共用同一个系数，采集签会刷爆贝币。
+  const top = ST.BOUNTIES.slice().sort((a, b) => b.shells(81) - a.shells(81))[0];
+  assert(top.shells(81) <= 900, '满级最贵的一签（' + top.name + '）也只赏 ' + top.shells(81) + ' 贝');
+  const g = ST.BOUNTIES.find(b => b.id === 'gather');
+  assert(g.n(81) >= 400, '采集签按「一秒一下」的节奏定次数：满级要 ' + g.n(81) + ' 次（约十分钟）');
+
+  // 入档：三签随档保存，读档后还在
+  ST.Game.bounties = [{ id:'hunt', base: 0, target: 3 }, { id:'craft', base: 0, target: 1 }, { id:'sell', base: 0, target: 2 }];
+  G.saveGame();
+  const raw = JSON.parse(ST.localStorage.getItem('shj_zhulu_save_v1'));
+  assert(Array.isArray(raw.bounties) && raw.bounties.length === 3, '三签入档');
+  G.loadGame();
+  assert(ST.Game.bounties.length === 3 && ST.Game.bounties[0].id === 'hunt', '读档后三签还在');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

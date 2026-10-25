@@ -1583,6 +1583,27 @@ UI.renderSkills = function(){
     <span>采获 <b>+${Math.round(globalYieldBonus()*100)}%</b><i class="hint">（约合产量 +${typeof riteRealYield==='function'?riteRealYield(globalYieldBonus()):0}%）</i></span>
     <span>御使槽 <b>${Object.keys(Game.deployed).length}/${beastSlots()}</b></span>
   </div>
+  ${(typeof bountyDef === 'function') ? (() => {
+    const list = (Game.bounties || []).filter(b => bountyDef(b.id));
+    if (!list.length) return '';
+    const lv = bountyLevel();
+    return `<div class="panel bounty-panel">
+      <h3>三签<i class="bn-sub">签成得贝，做完一条即补一条</i></h3>
+      <div class="bounty-list">
+        ${list.map(b => {
+          const def = bountyDef(b.id);
+          const got = bountyProgress(b), need = Math.max(1, b.target);
+          const pct = Math.min(100, got / need * 100);
+          return `<div class="bounty-item ${got >= need ? 'done' : ''}">
+            <span class="bn-name">${esc(def.name)}</span>
+            <span class="bn-bar"><i style="width:${pct.toFixed(1)}%"></i></span>
+            <span class="bn-num">${Math.min(got, need)}/${need}</span>
+            <span class="bn-pay">${Math.max(1, Math.round(def.shells(lv)))} 贝</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  })() : ''}
   <div class="filter-row">
     ${Object.entries(groups).map(([k,v])=>`<button class="chip-btn ${filter===k?'on':''}" onclick="UI.skillFilter='${k}';UI.renderSkills()">${v}</button>`).join('')}
   </div>

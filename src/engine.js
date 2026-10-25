@@ -38,8 +38,10 @@ const Game = {
     kills:0, deaths:0, actions:0, totalXp:0, time:0, bossKills:{}, totalEarned:0,
     harvests:0, purchases:0, sales:0, spent:0, sold:0, gathers:{}, crafts:0,
     damageDealt:0, damageTaken:0, hits:0, omens:{}, rites:0, observes:0, divines:0,
-    seenMilestones:{}, winStreak:0, deathStreak:0, deathStreakOf:null, seenDeployHint:false, seenFallbackHint:false, _unlockedRegions:[],
+    seenMilestones:{}, winStreak:0, deathStreak:0, deathStreakOf:null, bounties:0, seenDeployHint:false, seenFallbackHint:false, _unlockedRegions:[],
   },
+  // 三签：常挂三条短目标 [{ id, base, target }]，base 是抽签那一刻的计数
+  bounties: [],
   // 轮回：count 转生次数（轮回印 = count × TUNING.REBIRTH.XP）、at 上次转生时刻、
   // best 历史最高总等级、startedAt 本轮起点、history 每轮成绩（最近 10 条）
   rebirth: { count: 0, at: 0, best: 0, startedAt: 0, history: [] },
@@ -78,12 +80,13 @@ function cloneDefaultGame(){
   g.enhance = {}; g.enhanceHeat = {};
   g.orders = []; g.ordersAt = 0;
   g.rebirth = { count:0, at:0, best:0 };      // 转生：新档即零转
+  g.bounties = [];                            // 三签：抽签在首次 tick 时惰性补满
   g.skills = {};
   for (const id of ALL_SKILL_IDS) g.skills[id] = { level:1, xp:0 };
   g.stats = { kills:0, deaths:0, actions:0, totalXp:0, time:0, bossKills:{}, totalEarned:0,
               harvests:0, purchases:0, sales:0, spent:0, sold:0, gathers:{}, crafts:0,
               damageDealt:0, damageTaken:0, hits:0, omens:{}, rites:0, observes:0, divines:0,
-              seenMilestones:{}, claimed:{}, winStreak:0, deathStreak:0, deathStreakOf:null, seenDeployHint:false, seenFallbackHint:false, _unlockedRegions:[],
+              seenMilestones:{}, claimed:{}, winStreak:0, deathStreak:0, deathStreakOf:null, bounties:0, seenDeployHint:false, seenFallbackHint:false, _unlockedRegions:[],
               // 离线结算累计（统计页展示）：次数 / 时长 / 经验 / 物品件数 / 最近一次
               offlineCount:0, offlineSec:0, offlineXp:0, offlineItems:0, lastOffline:null };
   return g;
@@ -157,6 +160,12 @@ function applySave(d){
           : [],
       };
     }
+    // 三签：只保留仍在对表里的签，base 必须是非负数（旧档无此字段则留空，稍后惰性补满）
+    Game.bounties = Array.isArray(d.bounties)
+      ? d.bounties.filter(b => b && b.id && isFinite(b.base) && isFinite(b.target))
+          .map(b => ({ id:String(b.id), base:Math.max(0, Math.round(b.base)), target:Math.max(1, Math.round(b.target)) }))
+          .slice(0, 3)
+      : [];
     Game.startedAt = d.startedAt || Date.now();
     if (d.prefs) Object.assign(Prefs, d.prefs);
     // 行动队列

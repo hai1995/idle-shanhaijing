@@ -74,6 +74,68 @@ function milestonesUnlocked(){
   return out;
 }
 function milestoneCount(){ const u = milestonesUnlocked(); let n=0; for(const k in u) if(u[k]) n++; return n; }
+// ---------- 三签（本轮短目标） ----------
+// 里程碑是长线的（一行达成、永久加成），日常还是得有「现在做什么」。
+// 三签常挂三条，做完一条立刻补一条，赏贝币——不开新系统、不占行动位，
+// 只是把「你这一会儿干了什么」折算成一点点回报。
+function bountyLevel(){
+  const n = Object.keys(Game.skills || {}).length || 26;
+  return Math.max(1, Math.round(totalSkillLevel() / n));
+}
+function bountyCounter(key){
+  const s = Game.stats || {};
+  if (key === 'recorded') return recordedCount();
+  if (key === 'gathered') return Object.values(s.gathers || {}).reduce((a, b) => a + (b || 0), 0);
+  if (key === 'bosses') return Object.keys(s.bossKills || {}).length;
+  return s[key] || 0;
+}
+function bountyDef(id){ return (window.BOUNTIES || []).find(b => b.id === id) || null; }
+// 抽一条「不在手上」的签；base 记下此刻计数，目标按综合等级缩放
+function bountyPull(){
+  const pool = (window.BOUNTIES || []).filter(b => (Game.bounties || []).every(x => x.id !== b.id));
+  if (!pool.length) return null;
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  const lv = bountyLevel();
+  return { id: pick.id, base: bountyCounter(pick.key), target: Math.max(1, Math.round(pick.n(lv))) };
+}
+function bountyInit(){
+  if (!Array.isArray(Game.bounties)) Game.bounties = [];
+  let guard = 0;
+  while (Game.bounties.length < 3 && guard++ < 12){
+    const b = bountyPull();
+    if (!b) break;
+    Game.bounties.push(b);
+  }
+}
+function bountyProgress(b){
+  const def = bountyDef(b && b.id);
+  if (!def) return 0;
+  return Math.max(0, bountyCounter(def.key) - (b.base || 0));
+}
+function bountyTick(){
+  if (!Array.isArray(Game.bounties)) Game.bounties = [];
+  if (!Game.bounties.length){ bountyInit(); return; }
+  for (let i = 0; i < Game.bounties.length; i++){
+    const b = Game.bounties[i];
+    const def = bountyDef(b.id);
+    if (!def){ Game.bounties.splice(i--, 1); continue; }
+    if (bountyProgress(b) < b.target) continue;
+    // 成了：赏贝、记数、换一条新签（抽不到就先把这条留着，别把槽位丢了）
+    const pay = Math.max(1, Math.round(def.shells(bountyLevel())));
+    Game.shells += pay;
+    Game.stats.totalEarned += pay;
+    Game.stats.bounties = (Game.stats.bounties || 0) + 1;
+    log(`🎋 三签「${def.name}」已了，得贝 ${pay}`, 'gold', 'sys');
+    UI && UI.toast(`🎋 签成：${def.name} · +${pay} 贝`);
+    const nb = bountyPull();
+    if (nb) Game.bounties[i] = nb;
+    else Game.bounties[i] = { id:b.id, base:bountyCounter(def.key), target:b.target };
+  }
+}
+window.bountyLevel = bountyLevel; window.bountyCounter = bountyCounter;
+window.bountyInit = bountyInit; window.bountyTick = bountyTick;
+window.bountyProgress = bountyProgress; window.bountyDef = bountyDef;
+
 function checkMilestoneToast(){
   const unlocked = milestonesUnlocked();
   if (!Game.stats.seenMilestones || typeof Game.stats.seenMilestones !== 'object') Game.stats.seenMilestones = {};
@@ -2043,6 +2105,7 @@ function onSecond(){
   tickOmens();
   tickAutoRites();          // 续祭：到期前 60 秒自动重备一份祭品
   checkMilestoneToast();
+  bountyTick();             // 三签：每秒比三条计数，代价可忽略
   // 闲置兜底：真正无事可做（无行动/战斗/队列）且偏好开启时，累计够久就自动接上默认行动
   if (!Game.activity && !Game.combat && !Game.queueRunning && Prefs.idleFallback !== false){
     idleSeconds++;

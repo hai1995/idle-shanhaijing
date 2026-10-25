@@ -2284,3 +2284,14 @@ mark.hit{
 .rb-col.lose b{ color:var(--zhu-d); }
 .rb-col.keep b{ color:var(--qing); }
 .rb-col.gain b{ color:var(--tai); }
+
+/* 三签：三条短课并排，进度条细、数字等宽——扫一眼就知道还差几次 */
+.bounty-panel h3 .bn-sub{ font-weight:400; font-size:11px; color:var(--ink-3); margin-left:8px; }
+.bounty-list{ display:flex; flex-direction:column; gap:6px; margin-top:6px; }
+.bounty-item{ display:flex; align-items:center; gap:8px; font-size:12px; color:var(--ink-2); }
+.bounty-item .bn-name{ flex:0 0 5.6em; color:var(--ink); }
+.bounty-item .bn-bar{ flex:1 1 auto; height:4px; background:var(--paper-3); border:1px solid var(--rule); }
+.bounty-item .bn-bar i{ display:block; height:100%; background:var(--tai); }
+.bounty-item .bn-num{ font-family:var(--f-num); color:var(--ink-3); min-width:4.2em; text-align:right; }
+.bounty-item .bn-pay{ font-family:var(--f-num); color:var(--gamboge); min-width:4.5em; text-align:right; }
+.bounty-item.done .bn-bar i{ background:var(--zhu); }
