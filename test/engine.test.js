@@ -112,6 +112,21 @@ assert(Object.keys(ST.CODEX).length >= 90, '图鉴条目 -> ' + Object.keys(ST.C
 assert(Object.keys(ST.OMENS).length === 8 + 15 + 4 + 15 + 3, '征兆 8 + 15 + 北山 4 + 东山 15 + 中山 3 = 45 条 -> ' + Object.keys(ST.OMENS).length);
 assert(Object.keys(ST.OBSERVE_SITES).length === 9, '观象/观瑞 5 + 东山 4 = 9 处');
 assert(Object.keys(ST.RITES).length === 3 + 6 + 1 + 3 + 3 + 12, '祠礼 3 + 6 + 常祭 + 北山 3 + 东山 3 + 中山 12 = 28 套 -> ' + Object.keys(ST.RITES).length);
+// 交互补充：切属性即开战 / 营造详情弹窗 / 行装页战斗数值条
+{
+  const uiSrc2 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  assert(/切\$\{counterEl\}属并开战/.test(uiSrc2) && uiSrc2.includes("UI.startHuntTimes('${id}')\">切"),
+    '征伐弹窗「切X属并开战」：切属性后立即开战，非只回到列表');
+  assert(!uiSrc2.includes("UI.closeModal();UI.renderTaofa()\">切"), '旧「切属性后仅回列表」写法已移除');
+  assert(uiSrc2.includes('UI.openBuildModal') && uiSrc2.includes("onclick=\"UI.openBuildModal('${b.id}')\""),
+    '营造方块点击开详情弹窗（不再单击即造）');
+  assert(uiSrc2.includes('function combatStatBarHtml') && uiSrc2.includes("if (tab === 'pack') return combatStatBarHtml();"),
+    '行装页顶栏改走战斗数值条');
+  ['气血', '攻击', '防御', '闪避', '五行', 'DPS'].forEach(k =>
+    assert(uiSrc2.indexOf('<i>' + k + '</i>') >= 0, '行装页顶栏显示「' + k + '」'));
+  assert(!uiSrc2.includes("pack:    ['bing',    '兵']"), '行装页顶栏不再挂「兵」技能等级');
+}
+
 // 祠礼祭品不得张冠李戴：中次十一经原文「用一珪」，珪是 guiyu 而非桂（gui）
 {
   const r11 = ST.Recipes.find(r => r.out === 'rite_zs11');

@@ -123,7 +123,7 @@ function costChips(cost){
     const it = Items[id];
     const has = totalOf(id);
     const cls = has >= q ? 'ok' : 'lack';
-    return `<span class="chip cost ${cls}">${typeof itemIc==='function'?itemIc(id,13):(it?it.icon:'❓')}${esc(it?it.name:id)}×${q}<i>${has}</i></span>`;
+    return `<span class="chip cost ${cls}">${typeof itemIc==='function'?itemIc(id,13):(it?it.icon:'❓')}${esc(it?it.name:id)}×${q}<i>有${has}</i></span>`;
   }).join('');
 }
 function elBadge(el){
@@ -827,9 +827,31 @@ const PAGE_SKILL = {
   jisi:    ['jisi',    '祭祀'],
   shichan: ['shanglv', '商旅'],
   ying:    ['yingyi',  '营邑'],
-  pack:    ['bing',    '兵'],
 };
+// 行装页顶栏：不显示技能等级（此处等级意义不大），改为当前一套战斗数值
+function combatStatBarHtml(){
+  const hp = playerMaxHp();
+  const r = playerDamageRange();
+  const d = totalDefence();
+  const defStr = (Math.round(d * 10) % 10 === 0) ? String(Math.round(d)) : d.toFixed(1);
+  const dps = playerDpsEstimate();
+  const eva = Math.round(playerEvasion() * 100);
+  const style = (typeof combatMode === 'function') ? combatMode() : 'attack';
+  const styleName = { attack:'近战', ranged:'射术', zhu:'祝术' }[style] || '近战';
+  const el = (typeof playerElement === 'function') ? playerElement() : '—';
+  return `<div class="page-lvbar combat-bar" data-plv="pack">
+    <span class="pl-name">${styleName}</span>
+    <span class="cs-item"><i>气血</i><b>${fmt(hp)}</b></span>
+    <span class="cs-item"><i>攻击</i><b>${r.lo}–${r.hi}</b></span>
+    <span class="cs-item"><i>防御</i><b>${defStr}</b></span>
+    <span class="cs-item"><i>闪避</i><b>${eva}%</b></span>
+    <span class="cs-item"><i>五行</i><b>${esc(el)}</b></span>
+    <span class="cs-item"><i>DPS</i><b>${dps.toFixed(1)}</b></span>
+  </div>`;
+}
+
 function pageLevelBar(tab){
+  if (tab === 'pack') return combatStatBarHtml();
   if (tab === 'skills'){
     // 技能页：按当前筛选显示那一门；「全部」时给 26 技总览（合计等级 / 满级线）
     const f = UI.skillFilter;
@@ -1755,7 +1777,7 @@ UI.openHuntModal = function(id){
     <div class="hint">一场胜后自动接战，直至场次用尽或败北；换一只异兽即重置连杀递减。</div>
     <div class="modal-btns">
       <button class="btn primary" onclick="UI.startHuntTimes('${id}')">战斗</button>
-      ${counterEl?`<button class="btn" onclick="setCombatStyle('zhu');setZhuEl('${counterEl}');UI.closeModal();UI.renderTaofa()">切${counterEl}属（克敌）</button>`:''}
+      ${counterEl?`<button class="btn" onclick="setCombatStyle('zhu');setZhuEl('${counterEl}');UI.startHuntTimes('${id}')">切${counterEl}属并开战</button>`:''}
       <button class="btn" onclick="UI.closeModal()">取消</button>
     </div>` : `
     <div class="hm-lock">${esc(lockMsg)}</div>
@@ -2378,7 +2400,7 @@ UI.renderYing = function(){
       const can = !done && lvOk && afford;
       // 方块：印记字 + 建筑名 + 营造等级，点按即营造；材料与效用进浮层
       return `<div class="tile build-tile ${done?'done':''} ${can?'':'lock'}" data-tip data-tip-title="${esc(b.name)}"
-        role="button" tabindex="0" onclick="${can?`buildStructure('${b.id}');UI.renderYing()`:''}">
+        role="button" tabindex="0" onclick="UI.openBuildModal('${b.id}')">
         <span class="tile-ic bi-ic">${typeof structureIcon==='function'?structureIcon(b):esc(b.name.slice(0,1))}</span>
         <span class="tile-nm">${esc(b.name)}</span>
         <span class="tile-tag">${done?'已成':'营邑 '+b.lvl}</span>
@@ -2397,6 +2419,38 @@ UI.renderYing = function(){
       <span class="hint">无可造之物而等级差一点时，以此补足营邑经验（约本级所需四分之一）</span>
     </div>
   </div>`;
+};
+
+// 营造详情：材料 / 门槛 / 效用一屏说清，按钮依状态切换（营造 / 去采料 / 已营造）
+UI.openBuildModal = function(id){
+  const b = BUILDINGS[id];
+  if (!b) return;
+  const done = !!Game.buildings[b.id];
+  const lv = levelOf('yingyi');
+  const lvOk = lv >= b.lvl;
+  const afford = canAfford(b.cost);
+  const lack = (b.cost || []).filter(([mid, need]) => totalOf(mid) < need);
+  const actions = done
+    ? `<button class="btn" onclick="repairBuild();UI.closeModal();UI.renderYing()">修葺旧筑</button>`
+    : (lvOk && afford)
+      ? `<button class="btn primary" onclick="buildStructure('${b.id}');UI.closeModal();UI.renderYing()">营造</button>`
+      : `<button class="btn" onclick="UI.closeModal();UI.switchTab('skills')">去采料</button>`;
+  UI.modal(`<h3><span class="mi-ic">${typeof structureIcon === 'function' ? structureIcon(b) : '🏠'}</span> ${esc(b.name)}
+      <span class="tier">${done ? '已成' : '营邑 ' + b.lvl}</span></h3>
+    <div class="reveal"><b>效用</b>${esc(b.desc || '未载其用')}</div>
+    <div class="hm-stats">
+      <span>营邑门槛 <b>${b.lvl}</b>（当前 <b>${lv}</b>）</span>
+      <span>营造经验 <b>${fmt(b.xp || 0)}</b></span>
+    </div>
+    <div class="bm-costs"><div class="bm-lb">所需材料</div>${costChips(b.cost)}</div>
+    ${done
+      ? '<div class="hm-line">已经营造完毕。若营邑等级差一点，可用「修葺旧筑」补经验（约本级四分之一）。</div>'
+      : (!lvOk
+        ? `<div class="hm-lock">营邑需 ${b.lvl} 级，当前 ${lv} 级——先造前面几座或修葺旧筑。</div>`
+        : (!afford
+          ? `<div class="hm-lock">材料不足：${lack.map(([m, q]) => esc((Items[m] || {}).name || m) + ' 差 ' + (q - totalOf(m))).join('、')}</div>`
+          : '<div class="hm-line">材料已齐，可即营造。</div>'))}
+    <div class="modal-btns">${actions}<button class="btn" onclick="UI.closeModal()">取消</button></div>`);
 };
 
 // ================= 行动（巡历队列） =================
@@ -2530,13 +2584,6 @@ UI.renderPack = function(){
   let html = `<div class="pack-wrap">
     <div class="panel gear-panel">
       <h3>装备<button class="btn small gear-best" type="button" onclick="UI.autoEquipBest()">一键最优装</button></h3>
-      <div class="attr-row">
-        <span>气血 <b>${playerMaxHp()}</b></span>
-        <span>防御 <b>${totalDefence().toFixed(1)}</b></span>
-        <span>伤害 <b>${playerDamageRange().lo}-${playerDamageRange().hi}</b></span>
-        <span>五行 <b>${playerElement()}</b></span>
-        <span>DPS <b>${playerDpsEstimate().toFixed(1)}</b></span>
-      </div>
       <div class="tile-grid gear-grid">
       ${slots.map(slot=>{
         const g = Game.gear[slot];
