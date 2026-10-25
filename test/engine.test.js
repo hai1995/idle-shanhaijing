@@ -787,7 +787,7 @@ try {
   ST.UI.currentTab = 'jisi'; ST.UI.renderJisi();
   oeTxt = renderTargets.content.innerHTML;
 } catch(e){ oeOk = false; console.error('征兆预览异常：'+e.stack); }
-assert(oeOk && oeTxt.indexOf('当前总效应') >= 0 && oeTxt.indexOf('全局产出') >= 0, '祠祀页显示征兆当前总效应');
+assert(oeOk && oeTxt.indexOf('当前总效应') >= 0 && oeTxt.indexOf('采获') >= 0, '祠祀页显示征兆当前总效应');
 ST.Game.omens = _om3;
 // 售价走势：预设历史两点后应渲染曲线
 const _ph = ST.Game.priceHistory;
@@ -2267,7 +2267,8 @@ section('实时性：状态变化即刻上屏');
 
   // 43.2 征兆：到期 / 新触发就地补绘
   assert(uiSrc.includes('UI.patchOmens = function()') && uiSrc.includes('omenPanelHtml()'), '征兆面板可整块补绘');
-  assert((gameSrc.match(/if \(UI && UI\.patchOmens\) UI\.patchOmens\(\);/g)||[]).length === 2, '征兆到期与激活两处都补绘');
+  // 三处：到期（tick）、凶兆落地（applyOmen）、烽烟举起（activateOmen 预知分支）
+  assert((gameSrc.match(/if \(UI && UI\.patchOmens\) UI\.patchOmens\(\);/g)||[]).length >= 3, '到期 / 落地 / 举烽三处都补绘');
 
   // 43.3 增益浮层展开时连带刷新（倒计时尤其）
   assert(uiSrc.includes("if (pop && !pop.classList.contains('hidden')) pop.innerHTML = this.buffPopHtml();"), '增益浮层展开时内容跟随刷新');
@@ -3582,6 +3583,105 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   old2.gear = { weapon:{ id:'bailianjian', name:'百炼剑', dmg:46, lvl:44 } };
   ST.importSaveText(JSON.stringify(old2));
   assert(ST.Game.gear.weapon.grade === 'fine' && ST.Game.gear.weapon.dmg === 46, '良品读档后带品阶');
+}
+
+// ============ 64. 烽火台：凶兆先举烽（v1.17.1） ============
+{
+  G.resetToDefault();
+  const gameSrc64 = readText('src/game.js');
+  const uiSrc64 = readText('src/ui.js');
+
+  // 64.1 无烽火台：凶兆即时落地
+  ST.Game.stats.time = 1000;
+  ST.activateOmen('changyou');
+  assert(ST.Game.omens.some(o => o.id === 'changyou'), '无烽火台时大水即时生效');
+  assert((ST.Game.omensPending || []).length === 0, '也不留烽烟');
+
+  // 64.2 有烽火台：先举烽，不落地
+  G.resetToDefault();
+  ST.Game.stats.time = 1000;
+  ST.Game.buildings.fenghuotai = true;
+  ST.activateOmen('changyou');
+  assert(!ST.Game.omens.some(o => o.id === 'changyou'), '有烽火台时凶兆不即时生效');
+  assert(ST.Game.omensPending.length === 1, '改为挂进烽烟');
+  assert(ST.Game.omensPending[0].id === 'changyou', '烽烟记的是同一征兆');
+  assert(ST.Game.omensPending[0].at - ST.Game.stats.time === ST.FORESEE_SEC, '预告 ' + ST.FORESEE_SEC + ' 秒');
+  assert(ST.Game.stats.omens.changyou === undefined, '未应验前不算「已现」（图鉴/成就别提前记）');
+
+  // 64.3 到时应验
+  ST.Game.stats.time += ST.FORESEE_SEC - 1;
+  ST.tickOmens();
+  assert(!ST.Game.omens.some(o => o.id === 'changyou'), '差一秒还不应验');
+  ST.Game.stats.time += 2;
+  ST.tickOmens();
+  assert(ST.Game.omens.some(o => o.id === 'changyou'), '到点应验');
+  assert(ST.Game.omensPending.length === 0, '烽烟清空');
+  assert(ST.Game.stats.omens.changyou === true, '此时才记「已现」');
+
+  // 64.4 吉兆不受影响：烽火台只管凶兆（报忧不报喜，免得把好事也拖四十五秒）
+  G.resetToDefault();
+  ST.Game.stats.time = 500;
+  ST.Game.buildings.fenghuotai = true;
+  ST.activateOmen('fenghuang');
+  assert(ST.Game.omens.some(o => o.id === 'fenghuang'), '吉兆即时生效');
+  assert(ST.Game.omensPending.length === 0, '不进烽烟');
+
+  // 64.5 免疫与「御兵」优先于举烽——预告一个本不会发生的兆是骗人
+  G.resetToDefault();
+  ST.Game.buildings.fenghuotai = true;
+  ST.Game.omenImmune = { changyou: true };
+  ST.activateOmen('changyou');
+  assert(ST.Game.omensPending.length === 0 && !ST.Game.omens.length, '已免疫的征兆不举烽');
+  ST.Game.omenImmune = {};
+  ST.Game.deployed = { 0: 'bo' };                    // 駮「可以御兵」
+  ST.activateOmen('fuxi');                           // 凫徯：见则有兵
+  assert(ST.Game.omensPending.length === 0, '御使駮则不举烽（兵灾本就不来）');
+
+  // 64.6 重复触发只挂一条，且不推迟已定时辰
+  G.resetToDefault();
+  ST.Game.stats.time = 800;
+  ST.Game.buildings.fenghuotai = true;
+  ST.activateOmen('changyou');
+  const at0 = ST.Game.omensPending[0].at;
+  ST.Game.stats.time += 10;
+  ST.activateOmen('changyou');
+  assert(ST.Game.omensPending.length === 1, '同一征兆只挂一条烽烟');
+  assert(ST.Game.omensPending[0].at === at0, '重报不推迟时辰（也不是提前）');
+
+  // 64.7 离线不预告，直接应验
+  G.resetToDefault();
+  ST.Game.stats.time = 2000;
+  ST.Game.buildings.fenghuotai = true;
+  ST.Game.omensPending = [{ id:'changyou', at: ST.Game.stats.time + 30, soft:1 }];
+  ST.Game.node = 'nanshan-1-01';
+  ST.Game.activity = { kind:'gather', skill:'qiaocai', itemId:'gui' };
+  const rec64 = ST.settleAway(600);
+  assert(ST.Game.omens.some(o => o.id === 'changyou'), '离线归来时烽烟已应验');
+  assert(ST.Game.omensPending.length === 0, '烽烟不跨离线');
+  assert(rec64.omensLanded === 1, '离线汇总记账（应验 1 次）');
+
+  // 64.8 存档往返
+  G.resetToDefault();
+  ST.Game.stats.time = 3000;
+  ST.Game.omensPending = [{ id:'changyou', at: 3045, soft:0.5 }];
+  const ser64 = ST.serializeSave();
+  assert(Array.isArray(ser64.omensPending) && ser64.omensPending.length === 1, '烽烟随存档保存');
+  const ok64 = ST.importSaveText(JSON.stringify(ser64)).ok;
+  assert(ok64 && ST.Game.omensPending.length === 1, '读档后烽烟还在');
+  assert(ST.Game.omensPending[0].soft === 0.5, 'soft（不惑减半）一并保留');
+  // 非法项剔除
+  const bad64 = ST.serializeSave();
+  bad64.omensPending = [{ id:'__nope__', at: 1 }, { id:'changyou', at:'x' }, { id:'changyou', at: 9 }];
+  ST.importSaveText(JSON.stringify(bad64));
+  assert(ST.Game.omensPending.length === 1, '未知征兆与非数字时辰被剔除');
+
+  // 64.9 界面
+  assert(gameSrc64.includes('function applyOmen') && gameSrc64.includes('FORESEE_SEC'), '落地与预告分离');
+  assert(uiSrc64.includes('class="omen-pending"') && uiSrc64.includes('烽火台已举烽'), '祠祀页有烽烟条');
+  assert(uiSrc64.includes("sec('烽烟（将起）'"), '增益浮层单列「烽烟（将起）」');
+  assert(uiSrc64.includes('举烽后 45 秒'), '营邑预览写明应验延时');
+  assert(/\.omen-pend-box\{/.test(readText('style.css')), '烽烟有独立样式（朱边以示未落）');
+  assert(uiSrc64.includes('rec.omensLanded') && uiSrc64.includes('兆应验'), '离线归来弹窗交代烽烟已应验');
 }
 
 // ============ 47. 物品用途面板（v1.14.3） ============

@@ -87,7 +87,7 @@ function fmtTime(sec){
 const BONUS_LABEL = {
   gatherSpeed:'采集速度', xp:'经验', farmSpeed:'田事', div:'卜筮观象', hp:'气血', def:'防御',
   offline:'离线收益', trade:'贸易', dmg:'伤害', loot:'所获', cookQty:'烹饪并出',
-  build:'营造', yield:'全局产出', heal:'疗愈',
+  build:'营造', yield:'采获', heal:'疗愈',
 };
 const BONUS_FLAT = { def:true, heal:true };   // 点数型（不乘 100）
 function bonusTextOf(obj, sep){
@@ -392,13 +392,16 @@ const UI = {
       riteLine = `<div class="form-row"><span>续祭</span><b>🕯️ ${rec.riteRenews} 次</b></div>
         ${costChips ? `<div class="yield-row"><b>耗祭品</b>${costChips}</div>` : ''}`;
     }
+    // 烽烟不跨离线：离山时挂着的凶兆，回来时已经落地——得告诉玩家它落过
+    const omenLine = (rec.omensLanded||0) > 0
+      ? `<div class="form-row"><span>烽烟</span><b class="off-omen">🔥 ${rec.omensLanded} 兆应验</b></div>` : '';
     UI.modal(`
       <h3><span class="mi-ic">${typeof markIcon==='function'?markIcon('moon',18):'🌙'}</span> 离线归来</h3>
       <p class="hint">离山 ${fmtTime(rec.seconds)}（离线效率 ${Math.round(offlineEff()*100)}%），竹简不曾停笔。</p>
       ${capLine}
       ${acts?`<div class="form-row"><span>所做</span><b class="off-acts">${acts}</b></div>`:''}
       <div class="form-row"><span>修得经验</span><b style="color:var(--gamboge)">+${fmt(rec.xp)}</b></div>
-      ${recLine}${harvest}${riteLine}
+      ${recLine}${harvest}${riteLine}${omenLine}
       ${items ? `<div class="panel" style="margin-top:8px"><div class="yield-row"><b>所得</b>${items}</div></div>` : ''}
       <div class="modal-btns"><button class="btn on" onclick="UI.closeModal()">收下</button></div>
     `);
@@ -561,7 +564,21 @@ const UI = {
         left: o.until ? Math.max(0, o.until - gameTime()) : 0,
       });
     });
-    return { temp, beasts, omens, count: temp.length + beasts.length + omens.length };
+    // 烽烟：已举烽、尚未应验的凶兆（烽火台建成后才有）。单列一段，
+    // 与「已生效」分开——玩家要知道的是「还有多久落下」，不是「已经中了」。
+    const pending = [];
+    (Game.omensPending || []).forEach(p => {
+      const d = (typeof OMENS !== 'undefined') && OMENS[p.id];
+      if (!d) return;
+      pending.push({
+        name: d.beast || d.type || '凶兆',
+        pol: '凶',
+        desc: (typeof omenEffectText === 'function' ? omenEffectText(d).replace(/（[^）]*）/g, '') : (d.desc || '')),
+        left: Math.max(0, p.at - gameTime()),
+      });
+    });
+    return { temp, beasts, omens, pending,
+             count: temp.length + beasts.length + omens.length + pending.length };
   },
   // 书脊上的增益图标：有增益时亮起并带计数，没有时只是暗淡的常驻入口
   renderBuffBtn(){
@@ -592,6 +609,8 @@ const UI = {
         item(t.name, t.desc, t.left ? `<span class="bp-time">${fmtTime(t.left)}</span>` : '')).join(''));
       html += sec('御使', s.beasts.length, s.beasts.map(b=>
         item(b.name, b.desc || b.label)).join(''));
+      html += sec('烽烟（将起）', s.pending.length, s.pending.map(o=>
+        item(o.name, o.desc, `<span class="bp-pol 凶">凶</span><span class="bp-time warn">${fmtClock(o.left)} 后</span>`)).join(''));
       html += sec('征兆', s.omens.length, s.omens.map(o=>
         item(o.name, o.desc, `<span class="bp-pol ${o.pol}">${o.pol}</span>${o.left?`<span class="bp-time">${fmtTime(o.left)}</span>`:''}`)).join(''));
       const dBonus = (typeof deployedBonuses === 'function') ? bonusTextOf(deployedBonuses()) : '—';
@@ -763,7 +782,7 @@ function openHelp(){
       <div class="help-sec"><b>著录与阶位</b><p class="hint">采集、讨伐、渔、采药等行动会积累「著录」。每种物产分五阶：初见 → 识名 → 明性 → 通形 → 得御。著录越深，产出越丰，亦解锁更高「舆地」等级的山川。</p></div>
       <div class="help-sec"><b>御使异兽</b><p class="hint">异兽著录至「通形」即可在「御使」入槽，化作被动增益与自动作业（如自动樵采、渔猎）；著录至「得御」为最高阶。</p></div>
       <div class="help-sec"><b>五行相克</b><p class="hint">兵器与异兽分属金木水火土。相克 ×1.35、被克 ×0.75、同属 ×1.00、相生 ×1.15。相克：金克木、木克土、土克水、水克火、火克金；相生：金生水、水生木、木生火、火生土、土生金。装备相克属性的兵器可压制目标。</p></div>
-      <div class="help-sec"><b>征兆</b><p class="hint">首次著录异兽可能触发吉凶之兆（如「其邑大水」「有大兵」），影响区域或全局产出。部分物品可免疫对应征兆（如「佩之不惑」之符、「御兵」之兽）。</p></div>
+      <div class="help-sec"><b>征兆</b><p class="hint">首次著录异兽可能触发吉凶之兆（如「其邑大水」「有大兵」），影响区域产出或全局采获。部分物品可免疫对应征兆（如「佩之不惑」之符、「御兵」之兽）。</p></div>
       <div class="help-sec"><b>祠祀 · 卜筮</b><p class="hint">谒见山神献祭以增益区域产出；卜筮可问吉凶、抉择事件走向。</p></div>
       <div class="help-sec"><b>商旅 · 观象 · 圃艺</b><p class="hint">以贝币买卖物品、低买高卖；观象提升离线上限（基础 ${TUNING.OFFLINE.CAP_H} 小时，每处观象 +1、仓廪 +2、土窟 +1，另有长线成就加成；现为 ${offlineCapHours()} 小时）与离线效率；圃艺种植收成。</p></div>
       <div class="help-sec"><b>离线收益</b><p class="hint">离开页面仍按离线时长结算（效率随「观象」等提升，封顶约 0.85）。离山较久归来会弹出「离线归来」汇总。</p></div>
@@ -1516,7 +1535,7 @@ UI.renderSkills = function(){
     <span>最高 <b>${(function(){ let b='',l=0; for(const id in Game.skills) if(Game.skills[id].level>l){l=Game.skills[id].level;b=Skills[id].name;} return b?b+' '+l:'—'; })()}</b></span>
     <span>经验倍率 <b>×${xpMult().toFixed(2)}</b></span>
     <span>采集速度 <b>×${gatherSpeedMult().toFixed(2)}</b></span>
-    <span>全局产出 <b>+${Math.round(globalYieldBonus()*100)}%</b></span>
+    <span>采获 <b>+${Math.round(globalYieldBonus()*100)}%</b><i class="hint">（约合产量 +${typeof riteRealYield==='function'?riteRealYield(globalYieldBonus()):0}%）</i></span>
     <span>御使槽 <b>${Object.keys(Game.deployed).length}/${beastSlots()}</b></span>
   </div>
   <div class="filter-row">
@@ -2408,7 +2427,17 @@ function omenPanelHtml(){
     if (omenFilter === 'seen') return Game.omens.some(o=>o.id === id);
     return def.polarity === omenFilter;
   });
-  return `${Game.omens.length?`<div class="omen-summary">当前总效应：${currentOmenEffects().map(e=>`${e.label} ${e.pct>0?'+':''}${e.pct}%`).join(' · ')}</div>`:''}
+  // 烽烟：烽火台已望见、尚在倒计时的凶兆
+  const pend = (Game.omensPending || []).filter(p => OMENS[p.id]).map(p => {
+    const d = OMENS[p.id];
+    return `<div class="omen-pending">
+      <span class="op-ic">🔥</span>
+      <span class="op-txt">${esc(d.beast)}「${esc(d.type)}」将至</span>
+      <b class="op-left">${fmtClock(Math.max(0, p.at - gameTime()))}</b>
+    </div>`;
+  }).join('');
+  return `${pend?`<div class="omen-pend-box">${pend}<div class="hint">烽火台已举烽——趁这段时辰收手、换目标，或备齐白菅与稻米行禳解。</div></div>`:''}
+    ${Game.omens.length?`<div class="omen-summary">当前总效应：${currentOmenEffects().map(e=>`${e.label} ${e.pct>0?'+':''}${e.pct}%`).join(' · ')}</div>`:''}
     <div class="filter-row">${chips}</div>
     <div class="tile-grid omen-grid">
     ${omenList.map(([id,def])=>{
@@ -2503,7 +2532,7 @@ UI.renderJisi = function(){
 // 增益数值的人话版：御使与临时增益共用一张键名表；防御是固定值，其余按百分比
 const BUFF_KEY_NAMES = { gatherSpeed:'采集速度', gather:'采集', xp:'经验', xpBonus:'经验', farmSpeed:'田事',
   div:'卜筮观象', hp:'气血', def:'防御', offline:'离线收益', trade:'贸易', dmg:'伤害', loot:'所获',
-  cookQty:'烹饪并出', build:'营造', yield:'全局产出', heal:'疗愈' };
+  cookQty:'烹饪并出', build:'营造', yield:'采获', heal:'疗愈' };
 function buffDefText(def){
   if (!def) return '';
   const parts = [];
@@ -2519,7 +2548,7 @@ function buffDefText(def){
 // 原先浮层那张 map 漏了 dmg / loot / craft / move / divine，
 // 「见则有兵」这类最凶的兆点开是空白——只说「有兵」，不说兵在哪儿。
 const OMEN_EFFECT_LABELS = [
-  ['yield','全局产出'], ['gather','采集效率'], ['dmg','伤害'], ['loot','所获'],
+  ['yield','采获'], ['gather','采集速度'], ['dmg','伤害'], ['loot','所获'],
   ['offline','离线收益'], ['trade','商旅收益'], ['fish','渔获'], ['build','营造经验'],
   ['craft','制作速度'], ['move','行动速度'], ['divine','卜筮'],
 ];
@@ -2780,7 +2809,7 @@ function structureEffectRows(id){
   switch (id){
     case 'zhai': {
       const y = globalYieldBonus();
-      return [row('全局产出', pct(y), pct(y + 0.03))];
+      return [row('采获', pct(y), pct(y + 0.03))];
     }
     case 'zaoku':
       return [{ label:'制作耗时', from: built ? '×0.90' : '×1.00', to: built ? '已生效' : '×0.90' }];
@@ -2798,7 +2827,8 @@ function structureEffectRows(id){
     case 'shichan':
       return [{ label:'商旅售价', from: '×' + tradeMult().toFixed(2), to: built ? '已生效' : '×' + (tradeMult() + 0.05).toFixed(2) }];
     case 'fenghuotai':
-      return [{ label:'凶兆之害', from: built ? '×0.50' : '×1.00', to: built ? '已生效' : '×0.50' }];
+      return [{ label:'凶兆之害', from: built ? '×0.50' : '×1.00', to: built ? '已生效' : '×0.50' },
+              { label:'凶兆应验', from: built ? '举烽后 45 秒' : '即时', to: built ? '已生效' : '延时 45 秒' }];
     case 'xuegong':
       return [{ label:'著录度获取', from: built ? '+25%' : '—', to: built ? '已生效' : '+25%' }];
     default:

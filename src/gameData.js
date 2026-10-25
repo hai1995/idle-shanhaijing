@@ -1295,13 +1295,13 @@ const GATHER_BONUS = {
 // 旧的 1/3/5/10/15/20/30/40 门槛配 50–900 经验，造到第三座就永远卡住（升级需数万经验）。
 // 另设「修葺」（game.js repairBuild）作为材料换经验的兜底，任何时候都不会无路可走。
 const BUILDINGS = {
-  zhai:    { id:'zhai',    name:'柴栅',   lvl:1,  xp:40,    cost:[['gui',5],['yan',3]],               desc:'结木为栅，以固所获 · 全局产出 +3%' },
+  zhai:    { id:'zhai',    name:'柴栅',   lvl:1,  xp:40,    cost:[['gui',5],['yan',3]],               desc:'结木为栅，以固所获 · 采获 +3%（约合产量 +1.5%）' },
   zaoku:   { id:'zaoku',   name:'灶窟',   lvl:2,  xp:340,   cost:[['yan',15],['guaimu',5]],           desc:'甃灶炊爨，工不暇息 · 制作耗时 -10%' },
   tuku:    { id:'tuku',    name:'土窟',   lvl:4,  xp:1080,  cost:[['guaimu',20],['tan',5]],           desc:'因势窟土，以庇风雨 · 离线上限 +1 小时' },
   citan:   { id:'citan',   name:'祠坛',   lvl:6,  xp:4100,  cost:[['guaimu',10],['shashi',10],['yu',1]], desc:'祭祀效果 ×1.5' },
   shichan: { id:'shichan', name:'市廛',   lvl:9,  xp:8700,  cost:[['guaimu',15],['jin',2]],             desc:'商旅售价 +5%' },
-  canglin: { id:'canglin', name:'仓廪',   lvl:12, xp:22000, cost:[['guaimu',20],['tu',10]],             desc:'离线上限 +2 小时' },
-  fenghuotai:{ id:'fenghuotai',name:'烽火台',lvl:16, xp:38200, cost:[['shashi',20],['tan',10]],         desc:'征兆可提前预知 · 凶兆之害减半' },
+  canglin: { id:'canglin', name:'仓廪',   lvl:12, xp:22000, cost:[['guaimu',20],['tu',10]],             desc:'离线上限 +2 小时 · 离线效率 +5%' },
+  fenghuotai:{ id:'fenghuotai',name:'烽火台',lvl:16, xp:38200, cost:[['shashi',20],['tan',10]],         desc:'凶兆先举烽，延时四十五秒方应验 · 其害减半' },
   xuegong: { id:'xuegong', name:'学宫',   lvl:20, xp:20000, cost:[['guaimu',30],['yu',5],['jian',10]],  desc:'著录度获取 +25%' },
 };
 
@@ -2075,17 +2075,17 @@ const Milestones = [
   { id:'rec_30',   name:'簿录渐成',   desc:'著录 30 种对象',    check:()=>recordedCount()>=30,    bonus:'经验 +3%',   xp:0.03 },
   { id:'yudi_all', name:'南山舆图',   desc:'南山经 39 山全部解锁', check:()=>Object.keys(Game.map||{}).length>=39, bonus:'采集 +5%', gather:0.05 },
   { id:'boss_all', name:'六凶伏诛',   desc:'击败六凶全部',      check:()=>['zaochi','jiuying','dafeng','yayu','xiushe','fenghui'].every(id=>Game.stats.bossKills && Game.stats.bossKills[id]), bonus:'伤害 +10%', dmg:0.10 },
-  { id:'feng_omen',name:'凤皇来仪',   desc:'触发「天下安宁」吉兆', check:()=>!!Game.stats.omens?.fenghuang, bonus:'全局产出 +5%', yield:0.05 },
+  { id:'feng_omen',name:'凤皇来仪',   desc:'触发「天下安宁」吉兆', check:()=>!!Game.stats.omens?.fenghuang, bonus:'采获 +5%', yield:0.05 },
   { id:'guan_all', name:'三谷观象',   desc:'三处观象全部完成',  check:()=>Object.values(Game.observed||{}).filter(Boolean).length>=3, bonus:'离线上限 +1h', offlineCap:3600 },
-  { id:'jingwei',  name:'精卫填海',   desc:'樵采累计 10000 次', check:()=>(Game.stats.gathers?.qiaocai||0)>=10000, bonus:'采集产出 +8%', gather:0.08 },
+  { id:'jingwei',  name:'精卫填海',   desc:'樵采累计 10000 次', check:()=>(Game.stats.gathers?.qiaocai||0)>=10000, bonus:'采集速度 +8%', gather:0.08 },
   { id:'dayu',     name:'大禹治水',   desc:'全部营造完成',      check:()=>Object.keys(BUILDINGS).every(id=>Game.buildings?.[id]), bonus:'离线效率 +5%', offlineEff:0.05 },
   { id:'yushi_9',  name:'百兽率舞',   desc:'御使槽位全部启用',  check:()=>beastSlots()>=9 && Object.values(Game.deployed||{}).filter(Boolean).length>=9, bonus:'全技能经验 +3%', xp:0.03 },
   // ---- 西山经长线成就 ----
-  { id:'xs_yudi',  name:'西山舆图',   desc:'西山经 77 山全部解锁', check:()=>Object.keys(Game.map||{}).filter(id=>id.indexOf('xishan-')===0).length>=77, bonus:'全局产出 +8%', yield:0.08 },
+  { id:'xs_yudi',  name:'西山舆图',   desc:'西山经 77 山全部解锁', check:()=>Object.keys(Game.map||{}).filter(id=>id.indexOf('xishan-')===0).length>=77, bonus:'采获 +8%', yield:0.08 },
   { id:'xs_luwu',  name:'昆吾守关',   desc:'击败陆吾',          check:()=>!!(Game.stats.bossKills&&Game.stats.bossKills.luwu), bonus:'采集 +5%', gather:0.05 },
   { id:'xs_xiwm',  name:'玉山谒母',   desc:'击败西王母',        check:()=>!!(Game.stats.bossKills&&Game.stats.bossKills.xiwangmu), bonus:'伤害 +10%', dmg:0.10 },
-  { id:'xs_dijiang',name:'天山混沌',  desc:'击败帝江',          check:()=>!!(Game.stats.bossKills&&Game.stats.bossKills.dijiang), bonus:'全局产出 +10%', yield:0.10 },
-  { id:'xs_danmu', name:'丹木五岁',   desc:'峚山养成完成一次',  check:()=>(Game.danmu||{}).done>=1, bonus:'采集产出 +15%', gather:0.15 },
+  { id:'xs_dijiang',name:'天山混沌',  desc:'击败帝江',          check:()=>!!(Game.stats.bossKills&&Game.stats.bossKills.dijiang), bonus:'采获 +10%', yield:0.10 },
+  { id:'xs_danmu', name:'丹木五岁',   desc:'峚山养成完成一次',  check:()=>(Game.danmu||{}).done>=1, bonus:'采集速度 +15%', gather:0.15 },
   // 原先数的是 records 里 deity_ 开头的键（那是祠礼的神祇，27 个），与「谒见」无关；
   // 达成口径与 desc 对不上，玩家谒见完全部西山神祇反而不亮。现在按谒见点实计。
   { id:'xs_deity', name:'西山百神',   desc:'谒见西山全部 14 位神祇', check:()=>{
@@ -2097,9 +2097,9 @@ const Milestones = [
       return n >= 14;
     }, bonus:'祭祀经验 +20%', jisi:0.20 },
   // ---- 北山经长线成就 ----
-  { id:'bs_yudi',  name:'北山舆图',   desc:'北山经 88 山全部解锁', check:()=>Object.keys(Game.map||{}).filter(id=>id.indexOf('beishan-')===0).length>=88, bonus:'全局产出 +10%', yield:0.10 },
-  { id:'bs_qisuan',name:'器酸三岁',   desc:'咸山器酸养成完成',    check:()=>!!(Game.grow&&Game.grow.qisuan&&Game.grow.qisuan.done), bonus:'采集产出 +10%', gather:0.10 },
-  { id:'bs_jingwei',name:'东海渐浅',  desc:'发鸠山精卫填海养成完成', check:()=>!!(Game.grow&&Game.grow.jingwei&&Game.grow.jingwei.done), bonus:'采集产出 +10%', gather:0.10 },
+  { id:'bs_yudi',  name:'北山舆图',   desc:'北山经 88 山全部解锁', check:()=>Object.keys(Game.map||{}).filter(id=>id.indexOf('beishan-')===0).length>=88, bonus:'采获 +10%', yield:0.10 },
+  { id:'bs_qisuan',name:'器酸三岁',   desc:'咸山器酸养成完成',    check:()=>!!(Game.grow&&Game.grow.qisuan&&Game.grow.qisuan.done), bonus:'采集速度 +10%', gather:0.10 },
+  { id:'bs_jingwei',name:'东海渐浅',  desc:'发鸠山精卫填海养成完成', check:()=>!!(Game.grow&&Game.grow.jingwei&&Game.grow.jingwei.done), bonus:'采集速度 +10%', gather:0.10 },
 ];
 
 // ---------- 采集物的等级阶梯 ----------
@@ -2325,7 +2325,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.17.0',
+  version: '1.17.1',
   codename:'五臧 · 铸序',
   updated: '2026-10-25',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',

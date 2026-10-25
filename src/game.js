@@ -175,7 +175,7 @@ function globalYieldBonus(){
   (window.Milestones||[]).forEach(ms=>{ if (ms.yield && ms.check()) b += ms.yield; });
   b += deployedBonuses().yield;
   if (Game.buildings.zhai) b += 0.03;   // 柴栅：结木为栅，以固所获
-  b += omenMod('yield');             // 凤皇「天下安宁」：全局产出 +15%
+  b += omenMod('yield');             // 凤皇「天下安宁」：采获 +15%
   if (Game.buff && Game.buff.def && Game.buff.def.kind === 'all' && Game.buff.def.yield) b += Game.buff.def.yield;
   return b;
 }
@@ -222,13 +222,11 @@ window.isWise = isWise; window.offlineEff = offlineEff; window.offlineCapHours =
 window.maxSkillLevel = maxSkillLevel; window.deployedBonuses = deployedBonuses;
 
 // ---------- 征兆系统 ----------
-function activateOmen(id){
+// 征兆落地：真正写进 omens 表。与「预知」分开，是因为烽火台会让凶兆先在
+// 烽烟里挂一会儿——预知归预知，生效归生效。
+function applyOmen(id, soft, silent){
   const def = OMENS[id];
-  if (!def) return;
-  // 征兆免疫：鵕鸟/大鹗之诛所赐；御使駮「可以御兵」御兵灾
-  if (Game.omenImmune[id]) return;
-  if (def.war && Object.values(Game.deployed||{}).includes('bo')) return;
-  const soft = isWise() ? 0.5 : 1;                     // 灌灌「不惑」：凶兆减半
+  if (!def) return false;
   if (def.dur > 0){
     const existing = Game.omens.find(o=>o.id===id);
     if (existing){ existing.until = Math.max(existing.until, gameTime()+def.dur); }
@@ -236,11 +234,43 @@ function activateOmen(id){
   }
   Game.stats.omens[id] = true;
   const mark = def.polarity === '凶' ? '🔴' : def.polarity === '吉' ? '🟢' : '🟡';
-  log(`${mark} 征兆·${def.type}：${def.desc}（${def.beast}）`, def.polarity==='凶'?'bad':'gold', 'omen');
-  UI && UI.toast(`${mark} 征兆·${def.type}\n${def.desc}`);
+  if (!silent){
+    log(`${mark} 征兆·${def.type}：${def.desc}（${def.beast}）`, def.polarity==='凶'?'bad':'gold', 'omen');
+    UI && UI.toast(`${mark} 征兆·${def.type}\n${def.desc}`);
+  }
   UI && UI.renderBuffBtn && UI.renderBuffBtn();
   if (UI && UI.patchOmens) UI.patchOmens();     // 正在祠祀页时，新征兆即刻上格
   saveGame();
+  return true;
+}
+
+// 烽火台的「烽烟」时长：凶兆先示警，再应验。
+const FORESEE_SEC = 45;
+function activateOmen(id){
+  const def = OMENS[id];
+  if (!def) return;
+  // 征兆免疫：鵕鸟/大鹗之诛所赐；御使駮「可以御兵」御兵灾
+  if (Game.omenImmune[id]) return;
+  if (def.war && Object.values(Game.deployed||{}).includes('bo')) return;
+  const soft = isWise() ? 0.5 : 1;                     // 灌灌「不惑」：凶兆减半
+
+  // 烽火台：凶兆不即时落地，先举烽。四十五秒够收手、换目标，或先备禳解之料。
+  // 此前这座建筑的文案写着「征兆可提前预知」，实现里只有「之害减半」——
+  // 说的和做的是两件事，这里把「预知」补上。
+  if (Game.buildings && Game.buildings.fenghuotai && def.polarity === '凶' && def.dur > 0){
+    Game.omensPending = Game.omensPending || [];
+    const at = gameTime() + FORESEE_SEC;
+    const p = Game.omensPending.find(o => o.id === id);
+    if (p) p.at = Math.min(p.at, at);
+    else Game.omensPending.push({ id, at, soft });
+    log(`🔥 烽烟：${def.type}之兆将至（${FORESEE_SEC} 秒后应验，${def.beast}）`, 'dim', 'omen');
+    UI && UI.toast(`🔥 烽烟起\n${def.type}之兆将于 ${FORESEE_SEC} 秒后应验`);
+    UI && UI.renderBuffBtn && UI.renderBuffBtn();
+    if (UI && UI.patchOmens) UI.patchOmens();
+    saveGame();
+    return;
+  }
+  applyOmen(id, soft);
 }
 function omenMod(key){
   let m = 0;
@@ -257,6 +287,16 @@ function omenMod(key){
 function tickOmens(){
   const t = gameTime();
   let changed = false;
+  // 烽烟到时：该应验的应验
+  if (Game.omensPending && Game.omensPending.length){
+    for (let i=Game.omensPending.length-1; i>=0; i--){
+      const p = Game.omensPending[i];
+      if (p.at > t) continue;
+      Game.omensPending.splice(i,1);
+      applyOmen(p.id, p.soft);
+      changed = true;
+    }
+  }
   for (let i=Game.omens.length-1; i>=0; i--){
     if (Game.omens[i].until <= t){ Game.omens.splice(i,1); changed = true; }
   }
@@ -278,7 +318,8 @@ function exorcise(){
   saveGame();
   return true;
 }
-window.activateOmen = activateOmen; window.omenMod = omenMod; window.tickOmens = tickOmens; window.exorcise = exorcise;
+window.activateOmen = activateOmen; window.applyOmen = applyOmen; window.omenMod = omenMod;
+window.tickOmens = tickOmens; window.exorcise = exorcise; window.FORESEE_SEC = FORESEE_SEC;
 
 // ---------- 药饵 / 进食 ----------
 function tickBuffs(dt){
@@ -1964,7 +2005,13 @@ function settleAway(seconds){
   if (seconds < 30) return null;
   const eff = offlineEff();
   const summary = { seconds, rawSeconds, capped: rawSeconds > seconds + 30,
-                    xp:0, items:{}, records:0, harvests:0, acts:{}, riteRenews:0, riteCost:{} };
+                    xp:0, items:{}, records:0, harvests:0, acts:{}, riteRenews:0, riteCost:{}, omensLanded:0 };
+  // 烽烟不跨离线：玩家不在，没什么可「预知」的，直接让它应验。
+  if (Game.omensPending && Game.omensPending.length){
+    const landed = Game.omensPending.slice();
+    Game.omensPending = [];
+    landed.forEach(p => { applyOmen(p.id, p.soft, true); summary.omensLanded++; });
+  }
   // 续祭先于采集结算：离线那几小时的祠礼若开着续祭，按同样祭品顺延补上，
   // 补完再算产出，加成才算得进去（否则回来一看「礼是续上了，但收益没沾光」）。
   settleRitesOffline(seconds, summary);

@@ -306,6 +306,7 @@ html.theme-anim, html.theme-anim *{
 .buff-pop .bp-l1 b{ font-size:12.5px; font-weight:600; color:var(--ink); }
 .buff-pop .bp-desc{ margin-top:1px; font-size:11.5px; color:var(--ink-3); }
 .buff-pop .bp-time{ margin-left:auto; font-family:var(--f-num); font-size:10.5px; color:var(--ink-4); white-space:nowrap; }
+.buff-pop .bp-time.warn{ color:var(--zhu); }
 .buff-pop .bp-pol{ flex:0 0 auto; padding:0 3px; font-size:10px; line-height:1.45; border-radius:2px; }
 .buff-pop .bp-pol.吉{ color:#4A6340; background:rgba(86,110,76,.14); }
 .buff-pop .bp-pol.凶{ color:#B03A2B; background:rgba(176,58,43,.14); }
@@ -1303,6 +1304,7 @@ svg.bi.mk{ vertical-align:-2px; }
 /* 离线归来：上限提示与「所做」行 */
 .off-cap{ color:var(--zhu); margin:2px 0 6px; }
 .off-acts{ font-family:var(--f-kai); font-weight:400; color:var(--ink-2); font-size:12.5px; }
+.off-omen{ color:var(--zhu); }
 /* 祠礼都是同一支蜡烛图标，辨识度低：改用「首字朱印」，一眼分出是哪一礼 */
 .tile-seal{
   width:34px; height:34px; display:flex; align-items:center; justify-content:center;
@@ -1323,6 +1325,18 @@ svg.bi.mk{ vertical-align:-2px; }
   background:var(--paper-3); border:1px solid var(--rule); border-left:2px solid var(--jin); border-radius:0 var(--r) var(--r) 0;
   color:var(--ink-2);
 }
+/* 烽烟：已举烽、尚未应验。与「已生效」的征兆条分开画，朱边以示未落。 */
+.omen-pend-box{
+  padding:8px 12px 6px; margin-bottom:10px;
+  background:rgba(176,58,43,.055); border:1px solid rgba(176,58,43,.25);
+  border-left:2px solid var(--zhu); border-radius:0 var(--r) var(--r) 0;
+}
+.omen-pending{ display:flex; align-items:center; gap:7px; font-size:12px; color:var(--ink-2); }
+.omen-pending + .omen-pending{ margin-top:4px; }
+.omen-pending .op-ic{ flex:0 0 auto; font-size:13px; }
+.omen-pending .op-txt{ flex:1 1 auto; min-width:0; color:var(--zhu); font-family:var(--f-kai); }
+.omen-pending .op-left{ flex:0 0 auto; font-family:var(--f-num); color:var(--zhu); }
+.omen-pend-box .hint{ margin-top:4px; font-size:11px; }
 .omen-log-panel .omen-log-line{ padding:5px 0; font-size:12px; line-height:1.6; border-bottom:1px solid var(--rule-2); }
 .omen-log-panel .omen-log-line:last-child{ border-bottom:none; }
 
