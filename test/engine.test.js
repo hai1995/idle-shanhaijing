@@ -3141,6 +3141,50 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   }
 }
 
+// ============ 55. 地理特性：尽沙 / 百仞 / 干河（v1.15.5） ============
+{
+  G.resetToDefault();
+  const gameSrc55 = readText('src/game.js');
+  const uiSrc55 = readText('src/ui.js');
+
+  // 白沙山「广员三百里，尽沙也」：流沙迟滞，橐驼可免
+  assert(ST.SPECIAL_NODES['beishan-2-05'].desert === true, '白沙山标注为流沙');
+  assert(ST.geoGatherMul('beishan-2-05') === 1.25, '流沙地采集间隔 ×1.25');
+  ST.Game.deployed = { 0: 'tuotuo' };
+  assert(ST.geoGatherMul('beishan-2-05') === 1, '御使橐驼（善行流沙中）后采集如常');
+  ST.Game.deployed = {};
+
+  // 洹山「三桑无枝，其高百仞」：攀援费时，所得更丰
+  assert(Math.abs(ST.geoGatherMul('beishan-2-15') - 1.18) < 1e-9, '百仞之山采集间隔 ×1.18');
+  assert(Math.abs(ST.geoGatherBonus('beishan-2-15') - 0.10) < 1e-9, '登高而取，加成 +10%');
+
+  // 教山「冬干而夏流」：六小时一转
+  const t55 = ST.Game.stats.time;
+  ST.Game.stats.time = 0;
+  assert(ST.seasonPhase() === 0 && ST.seasonName() === '旱季', '开局为旱季');
+  assert(Math.abs(ST.geoGatherBonus('beishan-3-09') + 0.30) < 1e-9, '旱季渔获 -30%');
+  ST.Game.stats.time = 6 * 3600;
+  assert(ST.seasonPhase() === 1 && ST.seasonName() === '雨季', '六小时后转雨季');
+  assert(Math.abs(ST.geoGatherBonus('beishan-3-09') - 0.30) < 1e-9, '雨季渔获 +30%');
+  ST.Game.stats.time = t55;
+
+  assert(ST.geoGatherMul('nanshan-1-01') === 1 && ST.geoGatherBonus('nanshan-1-01') === 0, '寻常山不受地气影响');
+
+  // 行为：间隔真的变慢
+  G.resetToDefault();
+  ST.Game.node = 'beishan-2-05';
+  ST.Game.activity = { kind: 'gather', skill: 'qiaocai', itemId: 'gui' };
+  const iv1 = ST.currentActionInterval();
+  ST.Game.deployed = { 0: 'tuotuo' };
+  const iv2 = ST.currentActionInterval();
+  assert(Math.abs(iv1 / iv2 - 1.25) < 1e-6, '流沙山的采集间隔实测 ×1.25（' + iv1.toFixed(2) + ' vs ' + iv2.toFixed(2) + '）');
+
+  assert(gameSrc55.includes('* geoGatherMul(Game.node)'), '采集间隔接入地气');
+  assert(gameSrc55.includes('bonus += geoGatherBonus(Game.node)'), '采集加成接入地气');
+  assert(gameSrc55.includes('gatherInterval(it.skill) * geoGatherMul(Game.node)'), '离线采集同样吃地气');
+  assert(uiSrc55.includes('class="geo-tag"') && uiSrc55.includes('地气'), '山志显示地气标签');
+}
+
 // ============ 47. 物品用途面板（v1.14.3） ============
 {
   G.resetToDefault();

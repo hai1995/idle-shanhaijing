@@ -1314,6 +1314,7 @@ UI.renderYudi = function(){
       </div>
       <div class="nd-body">
         ${sel.terrain?`<p class="nd-terrain">${esc(sel.terrain)}</p>`:''}
+        ${specialNodeNote(sel)||''}
         <div class="nd-sec"><b>产出</b>${yieldRows}</div>
         <div class="nd-sec"><b>异兽</b>${faunaRows}</div>
         ${sel.source?`<blockquote class="quote">${esc(sel.source)}<cite>${esc(sel.chapter||'山海经')}</cite></blockquote>`:''}
@@ -1397,10 +1398,23 @@ function growButtonForNode(node){
   return `<button class="btn ${un && !done?'primary':''}" ${un && !done?'':'disabled'} onclick="startGrow('${Object.keys(GROW_SITES).find(k=>GROW_SITES[k].nodeId===node.id)}')"
     title="${esc(site.desc)}">🌱 灌木 ${esc(site.name)}<i>${done?'五岁乃成，先取其实':`${st.stage||0}/${site.stages} 岁 · 耗玉膏×1`}</i></button>`;
 }
+// 特殊节点的「地气」：原文设定之外，把它实际影响什么写清楚。
+// 尽沙 / 百仞 / 干河三处原先只有一句原文，玩家不知道走进去会怎样。
 function specialNodeNote(node){
   const sp = SPECIAL_NODES[node.id];
   if (!sp) return '';
-  return `<div class="special-note">★ ${esc(sp.note||'')}</div>`;
+  const tags = [];
+  if (sp.desert){
+    const free = typeof hasBeast === 'function' && hasBeast('tuotuo');
+    tags.push(free ? '流沙：有橐驼代步，采集如常' : '流沙：采集迟缓 ×1.25（御使橐驼可免）');
+  }
+  if (sp.climb) tags.push('百仞：采集迟缓 ×1.18，所得更丰 +10%');
+  if (sp.seasonalRiver){
+    const wet = typeof seasonPhase === 'function' && seasonPhase();
+    tags.push(`${typeof seasonName === 'function' ? seasonName() : '旱季'}：渔获 ${wet ? '+30%' : '−30%'}（六小时一转）`);
+  }
+  return `<div class="special-note">★ ${esc(sp.note||'')}${tags.length
+    ? `<div class="geo-tags">${tags.map(t=>`<span class="geo-tag">${esc(t)}</span>`).join('')}</div>` : ''}</div>`;
 }
 function nodeMythBlock(node){
   if (!node.myth) return '';

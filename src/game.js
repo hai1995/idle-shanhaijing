@@ -323,6 +323,33 @@ function useConsumable(itemId){
 }
 window.useConsumable = useConsumable;
 
+// ---------- 地理特性 ----------
+// 三处山在数据里写了设定（白沙山「尽沙」、洹山「三桑百仞」、教山「冬干而夏流」），
+// 此前只有 note 文案、没有机制。此处各给一个轻量效果，山志上也会标出来。
+const SEASON_SEC = 6 * 3600;                                     // 一候六小时，旱 / 雨轮转
+function seasonPhase(){ return Math.floor(gameTime() / SEASON_SEC) % 2; }   // 0 旱 1 雨
+function seasonName(){ return seasonPhase() ? '雨季' : '旱季'; }
+function geoOf(nodeId){ return (window.SPECIAL_NODES || {})[nodeId] || null; }
+function hasBeast(id){ return Object.values(Game.deployed || {}).indexOf(id) >= 0; }
+function geoGatherMul(nodeId){
+  const sp = geoOf(nodeId);
+  if (!sp) return 1;
+  let m = 1;
+  if (sp.desert && !hasBeast('tuotuo')) m *= 1.25;   // 流沙滞步；橐驼「善行流沙中，知水泉所在」可代步
+  if (sp.climb) m *= 1.18;                           // 三桑无枝，其高百仞——攀援费时
+  return m;
+}
+function geoGatherBonus(nodeId){
+  const sp = geoOf(nodeId);
+  if (!sp) return 0;
+  let b = 0;
+  if (sp.climb) b += 0.10;                             // 登高而取，所得更丰
+  if (sp.seasonalRiver) b += seasonPhase() ? 0.30 : -0.30;   // 冬干而夏流
+  return b;
+}
+window.seasonPhase = seasonPhase; window.seasonName = seasonName;
+window.geoGatherMul = geoGatherMul; window.geoGatherBonus = geoGatherBonus; window.hasBeast = hasBeast;
+
 // ---------- 采集 ----------
 const GATHER_TOOL = { qiaocai:'axePower', caiyu:'pickPower', yu:'netPower' };
 function gatherInterval(skillId){
@@ -372,6 +399,7 @@ function doGather(itemId){
   // 大旱之兆（鱄鱼 / 颙 / 肥𧔥…）专克渔获，十三条征兆都写着 fish:-0.4，此前无人读
   if (skillId === 'yu') bonus += omenMod('fish');
   if (special && special.rareBonus) bonus += special.rareBonus;   // 积石之山：万物无不有焉
+  bonus += geoGatherBonus(Game.node);                             // 地理特性：百仞之树 / 干河雨季
   bonus = Math.max(-0.4, bonus);
   let qty = 1;
   if (chance(TUNING.GATHER_DOUBLE + bonus*0.5)) qty = 2;
@@ -1690,7 +1718,7 @@ function onSecond(){
 
 function currentActionInterval(){
   const a = Game.activity; if (!a) return 1;
-  if (a.kind === 'gather') return gatherInterval(a.skill);
+  if (a.kind === 'gather') return gatherInterval(a.skill) * geoGatherMul(Game.node);
   if (a.kind === 'observe') return TUNING.OBSERVE_SEC;
   if (a.kind === 'audience') return TUNING.OBSERVE_SEC;
   if (a.kind === 'grow') return (GROW_SITES[a.siteId]||{}).sec || 3600;
@@ -1810,7 +1838,7 @@ function settleAway(seconds){
   if (a && a.kind === 'gather'){
     const it = Items[a.itemId];
     if (it && it.node === Game.node && levelOf(it.skill) >= it.lvl){
-      const times = Math.floor(seconds / gatherInterval(it.skill));
+      const times = Math.floor(seconds / (gatherInterval(it.skill) * geoGatherMul(Game.node)));
       summary.acts.gather = times;
       addXp(it.skill, it.xp * times);
       // 离线采集也算祠礼加成，否则「挂着挖矿」反而是唯一吃不到礼的玩法

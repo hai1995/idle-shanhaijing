@@ -1214,6 +1214,12 @@ svg.bi.mk{ vertical-align:-2px; }
 }
 .rite-auto-bar b{ color:var(--jin); font-family:var(--f-num); }
 .rite-auto-bar b.stall{ color:var(--zhu); }
+/* 地气标签：特殊节点的实际影响 */
+.geo-tags{ display:flex; flex-wrap:wrap; gap:5px; margin-top:5px; }
+.geo-tag{
+  font-size:10.5px; line-height:1.5; padding:1px 6px; color:var(--ink-3);
+  background:var(--paper-3); border:1px solid var(--rule-2); border-radius:2px;
+}
 /* 缺料清单：一项一行，缺多少 + 去哪儿找 */
 .lack-row{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;
   padding:7px 0; border-bottom:1px solid var(--rule-2); font-size:12.5px; }
