@@ -363,7 +363,23 @@ const UI = {
     this.tickProgress();
     refreshTabBadges();
     this.updateGuidance();
-    if (this.currentTab === 'skills') this.renderSkills();
+    // 不整页重建技能页：在技能页点一个配方开始制作，原先会把 26 技能卡 + 全部配方
+    // 重绘一遍，滚动位置直接跳回顶部。现在只改「哪张卡是高亮」这一件事。
+    this.patchSkillActive();
+  },
+  // 技能页当前的行动高亮：只切 class，不重建节点
+  patchSkillActive(){
+    if (this.currentTab !== 'skills' || typeof document === 'undefined') return;
+    const a = Game.activity;
+    const tiles = document.querySelectorAll('.skill-tile');
+    if (!tiles || !tiles.length) return;
+    for (const el of tiles){
+      const id = el.dataset && el.dataset.skill;
+      if (!id) continue;
+      const on = !!(a && ((a.kind === 'gather' && a.skill === id)
+        || (a.kind === 'craft' && a.recipe && mapRecipeSkill(a.recipe.type) === id)));
+      if (el.classList.contains('active') !== on) el.classList.toggle('active', on);
+    }
   },
   // 仪表带的行动文字可点：直达该行动所在页（采集/制作→技能，观象/谒见/灌木→舆地，往讨→征伐）
   gotoActivity(){
