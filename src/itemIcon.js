@@ -405,6 +405,6 @@ function itemIc(it, size){
 
 window.itemIcon = itemIcon;
 window.itemIc = itemIc;
-window.itemFamily = familyName;
+// itemFamily（familyName）没有外部调用者，导出过一阵子也没人用；清单留着给测试对照
 window.ITEM_ICON_FAMILIES = Object.keys(SHAPES);
 })();

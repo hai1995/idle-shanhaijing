@@ -2507,6 +2507,19 @@ section('营造建筑图标');
     if (!svg || !svg.includes('<svg') || !svg.includes('</svg>') || svg.length < 80) bad.push(id);
   });
   assert(bad.length === 0, '建筑图标全部出图（破图：' + (bad.join(',')||'无') + '）');
+  // 29.3b 标记图标：代码里写死的 key 必须真在 MARK 表里。
+  // markIcon 对未知 key 会静默退化（不报错、只是少一枚图），拼错只有肉眼能发现。
+  {
+    const uiS = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+    const gameS = fs.readFileSync(path.join(__dirname, '..', 'src', 'game.js'), 'utf8');
+    const keys = new Set(ST.MARK_ICON_IDS || []);
+    const lit = [...uiS.matchAll(/markIcon\(\s*'([^']+)'/g), ...gameS.matchAll(/markIcon\(\s*'([^']+)'/g)]
+      .map(m => m[1]);
+    const miss = lit.filter(k => !keys.has(k));
+    assert(keys.size > 0 && lit.length > 0, '标记图标表与字面量调用都取到了（' + keys.size + ' / ' + lit.length + '）');
+    assert(miss.length === 0, 'markIcon 的 key 都在表内（越界：' + (miss.join(',') || '无') + '）');
+  }
+
   // 29.4 矢量特征：viewBox + currentColor 无关但含墨色剪影与晕圈
   const one = si(ST.BUILDINGS.zhai);
   assert(one.includes('viewBox="0 0 64 64"'), '图标使用 64×64 视框');

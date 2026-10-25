@@ -505,10 +505,9 @@ if (typeof window !== 'undefined'){
   window.migrateSave = migrateSave;
   window.serializeSave = serializeSave;
   window.mergeSaveData = mergeSaveData;
-  // 给 ui.js 的初始化用的两个薄封装（restore / flush 都不抛错）
-  window.restoreCloudSave = function(){
-    try { return SaveManager.restore(); } catch(e){ return null; }
-  };
+  // 给 ui.js 初始化用的薄封装（不抛错）。
+  // 原先还有一个 restoreCloudSave：自从「云端配置不再在启动时自动套用」后
+  // 就没有调用者了——留着只会让人以为启动时还在恢复云端档。
   window.flushCloudSave = function(){
     try { return SaveManager.flushSync(); } catch(e){ return Promise.resolve({ ok:false, reason:String(e) }); }
   };
