@@ -1909,7 +1909,8 @@ function gameLoop(){
     if (rec && typeof UI !== 'undefined'){
       if (UI.refreshAll) UI.refreshAll();
       if (typeof renderCurrent === 'function') renderCurrent();
-      const hasGain = rec.xp > 0 || Object.keys(rec.items||{}).length || (rec.records||0) > 0 || (rec.harvests||0) > 0;
+      const hasGain = rec.xp > 0 || Object.keys(rec.items||{}).length || (rec.records||0) > 0
+        || (rec.harvests||0) > 0 || (rec.combat && rec.combat.fights > 0) || (rec.shells||0) > 0;
       if (hasGain && rec.seconds >= 120 && UI.showOfflineSummary) UI.showOfflineSummary(rec);
       else if (hasGain && UI.toast) UI.toast(`🌙 离山 ${Math.floor(rec.seconds/60)} 分，修得经验 +${Math.round(rec.xp)}`);
     }
@@ -2079,6 +2080,137 @@ function settleRitesOffline(seconds, summary){
   }
 }
 
+// 离线往讨的估算。
+// 战斗此前完全不跨会话（驱动它的 autoAttack 是运行时变量，读档即为 false，
+// Game.combat 也被刻意丢弃），玩家挂着打怪去睡，回来一场空——而「挂」正是
+// 这个品类的核心动作。这里按「一场打多久 × 能撑几场」把这段时间补上：
+//   场次 = 离山秒数 ÷ (击杀时长 × 1.25 + 2)          ← 1.25 是起手、未命中、收尾的实测余量
+//   撑不住的部分靠背包食物补，补不上就打到断粮为止（并在总结里写明）
+// 收益按离线效率折算，连杀经验递减照旧生效。
+function offlineCombat(id, seconds, eff, summary){
+  const m = Monsters[id];
+  if (!m) return null;
+  const dps = Math.max(1, playerDpsEstimate());
+  const killSec = Math.max(1, m.hp / dps);
+  const per = killSec * 1.25 + 2;
+  const ceilHp = Math.max(1, playerMaxHp());
+  const mdps = Math.max(1, m.atk - totalDefence() * 0.3) / Math.max(1, monsterInterval(m, null)) * 0.85;
+  const needPer = Math.max(0, killSec * mdps - ceilHp);
+
+  // 背包里回血最高的那份决定「一口能顶多少」，其余按份数凑
+  let best = null, portions = 0;
+  for (const fid in Game.inventory){
+    const it = Items[fid];
+    if (!it || !it.heal || Game.inventory[fid] <= 0) continue;
+    portions += Game.inventory[fid];
+    const h = healAmount(it);
+    if (!best || h > best.heal) best = { id:fid, heal:h };
+  }
+  // 即使包里没吃食也照样算「每场要几份」——否则会出现「空手打 BOSS 一百场」
+  // 这种算得通、说不通的账。没食物就是 byFood = 0，一场也打不成。
+  const effHeal = best
+    ? Math.max(1, Math.min(best.heal, Math.round(ceilHp * (1 - (Prefs.autoEat || 0.35)))))
+    : Math.max(1, Math.round(ceilHp * (1 - (Prefs.autoEat || 0.35))));
+  const needPortion = needPer > 0 ? Math.max(1, Math.ceil(needPer / effHeal)) : 0;
+
+  let fights = Math.max(0, Math.floor(seconds / per));
+  let shortOnFood = false;
+  if (needPortion > 0){
+    const byFood = Math.floor(portions / needPortion);
+    if (byFood < fights){ fights = byFood; shortOnFood = true; }
+    // 按份数实扣（回血高的先用，和自动进食的取用顺序一致）
+    let left = needPortion * fights;
+    const order = Object.keys(Game.inventory)
+      .map(fid => ({ fid, heal:(Items[fid]||{}).heal || 0 }))
+      .filter(x => x.heal > 0 && Game.inventory[x.fid] > 0)
+      .sort((a, b) => b.heal - a.heal);
+    for (const o of order){
+      if (left <= 0) break;
+      const take = Math.min(left, Game.inventory[o.fid]);
+      Game.inventory[o.fid] -= take;
+      if (Game.inventory[o.fid] <= 0) delete Game.inventory[o.fid];
+      left -= take;
+    }
+  }
+
+  let xpSum = 0;
+  const loot = {};
+  for (let i = 0; i < fights; i++){
+    const decay = Math.max(TUNING.MOB_DECAY.MIN, 1 - TUNING.MOB_DECAY.STEP * i);
+    xpSum += m.xp * decay;
+    (m.loot || []).forEach(([iid, p, q]) => { if (iid) loot[iid] = (loot[iid] || 0) + (p || 0) * (q || 1); });
+  }
+  const xp = Math.round(xpSum * eff);
+  const got = {};
+  for (const iid in loot){
+    // 小数部分按概率进位：期望值不能直接抹零，否则稀有一栏永远拿不到
+    const q = Math.floor(loot[iid] * eff + Math.random());
+    if (q > 0){ giveItem(iid, q, false); got[iid] = q; }
+  }
+  if (fights > 0){
+    const recs = Math.max(1, Math.round(fights * eff));
+    for (let i = 0; i < recs; i++) recordObject(m.id, 1);
+    summary.records += recs;
+    // 与 meetKill 同口径：讨伐得全额，体魄得三成（手动打时体魄是靠「挨打」涨的，
+    // 离线没法逐击算，按击杀结算的同一比例补上）
+    if (xp > 0){
+      gainXp('taofa', xp);
+      gainXp('ming', Math.round(xp * 0.3));
+      summary.xp += xp;
+    }
+    // BOSS 的专属材料（m.drop）在 meetKill 里是必给的，不走 loot 概率表，
+    // 离线同样照给，否则挂一夜 BOSS 只拿到兽骨。
+    if (m.boss && m.drop && Items[m.drop]){
+      const q = Math.max(1, Math.round(fights * eff));
+      giveItem(m.drop, q, false);
+      got[m.drop] = (got[m.drop] || 0) + q;
+    }
+    if (m.boss && m.coins){
+      const coin = Math.round(m.coins * fights * eff);
+      if (coin > 0){ Game.shells += coin; Game.stats.totalEarned += coin; summary.shells = (summary.shells || 0) + coin; }
+    }
+    if (m.boss){
+      Game.stats.bossKills[m.id] = true;
+      // 神兵：离线也认，但只按一次判定，不随场次刷
+      if (m.divine && Items[m.divine] && typeof chance === 'function'
+          && chance(1 - Math.pow(1 - DIVINE_DROP, Math.min(fights, 20)))){
+        giveItem(m.divine, 1, false);
+        got[m.divine] = (got[m.divine] || 0) + 1;
+        summary.divine = m.divine;
+      }
+    }
+  }
+  for (const k in got) summary.items[k] = (summary.items[k] || 0) + got[k];
+  return { id, name:m.name, fights, xp, shortOnFood,
+           needPortion, perSec: Math.round(per) };
+}
+
+// 开机结算。
+// 此前离线时长只看 pendingTime —— 那是页面活着时累加的秒数，
+// 关掉标签页再打开，dt 从 0 起算，八小时的收益一分不剩。
+// SAVE_TIME_KEY 一直写着「离线结算用」，却没人读它。这里补上：
+// 拿上次落盘时间与此刻的差，交给 settleAway。
+function settleOnBoot(){
+  let t = 0;
+  try {
+    const key = (typeof SAVE_TIME_KEY !== 'undefined') ? SAVE_TIME_KEY : 'shj_zhulu_save_v1_time';
+    t = parseInt(localStorage.getItem(key), 10);
+  } catch(e){ return null; }
+  if (!isFinite(t) || t <= 0) return null;
+  const away = (Date.now() - t) / 1000;
+  if (away < 60) return null;                 // 一分钟以内当作刷新页面，不打扰
+  const rec = settleAway(away);
+  if (rec && typeof UI !== 'undefined'){
+    if (UI.refreshAll) UI.refreshAll();
+    if (typeof renderCurrent === 'function') renderCurrent();
+    const hasGain = rec.xp > 0 || Object.keys(rec.items||{}).length || (rec.records||0) > 0
+      || (rec.harvests||0) > 0 || (rec.combat && rec.combat.fights > 0) || (rec.shells||0) > 0;
+    if (hasGain && UI.showOfflineSummary) UI.showOfflineSummary(rec);
+  }
+  return rec;
+}
+window.settleOnBoot = settleOnBoot;
+
 function settleAway(seconds){
   // 原始离山时长另存：被收益上限截断时要如实告诉玩家「超出那部分没算」，
   // 否则挂了 12 小时只按 8 小时结，看着像丢收益。
@@ -2101,6 +2233,13 @@ function settleAway(seconds){
     const g = Math.round(amount * eff);
     if (g > 0){ gainXp(skill, g); summary.xp += g; }
   };
+  // 离线往讨：离开页面时正在打的怪，回来后按场次补账（见 offlineCombat 注释）
+  if (Game._droppedCombat && Monsters[Game._droppedCombat]){
+    const hid = Game._droppedCombat;
+    Game._droppedCombat = null;
+    const rec = offlineCombat(hid, seconds, eff, summary);
+    if (rec) summary.combat = rec;
+  }
   const a = Game.activity;
   if (a && a.kind === 'gather'){
     const it = Items[a.itemId];

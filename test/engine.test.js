@@ -1890,7 +1890,9 @@ section('战斗态不跨会话');
   assert(ok && !!ST.Game.combat, '开战后进入战斗态');
   G.saveGame();
   const raw = JSON.parse(ST.localStorage.getItem('shj_zhulu_save_v1'));
-  assert(raw && raw.combat === undefined, '存档不再写入战斗态（combat 字段已移除）');
+  // 战斗细节仍不保存（恢复回来只会卡住），但「在打谁」要留一笔——离线结算靠它算账
+  assert(raw && raw.combat && raw.combat.monsterId === 'shengsheng', '存档记下往讨目标');
+  assert(raw.combat.playerHp === undefined && raw.combat.monsterHp === undefined, '不记战斗细节（血量/回合一律不存）');
   assert(raw && raw.activity === null || raw.activity === undefined, '行动态仍按原样保存');
 
   // 造一份含 combat 的旧档：读档必须丢弃，而不是恢复成「不会推进的战斗」
@@ -1901,7 +1903,7 @@ section('战斗态不跨会话');
   assert(ST.Game._droppedCombat === 'shengsheng', '记下被中止的目标，供首屏提示');
   ST.UI.refreshActivity();
   assert(renderTargets.activityText.textContent === '空闲', '读档后状态栏回到空闲');
-  assert(uiSrc.includes('上次往讨已中止'), '首屏给出「上次往讨已中止」提示');
+  assert(uiSrc.includes('上次往讨已收兵'), '首屏给出「上次往讨已收兵」提示');
   assert(engSrc.includes('Game._droppedCombat = d.combat ? d.combat.monsterId : null;'), '读档分支显式丢弃战斗态');
   assert(engSrc.includes('Game.combat = null;'), '读档后 combat 一律置空');
 }
@@ -4440,6 +4442,81 @@ section('实战：一场打完');
   } finally {
     Math.random = rnd0;
   }
+}
+
+// ============ 75. 离线往讨：挂着打怪，回来要认账 ============
+// 战斗不跨会话（autoAttack 是运行时变量，读档即断），此前玩家挂着打怪去睡，
+// 回来一场空——而「挂」正是这个品类的核心动作。现在离山前在打谁会被记下来，
+// 回来后按场次补账；吃食不够就打到断粮为止，并在总结里写明。
+section('离线往讨');
+{
+  const mk = (id, L, foodId, n) => {
+    G.resetToDefault();
+    let xpAt = 0; for (let i = 1; i < L; i++) xpAt += ST.xpForNextLevel(i);
+    ['yudi','bing','ming','she','zhu','taofa'].forEach(s => { ST.Game.skills[s].level = L; ST.Game.skills[s].xp = xpAt; });
+    ST.Game.gear.weapon = { id:'__o_w', slot:'weapon', dmg: Math.round(ST.GEAR_BASE.melee(L)), lvl:L, grade:'fine' };
+    ST.Game.gear.armor  = { id:'__o_a', slot:'armor',  def: Math.max(1, Math.round(ST.GEAR_BASE.armor(L))), lvl:L, grade:'fine' };
+    ST.Game.gear.charm = null; ST.Game.enhance = {}; ST.Game.activity = null;
+    ST.Game.inventory = foodId ? { [foodId]: n } : {};
+    ST.Game._droppedCombat = id;
+  };
+
+  // 1) 不必嗑药的目标：按时间折场次
+  mk('tulou', 35, null, 0);
+  const plain = G.settleAway(2 * 3600);
+  assert(!!(plain && plain.combat), '离山时在打土蝼，回来有往讨结算');
+  assert(plain.combat.fights > 100, '两小时打了 ' + plain.combat.fights + ' 场土蝼');
+  assert(plain.combat.xp > 0 && plain.xp >= plain.combat.xp, '往讨经验并入离线总额 +' + plain.combat.xp);
+  assert(ST.Game._droppedCombat === null, '结算后清空目标，不会重复记账');
+  const again = G.settleAway(2 * 3600);
+  assert(!again || !again.combat, '同一目标不会被结算第二次');
+
+  // 2) 打不过又没吃的：一场也别算，明说为什么
+  mk('zaochi', 40, null, 0);
+  const noFood = G.settleAway(2 * 3600);
+  assert(noFood.combat && noFood.combat.fights === 0, '空手打凿齿：0 场（不凭空送经验）');
+  assert(noFood.combat.shortOnFood === true && noFood.combat.needPortion > 0, '并说明每场需 ' + noFood.combat.needPortion + ' 份吃食');
+
+  // 3) 带够吃的：按份数扣，打到断粮为止
+  mk('zaochi', 40, 'danmushi', 30);
+  const fed = G.settleAway(2 * 3600);
+  assert(fed.combat.fights > 0 && fed.combat.fights < 30, '三十份丹木打凿齿 ' + fed.combat.fights + ' 场');
+  const left = ST.Game.inventory.danmushi || 0;
+  assert(left < 30, '吃食实扣：30 → ' + left);
+  assert(fed.shells > 0 && ST.Game.shells > 50, 'BOSS 讨平给贝币 +' + fed.shells);
+  assert(fed.combat.shortOnFood === true, '两小时远超存粮，标注「其余时间断粮」');
+
+  // 4) 战利品按期望折进背包
+  const gotAny = Object.keys(fed.items || {}).length > 0;
+  assert(gotAny, '离线掉落进了背包（' + Object.keys(fed.items || {}).slice(0, 3).join('/') + '…）');
+}
+
+// ============ 76. 开机结算：关掉标签页再打开，那段时间也要认 ============
+// 离线时长此前只看页面活着时累积的 pendingTime。切后台还算数（回来 dt 很大），
+// 但真把标签页关掉，再打开时 dt 从 0 起算——挂一夜，一分没有。
+// SAVE_TIME_KEY 一直写着「离线结算用」，却从没人读它。
+section('开机结算');
+{
+  const KEY = 'shj_zhulu_save_v1_time';
+  G.resetToDefault();
+  ST.Game.activity = { kind:'gather', skill:'caiyao', itemId:'zhuyu', src:'manual' };
+  G.saveGame();
+
+  // 刚存过档（60 秒内）：当作刷新页面，不打扰
+  assert(G.settleOnBoot() === null, '一分钟内重开不结算（刷新页面不算离山）');
+
+  // 把落盘时间拨回两小时前
+  const t0 = parseInt(ST.localStorage.getItem(KEY), 10);
+  ST.localStorage.setItem(KEY, String(t0 - 2 * 3600 * 1000));
+  const rec = G.settleOnBoot();
+  assert(!!rec && rec.seconds >= 7000 && rec.seconds <= 7300, `两小时前落盘：认定离山 ${rec ? Math.round(rec.seconds/60) : 0} 分`);
+  assert(rec.xp > 0, '并按离山时长给了经验 +' + rec.xp);
+  assert(parseInt(ST.localStorage.getItem(KEY), 10) > t0 - 3600 * 1000, '结算后刷新落盘时间，避免重复记账');
+  assert(G.settleOnBoot() === null, '再开机不会把同一段时长算第二遍');
+
+  // 没有时间戳（首次进入 / 清过缓存）：安静跳过，不报错
+  ST.localStorage.removeItem(KEY);
+  assert(G.settleOnBoot() === null, '无落盘时间时安静跳过');
 }
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）

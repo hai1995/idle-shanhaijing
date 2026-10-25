@@ -82,6 +82,9 @@ function serializeSave(){
     queueRunning: !!G.queueRunning, queueLoop: G.queueLoop !== false, fallback: G.fallback || null,
     mobStreak: G.mobStreak || {}, orders: G.orders || [], ordersAt: G.ordersAt || 0,
     enhance: G.enhance || {}, enhanceHeat: G.enhanceHeat || {}, affixSalt: G.affixSalt || {},
+    // 只记「离山时在打谁」，不记战斗细节：战斗本身不跨会话恢复（见 applySave 注释），
+    // 这一项只为离线结算知道该往哪只怪身上算账。
+    combat: G.combat ? { monsterId: G.combat.monsterId } : null,
   };
 }
 

@@ -374,7 +374,7 @@ const UI = {
       return `<span class="chip">${typeof itemIc==='function'?itemIc(id,13):(it?(it.icon||'⬜'):'❓')}${it?esc(it.name):esc(id)}×${q}</span>`;
     }).join('');
     // 离线都做了些什么：只报经验总额太抽象，玩家想知道「这一夜在做什么」
-    const ACT_NAMES = { gather:'采集', craft:'制作', observe:'观象', audience:'朝觐', grow:'养成' };
+    const ACT_NAMES = { gather:'采集', craft:'制作', observe:'观象', audience:'朝觐', grow:'养成', combat:'往讨' };
     const acts = Object.entries(rec.acts||{}).filter(([,n])=>n>0)
       .map(([k,n])=>`${ACT_NAMES[k]||k} ${n} 次`).join(' · ');
     const capLine = rec.capped
@@ -395,13 +395,27 @@ const UI = {
     // 烽烟不跨离线：离山时挂着的凶兆，回来时已经落地——得告诉玩家它落过
     const omenLine = (rec.omensLanded||0) > 0
       ? `<div class="form-row"><span>烽烟</span><b class="off-omen">🔥 ${rec.omensLanded} 兆应验</b></div>` : '';
+    // 往讨：战斗不跨会话，但离山前在打什么得有交代——打了几场、为什么停下
+    let combatLine = '';
+    if (rec.combat){
+      combatLine = rec.combat.fights > 0
+        ? `<div class="form-row"><span>往讨</span><b>⚔️ ${esc(rec.combat.name)} ${rec.combat.fights} 场</b></div>`
+        : `<div class="form-row"><span>往讨</span><b class="off-omen">⚔️ ${esc(rec.combat.name)} 未能成行</b></div>`;
+    }
+    const combatHint = (rec.combat && rec.combat.shortOnFood)
+      ? `<p class="hint off-cap">背包吃食每场需 ${rec.combat.needPortion} 份，只够支撑 ${rec.combat.fights} 场，其余时间已断粮。</p>`
+      : (rec.combat && rec.combat.fights === 0
+        ? `<p class="hint off-cap">这一战每场要吃 ${rec.combat.needPortion} 份，包中不足，故未开打。</p>` : '');
+    const shellLine = (rec.shells||0) > 0
+      ? `<div class="form-row"><span>讨平所获</span><b>🪙 ${fmt(rec.shells)} 贝</b></div>` : '';
     UI.modal(`
       <h3><span class="mi-ic">${typeof markIcon==='function'?markIcon('moon',18):'🌙'}</span> 离线归来</h3>
       <p class="hint">离山 ${fmtTime(rec.seconds)}（离线效率 ${Math.round(offlineEff()*100)}%），竹简不曾停笔。</p>
       ${capLine}
       ${acts?`<div class="form-row"><span>所做</span><b class="off-acts">${acts}</b></div>`:''}
       <div class="form-row"><span>修得经验</span><b style="color:var(--gamboge)">+${fmt(rec.xp)}</b></div>
-      ${recLine}${harvest}${riteLine}${omenLine}
+      ${recLine}${combatLine}${shellLine}${harvest}${riteLine}${omenLine}
+      ${combatHint}
       ${items ? `<div class="panel" style="margin-top:8px"><div class="yield-row"><b>所得</b>${items}</div></div>` : ''}
       <div class="modal-btns"><button class="btn on" onclick="UI.closeModal()">收下</button></div>
     `);
@@ -4053,8 +4067,8 @@ function init(){
   // 这里补一句说明，免得玩家以为「还在打」却看不到动画。
   if (Game._droppedCombat){
     const mm = (typeof Monsters !== 'undefined') && Monsters[Game._droppedCombat];
-    UI.toast(`⏹ 上次往讨已中止${mm ? '：' + mm.name : ''}\n可前往征伐页重新开战`);
-    log('⏹ 上次往讨已中止（战斗不跨会话保留）', 'sys', 'combat');
+    UI.toast(`⏹ 上次往讨已收兵${mm ? '：' + mm.name : ''}\n离山期间按场次结算，可前往征伐页再战`);
+    log('⏹ 上次往讨已收兵（战斗不跨会话，收益已按离山时长结算）', 'sys', 'combat');
     delete Game._droppedCombat;
   }
   try { if (!localStorage.getItem(TUT_KEY) && Object.keys(Game.records).length === 0) showTutorial(); } catch(e){}
@@ -4064,6 +4078,8 @@ function init(){
   });
   window.addEventListener('pagehide', ()=>{ if (typeof flushCloudSave === 'function') flushCloudSave(); });
   window.addEventListener('beforeunload', ()=>{ if (typeof flushCloudSave === 'function') flushCloudSave(); });
+  // 开机结算：关页再开的那段时长交给离线结算（此前只认页面活着时累积的时间）
+  try { if (typeof settleOnBoot === 'function') settleOnBoot(); } catch(e){ console.error('离线结算失败', e); }
   setInterval(gameLoop, 250);
 }
 // 各页渲染统一包一层：任何一次就地重绘（装备 / 淬炼 / 行祭 / 营造 / 买卖 / 切属性…）
