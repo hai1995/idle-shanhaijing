@@ -143,7 +143,27 @@ for (const m of Object.values(W.Monsters)){
   if (!n) bad('物产', '一条 nodes[] 都没查到——检查本身失效');
 }
 
-// ---------- 5.3 墟市：在售之物必须存在 ----------
+// ---------- 5.3 配方溢价：产物价值 / 材料价值 ----------
+// 加工增值是设计（鼓励制造），但溢价过大会变成刷钱循环：采料 → 制作 → 卖，
+// 比直接卖料赚一个数量级，配合采集速度就能把经济冲垮。
+// 目前最高是琅玕剑 16.5 倍（料 103 / 值 1700），阈值设在 25 留出余地。
+{
+  let n = 0;
+  for (const r of W.Recipes){
+    if (r.type === 'rite') continue;
+    const out = I[r.out];
+    if (!out || !out.value) continue;
+    let cost = 0;
+    for (const [id, q] of (r.cost || [])) cost += ((I[id] || {}).value || 0) * q;
+    if (!cost) continue;
+    n++;
+    const ratio = out.value * (r.qty || 1) / cost;
+    if (ratio > 25) bad('经济', `${out.name} 溢价 ${ratio.toFixed(1)} 倍（料 ${cost} / 值 ${out.value * (r.qty || 1)}）——可能成为刷钱循环`);
+  }
+  if (n < 50) bad('经济', `只查了 ${n} 条配方溢价——检查本身失效`);
+}
+
+// ---------- 5.4 墟市：在售之物必须存在 ----------
 for (const s of (W.ShopStock || [])){
   if (!I[s.itemId]) bad('墟市', `在售 ${s.itemId} 不存在`);
   if (!(s.cost > 0) || !(s.qty > 0)) bad('墟市', `${(I[s.itemId] || {}).name || s.itemId} 的价或量非正`);
