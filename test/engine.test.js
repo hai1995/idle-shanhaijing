@@ -5510,6 +5510,32 @@ section('离线结算与线上同口径');
     'UI 方法都存在（越界：' + (missing.map(x => x.k + '@' + x.f).join(', ') || '无') + '）');
 }
 
+// ============ 96. 读档重绑制作配方（快照过期 / 幽灵配方） ============
+// Game.activity.recipe 存的是对象快照。配方改过数值后，旧档会按过期的材料继续做，
+// 玩家看到的是「材料多扣、产出少给」。读档时按 type::out 重绑到当前表。
+{
+  G.resetToDefault();
+  const cur = ST.Recipes.find(r => r.type === 'burn' && r.out === 'tan');
+  assert(!!cur, '当前表里有燔燎·炭');
+  const sv = ST.serializeSave();
+  sv.activity = { kind:'craft', src:'manual', remain:5,
+    recipe:{ type:'burn', out:'tan', cost:[['zi', 999]], qty:99, lvl:1 } };
+  ST.localStorage.setItem('shj_zhulu_save_v1', JSON.stringify(sv));
+  ST.loadGame();
+  const a = ST.Game.activity;
+  assert(!!a && a.kind === 'craft', '制作行动保留下来');
+  assert(a.recipe.cost[0][1] === 1, '配方已重绑到当前表（旧快照写的是 999，现为 ' + a.recipe.cost[0][1] + '）');
+  assert(a.recipe.qty === cur.qty, '产出数量也取当前表');
+
+  const sv2 = ST.serializeSave();
+  sv2.activity = { kind:'craft', src:'manual', recipe:{ type:'burn', out:'__ghost__' } };
+  ST.localStorage.setItem('shj_zhulu_save_v1', JSON.stringify(sv2));
+  ST.loadGame();
+  assert(ST.Game.activity === null, '配方已被删掉的行动直接停掉（不按幽灵配方跑）');
+  ST.localStorage.removeItem('shj_zhulu_save_v1');
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

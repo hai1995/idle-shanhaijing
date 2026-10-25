@@ -152,6 +152,16 @@ function applySave(d){
     Game.nickname = typeof d.nickname === 'string' ? d.nickname.slice(0, 12) : '';
     Game.stats = Object.assign({}, dflt.stats, d.stats || {});
     Game.activity = d.activity || null;
+    // 制作活动里的 recipe 是**快照**。配方改过之后，旧档会按过期的材料与产出继续做——
+    // 材料多扣、产出少给，玩家只会觉得「这配方怎么不对」。读档时按 type::out 重绑到当前表；
+    // 配方已被删掉的，直接把这个行动停掉（比让它按幽灵配方跑下去安全）。
+    if (Game.activity && Game.activity.kind === 'craft'){
+      const a = Game.activity;
+      const key = a.recipe ? (a.recipe.type + '::' + a.recipe.out) : '';
+      const cur = key ? Recipes.find(r => (r.type + '::' + r.out) === key) : null;
+      if (cur) a.recipe = cur;
+      else Game.activity = null;
+    }
     // ⚠️ 战斗不跨会话恢复：驱动战斗的 autoAttack 是运行时变量，读档后必为 false，
     // 恢复 combat 只会让状态栏停在「往讨：X」而战斗循环永不推进（表现为卡战斗页、
     // 无动画、统计不涨）。战斗是瞬时行为，离线收益另走采集/队列结算。
