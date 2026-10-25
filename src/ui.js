@@ -285,16 +285,38 @@ const UI = {
     if (this.currentTab !== 'taofa') return;
     const m = Monsters[c.monsterId];
     if (!m) return;
+    // 这段每 250ms 跑一次。值没变就别写 DOM：
+    // - innerHTML 每次都会重新解析并重建节点（估值块的选中态、复制中的文字都会被打断）；
+    // - textContent 同值赋给也会触发一次样式重算，挂机一晚上是几万次白工。
+    const write = (el, key, val, prop) => {
+      if (!el) return;
+      if (el['_hud' + key] === val) return;
+      el['_hud' + key] = val;
+      if (prop === 'html') el.innerHTML = val;
+      else if (prop === 'cls') el.className = val;
+      else if (prop === 'width') el.style.width = val;
+      else el.textContent = val;
+    };
     const pf = playerEl() && playerEl().querySelector('.f-hp .fill');
-    if (pf) pf.style.width = Math.max(0, c.playerHp / playerMaxHp() * 100) + '%';
+    write(pf, 'pw', Math.max(0, c.playerHp / playerMaxHp() * 100).toFixed(1) + '%', 'width');
     const mf = monsterEl() && monsterEl().querySelector('.f-hp .fill');
-    if (mf) mf.style.width = Math.max(0, c.monsterHp / m.hp * 100) + '%';
+    write(mf, 'mw', Math.max(0, c.monsterHp / m.hp * 100).toFixed(1) + '%', 'width');
     const ms = monsterEl() && monsterEl().querySelector('.f-sub');
-    if (ms) ms.textContent = fmt(Math.max(0, c.monsterHp)) + ' / ' + fmt(m.hp);
+    write(ms, 'hp', fmt(Math.max(0, c.monsterHp)) + ' / ' + fmt(m.hp));
     const cs = $('combatStats');
-    if (cs) cs.textContent = `回合 ${c.round||0} · 造成 ${c.dmgOut||0} · 承伤 ${c.dmgIn||0}${Game.stats.winStreak>1?` · 连胜 ${Game.stats.winStreak}`:''}`;
+    write(cs, 'stats', `回合 ${c.round||0} · 造成 ${c.dmgOut||0} · 承伤 ${c.dmgIn||0}${Game.stats.winStreak>1?` · 连胜 ${Game.stats.winStreak}`:''}`);
     const est = $('combatEst');
-    if (est){ const r = combatEstimateInner(m, c, c.monsterHp); if (r){ est.className = 'combat-est ' + r.cls; est.innerHTML = r.html; } }
+    if (est){
+      const r = combatEstimateInner(m, c, c.monsterHp);
+      if (r){
+        const sig = r.cls + '|' + r.html;
+        if (est._hudEst !== sig){
+          est._hudEst = sig;
+          est.className = 'combat-est ' + r.cls;
+          est.innerHTML = r.html;
+        }
+      }
+    }
   },
   // 全局「下一步建议」：除舆地页（自带条）外，其余页签顶栏常驻显示
   updateGuidance(){
