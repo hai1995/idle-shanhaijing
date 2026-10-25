@@ -128,6 +128,31 @@ const stats = {
   异兽: Object.keys(W.Monsters).length, 配方: W.Recipes.length, 征兆: Object.keys(W.OMENS).length,
   祠礼: Object.keys(W.RITES).length, 图鉴: Object.keys(W.CODEX).length,
 };
+// 装备品阶：每件都要标，且数值要落在所属品阶的容差带内。
+// 系数与带子是 data 里 GEAR_GRADE / GEAR_BASE 的定义，这里只做核对——
+// 新增装备忘了标品阶，或手调数值调到带外，都在这一步现形。
+{
+  const gears = Object.values(I).filter(it => it.equip);
+  const grades = W.GEAR_GRADE || {};
+  const noGrade = gears.filter(it => !it.grade);
+  noGrade.forEach(it => bad('装备', `${it.name}（${it.id}）未标品阶`));
+  gears.forEach(it => { if (it.grade && !grades[it.grade]) bad('装备', `${it.name} 的品阶「${it.grade}」不在表内`); });
+
+  const outliers = [];
+  gears.filter(it => W.gearKindOf(it)).forEach(it => {
+    const g = grades[it.grade]; if (!g) return;
+    const r = W.gearRatio(it);
+    if (r < g.mult - g.tol || r > g.mult + g.tol)
+      outliers.push(`${it.name} Lv${it.lvl} ${W.gearNum(it)}（${it.grade} 实测 ${r.toFixed(2)}，应 ${(g.mult-g.tol).toFixed(2)}~${(g.mult+g.tol).toFixed(2)}）`);
+  });
+  outliers.forEach(o => bad('装备', '数值越出所属品阶：' + o));
+
+  const byGrade = {};
+  gears.forEach(it => { byGrade[it.grade] = (byGrade[it.grade] || 0) + 1; });
+  stats.装备 = gears.length;
+  stats.品阶 = Object.entries(grades).map(([k, v]) => `${v.name}${byGrade[k] || 0}`).join('/');
+}
+
 console.log('数据规模：' + Object.entries(stats).map(([k, v]) => `${k} ${v}`).join(' · '));
 if (!problems.length){
   console.log('\n✅ 未发现悬空引用或死链。');

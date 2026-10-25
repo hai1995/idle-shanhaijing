@@ -1041,6 +1041,13 @@ const ENHANCE_RATE = [
   0.048, 0.042, 0.036, 0.031, 0.026,     // 25–29
 ];
 const ENHANCE_SAFE = 10;              // 此级以下失败只损材料，不掉级
+// 强化上限按品阶分档：凡 +12、良 +18、精 +22、珍 +26、神 +30。
+// 此前众生平等 +30，神兵「更耐淬」这件事无从体现；现在它是品阶带来的
+// 第三件实事（另两件是数值系数与获取难度）。
+function enhanceCapOf(it){
+  const g = (typeof gearGrade === 'function') ? gearGrade(it) : null;
+  return Math.min(ENHANCE_MAX, (g && g.cap) || ENHANCE_MAX);
+}
 function enhanceRate(lv){
   return ENHANCE_RATE[Math.max(0, Math.min(ENHANCE_MAX - 1, lv | 0))];
 }
@@ -1056,9 +1063,11 @@ function enhanceItem(itemId, opts){
   const silent = !!(opts && opts.silent);
   const it = Items[itemId];
   if (!it || !it.equip) return { ok:false, reason:'不可淬炼' };
+  if (!it.dmg && !it.def) return { ok:false, reason:'此物无伤无守，淬之无益' };   // 护符 / 箭袋之外的空槽
+  const cap = enhanceCapOf(it);
   const lv = enhanceLevel(itemId);
-  if (lv >= ENHANCE_MAX){
-    if (!silent) UI && UI.toast(`已至 +${ENHANCE_MAX}，无可再淬`);
+  if (lv >= cap){
+    if (!silent) UI && UI.toast(`已至 +${cap}（${gearGrade(it).name}品上限），无可再淬`);
     return { ok:false, reason:'已至顶' };
   }
   const cost = enhanceCost(itemId);
@@ -1112,7 +1121,8 @@ function enhanceItem(itemId, opts){
 // 强化至目标等级：连续单次强化，直到达标 / 材料耗尽 / 触顶。
 // guard 防止「+30 附近反复失败」时无限循环。
 function enhanceToTarget(itemId, target, opts){
-  const cap = Math.max(1, Math.min(ENHANCE_MAX, target | 0));
+  const itemCap = enhanceCapOf(Items[itemId]);
+  const cap = Math.max(1, Math.min(itemCap, target | 0));
   const stone = !!(opts && opts.stone);
   let tries = 0, ups = 0, downs = 0, stones = 0, tan = 0, shells = 0;
   while (enhanceLevel(itemId) < cap && tries < 400){
@@ -1162,6 +1172,7 @@ window.divineOf = divineOf; window.divineHas = divineHas;
 window.enhanceItem = enhanceItem; window.enhanceLevel = enhanceLevel; window.enhanceCost = enhanceCost;
 window.enhanceScaled = enhanceScaled; window.enhanceRate = enhanceRate;
 window.enhanceToTarget = enhanceToTarget; window.enhanceHasStone = enhanceHasStone;
+window.enhanceCapOf = enhanceCapOf;
 window.ENHANCE_MAX = ENHANCE_MAX; window.ENHANCE_SAFE = ENHANCE_SAFE;
 
 function playerWeaponDmg(){

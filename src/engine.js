@@ -25,7 +25,7 @@ const Game = {
   buff: null,            // 饮药之益 { itemId, def, remaining, dur }
   farms: {},             // 圃艺田地 { 'p0'..: { seedId, remain, grow } }
   mobStreak: {},         // 同目标连续讨伐计数 { monsterId: n }（经验递减用，换目标即重置）
-  enhance: {},           // 装备淬炼等级 { itemId: 0..9 }（按物品 id 记，同 id 共享）
+  enhance: {},           // 装备淬炼等级 { itemId: 0..30 }（按物品 id 记，同 id 共享）
   orders: [],            // 方国求购订单 [{ id, itemId, regionId, qty, premium, total, xp }]
   ordersAt: 0,           // 当前一批订单的生成时间戳（ms，30 分钟轮换）
   node: 'nanshan-1-01',  // 当前所在节点
@@ -141,11 +141,17 @@ function applySave(d){
     // 同目标连续讨伐计数（旧档无此字段，缺省为空）
     Game.mobStreak = (d.mobStreak && typeof d.mobStreak === 'object') ? d.mobStreak : {};
     // 装备淬炼等级（旧档无此字段，缺省为空；非法值剔除）
+    // 上限取当前 ENHANCE_MAX——这里曾写死 9，强化上限提到 30 时忘了同步，
+    // 结果强到 +20 的装备一刷新就掉回 +9。凡是「另一处定义的常量」，
+    // 都不要在这里抄一份字面量。
     Game.enhance = {};
-    if (d.enhance && typeof d.enhance === 'object'){
-      for (const k in d.enhance){
-        const v = parseInt(d.enhance[k], 10);
-        if (isFinite(v) && v > 0) Game.enhance[k] = Math.min(9, v);
+    {
+      const cap = (typeof window !== 'undefined' && window.ENHANCE_MAX) || 30;
+      if (d.enhance && typeof d.enhance === 'object'){
+        for (const k in d.enhance){
+          const v = parseInt(d.enhance[k], 10);
+          if (isFinite(v) && v > 0) Game.enhance[k] = Math.min(cap, v);
+        }
       }
     }
     // 装备词条重铸次数（旧档无此字段：salt=0 即「初次派生」的词条，与新版一致）
@@ -176,19 +182,17 @@ function applySave(d){
       if (!isFinite(f.grow) || f.grow <= 0) f.grow = Items[f.seedId].grow || 10;
     }
     // 校正装备引用（装备槽存的是物品对象，其 id 必须仍存在）
-    // 兼容两种历史形态：{id, name, ...} 对象（当前）与裸 id 字符串（早期档）。
+    // 兼容两种历史形态：{id, ...} 对象（当前）与裸 id 字符串（早期档）。
     for (const slot in Game.gear){
       const g = Game.gear[slot];
       if (!g) continue;
       const gid = (typeof g === 'string') ? g : g.id;
       if (!gid || !Items[gid]){ Game.gear[slot] = null; continue; }
-      if (typeof g === 'string'){
-        // 裸 id 档：还原为物品对象快照，避免下游读 .dmg/.name 时拿到字符串
-        const it = Items[gid];
-        Game.gear[slot] = { id: gid, name: it.name, dmg: it.dmg||0, def: it.def||0, ranged: !!it.ranged, lvl: it.lvl||1 };
-      } else if (!g.id){
-        g.id = gid;
-      }
+      // 一律按 Items 重建。存档只该记住「戴着哪一件」，不该记住它当时值多少——
+      // 否则每次调平衡，老档里的那件还是旧数字；更糟的是后来新增的字段
+      // （品阶 grade、神兵特性 divine）在旧快照里根本没有，读出来是 undefined：
+      // 神兵不带特性、珍品显示成良品、强化上限也对不上。
+      Game.gear[slot] = Object.assign({}, Items[gid], { id: gid });
     }
     // 校正御使槽位
     for (const k in Game.deployed){ if (!Monsters[Game.deployed[k]]) delete Game.deployed[k]; }

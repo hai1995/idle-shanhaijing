@@ -48,6 +48,57 @@ const RARITY = {
 };
 const RARITY_TIERS = [ [1000,'MYTHIC'], [300,'LEGENDARY'], [100,'RARE'], [30,'UNCOMMON'], [0,'COMMON'] ];
 
+// ---------- 装备等阶 ----------
+// 品阶不是「稀有感」，而是「你从哪儿得来的」——凡品随手可得，良品常造，
+// 精品要殊材，珍品多出自凶兽之身，神品唯 BOSS 所遗。
+// 每档给出三件事：数值系数、强化上限、以及一句能读懂的话。
+// 强化上限分档是这一版的重点：普通装强不满 30，神兵天生天花板更高。
+const GEAR_GRADE = {
+  common:   { id:'common',   name:'凡', order:0, mult:0.86, tol:0.16, cap:12, color:'#8a8577', desc:'石木之器，聊胜于无' },
+  fine:     { id:'fine',     name:'良', order:1, mult:1.00, tol:0.15, cap:18, color:'#4A7C59', desc:'常造之器，堪用' },
+  rare:     { id:'rare',     name:'精', order:2, mult:1.16, tol:0.15, cap:22, color:'#2E5C8A', desc:'良工所制，须殊材' },
+  precious: { id:'precious', name:'珍', order:3, mult:1.30, tol:0.15, cap:26, color:'#B06A1E', desc:'罕有之器，多出凶兽之身' },
+  divine:   { id:'divine',   name:'神', order:4, mult:1.55, tol:0.26, cap:30, color:'#C3272B', desc:'神兵，唯 BOSS 所遗' },
+};
+// 基准曲线：按「部位 × 等级」给出该等级良品应有多少。
+// 系数是拿现有四十件装备反拟合出来的（良品实测落在 0.95–1.10），
+// 所以它是**校验基准**而非硬算公式——数值仍可手调，但必须落在所属
+// 品阶的容差带内，否则测试报错。这样「合理的数值」才有可验证的定义。
+const GEAR_BASE = {
+  melee:  lvl => 0.78 * lvl + 6,      // 近战主武器
+  bow:    lvl => 0.62 * lvl + 6,      // 弓（另有箭矢补足）
+  armor:  lvl => 0.35 * lvl - 1,      // 甲胄
+  tool:   lvl => 0.48 * lvl + 3.5,    // 斧 / 镐 / 网
+  quiver: lvl => 0.20 * lvl + 2,      // 箭
+};
+function gearKindOf(it){
+  if (!it || !it.equip) return null;
+  if (it.slot === 'charm') return null;      // 护符按效果分强弱，不比数值
+  if (it.slot === 'armor') return 'armor';
+  if (it.axePower || it.pickPower || it.netPower) return 'tool';
+  if (it.slot === 'quiver') return 'quiver';
+  if (it.ranged) return 'bow';
+  return 'melee';
+}
+function gearNum(it){
+  if (!it) return 0;
+  return it.dmg || it.def || it.axePower || it.pickPower || it.netPower || 0;
+}
+function gearBaseValue(it){
+  const k = gearKindOf(it);
+  if (!k) return 0;
+  return GEAR_BASE[k](it.lvl || 1);
+}
+function gearGrade(it){
+  const key = (it && it.grade) || 'fine';
+  return GEAR_GRADE[key] || GEAR_GRADE.fine;
+}
+// 实测比值：这件比同级良品强多少。用于校验，也用于详情里的「超出同级 xx%」。
+function gearRatio(it){
+  const b = gearBaseValue(it);
+  return b > 0 ? gearNum(it) / b : 0;
+}
+
 // ---------- 世界（南山经 + 西山经 + 北山经 + 东山经 + 中山经，五章同构接入） ----------
 const NANSHAN = (typeof window !== 'undefined' && window.NANSHAN) ? window.NANSHAN : { regions: [] };
 const XISHAN  = (typeof window !== 'undefined' && window.XISHAN)  ? window.XISHAN  : { regions: [] };
@@ -235,11 +286,11 @@ addItem(
 
 // ---- 玉符（琢玉 · 佩戴类） ----
 addItem(
-  I('migufu','迷榖符','charm',{ value:50, lvl:5,  icon:'🪸', equip:true, slot:'charm', effect:'佩之不迷', gatherBonus:0.10, reqRecord:{ id:'migu', tier:3 }, note:'其状如榖而黑理，其华四照' }),
-  I('lushufu','鹿蜀符','charm',{ value:70, lvl:10, icon:'🪸', equip:true, slot:'charm', effect:'佩之宜子孙', farmBonus:0.25, reqRecord:{ id:'lushu', tier:3 } }),
-  I('xuanguifu','旋龟符','charm',{ value:75, lvl:10, icon:'🪸', equip:true, slot:'charm', effect:'佩之不聋，可以为底', divBonus:0.30, reqRecord:{ id:'xuangui', tier:3 } }),
-  I('boyifu','猼訑符','charm',{ value:80, lvl:15, icon:'🪸', equip:true, slot:'charm', effect:'佩之不畏', defBonus:8, reqRecord:{ id:'boyi', tier:3 } }),
-  I('guanfu','灌灌符','charm',{ value:90, lvl:15, icon:'🪸', equip:true, slot:'charm', effect:'佩之不惑', wise:true, reqRecord:{ id:'guanguan', tier:3 } }),
+  I('migufu','迷榖符','charm',{ value:50, lvl:5,  icon:'🪸', equip:true, grade:'fine', slot:'charm', effect:'佩之不迷', gatherBonus:0.10, reqRecord:{ id:'migu', tier:3 }, note:'其状如榖而黑理，其华四照' }),
+  I('lushufu','鹿蜀符','charm',{ value:70, lvl:10, icon:'🪸', equip:true, grade:'fine', slot:'charm', effect:'佩之宜子孙', farmBonus:0.25, reqRecord:{ id:'lushu', tier:3 } }),
+  I('xuanguifu','旋龟符','charm',{ value:75, lvl:10, icon:'🪸', equip:true, grade:'fine', slot:'charm', effect:'佩之不聋，可以为底', divBonus:0.30, reqRecord:{ id:'xuangui', tier:3 } }),
+  I('boyifu','猼訑符','charm',{ value:80, lvl:15, icon:'🪸', equip:true, grade:'rare', slot:'charm', effect:'佩之不畏', defBonus:8, reqRecord:{ id:'boyi', tier:3 } }),
+  I('guanfu','灌灌符','charm',{ value:90, lvl:15, icon:'🪸', equip:true, grade:'rare', slot:'charm', effect:'佩之不惑', wise:true, reqRecord:{ id:'guanguan', tier:3 } }),
 );
 addItem( I('migu','迷榖','wood', { value:40, xp:30, lvl:1, icon:'🪸', skill:'qiaocai', node:'nanshan-1-01', form:'其状如榖而黑理，其华四照', effect:'佩之不迷' }) );
 
@@ -650,48 +701,48 @@ addItem(
 
 // ---- 工具 ----
 addItem(
-  I('shifu','石斧','tool', { equip:true, slot:'axe', axePower:4,  lvl:1,  value:20, icon:'🪓' }),
-  I('jinfu','金斧','tool', { equip:true, slot:'axe', axePower:9,  lvl:10, value:90, icon:'🪓' }),
-  I('chijinfu','赤金斧','tool',{ equip:true, slot:'axe', axePower:16, lvl:26, value:260, icon:'🪓' }),
-  I('shikuo','石镐','tool',{ equip:true, slot:'pick', pickPower:4, lvl:1,  value:20, icon:'⛏️' }),
-  I('jinkuo','金镐','tool',{ equip:true, slot:'pick', pickPower:9, lvl:10, value:90, icon:'⛏️' }),
-  I('chijinkuo','赤金镐','tool',{ equip:true, slot:'pick', pickPower:16, lvl:26, value:260, icon:'⛏️' }),
-  I('yuwang','渔网','tool',{ equip:true, slot:'net', netPower:4, lvl:1,  value:20, icon:'🕸️' }),
-  I('siwang','丝网','tool',{ equip:true, slot:'net', netPower:9, lvl:10, value:90, icon:'🕸️' }),
-  I('luowang','罗罔','tool',{ equip:true, slot:'net', netPower:16, lvl:26, value:260, icon:'🕸️', py:'luó wǎng' }),
+  I('shifu','石斧','tool', { equip:true, grade:'common', slot:'axe', axePower:4,  lvl:1,  value:20, icon:'🪓' }),
+  I('jinfu','金斧','tool', { equip:true, grade:'fine', slot:'axe', axePower:9,  lvl:10, value:90, icon:'🪓' }),
+  I('chijinfu','赤金斧','tool',{ equip:true, grade:'fine', slot:'axe', axePower:16, lvl:26, value:260, icon:'🪓' }),
+  I('shikuo','石镐','tool',{ equip:true, grade:'common', slot:'pick', pickPower:4, lvl:1,  value:20, icon:'⛏️' }),
+  I('jinkuo','金镐','tool',{ equip:true, grade:'fine', slot:'pick', pickPower:9, lvl:10, value:90, icon:'⛏️' }),
+  I('chijinkuo','赤金镐','tool',{ equip:true, grade:'fine', slot:'pick', pickPower:16, lvl:26, value:260, icon:'⛏️' }),
+  I('yuwang','渔网','tool',{ equip:true, grade:'common', slot:'net', netPower:4, lvl:1,  value:20, icon:'🕸️' }),
+  I('siwang','丝网','tool',{ equip:true, grade:'fine', slot:'net', netPower:9, lvl:10, value:90, icon:'🕸️' }),
+  I('luowang','罗罔','tool',{ equip:true, grade:'fine', slot:'net', netPower:16, lvl:26, value:260, icon:'🕸️', py:'luó wǎng' }),
 );
 
 // ---- 兵器（冶铸） ----
 addItem(
-  I('muge','木戈','weapon', { equip:true, weapon:true, dmg:5,  lvl:1,  value:30,  icon:'🔱', el:'木' }),
-  I('shimao','石矛','weapon',{ equip:true, weapon:true, dmg:9,  lvl:4,  value:70,  icon:'🔺', el:'土' }),
-  I('jinjian','金剑','weapon',{ equip:true, weapon:true, dmg:15, lvl:10, value:160, icon:'🗡️', el:'金' }),
-  I('chijinyue','赤金钺','weapon',{ equip:true, weapon:true, dmg:26, lvl:26, value:400, icon:'🪓', el:'金' }),
-  I('baijinqi','白金戚','weapon',{ equip:true, weapon:true, dmg:38, lvl:36, value:700, icon:'⚔️', el:'金' }),
+  I('muge','木戈','weapon', { equip:true, grade:'common', weapon:true, dmg:5,  lvl:1,  value:30,  icon:'🔱', el:'木' }),
+  I('shimao','石矛','weapon',{ equip:true, grade:'fine', weapon:true, dmg:9,  lvl:4,  value:70,  icon:'🔺', el:'土' }),
+  I('jinjian','金剑','weapon',{ equip:true, grade:'fine', weapon:true, dmg:15, lvl:10, value:160, icon:'🗡️', el:'金' }),
+  I('chijinyue','赤金钺','weapon',{ equip:true, grade:'fine', weapon:true, dmg:26, lvl:26, value:400, icon:'🪓', el:'金' }),
+  I('baijinqi','白金戚','weapon',{ equip:true, grade:'fine', weapon:true, dmg:38, lvl:36, value:700, icon:'⚔️', el:'金' }),
   // 36 级到 55 级之间原本没有任何新兵器（下一把是凿齿矛，要 BOSS 之牙），
   // 甲胄 34→60、弓 26→58 同样断档近三十级。补一组 44 级过渡装，走寻常材料。
-  I('bailianjian','百炼剑','weapon',{ equip:true, weapon:true, dmg:46, lvl:44, value:760, icon:'⚔️', el:'金' }),
-  I('xisihejia','犀兕合甲','armor',{ equip:true, slot:'armor', def:15, lvl:44, value:640, icon:'🥋' }),
-  I('sangzhegong','桑柘弓','bow',{ equip:true, weapon:true, ranged:true, dmg:34, lvl:44, value:560, icon:'🏹', el:'木' }),
-  I('zaochimao','凿齿矛','weapon',{ equip:true, weapon:true, dmg:55, lvl:55, value:1600, icon:'🔱', el:'金', rarity:'RARE' }),
-  I('fenghuiyue','封豨钺','weapon',{ equip:true, weapon:true, dmg:62, lvl:58, value:1900, icon:'🪓', el:'水', rarity:'RARE', py:'fēng xī' }),
+  I('bailianjian','百炼剑','weapon',{ equip:true, grade:'fine', weapon:true, dmg:46, lvl:44, value:760, icon:'⚔️', el:'金' }),
+  I('xisihejia','犀兕合甲','armor',{ equip:true, grade:'fine', slot:'armor', def:15, lvl:44, value:640, icon:'🥋' }),
+  I('sangzhegong','桑柘弓','bow',{ equip:true, grade:'fine', weapon:true, ranged:true, dmg:34, lvl:44, value:560, icon:'🏹', el:'木' }),
+  I('zaochimao','凿齿矛','weapon',{ equip:true, grade:'rare', weapon:true, dmg:55, lvl:55, value:1600, icon:'🔱', el:'金', rarity:'RARE' }),
+  I('fenghuiyue','封豨钺','weapon',{ equip:true, grade:'rare', weapon:true, dmg:62, lvl:58, value:1900, icon:'🪓', el:'水', rarity:'RARE', py:'fēng xī' }),
 );
 // ---- 弓矢（削羽） ----
 addItem(
-  I('mugong','木弓','bow',  { equip:true, weapon:true, ranged:true, dmg:6,  lvl:1,  value:40,  icon:'🏹', el:'木' }),
-  I('sanggong','桑弓','bow',{ equip:true, weapon:true, ranged:true, dmg:12, lvl:10, value:150, icon:'🏹', el:'木' }),
-  I('chijingong','赤金弓','bow',{ equip:true, weapon:true, ranged:true, dmg:22, lvl:26, value:420, icon:'🏹', el:'金' }),
-  I('dafenggong','大风弓','bow',{ equip:true, weapon:true, ranged:true, dmg:45, lvl:58, value:1700, icon:'🏹', el:'木', rarity:'RARE' }),
-  I('shizu','石镞矢','arrow',{ equip:true, slot:'quiver', dmg:2,  lvl:1,  value:6,  icon:'➶', el:'土' }),
-  I('jinzu','金镞矢','arrow',{ equip:true, slot:'quiver', dmg:4,  lvl:10, value:18, icon:'➶', el:'金' }),
-  I('chijinzu','赤金镞矢','arrow',{ equip:true, slot:'quiver', dmg:7, lvl:26, value:40, icon:'➶', el:'金' }),
-  I('baijinzu','白金镞矢','arrow',{ equip:true, slot:'quiver', dmg:10, lvl:36, value:80, icon:'➶', el:'金' }),
+  I('mugong','木弓','bow',  { equip:true, grade:'common', weapon:true, ranged:true, dmg:6,  lvl:1,  value:40,  icon:'🏹', el:'木' }),
+  I('sanggong','桑弓','bow',{ equip:true, grade:'fine', weapon:true, ranged:true, dmg:12, lvl:10, value:150, icon:'🏹', el:'木' }),
+  I('chijingong','赤金弓','bow',{ equip:true, grade:'fine', weapon:true, ranged:true, dmg:22, lvl:26, value:420, icon:'🏹', el:'金' }),
+  I('dafenggong','大风弓','bow',{ equip:true, grade:'rare', weapon:true, ranged:true, dmg:45, lvl:58, value:1700, icon:'🏹', el:'木', rarity:'RARE' }),
+  I('shizu','石镞矢','arrow',{ equip:true, grade:'common', slot:'quiver', dmg:2,  lvl:1,  value:6,  icon:'➶', el:'土' }),
+  I('jinzu','金镞矢','arrow',{ equip:true, grade:'fine', slot:'quiver', dmg:4,  lvl:10, value:18, icon:'➶', el:'金' }),
+  I('chijinzu','赤金镞矢','arrow',{ equip:true, grade:'fine', slot:'quiver', dmg:7, lvl:26, value:40, icon:'➶', el:'金' }),
+  I('baijinzu','白金镞矢','arrow',{ equip:true, grade:'fine', slot:'quiver', dmg:10, lvl:36, value:80, icon:'➶', el:'金' }),
 );
 // ---- 甲胄（制器） ----
 addItem(
-  I('pijia','皮甲','armor', { equip:true, slot:'armor', def:6,  lvl:20, value:120, icon:'🥋' }),
-  I('sijia','兕甲','armor', { equip:true, slot:'armor', def:11, lvl:34, value:260, icon:'🥋', py:'sì' }),
-  I('yayujia','猰貐甲','armor',{ equip:true, slot:'armor', def:20, lvl:60, value:900, icon:'🥋', rarity:'RARE', py:'yà yǔ' }),
+  I('pijia','皮甲','armor', { equip:true, grade:'common', slot:'armor', def:6,  lvl:20, value:120, icon:'🥋' }),
+  I('sijia','兕甲','armor', { equip:true, grade:'fine', slot:'armor', def:11, lvl:34, value:260, icon:'🥋', py:'sì' }),
+  I('yayujia','猰貐甲','armor',{ equip:true, grade:'rare', slot:'armor', def:22, lvl:60, value:900, icon:'🥋', rarity:'RARE', py:'yà yǔ' }),
 );
 
 // ---- 食物（调鼎 · 「食之X」句式） ----
@@ -897,31 +948,31 @@ addItem(
 // ---- 西山新制成品 ----
 addItem(
   I('shatangshi','沙棠实','food', { value:90, heal:300, lvl:66, icon:'🍑', edible:true, effect:'可以御水，食之不溺' }),
-  I('cangyuyue','苍玉钺','weapon',{ equip:true, weapon:true, dmg:58, lvl:72, value:1400, icon:'🪓', el:'金', rarity:'RARE' }),
-  I('langganjian','琅玕剑','weapon',{ equip:true, weapon:true, dmg:60, lvl:74, value:1700, icon:'🗡️', el:'水', rarity:'RARE', py:'láng gān' }),
-  I('yuzhanggong','豫章弓','bow',{ equip:true, weapon:true, ranged:true, dmg:52, lvl:70, value:1200, icon:'🏹', el:'木', rarity:'RARE' }),
+  I('cangyuyue','苍玉钺','weapon',{ equip:true, grade:'precious', weapon:true, dmg:80, lvl:72, value:1400, icon:'🪓', el:'金', rarity:'RARE' }),
+  I('langganjian','琅玕剑','weapon',{ equip:true, grade:'fine', weapon:true, dmg:70, lvl:74, value:1700, icon:'🗡️', el:'水', rarity:'RARE', py:'láng gān' }),
+  I('yuzhanggong','豫章弓','bow',{ equip:true, grade:'rare', weapon:true, ranged:true, dmg:52, lvl:70, value:1200, icon:'🏹', el:'木', rarity:'RARE' }),
   // ---- 神兵 ----
   // 六凶与刑天各遗一件。不可锻造，只有 6% 的掉落——它是「打得过那位」的凭证。
   // 每件带一条普通装备没有的特性（破甲 / 饮血 / 疾风 / 裂甲）。
-  I('zaochiren','凿齿獠牙','weapon',{ equip:true, weapon:true, dmg:62, lvl:40, value:2600, icon:'🗡️', el:'金',
+  I('zaochiren','凿齿獠牙','weapon',{ equip:true, grade:'divine', weapon:true, dmg:62, lvl:40, value:2600, icon:'🗡️', el:'金',
     rarity:'LEGENDARY', divine:'pierce', note:'凿齿之牙磨成，长三尺，破坚如朽' }),
-  I('jiuyingren','九婴血刃','weapon',{ equip:true, weapon:true, dmg:72, lvl:50, value:3400, icon:'🗡️', el:'水',
+  I('jiuyingren','九婴血刃','weapon',{ equip:true, grade:'divine', weapon:true, dmg:72, lvl:50, value:3400, icon:'🗡️', el:'水',
     rarity:'LEGENDARY', divine:'drink', note:'九首之血淬刃，斫人自饮其血' }),
-  I('dafengyugong','大风羽弓','bow',{ equip:true, weapon:true, ranged:true, dmg:56, lvl:58, value:3600, icon:'🏹', el:'木',
+  I('dafengyugong','大风羽弓','bow',{ equip:true, grade:'divine', weapon:true, ranged:true, dmg:60, lvl:58, value:3600, icon:'🏹', el:'木',
     rarity:'LEGENDARY', divine:'swift', note:'以大风之羽为弦，发则风随' }),
-  I('yayuzhua','猰貐魔爪','weapon',{ equip:true, weapon:true, dmg:82, lvl:64, value:4600, icon:'🗡️', el:'土',
+  I('yayuzhua','猰貐魔爪','weapon',{ equip:true, grade:'divine', weapon:true, dmg:82, lvl:64, value:4600, icon:'🗡️', el:'土',
     rarity:'LEGENDARY', divine:'crit', note:'猰貐爪所铸，触之裂甲' }),
-  I('xiushebian','修蛇脊鞭','weapon',{ equip:true, weapon:true, dmg:90, lvl:70, value:5600, icon:'🗡️', el:'水',
+  I('xiushebian','修蛇脊鞭','weapon',{ equip:true, grade:'divine', weapon:true, dmg:90, lvl:70, value:5600, icon:'🗡️', el:'水',
     rarity:'LEGENDARY', divine:'drink', note:'修蛇之脊，一节一饮' }),
-  I('fenghuifu','封豨重斧','weapon',{ equip:true, weapon:true, dmg:100, lvl:76, value:6800, icon:'🪓', el:'水',
+  I('fenghuifu','封豨重斧','weapon',{ equip:true, grade:'divine', weapon:true, dmg:100, lvl:76, value:6800, icon:'🪓', el:'水',
     rarity:'LEGENDARY', divine:'pierce', note:'封豨之牙为刃，重而能断' }),
-  I('ganqi','干戚','weapon',{ equip:true, weapon:true, dmg:118, lvl:81, value:12000, icon:'🪓', el:'金',
+  I('ganqi','干戚','weapon',{ equip:true, grade:'divine', weapon:true, dmg:118, lvl:81, value:12000, icon:'🪓', el:'金',
     rarity:'LEGENDARY', divine:'crit', note:'刑天操干戚以舞——以乳为目，以脐为口，战而不屈' }),
-  I('tongzu','铜镞矢','arrow',{ equip:true, slot:'quiver', dmg:12, lvl:66, value:60, icon:'➶', el:'金' }),
-  I('tiezu','铁镞矢','arrow',{ equip:true, slot:'quiver', dmg:16, lvl:72, value:110, icon:'➶', el:'金' }),
-  I('baihujia','白虎甲','armor',{ equip:true, slot:'armor', def:26, lvl:72, value:1500, icon:'🥋', rarity:'RARE' }),
-  I('wenyaofu','文鳐符','charm',{ value:260, lvl:68, icon:'🪸', equip:true, slot:'charm', effect:'佩之天下大穰', yieldBonus:0.15, reqRecord:{ id:'wenyaoyu', tier:3 } }),
-  I('danghufu','当扈符','charm',{ value:240, lvl:68, icon:'🪸', equip:true, slot:'charm', effect:'食之不眴目', xpBonus:0.10, reqRecord:{ id:'danghu', tier:3 }, py:'dāng hù' }),
+  I('tongzu','铜镞矢','arrow',{ equip:true, grade:'rare', slot:'quiver', dmg:16, lvl:66, value:60, icon:'➶', el:'金' }),
+  I('tiezu','铁镞矢','arrow',{ equip:true, grade:'rare', slot:'quiver', dmg:17, lvl:72, value:110, icon:'➶', el:'金' }),
+  I('baihujia','白虎甲','armor',{ equip:true, grade:'precious', slot:'armor', def:29, lvl:72, value:1500, icon:'🥋', rarity:'RARE' }),
+  I('wenyaofu','文鳐符','charm',{ value:260, lvl:68, icon:'🪸', equip:true, grade:'precious', slot:'charm', effect:'佩之天下大穰', yieldBonus:0.15, reqRecord:{ id:'wenyaoyu', tier:3 } }),
+  I('danghufu','当扈符','charm',{ value:240, lvl:68, icon:'🪸', equip:true, grade:'precious', slot:'charm', effect:'食之不眴目', xpBonus:0.10, reqRecord:{ id:'danghu', tier:3 }, py:'dāng hù' }),
   I('shilaisan','释劳散','potion',{ value:200, lvl:66, icon:'🧪', buff:{ name:'释劳', kind:'gather', gather:0.35, dur:240 }, effect:'食之已劳' }),
   I('yinaosan','益脑散','potion',{ value:240, lvl:68, icon:'🧪', buff:{ name:'益脑', kind:'xp', xpBonus:0.20, dur:300 }, effect:'芎藭之草' }),
   I('yushuisan','御水散','potion',{ value:280, lvl:70, icon:'🧪', buff:{ name:'御水', kind:'def', def:25, dur:300 }, effect:'可以御水' }),
@@ -2274,8 +2325,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.16.0',
-  codename:'五臧 · 续火',
+  version: '1.17.0',
+  codename:'五臧 · 铸序',
   updated: '2026-10-25',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
@@ -2297,6 +2348,9 @@ if (typeof window !== 'undefined'){
   window.AUDIENCE_SITES = AUDIENCE_SITES; window.GROW_SITES = GROW_SITES;
   window.SPECIAL_NODES = SPECIAL_NODES; window.GATHER_BONUS = GATHER_BONUS;
   window.rarityId = rarityId; window.rarityMeta = rarityMeta; window.rarityName = rarityName;
+  window.GEAR_GRADE = GEAR_GRADE; window.GEAR_BASE = GEAR_BASE;
+  window.gearKindOf = gearKindOf; window.gearNum = gearNum; window.gearBaseValue = gearBaseValue;
+  window.gearGrade = gearGrade; window.gearRatio = gearRatio;
   window.rarityColor = rarityColor; window.rarityClass = rarityClass;
   window.tierOfLevel = tierOfLevel; window.recordTierOf = recordTierOf;
   window.masteryBonus = masteryBonus; window.dropWeight = dropWeight;

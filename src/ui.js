@@ -111,6 +111,15 @@ function nameTag(name, py){
   if (rare) return `<span class="nm rare" title="生僻字">${esc(name)}</span>`;
   return `<span class="nm">${esc(name)}</span>`;
 }
+// 品阶徽标：装备用「凡 / 良 / 精 / 珍 / 神」，材料仍用稀有度（凡品/良品/珍品…）。
+// 两套词不能混着显示——「珍品」是价格档，「珍」是获取难度，撞在一起没人看得懂。
+function gradeBadge(it){
+  if (!it || !it.equip || typeof gearGrade !== 'function') return '';
+  const g = gearGrade(it);
+  const cap = (typeof enhanceCapOf === 'function') ? enhanceCapOf(it) : 0;
+  const tip = `${g.name}品 · ${g.desc}${cap ? `（可淬至 +${cap}）` : ''}`;
+  return `<span class="gd gd-${g.id}" title="${esc(tip)}">${g.name}</span>`;
+}
 // 检索命中高亮：把 query 命中的片段包成 <mark class="hit">，所有片段先转义再拼接
 function hi(s, q){
   s = String(s==null ? '' : s);
@@ -2970,7 +2979,7 @@ UI.renderPack = function(){
           <span class="gt-label">${GearSlotLabels[slot]}</span>
           ${g?`<span class="tile-ic bi-ic">${typeof itemIc==='function'?itemIc(g.id||g):g.icon}</span>
                <span class="tile-nm">${esc(g.name)}</span>
-               ${(typeof enhanceLevel==='function'&&enhanceLevel(g.id||g)>0)?`<span class="gt-enh">+${enhanceLevel(g.id||g)}</span>`:''}
+               ${gradeBadge(g)}${(typeof enhanceLevel==='function'&&enhanceLevel(g.id||g)>0)?`<span class="gt-enh">+${enhanceLevel(g.id||g)}</span>`:''}
                <button class="tile-more" type="button" title="卸下" onclick="event.stopPropagation();unequip('${slot}',false);UI.renderPack()">脱</button>`
              :`<span class="gt-empty">空</span>`}
         </div>`;
@@ -3010,7 +3019,7 @@ UI.renderPack = function(){
         const it = Items[id];
         return `<div class="inv-card ${rarityClass(it)}" onclick="showItemDetail('${id}')">
           <span class="ic-icon">${typeof itemIc==='function'?itemIc(id,20):it.icon}</span>
-          <span class="ic-name">${nameTag(it.name, it.py)}</span>
+          <span class="ic-name">${nameTag(it.name, it.py)}${it.equip?gradeBadge(it):''}</span>
           <span class="ic-qty">×${q}</span>
           <span class="ic-val">${(it.value||0)*q} 贝</span>
         </div>`;
@@ -3049,6 +3058,11 @@ function bulkSellCommit(){
 }
 function gearSubText(g){
   const parts = [];
+  if (g.equip && typeof gearGrade === 'function'){
+    const gr = gearGrade(g);
+    const cap = (typeof enhanceCapOf === 'function') ? enhanceCapOf(g) : 0;
+    parts.push(`${gr.name}品${cap ? ` · 上限 +${cap}` : ''}`);
+  }
   const lv = (typeof enhanceLevel === 'function') ? enhanceLevel(g.id || g) : 0;
   const sc = v => Math.floor((typeof enhanceScaled === 'function') ? enhanceScaled(v, lv) : v);
   if (g.dmg) parts.push(`伤害 ${sc(g.dmg)}${lv?`（+${lv}）`:''}`);
@@ -3157,7 +3171,8 @@ function enhancePanelHtml(itemId, it){
   const base = it.dmg || it.def || 0;
   if (!it.equip || !base) return '';
   const lv = enhanceLevel(itemId);
-  const max = ENHANCE_MAX;
+  const max = (typeof enhanceCapOf === 'function' && typeof gearGrade === 'function')
+    ? enhanceCapOf(it) : ENHANCE_MAX;
   const cur = Math.floor(enhanceScaled(base, lv));
   const label = it.dmg ? '伤害' : '防御';
   if (lv >= max){
@@ -3175,6 +3190,7 @@ function enhancePanelHtml(itemId, it){
     <div class="enh-hd">
       <span class="enh-lv">+${lv}<i> / ${max}</i></span>
       <span class="enh-rate ${cls}">成功率 ${rate}%</span>
+      <span class="enh-grade" title="${esc(gearGrade(it).desc)} · 上限 +${max}">${gearGrade(it).name}品</span>
       ${last ? `<span class="enh-log ${last.cls}">${esc(last.text)}</span>` : ''}
     </div>
     <div class="enh-val">${label} <b>${cur}</b> → <b>${nxt}</b>
@@ -3208,17 +3224,27 @@ UI.itemDetailHtml = function(itemId){
   if (it.heal || it.buff) actions.push(`<button class="btn primary" onclick="useConsumable('${itemId}');UI.closeModal()">${it.heal?'食用':'服用'}</button>`);
   if (it.value) actions.push(`<button class="btn" onclick="sellItem('${itemId}',1);UI.closeModal()">出售 1（${sellValue(itemId,1)} 贝）</button>`);
 
-  const enhLv = (typeof enhanceLevel === 'function') ? enhanceLevel(itemId) : 0;
   const hasAffix = it.equip && typeof affixSlotOf === 'function' && affixSlotOf(it);
   const afList = hasAffix ? affixOf(itemId) : [];
   const afCost = hasAffix ? affixReforgeCost(itemId) : null;
   const afOk = afCost ? ((Game.inventory.tan || 0) >= afCost.tan && Game.shells >= afCost.shells) : false;
 
-  return `<h3><span class="mi-ic">${typeof itemIc==='function'?itemIc(itemId,18):it.icon}</span> ${esc(it.name)} <span class="tier">${rarityName(it)}</span></h3>
+  return `<h3><span class="mi-ic">${typeof itemIc==='function'?itemIc(itemId,18):it.icon}</span> ${esc(it.name)} ${it.equip?gradeBadge(it):`<span class="tier">${rarityName(it)}</span>`}</h3>
     <div class="meta">行囊 ${qty} 件${rec?` · 著录 ${rec.count} 次（${TUNING.MASTERY.NAMES[rec.tier]}）`:''}</div>
     ${it.form?`<div class="reveal"><b>形态</b>${esc(it.form)}</div>`:''}
     ${it.effect?`<div class="reveal"><b>效果</b>${esc(it.effect)}</div>`:''}
     ${it.note?`<div class="reveal"><b>出处</b>${esc(it.note)}</div>`:''}
+    ${it.equip && typeof gearKindOf === 'function' && gearKindOf(it)
+      ? (() => {
+          const g = gearGrade(it), r = gearRatio(it);
+          const rel = Math.round((r - 1) * 100);
+          const cap = (typeof enhanceCapOf === 'function') ? enhanceCapOf(it) : 0;
+          return `<div class="reveal"><b>等阶</b>${gradeBadge(it)}
+            <span class="gd-desc">${esc(g.desc)}</span>
+            <span class="gd-rel ${rel >= 0 ? 'up' : 'down'}">较同级良品 ${rel >= 0 ? '+' : '−'}${Math.abs(rel)}%</span>
+            ${cap ? `<span class="gd-cap">可淬 +${cap}</span>` : ''}</div>`;
+        })()
+      : ''}
     ${it.reqRecord?`<div class="reveal"><b>佩用</b><span class="${(typeof reqRecordOk==='function'&&reqRecordOk(it))?'':'lack-n'}">${esc(typeof reqRecordText==='function'?reqRecordText(it):'')}</span></div>`:''}
     ${(() => {
       const uses = itemUses(itemId);

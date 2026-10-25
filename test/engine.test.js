@@ -3300,16 +3300,20 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   };
   const val = it => it.dmg || it.def || it.axePower || it.pickPower || it.netPower || 0;
 
-  // 神兵（divine）是「打得过那位 BOSS」的越级强度，不参与同族梯度比较
+  // 分组按「部位 + 品阶」：珍品强于同级的良品是本分，跨阶比较没意义；
+  // 同阶之内才该是一条不相上下的线。
   const groups = {};
-  all.filter(it => !it.divine).forEach(it => { (groups[fam(it)] = groups[fam(it)] || []).push(it); });
+  all.forEach(it => {
+    const k = fam(it) + '/' + (it.grade || 'fine');
+    (groups[k] = groups[k] || []).push(it);
+  });
   for (const [name, list] of Object.entries(groups)){
     if (name === 'charm') continue;                 // 护符按效果分强弱，不比数值
     const rows = list.filter(i => i.lvl).sort((a, b) => a.lvl - b.lvl);
     for (let i = 1; i < rows.length; i++){
       const cur = val(rows[i]), prev = val(rows[i - 1]);
-      // 允许 10% 的回落：BOSS 材料装可以「等级低但更强」（封豨钺 Lv58 却强过
-      // 苍玉钺 Lv72，因为它的牙要打 76 级的封豨）。再低就是真的倒挂了。
+      // 同阶之内允许一成回落：凶兽材料装可以「等级低但更强」，
+      // 但再低就是真的倒挂。
       assert(cur >= prev * 0.9,
         `${name}：${rows[i].name}(Lv${rows[i].lvl}, ${cur}) 较 ${rows[i - 1].name}(Lv${rows[i - 1].lvl}, ${prev}) 倒退超过一成`);
     }
@@ -3365,21 +3369,21 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   const f1 = ST.enhanceItem('muge');
   assert(f1.ok && !f1.success && !f1.lost && ST.enhanceLevel('muge') === 5, '+5 失败不掉级');
 
-  ST.Game.enhance = { muge: 12 };
-  const f2 = ST.enhanceItem('muge');
-  assert(f2.lost && ST.enhanceLevel('muge') === 11, '+12 失败跌至 +11');
+  ST.Game.enhance = { bailianjian: 12 };
+  const f2 = ST.enhanceItem('bailianjian');
+  assert(f2.lost && ST.enhanceLevel('bailianjian') === 11, '+12 失败跌至 +11');
 
   // 镇物：失败亦保原阶，并扣一枚
-  ST.Game.enhance = { muge: 12 };
+  ST.Game.enhance = { bailianjian: 12 };
   ST.Game.inventory.zhenwu = 2;
-  const f3 = ST.enhanceItem('muge', { stone: true });
-  assert(f3.usedStone && !f3.lost && ST.enhanceLevel('muge') === 12, '镇物护住 +12');
+  const f3 = ST.enhanceItem('bailianjian', { stone: true });
+  assert(f3.usedStone && !f3.lost && ST.enhanceLevel('bailianjian') === 12, '镇物护住 +12');
   assert(ST.Game.inventory.zhenwu === 1, '镇物消耗一枚');
 
   // 必成时逐级推进
   Math.random = () => 0;
-  ST.Game.enhance = { muge: 0 };
-  const r4 = ST.enhanceToTarget('muge', 15, {});
+  ST.Game.enhance = { bailianjian: 0 };
+  const r4 = ST.enhanceToTarget('bailianjian', 15, {});
   assert(r4.done && r4.lv === 15, '强化至 +15 达成');
   Math.random = origRandom;
 
@@ -3439,6 +3443,145 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   const uiSrc61 = readText('src/ui.js');
   assert(uiSrc61.includes('class="dv-tag"') && uiSrc61.includes('hm-line hm-divine'), '详情与讨伐弹窗都标出神兵');
   assert(ST.itemSources('ganqi').some(x => x.kind === '神兵'), '神兵的来路写着「讨伐 刑天」');
+}
+
+// ============ 62. 装备等阶体系（v1.17） ============
+{
+  G.resetToDefault();
+  const all = Object.values(ST.Items).filter(i => i.equip);
+  assert(all.every(i => i.grade), '每件装备都标了品阶（' + all.filter(i => !i.grade).map(i => i.name).join('、') + '）');
+  assert(Object.keys(ST.GEAR_GRADE).length === 5, '五档：凡 / 良 / 精 / 珍 / 神');
+  assert(all.every(i => ST.GEAR_GRADE[i.grade]), '品阶名都在表内');
+
+  // 62.1 数值落在所属品阶的容差带内——这是「合理数值」的可验证定义
+  const stat = all.filter(i => ST.gearKindOf(i));
+  assert(stat.length === 43, '参与数值校验的装备 43 件（' + stat.length + '）');
+  const out = [];
+  for (const it of stat){
+    const g = ST.GEAR_GRADE[it.grade], r = ST.gearRatio(it);
+    if (r < g.mult - g.tol || r > g.mult + g.tol)
+      out.push(`${it.name}(${it.grade} ${r.toFixed(2)}, 应 ${(g.mult-g.tol).toFixed(2)}~${(g.mult+g.tol).toFixed(2)})`);
+  }
+  assert(out.length === 0, '全部落在品阶带内（越界：' + (out.join('；') || '无') + '）');
+
+  // 62.2 基准曲线本身要合理：单调递增，且量级吻合
+  for (const k of ['melee', 'bow', 'armor', 'tool', 'quiver']){
+    const f = ST.GEAR_BASE[k];
+    assert(f(81) > f(1), k + ' 基准随等级上升');
+  }
+  assert(Math.abs(ST.GEAR_BASE.melee(44) - 40.3) < 0.5, '近战基准 Lv44 ≈ 40（良品应在 40 上下）');
+  assert(ST.gearKindOf(ST.Items.bailianjian) === 'melee' && ST.gearKindOf(ST.Items.sangzhegong) === 'bow',
+    '部位判定：剑归近战、弓归弓');
+  assert(ST.gearKindOf(ST.Items.jinfu) === 'tool' && ST.gearKindOf(ST.Items.tiezu) === 'quiver', '工具与箭各自归类');
+  assert(ST.gearKindOf(ST.Items.migufu) === null, '护符不比数值');
+
+  // 62.3 强化上限按品阶分档
+  const capOf = id => ST.enhanceCapOf(ST.Items[id]);
+  assert(capOf('muge') === 12, '凡品上限 +12');
+  assert(capOf('bailianjian') === 18, '良品上限 +18');
+  assert(capOf('zaochimao') === 22, '精品上限 +22');
+  assert(capOf('cangyuyue') === 26, '珍品上限 +26');
+  assert(capOf('ganqi') === 30, '神兵上限 +30');
+
+  // 行为：良品到了 +18 就升不动，神兵还能往上
+  for (const sid of ST.ALL_SKILL_IDS) ST.Game.skills[sid] = { level: 70, xp: 1e8 };
+  ST.Game.inventory.tan = 9999; ST.Game.shells = 1e7;
+  ST.Game.enhance = { bailianjian: 18 };
+  const r1 = ST.enhanceItem('bailianjian');
+  assert(r1.ok === false && r1.reason === '已至顶', '良品 +18 后无可再淬');
+  assert(ST.Game.inventory.tan === 9999, '到顶时不扣材料');
+
+  ST.Game.enhance = { ganqi: 18 };
+  const origRandom = Math.random;
+  Math.random = () => 0;                       // 必成
+  const r2 = ST.enhanceItem('ganqi');
+  Math.random = origRandom;
+  assert(r2.ok && r2.lvAfter === 19, '神兵 +18 仍可继续（+19）');
+
+  // 老档：已经强到 +25 的良品不被削，只是不能再升
+  ST.Game.enhance = { bailianjian: 25 };
+  assert(ST.enhanceLevel('bailianjian') === 25, '旧档 +25 原样保留');
+  const r3 = ST.enhanceItem('bailianjian');
+  assert(r3.ok === false, '但它已过本件上限，不能再升');
+  assert(ST.enhanceScaled(46, 25) > ST.enhanceScaled(46, 18), '保留的等级仍然算数');
+
+  // 62.4 强化至目标：目标被本件上限夹住
+  ST.Game.enhance = { bailianjian: 0 };
+  const origRandom2 = Math.random;
+  Math.random = () => 0;
+  const r4 = ST.enhanceToTarget('bailianjian', 30, {});
+  Math.random = origRandom2;
+  assert(r4.lv === 18 && r4.done, '要 +30 也只到 +18（良品上限）');
+
+  // 62.5 无伤无守之物不可淬（护符）
+  ST.Game.inventory.tan = 500;
+  const r5 = ST.enhanceItem('migufu');
+  assert(r5.ok === false, '护符不可淬炼');
+  assert(ST.Game.inventory.tan === 500, '且不白扣材料');
+
+  // 62.6 同等级段，品阶拉开差距：苍玉钺(珍 Lv72) 强于琅玕剑(良 Lv74)
+  assert(ST.Items.cangyuyue.dmg > ST.Items.langganjian.dmg,
+    '珍品 Lv72(${}) 强于良品 Lv74(${})'.replace('${}', ST.Items.cangyuyue.dmg).replace('${}', ST.Items.langganjian.dmg));
+  assert(ST.Items.ganqi.dmg > ST.Items.cangyuyue.dmg * 1.3, '神兵比珍品再高一截');
+
+  // 62.7 界面
+  const uiSrc62 = readText('src/ui.js');
+  assert(uiSrc62.includes('function gradeBadge'), '有品阶徽标');
+  assert(uiSrc62.includes('<b>等阶</b>') && uiSrc62.includes('较同级良品'),
+    '详情列出等阶、较同级良品的强弱、可淬上限');
+  assert(uiSrc62.includes('enhanceCapOf(it)') && uiSrc62.includes('class="enh-grade"'),
+    '强化面板的上限取自本件品阶（enhanceCapOf），并标出品阶');
+  assert(/\.gd-divine\{/.test(readText('style.css')), '五档各有配色');
+}
+
+// ============ 63. 老档装备按数据表重建（v1.17） ============
+{
+  G.resetToDefault();
+  const engSrc63 = readText('src/engine.js');
+  // 存档里的装备是对象快照。旧快照没有后来新增的字段（品阶、神兵特性），
+  // 数值也是当时那一版——不重建的话，调平衡对老玩家不生效，
+  // 神兵读出来不带特性，珍品显示成良品。
+  assert(engSrc63.includes('Game.gear[slot] = Object.assign({}, Items[gid], { id: gid })'),
+    '读档时按 Items 重建装备（而非沿用旧快照）');
+
+  // 63.0 强化等级不被读档削掉。engine 里曾写死 Math.min(9, v)——
+  // 上限提到 30 时忘了同步，强到 +20 的装备一刷新就掉回 +9。
+  assert(!/Math\.min\(9,\s*v\)/.test(engSrc63), '读档不再把强化等级钳到 9');
+  {
+    const d63 = ST.serializeSave();
+    d63.enhance = { ganqi: 28, bailianjian: 15 };
+    ST.importSaveText(JSON.stringify(d63));
+    assert(ST.enhanceLevel('ganqi') === 28, '读档保留 +28（实为 +' + ST.enhanceLevel('ganqi') + '）');
+    assert(ST.enhanceLevel('bailianjian') === 15, '读档保留 +15');
+    // 非法值仍要剔除
+    const d63b = ST.serializeSave();
+    d63b.enhance = { ganqi: 999, bailianjian: -3 };
+    ST.importSaveText(JSON.stringify(d63b));
+    assert(ST.enhanceLevel('ganqi') === 30, '超上限钳到 30（不无限放大）');
+    assert(ST.enhanceLevel('bailianjian') === 0, '负数剔除');
+  }
+
+  // 造一份「旧档」：苍玉钺 还是 58 点、没有 grade；干戚 没有 divine
+  const old = ST.serializeSave();
+  old.gear = {
+    weapon: { id:'ganqi', name:'干戚', dmg:118, ranged:false, lvl:81 },
+    armor:  { id:'cangyuyue' },              // 甚至缺字段
+    charm: null, quiver:null, axe:null, pick:null, net:null,
+  };
+  const ok63 = ST.importSaveText(JSON.stringify(old)).ok;
+  assert(ok63, '旧档可读');
+  assert(ST.Game.gear.weapon.divine === 'crit', '神兵特性从数据表补回（旧快照没有 divine）');
+  assert(ST.Game.gear.weapon.grade === 'divine', '品阶从数据表补回');
+  assert(ST.Game.gear.weapon.dmg === ST.Items.ganqi.dmg, '数值取当前数据表，而非旧快照');
+  assert(ST.Game.gear.armor && ST.Game.gear.armor.name === '苍玉钺', '只存了 id 的槽位也能补全');
+  assert(ST.Game.gear.armor.dmg === ST.Items.cangyuyue.dmg, '苍玉钺取当前 80 点');
+
+  // 普通装备同样
+  G.resetToDefault();
+  const old2 = ST.serializeSave();
+  old2.gear = { weapon:{ id:'bailianjian', name:'百炼剑', dmg:46, lvl:44 } };
+  ST.importSaveText(JSON.stringify(old2));
+  assert(ST.Game.gear.weapon.grade === 'fine' && ST.Game.gear.weapon.dmg === 46, '良品读档后带品阶');
 }
 
 // ============ 47. 物品用途面板（v1.14.3） ============

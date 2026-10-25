@@ -1221,6 +1221,26 @@ svg.bi.mk{ vertical-align:-2px; }
   color:#FCFBF6; background:var(--zhu); border-radius:2px; cursor:help;
 }
 .hm-spec b{ color:var(--zhu); font-family:var(--f-kai); }
+/* 品阶徽标：单字方印，凡灰良绿精青珍赭神朱 */
+.gd{
+  display:inline-block; flex:0 0 auto; margin-left:4px; padding:0 4px;
+  font-family:var(--f-kai); font-size:10.5px; line-height:15px; letter-spacing:0;
+  color:#FCFBF6; border-radius:2px; vertical-align:1px; cursor:help;
+}
+.gd-common{ background:#8a8577; }
+.gd-fine{ background:#4A7C59; }
+.gd-rare{ background:#2E5C8A; }
+.gd-precious{ background:#B06A1E; }
+.gd-divine{ background:#C3272B; }
+.gd-desc{ font-size:12px; color:var(--ink-3); }
+.gd-rel{ font-family:var(--f-num); font-size:11px; }
+.gd-rel.up{ color:var(--tai); } .gd-rel.down{ color:var(--ink-4); }
+.gd-cap{ font-family:var(--f-num); font-size:11px; color:var(--jin); }
+.enh-grade{ margin-left:auto; font-family:var(--f-kai); font-size:10.5px; color:var(--ink-4); }
+/* 槽位左上角已被「兵器/甲胄」占着，品阶印落到右下；强化 +N 仍在右上 */
+.gear-tile .gd{ position:absolute; right:3px; bottom:3px; margin:0;
+  font-size:9.5px; line-height:13px; padding:0 3px; }
+.ic-name .gd{ margin-left:3px; }
 /* 神兵：详情里的特性行、讨伐弹窗的掉落提示 */
 .dv-tag{
   flex:0 0 auto; font-family:var(--f-kai); font-size:11px; line-height:16px; padding:0 6px;
@@ -1997,7 +2017,8 @@ mark.hit{
 
 /* ----- 装备淬炼角标 ----- */
 .gear-tile .gt-enh{
-  position:absolute; top:3px; right:3px; padding:2px 4px; border-radius:1px;
+  /* 右上角被「脱」占着，强化角标挪到左下；品阶印在右下，四角各归各位 */
+  position:absolute; bottom:3px; left:3px; padding:2px 4px; border-radius:1px;
   font-family:var(--f-num); font-size:10px; line-height:1; color:#fff; background:var(--jin);
 }
 
