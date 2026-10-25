@@ -756,7 +756,7 @@ function openHelp(){
       <div class="help-sec"><b>五行相克</b><p class="hint">兵器与异兽分属金木水火土。相克 ×1.35、被克 ×0.75、同属 ×1.00、相生 ×1.15。相克：金克木、木克土、土克水、水克火、火克金；相生：金生水、水生木、木生火、火生土、土生金。装备相克属性的兵器可压制目标。</p></div>
       <div class="help-sec"><b>征兆</b><p class="hint">首次著录异兽可能触发吉凶之兆（如「其邑大水」「有大兵」），影响区域或全局产出。部分物品可免疫对应征兆（如「佩之不惑」之符、「御兵」之兽）。</p></div>
       <div class="help-sec"><b>祠祀 · 卜筮</b><p class="hint">谒见山神献祭以增益区域产出；卜筮可问吉凶、抉择事件走向。</p></div>
-      <div class="help-sec"><b>商旅 · 观象 · 圃艺</b><p class="hint">以贝币买卖物品、低买高卖；观象提升离线上限（基础 12 小时，每处观象 +1 小时、仓廪 +2 小时）与离线效率；圃艺种植收成。</p></div>
+      <div class="help-sec"><b>商旅 · 观象 · 圃艺</b><p class="hint">以贝币买卖物品、低买高卖；观象提升离线上限（基础 ${TUNING.OFFLINE.CAP_H} 小时，每处观象 +1、仓廪 +2、土窟 +1，另有长线成就加成；现为 ${offlineCapHours()} 小时）与离线效率；圃艺种植收成。</p></div>
       <div class="help-sec"><b>离线收益</b><p class="hint">离开页面仍按离线时长结算（效率随「观象」等提升，封顶约 0.85）。离山较久归来会弹出「离线归来」汇总。</p></div>
       <div class="help-sec"><b>存档</b><p class="hint">游戏每 5 秒自动存档在本机浏览器；「统计」页可导出 / 导入 / 重置存档。想在多设备间续玩，可在「设置 → 存档」填入云端存档服务器地址：停止操作约 3 秒自动上传，离开页面时强传一次；拉取时与本地进度按规则合并（经验 / 著录取大，地图 / 背包并集，贝币取较新），不丢进度。</p></div>
       <div class="help-sec"><b>快捷键</b><p class="hint">1–9 切页 · S 存档 · Q 停止当前行动 · Esc 关闭弹窗。</p></div>
@@ -778,7 +778,7 @@ const TUT_STEPS = [
   { tab:'pack',   icon:'🎒', title:'行装器物',
     body:`采集与讨伐所得皆入<b>行装</b>。\n装备兵器（五行相克：金克木、木克土……）、佩带饰物、服用丹药。\n点物品可查看它的原文句式——「食之X」「佩之X」「可以X」。` },
   { tab:'queue',  icon:'🧭', title:'巡历挂机',
-    body:`这是挂机核心。在「行动」编排<b>巡历队列</b>与<b>兜底任务</b>，离开页面也能自动推进。\n归来时按离线时长结算收益；离线上限随「观象」「仓廪」提升（最高 15 小时）。` },
+    body:()=>`这是挂机核心。在「行动」编排<b>巡历队列</b>与<b>兜底任务</b>，离开页面也能自动推进。\n归来时按离线时长结算收益；离线上限随「观象」「营造」提升（现为 ${offlineCapHours()} 小时）。` },
   { icon:'📊', title:'祠祀与统计',
     body:`你还可祠祀山神（增益区域产出）、营造市廛、卜筮吉凶、观象提升离线上限。\n进度<b>自动存档于本机</b>；在「统计」页可导出 / 导入存档。\n\n祝著录顺利，山海自有回响。` },
 ];
@@ -794,6 +794,9 @@ function showTutorial(){
 }
 function renderTutStep(){
   const s = TUT_STEPS[_tutIdx];
+  // body 可以是函数：含「当前上限」这类随进度变化的数字，得在渲染时才算，
+  // 数组字面量里求值会把开局的 12 小时永久钉死。
+  const body = typeof s.body === 'function' ? s.body() : s.body;
   if (s.tab) UI.switchTab(s.tab);
   const first = _tutIdx === 0;
   const last = _tutIdx === TUT_STEPS.length - 1;
@@ -801,7 +804,7 @@ function renderTutStep(){
   UI.modal(`
     <div class="tut-card">
       <div class="tut-head"><span class="mi-ic">${typeof markIcon==='function'?markIcon(tutMark(s),17):(s.icon||'📜')}</span> <b>${s.title}</b></div>
-      <div class="tut-body">${s.body.replace(/\n/g,'<br>')}</div>
+      <div class="tut-body">${body.replace(/\n/g,'<br>')}</div>
       <div class="tut-dots">${dots}</div>
       <div class="modal-btns tut-btns">
         ${first?'':'<button class="btn" onclick="tutPrev()">上一步</button>'}
@@ -2475,11 +2478,19 @@ function buffDefText(def){
   if (def.kind === 'wise') parts.push('抉择类事件必出最优解');
   return parts.join(' · ');
 }
+// 征兆效果的唯一口径：卡片浮层与顶栏汇总共用一张表。
+// 原先浮层那张 map 漏了 dmg / loot / craft / move / divine，
+// 「见则有兵」这类最凶的兆点开是空白——只说「有兵」，不说兵在哪儿。
+const OMEN_EFFECT_LABELS = [
+  ['yield','全局产出'], ['gather','采集效率'], ['dmg','伤害'], ['loot','所获'],
+  ['offline','离线收益'], ['trade','商旅收益'], ['fish','渔获'], ['build','营造经验'],
+  ['craft','制作速度'], ['move','行动速度'], ['divine','卜筮'],
+];
 function omenEffectText(def){
-  const map = { yield:'全局产出', gather:'采集效率', offline:'离线收益', trade:'商旅收益', fish:'渔获', build:'营造速度', wise:'抉择类事件必吉' };
   const parts = [];
-  for (const k in def){
-    if (map[k]) parts.push(`${map[k]} ${def[k]>0?'+':''}${Math.round(def[k]*100)}%${def.dur?`（${fmtTime(def.dur)}）`:''}`);
+  for (const [k, label] of OMEN_EFFECT_LABELS){
+    if (def[k] === undefined) continue;
+    parts.push(`${label} ${def[k] > 0 ? '+' : ''}${Math.round(def[k]*100)}%${def.dur ? `（${fmtTime(def.dur)}）` : ''}`);
   }
   if (def.wise) parts.push('抉择类事件必出最优解');
   return parts.join('；');
@@ -2526,10 +2537,8 @@ window.codexNode = codexNode;
 window.nodeRecordProgress = nodeRecordProgress;
 // 当前所有生效征兆的聚合数值预览（供「当前总效应」展示）
 function currentOmenEffects(){
-  const keys = [['yield','全局产出'],['gather','采集效率'],['offline','离线收益'],['trade','商旅收益'],
-    ['fish','渔获'],['build','营造速度'],['divine','卜筮'],['craft','制作效率'],['move','巡历效率']];
   const out = [];
-  keys.forEach(([k,label])=>{ const v = omenMod(k); if (v) out.push({ label, pct: Math.round(v*100) }); });
+  OMEN_EFFECT_LABELS.forEach(([k, label]) => { const v = omenMod(k); if (v) out.push({ label, pct: Math.round(v * 100) }); });
   return out;
 }
 // 微型走势曲线（SVG 折线）

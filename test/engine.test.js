@@ -3043,6 +3043,104 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
     '折叠组内的卡不存在时，patchBeastCard 静默跳过');
 }
 
+// ============ 53. 长线成就字段全部接线（v1.15.4） ============
+{
+  G.resetToDefault();
+  const gameSrc53 = readText('src/game.js');
+  // 字段定义了却没人读，等于成就页亮着「已达成」而效果不存在。
+  // 之前 offlineCap 与 jisi 就是这样：文案写了，实现里一个字都没有。
+  for (const f of ['xp', 'dmg', 'gather', 'yield', 'offlineEff', 'offlineCap', 'jisi']){
+    assert(gameSrc53.includes('ms.' + f), '里程碑字段 ' + f + ' 有实现（不静默丢弃）');
+  }
+
+  // 行为：三处观象各自 +1 小时，「三谷观象」成就再 +1
+  G.resetToDefault();
+  const cap0 = ST.offlineCapHours();
+  ST.Game.observed = { qiuwu: true, yugu: true, zhonggu: true };
+  const cap3 = ST.offlineCapHours();
+  assert(cap3 - cap0 === 4, '三谷观象实得 +4 小时（3 处观象 + 1 成就，实为 ' + (cap3 - cap0) + '）');
+  assert(ST.Milestones.find(m => m.id === 'guan_all').bonus === '离线上限 +1h', '成就文案与实现一致');
+
+  // 行为：西山百神 → 祭祀经验 +20%
+  G.resetToDefault();
+  assert(ST.jisiBonus() === 0, '未达成时无祭祀加成');
+  ST.Game.records = {};
+  // 「谒见全部 14 位神祇」——按谒见点的神祇 id 计，不是祠礼的 deity_ 键
+  const xsDeities = Object.values(ST.AUDIENCE_SITES)
+    .filter(x => String(x.nodeId).indexOf('xishan-') === 0)
+    .flatMap(x => x.deities || []);
+  assert(xsDeities.length === 14, '西山共有 14 位可谒见神祇（' + xsDeities.length + '）');
+  assert(ST.jisiBonus() === 0, '未谒见时无加成');
+  xsDeities.slice(0, 13).forEach(d => { ST.Game.records[d.id] = { count: 1, tier: 1 }; });
+  assert(ST.jisiBonus() === 0, '差一位不亮');
+  ST.Game.records[xsDeities[13].id] = { count: 1, tier: 1 };
+  assert(ST.jisiBonus() === 0.20, '谒见全部 14 位后成就达成，祭祀经验 +20%');
+  assert(gameSrc53.includes('def.xp * mult * (1 + jisiBonus())'), '行祭经验接入该加成');
+
+  // 文案不得写死早已过时的数字
+  const uiSrc53 = readText('src/ui.js');
+  assert(!uiSrc53.includes('最高 15 小时'), '教程不再写死「最高 15 小时」（实际已随观象/营造涨到 18+）');
+  assert(uiSrc53.includes('${offlineCapHours()}'), '玩法说明与教程改为读当前上限');
+  assert(uiSrc53.includes("typeof s.body === 'function' ? s.body() : s.body"),
+    '教程正文支持延迟求值（否则数组字面量会把开局数字钉死）');
+}
+
+// ============ 54. 征兆效果全部接线（v1.15.4） ============
+{
+  G.resetToDefault();
+  const gameSrc54 = readText('src/game.js');
+  // 征兆定义的每个数值字段都必须有 omenMod('<key>') 出口。
+  // 之前 dmg / loot / fish / build 四条全是「写了但没人读」——
+  // 玩家看见「见则有兵」的凶兆，战斗数值一分没变。
+  const LABELS = ['beast','type','polarity','desc','dur','node','wise','war','wind','psy'];
+  const numKeys = new Set();
+  for (const o of Object.values(ST.OMENS)){
+    for (const [k, v] of Object.entries(o)){
+      if (LABELS.includes(k)) continue;
+      if (typeof v === 'number') numKeys.add(k);
+    }
+  }
+  assert(numKeys.size >= 8, '征兆数值字段 ' + numKeys.size + ' 类（' + [...numKeys].join('/') + '）');
+  for (const k of numKeys){
+    assert(gameSrc54.includes(`omenMod('${k}')`), '征兆通道 ' + k + ' 已接通');
+  }
+
+  // 行为：有兵之兆（朱厌）→ 伤害 -15%
+  G.resetToDefault();
+  const dm0 = ST.dmgMult();
+  ST.Game.omens = [{ id: 'zhuyan', until: ST.Game.stats.time + 3600 }];
+  const dm1 = ST.dmgMult();
+  assert(Math.abs(dm1 - dm0 * 0.85) < 1e-6, '朱厌「有兵」使伤害 ×0.85（' + dm0.toFixed(2) + ' → ' + dm1.toFixed(2) + '）');
+
+  // 行为：烽火台把凶兆之害减半
+  ST.Game.buildings.fenghuotai = true;
+  const dm2 = ST.dmgMult();
+  assert(Math.abs(dm2 - dm0 * 0.925) < 1e-6, '烽火台把 -15% 折成 -7.5%');
+
+  // 行为：大旱只克渔
+  G.resetToDefault();
+  ST.Game.omens = [{ id: 'tuanyu', until: ST.Game.stats.time + 3600 }];
+  assert(ST.omenMod('fish') < -0.3, '鱄鱼「大旱」的渔获惩罚可读');
+  assert(gameSrc54.includes("if (skillId === 'yu') bonus += omenMod('fish')"), '渔获惩罚只作用于渔');
+
+  // 行为：土功提升营造经验
+  G.resetToDefault();
+  ST.Game.omens = [{ id: 'lili', until: ST.Game.stats.time + 3600 }];
+  assert(Math.abs(ST.omenMod('build') - 0.20) < 1e-9, '狸力「土功」营造经验 +20%');
+  assert(gameSrc54.includes("deployedBonuses().build + omenMod('build')"), '营造经验接入该通道');
+
+  // 浮层与顶栏汇总共用同一张标签表：最凶的「有兵」不能点开是空白
+  const txt = ST.omenEffectText(ST.OMENS.zhuyan);
+  assert(/伤害 -15%/.test(txt) && /所获 -10%/.test(txt), '「有兵」浮层写明伤害 -15%、所获 -10%（' + txt + '）');
+  const uiSrc54 = readText('src/ui.js');
+  assert(uiSrc54.includes('OMEN_EFFECT_LABELS'), '效果标签抽成单一常量（浮层与汇总共用）');
+  ST.Game.omens = [{ id: 'zhuyan', until: ST.Game.stats.time + 600 }];
+  const agg = ST.UI && typeof ST.currentOmenEffects === 'function' ? ST.currentOmenEffects() : null;
+  if (agg){
+    assert(agg.some(x => x.label === '伤害' && x.pct === -15), '顶栏汇总也报出伤害 -15%');
+  }
+}
+
 // ============ 47. 物品用途面板（v1.14.3） ============
 {
   G.resetToDefault();

@@ -133,6 +133,7 @@ function dmgMult(){
   let m = 1;
   (window.Milestones||[]).forEach(ms=>{ if (ms.dmg && ms.check()) m += ms.dmg; });
   m += deployedBonuses().dmg;
+  m += omenMod('dmg');               // 有兵之兆（凫徯 / 朱厌 / 大鹗…）：伤害 -15%
   if (Game.buff && Game.buff.def && Game.buff.def.kind === 'all' && Game.buff.def.dmg) m += Game.buff.def.dmg;
   return m;
 }
@@ -197,7 +198,16 @@ function offlineCapHours(){
   if (Game.buildings.canglin) h += 2;
   if (Game.buildings.tuku) h += 1;      // 土窟：因势窟土，以庇风雨
   h += Object.values(Game.observed||{}).filter(Boolean).length;   // 每处观象 +1h
+  // 长线成就里的「离线上限 +1h」原先只有文案、没人读——三谷观象做完，
+  // 里程碑亮着「已达成」，上限却没动。这里补上。
+  (window.Milestones||[]).forEach(ms=>{ if (ms.offlineCap && ms.check()) h += ms.offlineCap / 3600; });
   return h;
+}
+// 祭祀经验加成（西山百神「祭祀效率 +20%」）——同为里程碑字段，此前同样只写在文案里
+function jisiBonus(){
+  let b = 0;
+  (window.Milestones||[]).forEach(ms=>{ if (ms.jisi && ms.check()) b += ms.jisi; });
+  return b;
 }
 function maxSkillLevel(){
   let m = 1;
@@ -205,6 +215,7 @@ function maxSkillLevel(){
   return m;
 }
 window.xpMult = xpMult; window.dmgMult = dmgMult; window.defBonus = defBonus;
+window.jisiBonus = jisiBonus;
 window.gatherSpeedMult = gatherSpeedMult; window.farmSpeedMult = farmSpeedMult;
 window.divMult = divMult; window.tradeMult = tradeMult; window.globalYieldBonus = globalYieldBonus;
 window.isWise = isWise; window.offlineEff = offlineEff; window.offlineCapHours = offlineCapHours;
@@ -358,7 +369,10 @@ function doGather(itemId){
   // 二十八套礼制等于花钱买一段祭祀经验 —— 这里并进采集加成，礼才有着落。
   const riteBonus = regionRiteBonus((regionOf(Game.node)||{}).regionId);
   let bonus = masteryBonus(rec.count) + globalYieldBonus() + riteBonus;
+  // 大旱之兆（鱄鱼 / 颙 / 肥𧔥…）专克渔获，十三条征兆都写着 fish:-0.4，此前无人读
+  if (skillId === 'yu') bonus += omenMod('fish');
   if (special && special.rareBonus) bonus += special.rareBonus;   // 积石之山：万物无不有焉
+  bonus = Math.max(-0.4, bonus);
   let qty = 1;
   if (chance(TUNING.GATHER_DOUBLE + bonus*0.5)) qty = 2;
   if (chance(bonus*0.12)) qty += 1;
@@ -553,7 +567,7 @@ function performRite(riteId, opts){
   if (!canAfford(rec.cost)){ if (!silent) UI && UI.toast('祠礼材料不备'); return false; }
   payCost(rec.cost);
   const mult = Game.buildings.citan ? 1.5 : 1;
-  gainXp('jisi', def.xp * mult);
+  gainXp('jisi', def.xp * mult * (1 + jisiBonus()));
   Game.stats.rites++;
   if (def.regionId){
     Game.rites = Game.rites || {};
@@ -869,7 +883,8 @@ function buildStructure(id){
   if (!canAfford(b.cost)){ UI && UI.toast('材用不足'); return false; }
   payCost(b.cost);
   Game.buildings[id] = true;
-  const buildBonus = 1 + deployedBonuses().build;   // 狸力「土功」、猾褢「大繇」
+  // 狸力 / 鵹鹕「见则其县多土功」：营造经验 +20%——此前注释写着，实现里没有
+  const buildBonus = 1 + deployedBonuses().build + omenMod('build');
   const gain = Math.round(b.xp * buildBonus);
   gainXp('yingyi', gain);
   log(`🏘️ 营造${b.name}：${b.desc}`, 'gold', 'sys');
@@ -1363,7 +1378,7 @@ function meetKill(c, m){
   // 战利品（权重公式，见 TUNING.DROP）。⚠️ BOSS 只有单件 drop、无 loot 表，
   // 早年缺 `|| []` 兜底导致讨平 BOSS 必抛 TypeError（战斗循环中断），务必保留。
   const tier = (Game.records[m.id]||{}).tier || 0;
-  const yieldB = 1 + globalYieldBonus() + deployedBonuses().loot;
+  const yieldB = 1 + globalYieldBonus() + deployedBonuses().loot + omenMod('loot');   // 有兵 / 多狡客：所获 -10%
   for (const [id, base, qty] of (m.loot || [])){
     let p = base * (1 + TUNING.DROP.LVL_COEF*(levelOf('taofa') - m.needLvl)) * (1 + TUNING.DROP.MAS_COEF*tier/4);
     p = clamp(p * yieldB, 0.05, 0.95);
