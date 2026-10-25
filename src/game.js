@@ -780,6 +780,24 @@ function styleAvailable(s){
   return false;
 }
 const STYLE_NAMES = { auto:'自动', attack:'近战', ranged:'远程', zhu:'祝术' };
+// ---------- 战法（姿态）----------
+// 流派决定「用什么打」，战法决定「怎么打」：同一套祝术，疾攻是快而薄，
+// 破军是重而险。四项乘区各自独立，与五行克制、词条、绝技互不覆盖。
+const TACTICS = {
+  none:    { id:'none',    name:'无',   desc:'不偏不倚，照常应战',           dmg:1.00, spd:1.00, def:1.00, taken:1.00 },
+  swift:   { id:'swift',   name:'疾攻', desc:'攻势 +15%，伤害 −10%',         dmg:0.90, spd:1.15, def:1.00, taken:1.00 },
+  steady:  { id:'steady',  name:'沉稳', desc:'防御 +25%、减伤 10%，攻势 −10%', dmg:0.95, spd:0.90, def:1.25, taken:0.90 },
+  breaker: { id:'breaker', name:'破军', desc:'伤害 +18%，防御 −25%',          dmg:1.18, spd:1.00, def:0.75, taken:1.00 },
+};
+function currentTactic(){ return TACTICS[(typeof Prefs !== 'undefined' && Prefs.tactic) || 'none'] || TACTICS.none; }
+function setTactic(id){
+  Prefs.tactic = TACTICS[id] ? id : 'none';
+  saveGame();
+  log(`🎴 战法：${currentTactic().name}（${currentTactic().desc}）`, 'gold', 'sys');
+  UI && UI.toast(`战法：${currentTactic().name}`);
+  if (UI && UI.currentTab === 'taofa' && UI.patchCombatArena) UI.patchCombatArena();
+  return Prefs.tactic;
+}
 function styleLabel(v){ return STYLE_NAMES[v] || STYLE_NAMES.auto; }
 function preferredStyle(){
   const pref = Prefs.stylePref || 'auto';
@@ -808,6 +826,7 @@ function setZhuEl(el){
 }
 window.combatMode = combatMode; window.styleAvailable = styleAvailable; window.styleLabel = styleLabel;
 window.preferredStyle = preferredStyle; window.setCombatStyle = setCombatStyle; window.setZhuEl = setZhuEl;
+window.TACTICS = TACTICS; window.currentTactic = currentTactic; window.setTactic = setTactic;
 
 function playerElement(){
   const style = combatMode();
@@ -879,6 +898,7 @@ function playerDamageRange(){
   const af = (typeof affixTotals === 'function') ? affixTotals() : affixZero();
   let dmg = playerWeaponDmg() + stat*1.2;
   dmg *= (1 + af.dmgPct/100);                     // 词条「锋」：伤害乘区
+  dmg *= currentTactic().dmg;                     // 战法：疾攻薄、破军重
   const beast = Game.combat ? Monsters[Game.combat.monsterId] : null;
   if (beast){
     // 词条「引」只放大「克制关系带来的偏离」，不改基线：同属 ×1.00 仍是 ×1.00
@@ -896,6 +916,7 @@ function playerAttackInterval(){
   base -= lvl*0.008;
   const af = (typeof affixTotals === 'function') ? affixTotals() : affixZero();
   base /= (1 + af.atkSpeed/100);                  // 词条「疾」：攻势
+  base /= currentTactic().spd;                    // 战法：疾攻更快、沉稳更慢
   return Math.max(1.2, base);
 }
 function playerEvasion(){
@@ -909,6 +930,7 @@ function totalDefence(){
   d += defBonus();
   const af = (typeof affixTotals === 'function') ? affixTotals() : affixZero();
   d += af.def;                                    // 词条「固」：定值防御
+  d *= currentTactic().def;                       // 战法：沉稳厚、破军薄
   return d;
 }
 function playerMaxHp(){
@@ -1008,7 +1030,8 @@ function doPlayerUltimate(c, m){
   gainXp(style === 'zhu' ? 'zhu' : style === 'ranged' ? 'she' : 'bing', 8);
   gainXp('taofa', 5);
   UI && UI.attackFx && UI.attackFx('player');
-  UI && UI.hit(monsterEl(), `绝技·${name} -${dmg}`, '#ffd166');
+  if (UI && UI.ultimateFx) UI.ultimateFx(name);
+  else UI && UI.hit(monsterEl(), `绝技·${name} -${dmg}`, '#ffd166');
   log(`✨ 绝技「${name}」造成 ${dmg} 伤害${crit?'（暴击）':''}`, 'gold', 'combat');
   if (c.playerHp > 0 && c.playerHp <= playerMaxHp() * Prefs.autoEat) autoEat(c);
 }
@@ -1087,6 +1110,8 @@ function doMonsterAttack(c, m){
   const def = totalDefence();
   let dmg = roll(1, Math.max(1, m.atk - def*0.3));
   if (af.dmgTaken > 0) dmg = Math.max(1, Math.floor(dmg * (1 - af.dmgTaken/100)));   // 词条「韧」
+  const tac = currentTactic();
+  if (tac.taken !== 1) dmg = Math.max(1, Math.floor(dmg * tac.taken));              // 战法「沉稳」减伤
   c.playerHp -= dmg;
   c.dmgIn = (c.dmgIn||0) + dmg;
   // 受击折势，但不破连击：连击断在「自己没打中」上，而不是「挨了一下」——
@@ -1236,8 +1261,12 @@ function meetKill(c, m){
   // 限次连战：c.repeat 为「本轮还剩几场」（含刚打完这场）。null = 无限连战（旧行为）。
   const left = (c.repeat == null) ? null : c.repeat - 1;
   if (!isBoss && !queueTookOver){
-    if (left == null) startCombat(c.monsterId, _qDriven ? { fromQueue:true } : undefined);
-    else if (left > 0) startCombat(c.monsterId, _qDriven ? { times:left, fromQueue:true } : { times:left });
+    // 残势：连战间继承 60% 的势——否则清小怪每场都从 0 起蓄，挂机时绝技永远放不出来
+    // （一场三五回合就结束，蓄不到 100）。败北则清零，不留残余。
+    const carry = Math.min(100, Math.round((c.momentum || 0) * 0.6));
+    const q = _qDriven ? { fromQueue:true, carry } : { carry };
+    if (left == null) startCombat(c.monsterId, Object.assign({}, q));
+    else if (left > 0) startCombat(c.monsterId, Object.assign({ times:left }, q));
     else UI && UI.toast(`⚔️ 已战 ${c.repeat} 场，收兵`);
   }
 }
@@ -1294,7 +1323,8 @@ function startCombat(monsterId, opts){
   const times = (opts && opts.times > 0) ? Math.max(1, Math.min(99, Math.floor(opts.times))) : null;
   Game.combat = { monsterId, monsterHp:m.hp, playerHp:playerMaxHp(), timer:0, maxtimer:0, spec:0,
     style, dmgOut:0, dmgIn:0, round:0, flee:0, repeat:times,
-    momentum:0, combo:0, ults:0 };   // 势 / 连击 / 绝技次数：每场重蓄
+    momentum: Math.max(0, Math.min(100, Math.round((opts && opts.carry) || 0))),
+    combo:0, ults:0 };   // 势可承自上一场（残势），连击与绝技次数每场重记
   autoAttack = true;
   saveGame();
   UI && UI.startCombat(m, opts);

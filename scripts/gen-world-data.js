@@ -28,6 +28,31 @@ function bandMap(lv){
   return Math.max(74, Math.min(81, Math.round(74 + (lv - 750) * 7 / 210)));                // 中山后九系 750–960 → 74–81
 }
 
+// 剥离编辑备注：源 JSON 里混着给我自己看的批注（「★本轮新增…」「可设计为…」），
+// 早先整份打进 data 文件，等于把开发笔记随页面发给了玩家——山志「注解」里
+// 曾直接显示「★可设计为特殊事件点」。这里在派生时清洗：
+//   · 「可设计为…」整段删除（含其前的括号或 ★）
+//   · ★ 之后的内容删除（保留原文释义）
+//   · 纯「★」的数据值（如 rank 星级）保留
+const EDIT_KEYS = { note:1, trait:1, desc:1, summary:1, requirement:1, effect:1, form:1, terrain:1, '原文':1, '注解':1 };
+function cleanText(v){
+  if (typeof v !== 'string' || !v) return v;
+  if (v.trim() === '★') return v;
+  let t = v.replace(/[（(][^（）()]*可设计为[^（）()]*[）)]/g, '');
+  if (t.indexOf('★') >= 0) t = t.split('★')[0];
+  return t.trim();
+}
+function cleanNotes(o){
+  if (Array.isArray(o)){ o.forEach(cleanNotes); return; }
+  if (!o || typeof o !== 'object') return;
+  for (const k of Object.keys(o)){
+    const v = o[k];
+    if (typeof v === 'string'){
+      if (EDIT_KEYS[k] || v.indexOf('★') >= 0 || v.indexOf('可设计为') >= 0) o[k] = cleanText(v);
+    } else cleanNotes(v);
+  }
+}
+
 function derive(jsonFile, outFile, opts) {
   const j = JSON.parse(fs.readFileSync(path.join(root, jsonFile), 'utf8'));
   const map = opts.mapLevel; // (oldLevel) => newLevel
@@ -45,7 +70,13 @@ function derive(jsonFile, outFile, opts) {
 // 需要调整数据时改 JSON 后重新运行 node scripts/gen-world-data.js
 // 底本：中华书局点校本《山海经校注》（袁珂）——古籍原文，公有领域
 ${opts.note ? '// ' + opts.note + '\n' : ''}`;
-  const out = header + '\nwindow.' + opts.global + ' = ' + JSON.stringify(j, null, 2) + ';\n';
+  // _meta 只服务编辑与校勘，不进运行时：它夹着「设计备注 / 版本差异说明」，
+  // 早先整份打进 data 文件，等于把开发笔记随页面发给了玩家（山志「注解」里
+  // 曾出现「★可设计为…」）。这里剔除，源 JSON 仍保留以供查考。
+  const payload = JSON.parse(JSON.stringify(j));   // 深拷贝后再清洗，不动源对象
+  delete payload._meta;
+  cleanNotes(payload);
+  const out = header + '\nwindow.' + opts.global + ' = ' + JSON.stringify(payload, null, 2) + ';\n';
   fs.writeFileSync(path.join(root, 'src', outFile), out);
   console.log('written src/' + outFile, out.length, 'bytes');
 }

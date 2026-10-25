@@ -48,6 +48,7 @@ const Prefs = {
   autoEquip: true,       // 自动装备更优
   idleFallback: true,    // 闲置兜底：无行动时自动执行默认行动（当前节点采集 / 巡历兜底动作）
   zhuEl: '火',           // 祝术主五行
+  tactic: 'none',        // 战法姿态：none | swift | steady | breaker
   hideHint: false,       // 关闭常驻「下一步建议」指引条（可在设置中重新开启）
 };
 

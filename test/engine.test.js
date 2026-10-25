@@ -2286,7 +2286,8 @@ section('实时性：状态变化即刻上屏');
   assert(qSrc.includes('const c = Game.combat;') && qSrc.includes('return !!c && c.monsterId === e.target;'), '讨伐条目按 Game.combat 匹配（否则 ensureQueueActivity 每帧重启战斗，永远打不完）');
   assert(qSrc.includes("startCombat(e.target, { fromQueue:true })"), '队列驱动的讨伐不触发「往讨即暂停队列」');
   assert(gameSrc.includes("if (!(opts && opts.fromQueue) && typeof pauseQueue === 'function') pauseQueue('往讨');"), '仅手动往讨暂停队列');
-  assert(gameSrc.includes('_qDriven ? { fromQueue:true } : undefined'), '队列讨伐连战同一只时也不暂停队列');
+  assert(gameSrc.includes('_qDriven ? { fromQueue:true, carry } : { carry }'), '队列讨伐连战同一只时也不暂停队列，并带回残势');
+  assert(gameSrc.includes('(c.momentum || 0) * 0.6'), '连战继承 60% 残势（否则挂机永远蓄不满绝技）');
   assert(uiSrc.includes('UI.patchQueueProgress = function()') && uiSrc.includes("this.currentTab !== 'queue'"), '队列进度就地补绘函数（仅队列页）');
   assert(gameSrc.includes('if (UI && UI.patchQueueProgress) UI.patchQueueProgress();'), '主循环秒级兜底队列数值（顺延 / 轮数 / 进度）');
   assert((qSrc.match(/UI\.patchQueueProgress/g)||[]).length >= 3, '进行中三处都补绘（采集/制作/讨伐/特殊）');
@@ -2788,6 +2789,62 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
 
   // 42.10 移动端操作按钮统一近直角
   assert(/@media \(max-width:760px\)\{[\s\S]{0,500}\.btn[^{]*\{[^}]*border-radius:1px !important/.test(css2), '窄屏操作按钮统一近直角');
+}
+
+// ============ 45. 战法姿态 / 连战残势 / 荒山文案（v1.14.1） ============
+{
+  const uiSrc45 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  const gameSrc45 = fs.readFileSync(path.join(__dirname, '..', 'src', 'game.js'), 'utf8');
+
+  // 45.1 战法：四种姿态、四个乘区各自生效
+  G.resetToDefault();
+  Object.keys(ST.Game.skills).forEach(k => { ST.Game.skills[k].level = 40; });
+  ST.Game.inventory.jinjian = 1; ST.equipItem('jinjian');
+  assert(Object.keys(ST.TACTICS).length === 4, '战法四种（无 / 疾攻 / 沉稳 / 破军）');
+  ST.setTactic('none');
+  const b45 = { hi: G.playerDamageRange().hi, def: ST.totalDefence(), iv: G.playerAttackInterval() };
+  ST.setTactic('breaker');
+  assert(G.playerDamageRange().hi > b45.hi, '破军提高伤害');
+  assert(ST.totalDefence() < b45.def, '破军削减防御');
+  ST.setTactic('swift');
+  assert(G.playerAttackInterval() < b45.iv, '疾攻缩短攻击间隔');
+  assert(G.playerDamageRange().hi < b45.hi, '疾攻降低伤害');
+  ST.setTactic('steady');
+  assert(ST.totalDefence() > b45.def, '沉稳提高防御');
+  assert(G.playerAttackInterval() > b45.iv, '沉稳放慢攻势');
+  assert(ST.currentTactic().taken < 1, '沉稳带减伤乘区');
+  ST.setTactic('none');
+  ST.setTactic('breaker');
+  assert(ST.serializeSave().prefs.tactic === 'breaker', '战法写入存档（prefs.tactic）');
+  ST.setTactic('none');
+
+  // 45.2 连战残势：击杀后按 60% 继承，败北清零
+  ST.WORLD.regions.forEach(r => r.nodes.forEach(n => { ST.Game.map[n.id] = true; }));
+  const t45 = Object.values(ST.Monsters).filter(m => !m.boss && m.nodeId && m.nodeId.indexOf('nanshan-1') === 0)[0];
+  const hp45 = t45.hp;
+  t45.hp = 1;
+  ST.Game.node = t45.nodeId;
+  G.startCombat(t45.id, { times: 5 });
+  ST.Game.combat.momentum = 80;
+  G.combatTick(3);
+  assert(ST.Game.combat && ST.Game.combat.momentum >= 40 && ST.Game.combat.momentum < 100,
+    '击杀后残势继承 60%（本场 80 + 一击 16 → 下承 58）-> ' + (ST.Game.combat && ST.Game.combat.momentum));
+  assert(gameSrc45.includes('startCombat(lastId);'), '败北复讨不带残势（另起一场，势归零）');
+  t45.hp = hp45;
+  ST.Game.combat = null;
+  assert(gameSrc45.includes('(c.momentum || 0) * 0.6') && gameSrc45.includes('carry'), 'meetKill 把残势交给下一场');
+
+  // 45.3 绝技的在场感 + 荒山说明
+  assert(typeof ST.UI.ultimateFx === 'function', '绝技有专属命中特效（放大 + 光点 + 闪白）');
+  assert(gameSrc45.includes('UI.ultimateFx'), '绝技释放调用该特效');
+  assert(uiSrc45.includes('此山无草木、亦无异兽'), '荒山（原文「无草木」）给出明确说明，而非只写「无所载」');
+
+  // 45.4 数据层不得把编辑备注发给玩家
+  const dataSrcs = ['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','zhongshanData.js']
+    .map(f => fs.readFileSync(path.join(__dirname, '..', 'src', f), 'utf8'));
+  assert(dataSrcs.every(s => s.indexOf('可设计为') < 0), '运行时数据不含「可设计为…」编辑备注（此前 26 处随山志「注解」显示给玩家）');
+  assert(dataSrcs.every(s => s.indexOf('"_meta"') < 0), '运行时数据不含 _meta（只服务校勘，不随页面下发）');
+  assert(dataSrcs.every(s => !/★[^"]/.test(s.replace(/★"/g, ''))), '运行时数据不含 ★ 开头的编辑批注（rank 等纯 ★ 数据值除外）');
 }
 
 // ============ 44. 装备词条 / 势与绝技 / 数值构成 / 收集成就（v1.14） ============

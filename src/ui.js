@@ -861,6 +861,8 @@ function combatStatBreakdown(key){
       note: w ? (enhanceLevel(w.id || w) ? `含淬炼 +${enhanceLevel(w.id || w)}（${w.dmg} 基础）` : `未淬炼（${w.dmg} 基础）`) : '无兵器' });
     if (qDmg) rows.push({ label:`副手 · ${q.name}`, value:'+' + Math.round(qDmg), note:'射术另计' });
     rows.push({ label:`${styleName} · ${statLv} 级`, value:'+' + skillDmg.toFixed(0), note:'每级 +1.2' });
+    const tacA = currentTactic();
+    if (tacA.dmg !== 1) rows.push({ label:`战法 · ${tacA.name}`, value:`×${tacA.dmg.toFixed(2)}`, note:tacA.desc });
     if (af.dmgPct) rows.push({ label:'词条 · 锋', value:`+${af.dmgPct}%`, note:'伤害乘区' });
     const mm = dmgMult();
     if (Math.abs(mm - 1) > 0.001) rows.push({ label:'成就 · 御使 · 药', value:`×${mm.toFixed(2)}`, note:'合计伤害增幅' });
@@ -887,6 +889,8 @@ function combatStatBreakdown(key){
     const gearDef = db.def + ((ch && ch.defBonus) || 0) + buffDef;
     if (gearDef) rows.push({ label:'御使 · 玉符 · 药', value:'+' + gearDef.toFixed(1), note:'定值防御' });
     if (af.def) rows.push({ label:'词条 · 固', value:'+' + af.def, note:'定值防御' });
+    const tacD = currentTactic();
+    if (tacD.def !== 1) rows.push({ label:`战法 · ${tacD.name}`, value:`防御 ×${tacD.def.toFixed(2)}`, note:tacD.desc });
     if (af.dmgTaken) rows.push({ label:'词条 · 韧', value:`减伤 ${af.dmgTaken}%`, note:'受击时按比例削减' });
     if (af.thorns) rows.push({ label:'词条 · 棘', value:`反伤 ${af.thorns}%`, note:'把承受伤害的一部分还给对手' });
     return { title:'防御 · 构成', total: fmt(Math.round(totalDefence() * 10) / 10), rows,
@@ -930,6 +934,8 @@ function combatStatBreakdown(key){
       { label:'基础间隔', value: baseIv.toFixed(2) + 's', note: styleName + '基础 − 等级×0.008' },
     ];
     if (af.atkSpeed) rows.push({ label:'词条 · 疾', value:`÷${(1 + af.atkSpeed / 100).toFixed(2)}`, note:`攻势 +${af.atkSpeed}%` });
+    const tacI = currentTactic();
+    if (tacI.spd !== 1) rows.push({ label:`战法 · ${tacI.name}`, value:`÷${tacI.spd.toFixed(2)}`, note:tacI.desc });
     rows.push({ label:'实际间隔', value: iv.toFixed(2) + 's', note:'不低于 1.2s' });
     return { title:'DPS · 构成', total: (avg / Math.max(0.5, iv)).toFixed(1), rows,
       foot:'DPS 只算普攻期望，不含暴击、连击与绝技——实战输出会高于此值。' };
@@ -1243,7 +1249,13 @@ UI.renderYudi = function(){
       });
       if (sel.yields && sel.yields.special) rows.push(`<div><b>异</b>${sel.yields.special.map(x=>esc(x)).join('、')}</div>`);
       if (sel.yields && sel.yields.unknown) rows.push(`<div><b>怪</b>${sel.yields.unknown.map(x=>esc(x)).join('、')}</div>`);
-      return rows.length ? `<div class="yield-rows">${rows.join('')}</div>` : '<span class="hint">无所载</span>';
+      if (rows.length) return `<div class="yield-rows">${rows.join('')}</div>`;
+      // 原文写「无草木」的荒山（全书 18 座）不该只回一句「无所载」——
+      // 那读起来像数据缺失。这里明说「此地本无」，并点出唯一可做之事。
+      const hasFauna = (sel.fauna || []).some(f => f.category !== '神祇');
+      return hasFauna
+        ? '<span class="hint">本山不载草木金玉，唯见异兽</span>'
+        : '<span class="hint">此山无草木、亦无异兽——原文如此。涉足可录舆图一格，得舆地经验。</span>';
     })();
     // 异兽：带著录状态的小签，已录的转朱色，未录的留白
     // ⚠️ 取记录必须按「同节点」定位：同名异兽分处两经（北山肥遗 ≠ 西山肥遗），
@@ -1719,6 +1731,12 @@ function taofaArenaHtml(){
       ${['auto','attack','ranged','zhu'].map(s=>
         `<button class="chip-btn ${Prefs.stylePref===s?'on':''}" onclick="setCombatStyle('${s}')">${styleLabel(s)}</button>`).join('')}
     </div>
+    <div class="style-row tactic-row">
+      <span class="tr-lb" title="战法决定「怎么打」：四项乘区各自独立，与五行、词条、绝技叠加">战法</span>
+      ${Object.values(TACTICS).map(t=>
+        `<button class="chip-btn ${(Prefs.tactic||'none')===t.id?'on':''}" onclick="setTactic('${t.id}')" title="${esc(t.desc)}">${t.name}</button>`).join('')}
+      <span class="hint">${esc(currentTactic().desc)}</span>
+    </div>
     ${style==='zhu'||Prefs.stylePref==='zhu'?`<div class="zhu-row">祝术主五行：
       ${TUNING.ELEMENTS.map(e=>`<button class="chip-btn ${Prefs.zhuEl===e?'on':''}" onclick="setZhuEl('${e}')">${e}</button>`).join('')}
       <span class="hint">相生目标额外 ×1.15</span></div>`:''}
@@ -1849,6 +1867,19 @@ UI.renderTaofa = function(){
 };
 
 // 只换竞技场：战斗开始 / 结束 / 切战斗风格走这里，目标列表原样留下
+// 绝技的「在场感」：闪一下、震一下、撒一簇光——否则三倍伤害也只是多一行飘字。
+// 只作用于怪物那一格（不整屏闪白），低动效偏好下 FX 自身会降级。
+UI.ultimateFx = function(name){
+  const el = monsterEl();
+  if (!el) return;
+  if (el.classList){ el.classList.add('ult-hit'); setTimeout(()=>el.classList.remove('ult-hit'), 460); }
+  UI.floatText(el, `绝技 · ${name}`, '#ffd166', true);
+  if (typeof FX === 'undefined' || !el.getBoundingClientRect) return;
+  const r = el.getBoundingClientRect();
+  if (FX.burst) FX.burst(r.left + r.width / 2, r.top + r.height / 2, '✨', 12);
+  if (FX.flash) FX.flash(el);
+};
+
 UI.patchCombatArena = function(){
   if (this.currentTab !== 'taofa') return;
   const el = $('arenaBox');
