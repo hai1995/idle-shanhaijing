@@ -1186,6 +1186,50 @@ svg.bi.mk{ vertical-align:-2px; }
 /* 祠礼：方块同语言，点按即祭 */
 .rite-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(92px,1fr)); gap:6px; }
 .rite-tile .tile-tag{ letter-spacing:0; }
+/* 生效中的礼：整卡描金，与征兆方块同一套语言 */
+.rite-tile.on{ border-color:rgba(156,118,40,.55); background:rgba(156,118,40,.06); }
+/* 右上角「续」：续祭开关。默认淡，开启后朱底白字，与其他角标区分 */
+.rite-auto{
+  position:absolute; top:3px; right:3px; width:18px; height:18px;
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--f-kai); font-size:10.5px; line-height:1;
+  color:var(--ink-4); background:var(--paper-3); border:1px solid var(--rule-2); border-radius:2px;
+  cursor:pointer; z-index:2; transition:all .12s;
+}
+.rite-auto:hover{ color:var(--zhu); border-color:var(--zhu-w); background:var(--zhu-w); }
+.rite-auto.on{ color:#FCFBF6; background:var(--zhu); border-color:var(--zhu); }
+/* 待料：开着但祭品不齐，用描边而非实底，与「真的在续」区分开 */
+.rite-auto.on.stall{ color:var(--jin); background:var(--paper-2); border-color:var(--jin); }
+/* 余时：左上角，数字走等宽，免得每跳一秒宽窄不同 */
+.rite-left{
+  position:absolute; top:3px; left:3px; padding:0 3px;
+  font-family:var(--f-num); font-size:8.5px; line-height:13px; letter-spacing:0;
+  color:var(--jin); background:rgba(252,251,246,.82); border-radius:1px;
+}
+.rite-auto-bar{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:7px 10px; margin-bottom:9px; font-size:11.5px;
+  background:rgba(156,118,40,.06); border:1px solid rgba(156,118,40,.22);
+  border-left:2px solid var(--jin); border-radius:0 var(--r) var(--r) 0;
+}
+.rite-auto-bar b{ color:var(--jin); font-family:var(--f-num); }
+.rite-auto-bar b.stall{ color:var(--zhu); }
+/* 山系页：此域祠礼生效提示 */
+/* 单行不折：山系栏本就窄，折行后「42:10」孤零零挂在第二行更难看 */
+.rite-here{
+  display:flex; align-items:center; gap:6px; flex-wrap:nowrap;
+  margin:-2px 0 9px; padding:4px 8px; font-size:11.5px; color:var(--ink-2);
+  background:rgba(156,118,40,.07); border:1px solid rgba(156,118,40,.22);
+  border-left:2px solid var(--jin); border-radius:0 var(--r) var(--r) 0;
+}
+.rite-here .mi-ic{ flex:0 0 auto; }
+.rite-here .rh-name{ flex:1 1 auto; min-width:0; color:var(--ink); font-family:var(--f-kai);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rite-here .rh-bonus{ flex:0 0 auto; color:var(--jin); font-family:var(--f-num); font-size:11px; }
+.rite-here .rh-left{ flex:0 0 auto; font-family:var(--f-num); color:var(--ink-4); font-weight:400; }
+/* 离线归来：上限提示与「所做」行 */
+.off-cap{ color:var(--zhu); margin:2px 0 6px; }
+.off-acts{ font-family:var(--f-kai); font-weight:400; color:var(--ink-2); font-size:12.5px; }
 /* 祠礼都是同一支蜡烛图标，辨识度低：改用「首字朱印」，一眼分出是哪一礼 */
 .tile-seal{
   width:34px; height:34px; display:flex; align-items:center; justify-content:center;

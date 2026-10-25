@@ -14,6 +14,9 @@ const Game = {
   deployed: {},          // 御使槽位 { slotIdx: beastId }
   omens: [],             // 生效中的征兆 [{ id, until }]
   rites: {},             // 区域祠礼增益 { regionId: untilGameTime }
+  riteOf: {},            // 该山系此刻生效的是哪套礼 { regionId: riteId }（同区多礼时定归属）
+  riteAuto: {},          // 续祭开关 { riteId: true }：到期前自动重备祭品
+  riteStall: {},         // 续祭待料 { riteId: true }：开关仍开，只等祭品凑齐
   recentLoot: [],        // 最近战利品 [{ itemId, qty }]
   omenImmune: {},        // 征兆免疫 { omenId: true }（鵕鸟/大鹗所赐，或御使駮）
   danmu: { stage:0, done:0 },  // 峚山丹木养成进度
@@ -61,6 +64,7 @@ function cloneDefaultGame(){
   g.inventory = { gui:5, shashi:5, guaimu:3, jing:3, zhuyu:3, tu:5, jiagufan:2, shuiping:2 };
   g.banking = {}; g.farms = {}; g.records = {}; g.map = { 'nanshan-1-01': true };
   g.observed = {}; g.buildings = {}; g.deployed = {}; g.omens = []; g.rites = {}; g.recentLoot = [];
+  g.riteOf = {}; g.riteAuto = {}; g.riteStall = {};
   g.omenImmune = {}; g.danmu = { stage:0, done:0 }; g.grow = {}; g.buff = null;
   g.node = 'nanshan-1-01'; g.activity = null; g.combat = null;
   g.queue = []; g.queueIdx = 0; g.queueRound = 0; g.queueRunning = false; g.queueLoop = true; g.fallback = null;
@@ -104,6 +108,10 @@ function applySave(d){
     Game.deployed = d.deployed || {};
     Game.omens = Array.isArray(d.omens) ? d.omens : [];
     Game.rites = d.rites || {};
+    // 旧档没有 riteOf/riteAuto：补空对象即可（riteOf 缺失时 regionRiteBonus 退回按 regionId 反查）
+    Game.riteOf = (d.riteOf && typeof d.riteOf === 'object') ? d.riteOf : {};
+    Game.riteAuto = (d.riteAuto && typeof d.riteAuto === 'object') ? d.riteAuto : {};
+    Game.riteStall = (d.riteStall && typeof d.riteStall === 'object') ? d.riteStall : {};
     Game.recentLoot = Array.isArray(d.recentLoot) ? d.recentLoot : [];
     Game.omenImmune = d.omenImmune || {};
     Game.danmu = d.danmu || { stage:0, done:0 };

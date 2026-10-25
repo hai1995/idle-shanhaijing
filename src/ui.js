@@ -66,6 +66,13 @@ function lastOfflineText(){
   const ago = Math.max(0, (Date.now() - lo.at) / 1000);
   return `${fmtTime(ago)}前 · 离线 ${fmtTime(lo.sec)} · +${fmt(lo.xp)} 经验`;
 }
+// 紧凑时钟（方块角标用）：H:MM / M:SS，配合等宽数字不跳宽
+function fmtClock(sec){
+  sec = Math.max(0, Math.floor(sec||0));
+  const h = Math.floor(sec/3600), m = Math.floor(sec%3600/60), s2 = sec%60;
+  if (h > 0) return `${h}:${String(m).padStart(2,'0')}`;
+  return `${m}:${String(s2).padStart(2,'0')}`;
+}
 function fmtTime(sec){
   sec = Math.max(0, Math.floor(sec||0));
   const h = Math.floor(sec/3600), m = Math.floor(sec%3600/60), s = sec%60;
@@ -357,13 +364,32 @@ const UI = {
       const it = Items[id];
       return `<span class="chip">${typeof itemIc==='function'?itemIc(id,13):(it?(it.icon||'⬜'):'❓')}${it?esc(it.name):esc(id)}×${q}</span>`;
     }).join('');
+    // 离线都做了些什么：只报经验总额太抽象，玩家想知道「这一夜在做什么」
+    const ACT_NAMES = { gather:'采集', craft:'制作', observe:'观象', audience:'朝觐', grow:'养成' };
+    const acts = Object.entries(rec.acts||{}).filter(([,n])=>n>0)
+      .map(([k,n])=>`${ACT_NAMES[k]||k} ${n} 次`).join(' · ');
+    const capLine = rec.capped
+      ? `<p class="hint off-cap">离山 ${fmtTime(rec.rawSeconds || rec.seconds)}，其中 ${fmtTime((rec.rawSeconds||0)-(rec.seconds||0))} 超出 ${offlineCapHours()} 小时上限，未计入。</p>`
+      : '';
     const harvest = (rec.harvests||0) > 0 ? `<div class="form-row"><span>圃艺收成</span><b>🌾 ${rec.harvests} 次</b></div>` : '';
     const recLine = (rec.records||0) > 0 ? `<div class="form-row"><span>新著录</span><b>${rec.records} 条</b></div>` : '';
+    // 续祭：离山期间门人代你续了几次、耗去什么，都要交代清楚（材料是实扣的）
+    let riteLine = '';
+    if ((rec.riteRenews||0) > 0){
+      const costChips = Object.entries(rec.riteCost||{}).map(([id,q])=>{
+        const it = Items[id];
+        return `<span class="chip">${typeof itemIc==='function'?itemIc(id,13):(it?(it.icon||'⬜'):'❓')}${it?esc(it.name):esc(id)}×${q}</span>`;
+      }).join('');
+      riteLine = `<div class="form-row"><span>续祭</span><b>🕯️ ${rec.riteRenews} 次</b></div>
+        ${costChips ? `<div class="yield-row"><b>耗祭品</b>${costChips}</div>` : ''}`;
+    }
     UI.modal(`
       <h3><span class="mi-ic">${typeof markIcon==='function'?markIcon('moon',18):'🌙'}</span> 离线归来</h3>
       <p class="hint">离山 ${fmtTime(rec.seconds)}（离线效率 ${Math.round(offlineEff()*100)}%），竹简不曾停笔。</p>
+      ${capLine}
+      ${acts?`<div class="form-row"><span>所做</span><b class="off-acts">${acts}</b></div>`:''}
       <div class="form-row"><span>修得经验</span><b style="color:var(--gamboge)">+${fmt(rec.xp)}</b></div>
-      ${recLine}${harvest}
+      ${recLine}${harvest}${riteLine}
       ${items ? `<div class="panel" style="margin-top:8px"><div class="yield-row"><b>所得</b>${items}</div></div>` : ''}
       <div class="modal-btns"><button class="btn on" onclick="UI.closeModal()">收下</button></div>
     `);
@@ -1207,6 +1233,15 @@ UI.renderYudi = function(){
     </div>
     <div class="panel nodes">
       <h3>${esc(region.regionName)} · 诸山</h3>
+      ${(()=>{
+        const r = (typeof activeRiteOf === 'function') ? activeRiteOf(region.regionId) : null;
+        return r ? `<div class="rite-here" title="${esc(r.name)}：此域产出 +${Math.round(r.bonus*100)}%，余 ${fmtTime(r.left)}">
+          <span class="mi-ic">${typeof markIcon==='function'?markIcon('lamp',13):'🕯️'}</span>
+          <span class="rh-name">${esc(r.name)}</span>
+          <span class="rh-bonus">产出 +${Math.round(r.bonus*100)}%</span>
+          <b class="rh-left">${fmtClock(r.left)}</b>
+        </div>` : '';
+      })()}
       <div class="node-list">
       <div class="tile-grid node-grid">
       ${nodes.length ? '' : '<div class="empty-tip">此山系原文已备（祠礼与山神已入祠典），诸山名录待逐系补录。</div>'}
@@ -2347,18 +2382,29 @@ function omenPanelHtml(){
 UI.renderJisi = function(){
   const box = $('content');
   if (!box) return;
+  const autoIds = Object.keys(Game.riteAuto || {}).filter(id => Game.riteAuto[id]);
+  const stallIds = autoIds.filter(id => (Game.riteStall||{})[id]);
   let html = `<div class="panel rite-panel"><h3>祠礼（据原文祠礼格式）</h3>
+    ${autoIds.length ? `<div class="rite-auto-bar">
+      <span class="hint">续祭中 <b>${autoIds.length}</b> 套：到期前 60 秒自动重备同样祭品${stallIds.length?`　·　<b class="stall">${stallIds.length}</b> 套待料`:'，备齐自续'}。</span>
+      <button class="btn" onclick="UI.stopAllRiteAuto()">全停</button>
+    </div>` : `<div class="hint">点方块右上「续」可交由门人代祭——到期自动续上，不必守着时辰。</div>`}
     <div class="rite-grid">
     ${Object.entries(RITES).map(([id,def])=>{
-      const rec = Recipes.find(r=>r.out===id);
+      const st = riteState(id);
+      const rec = st.rec;
       const region = WORLD.regions.find(r=>r.regionId===def.regionId);
-      const afford = canAfford(rec.cost);
-      const lvOk = levelOf('jisi') >= rec.lvl;
+      const lvOk = st.lvOk;
+      const can = st.times > 0 && lvOk;
       const riteName = (Items[id]||{}).name || (region?region.regionName+'祠礼':id);
-      const can = afford && lvOk;
+      const auto = st.auto;
       // 方块：点按即行祭（材料/等级不足给说明）；山系与祭品明细在浮层
-      return `<div class="tile rite-tile ${can?'':'lock'}" data-rite="${id}" data-tip data-tip-title="${esc(riteName)}"
+      return `<div class="tile rite-tile ${can?'':'lock'} ${st.active?'on':''}" data-rite="${id}" data-tip data-tip-title="${esc(riteName)}"
         role="button" tabindex="0" onclick="UI.tryRite('${id}')">
+        <span class="rite-auto ${auto?'on':''} ${st.stall?'stall':''}" role="button" tabindex="0"
+          title="${auto?(st.stall?'待料中（祭品不继）':'停续祭'):'开续祭'}"
+          onclick="event.stopPropagation();UI.toggleRiteAuto('${id}')">续</span>
+        ${st.active?`<span class="rite-left" title="余 ${fmtTime(st.left)}">${fmtClock(st.left)}</span>`:''}
         <span class="tile-ic bi-ic">${(typeof riteIcon==='function')?riteIcon(id, riteName):`<span class="tile-seal">${esc((String(riteName).split('·')[1] || String(riteName)).trim().slice(0,1))}</span>`}</span>
         <span class="tile-nm">${esc(riteName)}</span>
         <span class="tile-tag">祭祀 ${rec.lvl}</span>
@@ -2366,13 +2412,16 @@ UI.renderJisi = function(){
           <div class="rc-sub">${esc(region?region.regionName:'常祭')}</div>
           ${(region&&region.deity)?`<div class="rc-sub">${esc(region.deity.form||'')}</div>`:''}
           <div class="rc-cost">${costChips(rec.cost)}</div>
+          <div class="hint">${def.regionId?`其域产出 +${Math.round(def.yieldBonus*(Game.buildings.citan?1.5:1)*100)}%，持续 ${Math.round(def.dur/3600)} 小时`:'常祭，无区域增益'}</div>
+          ${st.active?`<div class="hint">生效中，余 ${fmtTime(st.left)}</div>`:''}
+          <div class="hint">现备材料可续 ${st.times} 次${auto?(st.stall?'　·　续祭待料':'　·　已开续祭'):''}</div>
           ${(Items[id]||{}).note?`<div class="hint">${esc((Items[id]||{}).note)}</div>`:''}
           ${!lvOk?`<div class="hint">需祭祀 ${rec.lvl} 级</div>`:''}
         </span>
       </div>`;
     }).join('')}
     </div>
-    <div class="hint">行祭后该山系采集产出 +30%（祠坛 ×1.5），持续 1 小时。</div>
+    <div class="hint">行祭后该山系采集产出 +${Math.round(30*(Game.buildings.citan?1.5:1))}%（祠坛 ×1.5），持续 1 小时。</div>
   </div>
 
   <div class="panel omen-panel"><h3>征兆（原文「见则X」）</h3>
@@ -3291,6 +3340,22 @@ UI.tryRite = function(id){
     return;
   }
   performRite(id);
+  UI.renderJisi();
+};
+// 方块右上「续」：把这一礼交给门人代办（到期前自动重备祭品）
+UI.toggleRiteAuto = function(id){
+  if (typeof toggleRiteAuto !== 'function') return;
+  toggleRiteAuto(id);
+  UI.renderJisi();
+};
+UI.stopAllRiteAuto = function(){
+  const ids = Object.keys(Game.riteAuto || {}).filter(id => Game.riteAuto[id]);
+  if (!ids.length) return;
+  for (const id of ids) delete Game.riteAuto[id];
+  if (Game.riteStall) for (const id of ids) delete Game.riteStall[id];
+  log('🕯️ 续祭全停', 'dim', 'sys');
+  UI.toast('已停全部续祭');
+  if (typeof saveGame === 'function') saveGame();
   UI.renderJisi();
 };
 UI.renderLog = function(){

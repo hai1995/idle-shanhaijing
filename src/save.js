@@ -72,6 +72,7 @@ function serializeSave(){
     shells: G.shells, nickname: G.nickname || '', banking: G.banking, inventory: G.inventory,
     skills: G.skills, gear: G.gear, records: G.records, map: G.map, observed: G.observed,
     buildings: G.buildings, deployed: G.deployed, omens: G.omens, rites: G.rites,
+    riteOf: G.riteOf || {}, riteAuto: G.riteAuto || {}, riteStall: G.riteStall || {},
     recentLoot: G.recentLoot || [], omenImmune: G.omenImmune || {},
     danmu: G.danmu || { stage:0, done:0 }, grow: G.grow || {}, buff: G.buff, farms: G.farms,
     node: G.node, activity: G.activity || null, stats: G.stats, startedAt: G.startedAt,

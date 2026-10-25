@@ -2791,6 +2791,174 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   assert(/@media \(max-width:760px\)\{[\s\S]{0,500}\.btn[^{]*\{[^}]*border-radius:1px !important/.test(css2), '窄屏操作按钮统一近直角');
 }
 
+// ============ 48. 祠礼续祭与加成落地（v1.15） ============
+{
+  G.resetToDefault();
+  const gameSrc48 = fs.readFileSync(path.join(__dirname, '..', 'src', 'game.js'), 'utf8');
+  const uiSrc48 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  const saveSrc48 = fs.readFileSync(path.join(__dirname, '..', 'src', 'save.js'), 'utf8');
+  const engSrc48 = fs.readFileSync(path.join(__dirname, '..', 'src', 'engine.js'), 'utf8');
+  // 技能等级由 xp 推导（gainXp 会按 xp 重算 level），直接改 level 字段无效
+  const setSkill48 = (skillId, target) => {
+    ST.Game.skills[skillId] = { level: 1, xp: 0 };
+    let guard = 0;
+    while (ST.levelOf(skillId) < target && guard++ < 400) ST.gainXp(skillId, 20000);
+  };
+
+  // 48.1 加成落地：regionRiteBonus 此前只被定义、从未被调用，
+  // 二十八套礼制「行祭 +30%」只是句文案，采集那边一分都没多给
+  assert(gameSrc48.includes('regionRiteBonus((regionOf(Game.node)||{}).regionId)'),
+    '采集加成并入祠礼（regionRiteBonus 真正被读取）');
+  assert(gameSrc48.includes('1 + regionRiteBonus(') && gameSrc48.includes('eff * rb'),
+    '离线采集同样吃祠礼加成（不至于挂着挖矿反而吃不到礼）');
+
+  // 48.2 同一山系两套礼：按 riteOf 定归属，大祭不被小祭顶掉
+  G.resetToDefault();
+  ST.Game.rites['xishan-1'] = ST.Game.stats.time + 600;
+  ST.Game.riteOf = {};
+  assert(Math.abs(ST.regionRiteBonus('xishan-1') - 0.30) < 1e-9, '旧档无 riteOf 时退回按 regionId 反查');
+  const yuRec = ST.Recipes.find(r => r.type === 'rite' && r.out === 'rite_yu');
+  yuRec.cost.forEach(([id, q]) => ST.giveItem(id, q, false));
+  setSkill48('jisi', 70);
+  assert(ST.performRite('rite_yu') === true, '羭山百牲斋可行');
+  assert(ST.Game.riteOf['xishan-1'] === 'rite_yu', '行祭后在册的是「哪一套礼」');
+  assert(Math.abs(ST.regionRiteBonus('xishan-1') - 0.50) < 1e-9,
+    '大祭加成为 50%（此前恒取该区第一条，白给 20 个百分点）');
+  assert(ST.Game.rites['xishan-1'] - ST.gameTime() > 7000, '大祭持续两小时');
+
+  // 48.3 行为级验证：加成的确体现在产量上
+  const pickGid = (ST.GATHER_POOLS['qiaocai'] || []).find(id => {
+    const it = ST.Items[id];
+    return it && it.node === 'nanshan-1-01' && (it.lvl || 1) <= 1;
+  });
+  assert(!!pickGid, '南山首山有可采之物用于验证（' + pickGid + '）');
+  const origRandom = Math.random;
+  let seed = 20260801;
+  Math.random = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+  function gatherTotal(riteOn){
+    ST.Game.node = 'nanshan-1-01';
+    ST.Game.records = {};                       // 清掌握度，两轮起跑线一致
+    setSkill48('qiaocai', 60);
+    ST.Game.rites = {}; ST.Game.riteOf = {};
+    if (riteOn){ ST.Game.rites['nanshan-1'] = ST.Game.stats.time + 3600; ST.Game.riteOf['nanshan-1'] = 'rite_ns1'; }
+    const before = ST.totalOf(pickGid);
+    for (let i = 0; i < 3000; i++) ST.doGather(pickGid);
+    return ST.totalOf(pickGid) - before;
+  }
+  const plain = gatherTotal(false);
+  const withRite = gatherTotal(true);
+  Math.random = origRandom;
+  assert(withRite > plain, `行祭后同量采集产出更多（${plain} → ${withRite}）`);
+  assert(withRite / Math.max(1, plain) > 1.05, '提升幅度可感（>5%），不只是随机波动');
+
+  // 48.4 续祭：到期自动重备祭品（静默，不逐条弹 toast）
+  G.resetToDefault();
+  ST.Game.stats.time = 5000;
+  setSkill48('jisi', 70);
+  const nsRec = ST.Recipes.find(r => r.type === 'rite' && r.out === 'rite_ns1');
+  assert(ST.riteState('rite_ns1').auto === false, '默认不续祭');
+  assert(ST.toggleRiteAuto('rite_ns1') === true, '可开启续祭');
+  assert(ST.Game.riteAuto['rite_ns1'] === true, '续祭开关入档');
+  // 空手开续祭：开关不该被悄悄关掉，而是转入「待料」等材料齐
+  assert(ST.riteState('rite_ns1').stall === true, '无祭品时转入待料（而非自动关掉开关）');
+  assert(ST.riteState('rite_ns1').active === false, '待料时并未生效，不谎报加成');
+
+  // 补上材料：下一次 tick 自行续上
+  nsRec.cost.forEach(([id, q]) => ST.giveItem(id, q * 3, false));
+  ST.tickAutoRites();
+  assert(ST.riteState('rite_ns1').active === true, '备齐祭品后自动续上（不必重新点开关）');
+  assert(!(ST.Game.riteStall || {})['rite_ns1'], '续上后脱离待料');
+  assert(ST.Game.rites['nanshan-1'] - ST.Game.stats.time > 3500, '首次续上即满一小时');
+
+  // 临近到期（剩 10 秒 < 60 秒提前量）：提前补，不留空档
+  ST.Game.rites['nanshan-1'] = ST.Game.stats.time + 10;
+  const before48 = ST.totalOf(nsRec.cost[0][0]);
+  const ritesBefore48 = ST.Game.stats.rites;
+  ST.tickAutoRites();
+  assert(ST.Game.rites['nanshan-1'] - ST.Game.stats.time > 3500, '临近到期自动续上一小时');
+  assert(ST.totalOf(nsRec.cost[0][0]) === before48 - nsRec.cost[0][1], '续祭照同样祭品扣料');
+  assert(ST.Game.stats.rites === ritesBefore48 + 1, '续祭计入行祭次数');
+
+  // 还有余量时不重复扣料
+  const safe48 = ST.totalOf(nsRec.cost[0][0]);
+  ST.tickAutoRites();
+  assert(ST.totalOf(nsRec.cost[0][0]) === safe48, '未临近到期不重复备祭（不白扣）');
+
+  // 48.5 离线续祭：只补不预付，扣料记账
+  G.resetToDefault();
+  ST.Game.stats.time = 50000;
+  setSkill48('jisi', 70);
+  nsRec.cost.forEach(([id, q]) => ST.giveItem(id, q * 4, false));
+  ST.Game.riteAuto = { rite_ns1: true };
+  ST.Game.rites = {}; ST.Game.riteOf = {};
+  const summary48 = { seconds: 3 * 3600, xp: 0, items: {}, records: 0, harvests: 0, riteRenews: 0, riteCost: {} };
+  ST.settleRitesOffline(3 * 3600, summary48);
+  assert(summary48.riteRenews >= 2 && summary48.riteRenews <= 4, '离线三小时补祭 2~4 次（' + summary48.riteRenews + '）');
+  assert(Object.keys(summary48.riteCost).length > 0, '离线补祭的耗材记账（弹窗要交代）');
+  assert(ST.Game.rites['nanshan-1'] > ST.gameTime(), '补祭后礼延续到当下之后');
+  assert(ST.Game.riteOf['nanshan-1'] === 'rite_ns1', '补祭同样在册是哪一套礼');
+  assert(uiSrc48.includes('rec.riteRenews') && uiSrc48.includes('耗祭品'), '离线归来弹窗列出续祭次数与耗材');
+
+  // 48.6 续祭开关与界面
+  assert(uiSrc48.includes('UI.toggleRiteAuto') && uiSrc48.includes('class="rite-auto'), '方块右上角有「续」开关');
+  assert(uiSrc48.includes('rite-auto-bar') && uiSrc48.includes('UI.stopAllRiteAuto'), '续祭汇总条与「全停」');
+  assert(uiSrc48.includes('fmtClock(st.left)'), '生效中的礼显示余时（紧凑时钟，方块角标放得下）');
+
+  // 48.6b 舆地页：把「此域产出 +30%」摆到山系名旁，礼才有存在感
+  assert(typeof ST.activeRiteOf === 'function', 'activeRiteOf 已导出');
+  G.resetToDefault();
+  ST.Game.rites['nanshan-1'] = ST.Game.stats.time + 1800;
+  ST.Game.riteOf = { 'nanshan-1': 'rite_ns1' };
+  const ar48 = ST.activeRiteOf('nanshan-1');
+  assert(ar48 && Math.abs(ar48.bonus - 0.30) < 1e-9, '取到该山系生效的礼与加成');
+  assert(ST.activeRiteOf('beishan-1') === null, '没有行祭的山系不虚报');
+  ST.Game.rites['nanshan-1'] = ST.Game.stats.time - 1;
+  assert(ST.activeRiteOf('nanshan-1') === null, '过期即不再提示');
+  assert(uiSrc48.includes('class="rite-here"') && uiSrc48.includes('此域产出'), '舆地页有祠礼生效条');
+
+  // 48.7 存档往返
+  G.resetToDefault();
+  ST.Game.riteAuto = { rite_ns1: true };
+  ST.Game.riteOf = { 'nanshan-1': 'rite_ns1' };
+  const ser48 = ST.serializeSave();
+  assert(ser48.riteAuto && ser48.riteAuto.rite_ns1 === true, '续祭开关随存档保存');
+  assert(ser48.riteOf && ser48.riteOf['nanshan-1'] === 'rite_ns1', '礼的归属随存档保存');
+  assert(saveSrc48.includes('riteOf: G.riteOf') && saveSrc48.includes('riteAuto: G.riteAuto'), '序列化含两字段');
+  assert(engSrc48.includes('Game.riteAuto = (d.riteAuto') && engSrc48.includes('Game.riteOf = (d.riteOf'),
+    '读档补两字段（旧档不报错）');
+}
+
+// ============ 49. 离线结算可读性（v1.15） ============
+{
+  G.resetToDefault();
+  const uiSrc49 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  ST.Game.skills.qiaocai = { level: 1, xp: 0 };
+  const gid49 = (ST.GATHER_POOLS['qiaocai'] || []).find(id => {
+    const it = ST.Items[id];
+    return it && it.node === 'nanshan-1-01' && (it.lvl || 1) <= 1;
+  });
+  ST.Game.node = 'nanshan-1-01';
+  ST.Game.activity = { kind: 'gather', skill: 'qiaocai', itemId: gid49 };
+  const rec49 = ST.settleAway(1800);
+  assert(!!rec49, '半小时离线有结算');
+  assert(rec49.acts && rec49.acts.gather > 0, '记下离线做了多少次采集（' + (rec49.acts && rec49.acts.gather) + ' 次）');
+  assert(rec49.seconds === 1800, '未超上限时按实际时长结');
+  assert(rec49.capped === false, '未超上限不提示截断');
+
+  // 超过收益上限：如实标出「超出多少未计」
+  G.resetToDefault();
+  ST.Game.node = 'nanshan-1-01';
+  ST.Game.activity = { kind: 'gather', skill: 'qiaocai', itemId: gid49 };
+  const cap49 = ST.offlineCapHours();
+  const rec49b = ST.settleAway((cap49 + 2) * 3600);
+  assert(rec49b.capped === true, '超过离山上限时标记截断');
+  assert(Math.abs(rec49b.seconds - cap49 * 3600) < 1, '结算时长按上限截断');
+  assert(Math.abs(rec49b.rawSeconds - (cap49 + 2) * 3600) < 1, '原始离山时长仍保留（供弹窗说明差额）');
+
+  assert(uiSrc49.includes('off-cap') && uiSrc49.includes('未计入'), '弹窗说明超出部分未计入');
+  assert(uiSrc49.includes('ACT_NAMES') && uiSrc49.includes('class="off-acts"'), '弹窗列出离线所做之事');
+}
+
 // ============ 47. 物品用途面板（v1.14.3） ============
 {
   G.resetToDefault();

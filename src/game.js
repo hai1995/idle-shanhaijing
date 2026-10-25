@@ -354,7 +354,10 @@ function doGather(itemId){
     return;
   }
   const rec = Game.records[itemId] || { count:0, tier:0 };
-  let bonus = masteryBonus(rec.count) + globalYieldBonus();
+  // 祠礼：行祭所得是「该山系产出 +X%」。此前只管记到期时间、没人读，
+  // 二十八套礼制等于花钱买一段祭祀经验 —— 这里并进采集加成，礼才有着落。
+  const riteBonus = regionRiteBonus((regionOf(Game.node)||{}).regionId);
+  let bonus = masteryBonus(rec.count) + globalYieldBonus() + riteBonus;
   if (special && special.rareBonus) bonus += special.rareBonus;   // 积石之山：万物无不有焉
   let qty = 1;
   if (chance(TUNING.GATHER_DOUBLE + bonus*0.5)) qty = 2;
@@ -458,6 +461,7 @@ function claimAllCodexAch(){
 }
 
 window.doGather = doGather; window.recordObject = recordObject;
+window.gameTime = gameTime;
 window.codexAchState = codexAchState; window.codexAchRewardText = codexAchRewardText;
 window.claimCodexAch = claimCodexAch; window.claimAllCodexAch = claimAllCodexAch;
 
@@ -540,11 +544,13 @@ function processRecipe(recipe, count){
 window.processRecipe = processRecipe;
 
 // ---------- 祠祀 ----------
-function performRite(riteId){
+// opts.silent：自动续祭用，不弹 toast（整点轮着弹一遍太吵），仍照常记 log
+function performRite(riteId, opts){
+  const silent = !!(opts && opts.silent);
   const rec = Recipes.find(r=>r.type==='rite' && r.out===riteId);
   const def = RITES[riteId];
   if (!rec || !def) return false;
-  if (!canAfford(rec.cost)){ UI && UI.toast('祠礼材料不备'); return false; }
+  if (!canAfford(rec.cost)){ if (!silent) UI && UI.toast('祠礼材料不备'); return false; }
   payCost(rec.cost);
   const mult = Game.buildings.citan ? 1.5 : 1;
   gainXp('jisi', def.xp * mult);
@@ -552,15 +558,19 @@ function performRite(riteId){
   if (def.regionId){
     Game.rites = Game.rites || {};
     Game.rites[def.regionId] = gameTime() + def.dur;
+    // 同一山系可有多套礼制（如西次一经的「婴」与「太牢·玉」大祭），
+    // 光记到期时间会让 regionRiteBonus 永远取到别名第一条，大祭的加成白给。
+    Game.riteOf = Game.riteOf || {};
+    Game.riteOf[def.regionId] = riteId;
   }
   if (def.deity) recordObject(def.deity, 1);
   const r = def.regionId ? regionOf(def.regionId) : null;
   if (r){
     log(`🕯️ 行${Items[riteId].name}：${r.regionName}之神，其域产出 +${Math.round(def.yieldBonus*mult*100)}%（${Math.round(def.dur/3600)} 小时）`, 'gold', 'sys');
-    UI && UI.toast(`🕯️ ${Items[riteId].name} 已成\n${r.regionName}产出 +${Math.round(def.yieldBonus*mult*100)}%`);
+    if (!silent) UI && UI.toast(`🕯️ ${Items[riteId].name} 已成\n${r.regionName}产出 +${Math.round(def.yieldBonus*mult*100)}%`);
   } else {
     log(`🕯️ ${Items[riteId].name}：${(Items[riteId]||{}).note||''}`, 'gold', 'sys');
-    UI && UI.toast(`🕯️ ${Items[riteId].name}`);
+    if (!silent) UI && UI.toast(`🕯️ ${Items[riteId].name}`);
   }
   saveGame();
   return true;
@@ -568,10 +578,109 @@ function performRite(riteId){
 function regionRiteBonus(regionId){
   const until = (Game.rites||{})[regionId];
   if (!until || until <= gameTime()) return 0;
-  const def = Object.values(RITES).find(d=>d.regionId===regionId);
+  // 优先用「此刻生效的那套礼」；旧档没有 riteOf，退回按 regionId 反查
+  const activeId = (Game.riteOf||{})[regionId];
+  const def = (activeId && RITES[activeId]) || Object.values(RITES).find(d=>d.regionId===regionId);
   return def ? def.yieldBonus * (Game.buildings.citan ? 1.5 : 1) : 0;
 }
+
+// ---------- 续祭 ----------
+// 二十八套礼制各有一小时（大祭两小时）时效，到期就断。原先只能守着时间手点，
+// 挂机一晚回来增益早没了。开「续祭」后，到期前 60 秒自动再备一份同样的祭品续上。
+const RITE_RENEW_LEAD = 60;      // 提前量（秒）：留出材料结算的余量，避免出现空档
+function riteAutoOn(riteId){ return !!((Game.riteAuto||{})[riteId]); }
+function riteState(riteId){
+  const rec = Recipes.find(r=>r.type==='rite' && r.out===riteId);
+  const def = RITES[riteId];
+  if (!rec || !def) return null;
+  const until = def.regionId ? (Game.rites||{})[def.regionId] : 0;
+  const now = gameTime();
+  const left = until ? Math.max(0, until - now) : 0;
+  const active = !!(until && until > now) && (!Game.riteOf || !Game.riteOf[def.regionId] || Game.riteOf[def.regionId] === riteId);
+  // 材料够续几次（不含「等级」这类软条件）
+  let times = Infinity;
+  for (const [iid, q] of rec.cost){
+    const have = totalOf(iid);
+    times = Math.min(times, Math.floor(have / Math.max(1, q)));
+  }
+  return { rec, def, left, active, times: isFinite(times) ? times : 0,
+           lvOk: levelOf('jisi') >= rec.lvl, auto: riteAutoOn(riteId),
+           stall: !!((Game.riteStall||{})[riteId]) };
+}
+function toggleRiteAuto(riteId){
+  const st = riteState(riteId);
+  if (!st) return false;
+  Game.riteAuto = Game.riteAuto || {};
+  if (st.auto){
+    delete Game.riteAuto[riteId];
+    if (Game.riteStall) delete Game.riteStall[riteId];
+    log(`🕯️ 已停${(Items[riteId]||{}).name||riteId}之续祭`, 'dim', 'sys');
+    UI && UI.toast('已停续祭');
+  } else {
+    if (!st.lvOk){ UI && UI.toast(`🔒 需祭祀 ${st.rec.lvl} 级`); return false; }
+    Game.riteAuto[riteId] = true;
+    log(`🕯️ ${(Items[riteId]||{}).name||riteId}列入续祭：到期前自动重备祭品`, 'gold', 'sys');
+    UI && UI.toast('🕯️ 已开续祭\n到期前自动续上（耗同样祭品）');
+    tickAutoRites();          // 若此刻已过期/未行祭，立刻补上一次
+  }
+  saveGame();
+  return true;
+}
+function tickAutoRites(){
+  const auto = Game.riteAuto;
+  if (!auto) return;
+  const ids = Object.keys(auto);
+  if (!ids.length) return;
+  const now = gameTime();
+  for (const id of ids){
+    const def = RITES[id];
+    if (!def || !def.regionId){ delete auto[id]; continue; }
+    const until = (Game.rites||{})[def.regionId];
+    // 还有得烧，且那套礼确实是自己（同山系换了别的礼就不抢）
+    if (until && until > now + RITE_RENEW_LEAD) continue;
+    const rec = Recipes.find(r=>r.type==='rite' && r.out===id);
+    if (!rec){ delete auto[id]; continue; }
+    if (levelOf('jisi') < rec.lvl){
+      delete auto[id];
+      log(`🕯️ 祭祀等级不足 ${rec.lvl}，${(Items[id]||{}).name||id}续祭已停`, 'dim', 'sys');
+      continue;
+    }
+    // 祭品不继：不关开关，转入「待料」——玩家补上材料自会续上，
+    // 关掉反而要玩家重新想起去点一次。只在转入那一刻记一笔，免得每秒刷屏。
+    if (!canAfford(rec.cost)){
+      Game.riteStall = Game.riteStall || {};
+      if (!Game.riteStall[id]){
+        Game.riteStall[id] = true;
+        log(`🕯️ 祭品不继，${(Items[id]||{}).name||id}续祭待料——备齐后自会续上`, 'dim', 'sys');
+        if (!Game.stats.seenRiteAutoStall){
+          Game.stats.seenRiteAutoStall = true;
+          UI && UI.toast(`🕯️ ${(Items[id]||{}).name||id} 祭品不继\n续祭转入待料，备齐自续`);
+        }
+      }
+      continue;
+    }
+    if (Game.riteStall) delete Game.riteStall[id];
+    performRite(id, { silent:true });
+  }
+}
+function riteAutoCount(){ return Object.keys(Game.riteAuto||{}).length; }
+// 某山系此刻在供的是哪一礼（舆地页据此提示「此域产出 +X% · 余 42:10」）
+// 行祭给的是看不见的百分比，玩家不翻祠礼页就不知道它还在不在供——
+// 把它摆到山系名旁边，礼才有存在感。
+function activeRiteOf(regionId){
+  const until = (Game.rites||{})[regionId];
+  if (!until || until <= gameTime()) return null;
+  const id = (Game.riteOf||{})[regionId];
+  const def = id && RITES[id];
+  if (!def) return null;
+  return { id, name: (Items[id]||{}).name || '祠礼',
+           bonus: def.yieldBonus * (Game.buildings.citan ? 1.5 : 1),
+           left: until - gameTime() };
+}
 window.performRite = performRite; window.regionRiteBonus = regionRiteBonus;
+window.riteState = riteState; window.toggleRiteAuto = toggleRiteAuto;
+window.tickAutoRites = tickAutoRites; window.riteAutoOn = riteAutoOn;
+window.riteAutoCount = riteAutoCount; window.activeRiteOf = activeRiteOf;
 
 // ---------- 观象 / 观瑞 ----------
 function startObserve(siteId){
@@ -1535,6 +1644,7 @@ function onSecond(){
     } }
   Game.stats.time++;
   tickOmens();
+  tickAutoRites();          // 续祭：到期前 60 秒自动重备一份祭品
   checkMilestoneToast();
   // 闲置兜底：真正无事可做（无行动/战斗/队列）且偏好开启时，累计够久就自动接上默认行动
   if (!Game.activity && !Game.combat && !Game.queueRunning && Prefs.idleFallback !== false){
@@ -1617,11 +1727,57 @@ function doRecipeAction(a){
 }
 
 // ---------- 离线 / 后台结算 ----------
+// 离线续祭：开着续祭却整晚不在，礼一到期就断，回来只有一段空窗。
+// 这里按「离线期间本应续上的那几份」补扣祭品（只补不预付），并把到期时间推到当下之后。
+function settleRitesOffline(seconds, summary){
+  const auto = Game.riteAuto;
+  if (!auto) return;
+  const ids = Object.keys(auto);
+  if (!ids.length) return;
+  const now = gameTime();
+  const from = now - seconds;
+  for (const id of ids){
+    const def = RITES[id];
+    if (!def || !def.regionId){ delete auto[id]; continue; }
+    const rec = Recipes.find(r=>r.type==='rite' && r.out===id);
+    if (!rec){ delete auto[id]; continue; }
+    if (levelOf('jisi') < rec.lvl) continue;
+    const dur = Math.max(60, def.dur || 3600);
+    let cursor = (Game.rites||{})[def.regionId] || 0;
+    if (cursor > now) continue;                  // 离线全程有效，不必补
+    if (cursor < from) cursor = from;            // 离线前就断了：只从离线起点补起
+    let paid = 0;
+    while (cursor <= now && paid < 240){   // 恰在此刻到期也要续，否则回来就是一段空窗
+      if (!canAfford(rec.cost)) break;
+      payCost(rec.cost);
+      for (const [iid, q] of rec.cost) summary.riteCost[iid] = (summary.riteCost[iid]||0) + q;
+      cursor += dur; paid++;
+    }
+    if (!paid) continue;
+    Game.rites = Game.rites || {};
+    Game.rites[def.regionId] = cursor;
+    Game.riteOf = Game.riteOf || {};
+    Game.riteOf[def.regionId] = id;
+    Game.stats.rites += paid;
+    gainXp('jisi', def.xp * (Game.buildings.citan ? 1.5 : 1) * paid);
+    summary.riteRenews += paid;
+    (summary.riteList = summary.riteList || []).push({ id, n: paid });
+    log(`🕯️ 离山期间续祭 ${(Items[id]||{}).name||id} ×${paid}`, 'gold', 'sys');
+  }
+}
+
 function settleAway(seconds){
-  seconds = Math.max(0, Math.min(seconds, offlineCapHours()*3600));
+  // 原始离山时长另存：被收益上限截断时要如实告诉玩家「超出那部分没算」，
+  // 否则挂了 12 小时只按 8 小时结，看着像丢收益。
+  const rawSeconds = Math.max(0, seconds || 0);
+  seconds = Math.min(rawSeconds, offlineCapHours()*3600);
   if (seconds < 30) return null;
   const eff = offlineEff();
-  const summary = { seconds, xp:0, items:{}, records:0, harvests:0 };
+  const summary = { seconds, rawSeconds, capped: rawSeconds > seconds + 30,
+                    xp:0, items:{}, records:0, harvests:0, acts:{}, riteRenews:0, riteCost:{} };
+  // 续祭先于采集结算：离线那几小时的祠礼若开着续祭，按同样祭品顺延补上，
+  // 补完再算产出，加成才算得进去（否则回来一看「礼是续上了，但收益没沾光」）。
+  settleRitesOffline(seconds, summary);
   const addXp = (skill, amount)=>{
     const g = Math.round(amount * eff);
     if (g > 0){ gainXp(skill, g); summary.xp += g; }
@@ -1631,8 +1787,11 @@ function settleAway(seconds){
     const it = Items[a.itemId];
     if (it && it.node === Game.node && levelOf(it.skill) >= it.lvl){
       const times = Math.floor(seconds / gatherInterval(it.skill));
+      summary.acts.gather = times;
       addXp(it.skill, it.xp * times);
-      const q = Math.floor(times * 1.4 * eff);
+      // 离线采集也算祠礼加成，否则「挂着挖矿」反而是唯一吃不到礼的玩法
+      const rb = 1 + regionRiteBonus((regionOf(Game.node)||{}).regionId);
+      const q = Math.floor(times * 1.4 * eff * rb);
       if (q > 0){ giveItem(a.itemId, q, false); summary.items[a.itemId] = q; }
       const recs = Math.floor(times * eff * 1.2);
       for (let i=0;i<recs;i++) recordObject(a.itemId, 1);
@@ -1643,6 +1802,7 @@ function settleAway(seconds){
     const times = a.remain != null ? Math.min(Math.floor(seconds / 2.0), a.remain) : Math.floor(seconds / 2.0);
     let t = 0;
     while (t < times && canAfford(a.recipe.cost)){ payCost(a.recipe.cost); t++; }
+    summary.acts.craft = t;
     if (t > 0){
       giveItem(a.recipe.out, a.recipe.qty*t, false);
       addXp(mapRecipeSkill(a.recipe.type), a.recipe.xp * t);
@@ -1655,14 +1815,17 @@ function settleAway(seconds){
     }
   } else if (a && a.kind === 'observe'){
     const times = Math.floor(seconds / TUNING.OBSERVE_SEC);
+    summary.acts.observe = times;
     for (let i=0;i<times;i++) doObserve(a.siteId);
   } else if (a && a.kind === 'audience'){
     const times = Math.floor(seconds / TUNING.OBSERVE_SEC);
+    summary.acts.audience = times;
     for (let i=0;i<times;i++) doAudience(a.nodeId);
   } else if (a && a.kind === 'grow'){
     const site = GROW_SITES[a.siteId];
     if (site){
       const times = Math.floor(seconds / site.sec);
+      summary.acts.grow = times;
       for (let i=0;i<times && (growState(a.siteId).stage||0) < site.stages;i++) doGrow(a.siteId);
     }
   }
@@ -1684,6 +1847,7 @@ function settleAway(seconds){
   return summary;
 }
 window.settleAway = settleAway;
+window.settleRitesOffline = settleRitesOffline;
 
 if (typeof window !== 'undefined'){
   window.totalOf = totalOf; window.giveItem = giveItem; window.takeItem = takeItem;
