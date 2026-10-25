@@ -814,7 +814,7 @@ const TUT_STEPS = [
   { tab:'yudi',   icon:'🗺️', title:'受命著录',
     body:`你是一名<b>著录者</b>，奉命巡行山海，把山川万物逐条录于竹简。\n游戏进度，即一部正在写成的《山海经》。\n\n先从「舆地」开始——选择山系、点选某座山，再点其中任一动作（采集 / 观象 / 讨伐 / 祠礼），即动身前往此地。` },
   { tab:'skills', icon:'📜', title:'技艺修行',
-    body:`采集、制作、讨伐、御使……共 <b>26 门技艺</b>，行动即长经验（九阶八十一）。\n技能越高，产出越丰，亦能解锁更高「舆地」等级的山川。\n切到「技能」可查看每一门技艺的进度。` },
+    body:`采集、制作、讨伐、御使……共 <b>26 门技艺</b>，行动即长经验（九阶八十一）。\n技能越高，产出越丰，亦能解锁更高「舆地」等级的山川。\n\n本页还挂着<b>三签</b>——三条短课，做完一条即补一条，赏贝币；做不了可以「换」。` },
   { tab:'taofa',  icon:'⚔️', title:'往讨异兽',
     body:`前往有异兽记载的山，点「往讨」。\n首次著录即触发<b>征兆</b>吉凶；著录至<b>得御</b>阶，便可在「御使」中使役该异兽，化作被动增益与自动作业。` },
   { tab:'pack',   icon:'🎒', title:'行装器物',
@@ -822,7 +822,7 @@ const TUT_STEPS = [
   { tab:'queue',  icon:'🧭', title:'巡历挂机',
     body:()=>`这是挂机核心。在「行动」编排<b>巡历队列</b>与<b>兜底任务</b>，离开页面也能自动推进。\n归来时按离线时长结算收益；离线上限随「观象」「营造」提升（现为 ${offlineCapHours()} 小时）。` },
   { icon:'📊', title:'祠祀与统计',
-    body:`你还可祠祀山神（增益区域产出）、营造市廛、卜筮吉凶、观象提升离线上限。\n进度<b>自动存档于本机</b>；在「统计」页可导出 / 导入存档。\n\n祝著录顺利，山海自有回响。` },
+    body:`你还可祠祀山神（增益区域产出）、营造市廛、卜筮吉凶、观象提升离线上限。\n进度<b>自动存档于本机</b>；在「统计」页可导出 / 导入存档。\n\n技艺修至九九，可在技能页<b>再著一卷</b>（轮回）：等级归零，换一枚终身累积的轮回印，\n而著录、装备、贝币与修为俱在——那是很久以后的事了。\n\n祝著录顺利，山海自有回响。` },
 ];
 // 教程步骤的标记：取该步对应页签的意象，避免各平台 emoji 差异
 const TUT_MARKS = { yudi:'compass', skills:'lamp', taofa:'warn', pack:'scale', queue:'bolt' };
@@ -1590,7 +1590,7 @@ UI.renderSkills = function(){
     return `<div class="panel bounty-panel">
       <h3>三签<i class="bn-sub">签成得贝，做完一条即补一条</i></h3>
       <div class="bounty-list">
-        ${list.map(b => {
+        ${list.map((b, bi) => {
           const def = bountyDef(b.id);
           const got = bountyProgress(b), need = Math.max(1, b.target);
           const pct = Math.min(100, got / need * 100);
@@ -1599,6 +1599,7 @@ UI.renderSkills = function(){
             <span class="bn-bar"><i style="width:${pct.toFixed(1)}%"></i></span>
             <span class="bn-num">${Math.min(got, need)}/${need}</span>
             <span class="bn-pay">${Math.max(1, Math.round(def.shells(lv)))} 贝</span>
+            <button class="bn-swap" type="button" title="换一条（当前进度作废）" onclick="bountySwap(${bi})">换</button>
           </div>`;
         }).join('')}
       </div>

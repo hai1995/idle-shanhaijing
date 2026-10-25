@@ -2295,3 +2295,6 @@ mark.hit{
 .bounty-item .bn-num{ font-family:var(--f-num); color:var(--ink-3); min-width:4.2em; text-align:right; }
 .bounty-item .bn-pay{ font-family:var(--f-num); color:var(--gamboge); min-width:4.5em; text-align:right; }
 .bounty-item.done .bn-bar i{ background:var(--zhu); }
+.bounty-item .bn-swap{ flex:0 0 auto; padding:1px 7px; font-size:11px; color:var(--ink-3);
+  background:transparent; border:1px solid var(--rule); border-radius:var(--r); cursor:pointer; }
+.bounty-item .bn-swap:hover{ color:var(--zhu-d); border-color:var(--zhu); }

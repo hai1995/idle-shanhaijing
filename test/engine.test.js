@@ -4676,6 +4676,17 @@ section('三签 · 本轮短课');
   const g = ST.BOUNTIES.find(b => b.id === 'gather');
   assert(g.n(81) >= 400, '采集签按「一秒一下」的节奏定次数：满级要 ' + g.n(81) + ' 次（约十分钟）');
 
+  // 换签：抽到做不了的那条（祠礼没备祭品）不能让人干卡着。
+  // 换是免费的，代价是新签进度从头算——所以「刷顺手的签」不占便宜。
+  ST.Game.bounties = [{ id:'hunt', base: 0, target: 2 }, { id:'craft', base: 0, target: 1 }, { id:'sell', base: 0, target: 2 }];
+  ST.Game.stats.kills = 7;
+  assert(ST.bountySwap(0) === true, '换签成功');
+  assert(ST.Game.bounties.length === 3, '换完还是三条');
+  assert(ST.Game.bounties[0].id !== 'hunt', '换掉了原来那条（' + ST.Game.bounties[0].id + '）');
+  const nd = ST.bountyDef(ST.Game.bounties[0].id);
+  assert(ST.Game.bounties[0].base === ST.bountyCounter(nd.key), '新签 base 取当前计数，进度从头算');
+  assert(new Set(ST.Game.bounties.map(b => b.id)).size === 3, '换完三条仍不重样');
+
   // 入档：三签随档保存，读档后还在
   ST.Game.bounties = [{ id:'hunt', base: 0, target: 3 }, { id:'craft', base: 0, target: 1 }, { id:'sell', base: 0, target: 2 }];
   G.saveGame();

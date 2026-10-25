@@ -2382,7 +2382,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.23.0',
+  version: '1.23.1',
   codename:'五臧 · 三签',
   updated: '2026-10-25',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',

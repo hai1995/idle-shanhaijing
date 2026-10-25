@@ -90,9 +90,12 @@ function bountyCounter(key){
   return s[key] || 0;
 }
 function bountyDef(id){ return (window.BOUNTIES || []).find(b => b.id === id) || null; }
-// 抽一条「不在手上」的签；base 记下此刻计数，目标按综合等级缩放
-function bountyPull(){
-  const pool = (window.BOUNTIES || []).filter(b => (Game.bounties || []).every(x => x.id !== b.id));
+// 抽一条「不在手上」的签；base 记下此刻计数，目标按综合等级缩放。
+// extraExclude 用于换签：那条已经先从列表里摘掉了，得单独再排一次，
+// 否则有几率原样抽回来（表现为「点换签没反应」）。
+function bountyPull(extraExclude){
+  const ex = (extraExclude || []).concat((Game.bounties || []).map(x => x.id));
+  const pool = (window.BOUNTIES || []).filter(b => ex.indexOf(b.id) < 0);
   if (!pool.length) return null;
   const pick = pool[Math.floor(Math.random() * pool.length)];
   const lv = bountyLevel();
@@ -132,7 +135,26 @@ function bountyTick(){
     else Game.bounties[i] = { id:b.id, base:bountyCounter(def.key), target:b.target };
   }
 }
+// 换签：抽到做不了的那条（比如祠礼没备祭品）不能让人干卡着。
+// 换是免费的，但进度从头算——这本身就是代价，不必再收钱；
+// 否则刷「讨伐」这种顺手的签反而成了最优解。
+function bountySwap(idx){
+  if (!Array.isArray(Game.bounties) || !Game.bounties[idx]) return false;
+  const old = Game.bounties[idx];
+  const oldDef = bountyDef(old.id);
+  const oldId = old.id;
+  Game.bounties.splice(idx, 1);
+  const nb = bountyPull([oldId]);
+  if (nb) Game.bounties.splice(idx, 0, nb);
+  else { Game.bounties.splice(idx, 0, old); return false; }
+  const newDef = bountyDef(nb.id);
+  log(`🎋 换签：${oldDef ? oldDef.name : '旧签'} → ${newDef ? newDef.name : '新签'}（进度从头算）`, 'sys', 'sys');
+  UI && UI.toast(`🎋 换签：${newDef ? newDef.name : ''}`);
+  UI && UI.renderSkills && UI.currentTab === 'skills' && UI.renderSkills();
+  return true;
+}
 window.bountyLevel = bountyLevel; window.bountyCounter = bountyCounter;
+window.bountySwap = bountySwap;
 window.bountyInit = bountyInit; window.bountyTick = bountyTick;
 window.bountyProgress = bountyProgress; window.bountyDef = bountyDef;
 
