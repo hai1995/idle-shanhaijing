@@ -4353,7 +4353,7 @@ section('连败三阵收兵');
 section('开战前的账');
 {
   const uiSrc73 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
-  assert(uiSrc73.includes('倍气血') && uiSrc73.includes('需备吃食或补强'), '战斗评估给出承伤倍数与应对');
+  assert(uiSrc73.includes('倍气血') && uiSrc73.includes('包中无吃食'), '战斗评估给出承伤倍数；包里没吃食时直说');
   assert(uiSrc73.includes('Game.stats.deathStreakOf===id') && uiSrc73.includes('已连败 ${Game.stats.deathStreak} 阵'),
     '讨伐弹窗在连败两次后写明「已连败 N 阵」');
   assert(uiSrc73.includes('.hm-warn') || fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8').includes('.hm-warn'),
@@ -4375,6 +4375,15 @@ section('开战前的账');
     `体魄提到九九，同一战的承伤倍数由 ${mult(est40.html)} 降到 ${mult(est81.html)}（补体魄确实管用）`);
   const easy = ST.combatEstimateInner(ST.Monsters.shengsheng, { monsterId: 'shengsheng' });
   assert(easy.cls === 'good' && mult(easy.html) === 0, '稳赢的目标不显示承伤账（不制造无谓焦虑）');
+
+  // 把倍数折成「要备几份」：拿起来就能办，不用玩家自己换算
+  ST.Game.skills.ming.level = 40;
+  ST.Game.inventory = { danmushi: 30 };
+  const withFood = ST.combatEstimateInner(m, ST.Game.combat);
+  assert(/需备 [1-9]\d* 份丹木之实/.test(withFood.html), '给出份数：' + (withFood.html.match(/需备 [^·]+/)[0]));
+  ST.Game.inventory = {};
+  const noFood = ST.combatEstimateInner(m, ST.Game.combat);
+  assert(noFood.html.includes('包中无吃食'), '背包空时提示先去备些，而不是让人带着空袋子去打');
 }
 
 // ============ 74. 实战：真跑 combatTick，BOSS 打得过、药也吃得上 ============

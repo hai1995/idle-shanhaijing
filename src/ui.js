@@ -1780,9 +1780,30 @@ function combatEstimateInner(m, c, hpNow){
   const mdps = Math.max(1, m.atk - totalDefence()*0.3) * 0.6 / Math.max(1, monsterInterval(m, c));
   // 只看「撑不住」三个字，玩家不知道差多少。换成倍数：2 倍气血 = 得吃两份，
   // 5 倍 = 别硬来，先去补器甲。BOSS 战本来就长，这条提示是开战前唯一的账。
-  const ratio = kill * mdps / Math.max(1, playerMaxHp());
+  const ceil = Math.max(1, playerMaxHp());
+  const ratio = kill * mdps / ceil;
   const survive = ratio <= 1;
-  const tail = survive ? '' : ` · ⚠ 承伤约 ${ratio.toFixed(1)} 倍气血${ratio >= 1.5 ? '，需备吃食或补强' : ''}`;
+  // 再把倍数折成「要备几份」——倍数要玩家自己换算，份数是拿起来就能办的。
+  // 按背包里回血最多的那份算；一份都没有时直说，免得他带着空袋子去打。
+  let food = null;
+  for (const id in Game.inventory){
+    const it = Items[id];
+    if (!it || !it.heal || Game.inventory[id] <= 0) continue;
+    const h = healAmount(it);
+    if (!food || h > food.heal) food = { id, name:it.name, heal:h };
+  }
+  let advice = '';
+  if (!survive){
+    const need = kill * mdps - ceil;
+    // 一份食物能吃回多少，取决于它在多低的血线上被吃：自动进食在 Prefs.autoEat
+    // 处触发，此时最多补到满血，所以有效回血是 min(食物回血, 气血 × (1 − 阈值))。
+    // 按食物标称回血算会严重低估份数——丹木之实写着 500，但 300 气血的人实际只吃到 195。
+    const eff = food ? Math.max(1, Math.min(food.heal, Math.round(ceil * (1 - (Prefs.autoEat || 0.35))))) : 0;
+    advice = food
+      ? `，需备 ${Math.max(1, Math.ceil(need / eff))} 份${food.name}`
+      : '，包中无吃食——先去备些';
+  }
+  const tail = survive ? '' : ` · ⚠ 承伤约 ${ratio.toFixed(1)} 倍气血${ratio >= 1.5 ? advice : '，留意气血'}`;
   return { cls: survive ? 'good' : 'bad',
     html: `预计击杀 ≈ ${fmtTime(Math.ceil(kill))} · 你 DPS≈${dps.toFixed(1)} · 敌 DPS≈${mdps.toFixed(1)}${tail}` };
 }
