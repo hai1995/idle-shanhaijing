@@ -1308,7 +1308,7 @@ const interactSrc = readText('src/interact.js');
 assert(uiSrc.includes('const pick = (()=>{') && uiSrc.includes('if (x.boss) continue;'), '征伐页计算「宜讨」候选（排除 BOSS 与未解锁）');
 assert(uiSrc.includes('levelOf(\'taofa\') < (x.needLvl||1)) continue;'), '宜讨候选需讨伐等级达标');
 assert(uiSrc.includes('if (!best || (x.xp||0) > (best.xp||0)) best = x;'), '宜讨取经验效率最高者');
-assert(uiSrc.includes('(b===pick?1:0) - (a===pick?1:0)'), '宜讨项在分组内置顶');
+assert(uiSrc.includes('[pick, ...g.list.filter(x=>x!==pick)]'), '宜讨项在分组内置顶');
 assert(uiSrc.includes('class="bc-pick"') && uiSrc.includes('>宜讨</span>'), '宜讨项带朱色「宜讨」标记');
 assert(uiSrc.includes("markIcon('check',13):'✔'} 宜讨</span>"), '宜讨与「✔ 推荐」兼具时合并为一枚标签（不并排）');
 assert(/\.bc-pick\{/.test(css) && /\.beast-card\.pick\{ border-color:var\(--zhu\); \}/.test(css), '宜讨有样式（朱色小印 + 卡面朱边）');
@@ -3008,6 +3008,34 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
     }
   }
   assert(dead.length === 0, '无既未调用也未导出的顶层函数（' + (dead.join('、') || '无') + '）');
+}
+
+// ============ 52. 征伐页分组懒渲染（v1.15.2） ============
+{
+  G.resetToDefault();
+  const uiSrc52 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  ST.UI.currentTab = 'taofa';
+  ST.UI.renderTaofa();
+  const groups = ST.UI._beastGroups || [];
+  assert(groups.length >= 20, '分组仍在内存里（' + groups.length + ' 组）');
+  const withRegion = groups.filter(g => g.regionId);
+  assert(withRegion.length >= 26, '每个山系一组并带 regionId（' + withRegion.length + '）');
+  assert(groups.some(g => g.always), '特殊目标组标了 always（六凶 / 刑天 / 神祇不折）');
+
+  const html52 = (document.getElementById('content') || {}).innerHTML || '';
+  const dom52 = ST.UI._lastHtml || '';
+  assert(uiSrc52.includes('data-g="${gi}"') && uiSrc52.includes('ontoggle="UI.loadBeastGroup(this)"'),
+    '未展开的组以 details 折起，展开时回调');
+  assert(uiSrc52.includes("data-loaded") && uiSrc52.includes("setAttribute('data-loaded', '1')"),
+    '卡片只在展开时生成一次（data-loaded 记状态）');
+  assert(uiSrc52.includes('个山系折在下方') || uiSrc52.includes('已展开当前山系之目标'),
+    '列表顶部说明「其余山系已折起」');
+  assert(uiSrc52.indexOf('function beastCardHtml(x, pick)') > 0, '卡片模板抽成独立函数（组内共用）');
+  assert(uiSrc52.includes('box.innerHTML = ordered.map(x=>beastCardHtml(x, pick)).join'), '展开时按同一模板渲染');
+
+  // 折叠组里的卡不在 DOM 中，单卡补丁必须静默返回而不是抛错
+  assert(/patchBeastCard = function\(id\)\{[\s\S]{0,300}if \(!card\) return;/.test(uiSrc52),
+    '折叠组内的卡不存在时，patchBeastCard 静默跳过');
 }
 
 // ============ 47. 物品用途面板（v1.14.3） ============

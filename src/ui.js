@@ -1806,16 +1806,60 @@ function taofaArenaHtml(){
 }
 
 // 目标列表：316 只异兽分组平铺，只在切页或数据真变时重建
+// 单张异兽卡（组内共用）：宜讨标记、连杀衰减、宜用属性都在这里算一遍
+function beastCardHtml(x, pick){
+    const node = nodeOf(x.nodeId);
+    const un = node ? nodeUnlocked(node) : false;
+    const lvOk = levelOf('taofa') >= (x.needLvl||1);
+    const th = threatOf(x);
+    const rec = Game.records[x.id]||{count:0,tier:0};
+    // 宜用属性 = 克敌方的属性。⚠️ 必须走 counterOf 反查：KE_MAP[敌方] 得到的是
+    // 「敌方所克之物」——木敌会给出土，而克木的是金，正好反了。
+    const counterEl = x.el ? (counterOf(x.el) || '') : '';
+    const dropList = (x.loot && x.loot.length) ? x.loot : (x.drop ? [[x.drop,1,1]] : []);
+    const drops = dropList.map(([iid])=> (Items[iid]||{}).name || iid).slice(0,3).join('、');
+    // 连杀递减提示：本目标已连杀 n 次时，明示当前经验系数（换一只打即恢复）
+    const streakN = (Game.mobStreak && Game.mobStreak[x.id]) || 0;
+    const decayTag = (!x.boss && streakN > 0 && mobStreakMult(x.id) < 1)
+      ? `<span class="bc-decay" title="连续讨伐 ${streakN} 次，经验递减；换一只异兽即恢复全额">经验 ×${mobStreakMult(x.id).toFixed(2)}</span>`
+      : '';
+    // 威胁评估（✔ 推荐 / 可讨 / ⚠ 危险）与「宜讨」（经验效率最高）合并显示：
+    // 两者兼具时只留一枚「✔ 宜讨」，不在卡头并排两个标签
+    const thTag = (x===pick && th.level==='recommend')
+      ? `<span class="bc-pick" title="当前可讨伐中经验效率最高，且胜算充足">${typeof markIcon==='function'?markIcon('check',13):'✔'} 宜讨</span>`
+      : `${x===pick?'<span class="bc-pick" title="当前可讨伐中经验效率最高">宜讨</span>':''}<span class="th ${th.level}">${th.mark&&typeof markIcon==='function'?markIcon(th.mark,13):''}${th.label}</span>`;
+    // 方块：图标 + 名 + 「录 n · Lv n」，五行与宜讨做角标，威胁改边框色；
+    // 气血/攻防/经验/掉落/产地/形态全进浮层——一屏能扫过整片山系
+    return `<div class="tile beast-tile ${th.level}${x===pick?' pick':''}${(!un||!lvOk)?' lock':''}"
+      data-bid="${x.id}" data-tip data-tip-title="${esc(x.name)}${x.py?`（${esc(x.py)}）`:''}"
+      role="button" tabindex="0" onclick="UI.openHuntModal('${x.id}')">
+      ${x.el?`<span class="bt-el el-${x.el}">${x.el}</span>`:''}
+      <span class="tile-ic bi-ic">${(typeof beastIcon==='function')?beastIcon(x):(CAT_EMOJI[x.category]||'🐾')}</span>
+      <span class="tile-nm">${esc(x.name)}</span>
+      <span class="tile-tag"><i class="bt-rec">录 ${rec.count}</i> · Lv ${x.needLvl||1}${counterEl?`<button class="bt-el-hint" type="button" title="一键切到${counterEl}属（${counterEl}克${x.el}，伤害 ×${TUNING.WUXING.KE}）"
+        onclick="event.stopPropagation();setCombatStyle('zhu');setZhuEl('${counterEl}');UI.renderTaofa()">宜${counterEl}</button>`:''}${decayTag?`<span class="bt-decay" title="连续讨伐 ${streakN} 次，经验递减；换一只异兽即恢复全额">×${mobStreakMult(x.id).toFixed(2)}</span>`:''}</span>
+      ${x===pick?'<span class="bt-pick">宜讨</span>':''}
+      <span class="tip-body hidden">
+        ${x.form?`<div class="bc-sub">${esc(x.form)}</div>`:''}
+        <div class="bc-sub">气血 ${fmt(x.hp)} · 攻 ${fmt(x.atk)} · 防 ${fmt(x.def)} · 经验 ${fmt(x.xp)}</div>
+        <div class="bc-sub drop-line">${typeof markIcon==='function'?markIcon('pin',13):'📍'} ${esc(node?node.name:'')}${drops?` · 掉落 ${esc(drops)}`:''}</div>
+        ${counterEl?`<div class="bc-sub">宜用 ${counterEl} 属（${counterEl}克${x.el}，伤害 ×${TUNING.WUXING.KE}）</div>`:''}
+        ${decayTag?`<div class="bc-sub">连续讨伐 ${streakN} 次，经验 ×${mobStreakMult(x.id).toFixed(2)}；换一只异兽即恢复全额</div>`:''}
+        <div class="bc-sub">${th.mark&&typeof markIcon==='function'?markIcon(th.mark,13):''}${th.label}${(!un||!lvOk)?' · 尚不可讨':''}</div>
+      </span>
+    </div>`;
+}
 function taofaListHtml(){
   const groups = [];
   for (const r of WORLD.regions){
     const list = Object.values(Monsters).filter(x=>!x.boss && x.regionId===r.regionId);
-    if (list.length) groups.push({ title: r.regionName + ' · 异兽', list, locked: !regionUnlocked(r) });
+    if (list.length) groups.push({ title: r.regionName + ' · 异兽', list, locked: !regionUnlocked(r), regionId: r.regionId });
   }
-  groups.push({ title:'祷过之山 · 可猎', list:Object.values(Monsters).filter(x=>x.hunt) });
-  groups.push({ title:'六凶（后羿所诛）', list:Object.values(Monsters).filter(x=>x.boss&&['zaochi','jiuying','dafeng','yayu','xiushe','fenghui'].includes(x.id)) });
-  groups.push({ title:'刑天', list:Object.values(Monsters).filter(x=>x.id==='xingtian') });
-  groups.push({ title:'西山神祇（守关）', list:Object.values(Monsters).filter(x=>x.boss&&['luwu','xiwangmu','dijiang'].includes(x.id)) });
+  // 特殊目标组只有几只，直接展开（always），否则玩家看不到「六凶」还藏着一个折叠条
+  groups.push({ title:'祷过之山 · 可猎', list:Object.values(Monsters).filter(x=>x.hunt), always:true });
+  groups.push({ title:'六凶（后羿所诛）', list:Object.values(Monsters).filter(x=>x.boss&&['zaochi','jiuying','dafeng','yayu','xiushe','fenghui'].includes(x.id)), always:true });
+  groups.push({ title:'刑天', list:Object.values(Monsters).filter(x=>x.id==='xingtian'), always:true });
+  groups.push({ title:'西山神祇（守关）', list:Object.values(Monsters).filter(x=>x.boss&&['luwu','xiwangmu','dijiang'].includes(x.id)), always:true });
   // 「宜讨」：当前节点已解锁、讨伐等级达标、非 BOSS 中经验最高的一只——
   // 316 只异兽平铺时，玩家（与挂机队列）最需要的答案就是「现在打哪只」
   const pick = (()=>{
@@ -1832,62 +1876,51 @@ function taofaListHtml(){
     }
     return best;
   })();
+  // 316 只异兽一次铺开，DOM 近 900KB——切页、滚动、手机上的一次重绘都要卡。
+  // 现在只展开「当前所在山系」与「宜讨所在组」，其余折起；点开时才渲染卡（见 loadBeastGroup）。
+  const curRegion = ((typeof regionOf === 'function' && regionOf(Game.node)) || {}).regionId;
+  const isOpen = g => !!(g.always || (g.regionId && g.regionId === curRegion) || (pick && g.list.indexOf(pick) >= 0));
+  const foldedN = groups.filter(g => g.list.length && !isOpen(g)).length;
   let list = `<div class="panel beast-panel"><h3>讨伐目标</h3>
-    <div class="loot-recent">最近所获：${(Game.recentLoot||[]).map(l=>`${typeof itemIc==='function'?itemIc(l.itemId,13):((Items[l.itemId]||{}).icon||'')}${esc((Items[l.itemId]||{}).name||l.itemId)}×${l.qty}`).join('　')||'无'}</div>`;
-  for (const g of groups){
+    <div class="loot-recent">最近所获：${(Game.recentLoot||[]).map(l=>`${typeof itemIc==='function'?itemIc(l.itemId,13):((Items[l.itemId]||{}).icon||'')}${esc((Items[l.itemId]||{}).name||l.itemId)}×${l.qty}`).join('　')||'无'}</div>
+    ${foldedN ? `<div class="hint">已展开当前山系之目标；另 ${foldedN} 个山系折在下方，点开可见。</div>` : ''}`;
+  for (let gi = 0; gi < groups.length; gi++){
+    const g = groups[gi];
     if (!g.list.length) continue;
-    list += g.locked
-      ? `<details class="fold grp"><summary>${esc(g.title)} · ${g.list.length} 种（山系未解锁）</summary>`
-      : `<h4>${g.title}</h4>`;
-    list += `<div class="beast-grid">`;
-    const ordered = pick ? [...g.list].sort((a,b)=> (b===pick?1:0) - (a===pick?1:0)) : g.list;
-    list += ordered.map(x=>{
-      const node = nodeOf(x.nodeId);
-      const un = node ? nodeUnlocked(node) : false;
-      const lvOk = levelOf('taofa') >= (x.needLvl||1);
-      const th = threatOf(x);
-      const rec = Game.records[x.id]||{count:0,tier:0};
-      // 宜用属性 = 克敌方的属性。⚠️ 必须走 counterOf 反查：KE_MAP[敌方] 得到的是
-      // 「敌方所克之物」——木敌会给出土，而克木的是金，正好反了。
-      const counterEl = x.el ? (counterOf(x.el) || '') : '';
-      const dropList = (x.loot && x.loot.length) ? x.loot : (x.drop ? [[x.drop,1,1]] : []);
-      const drops = dropList.map(([iid])=> (Items[iid]||{}).name || iid).slice(0,3).join('、');
-      // 连杀递减提示：本目标已连杀 n 次时，明示当前经验系数（换一只打即恢复）
-      const streakN = (Game.mobStreak && Game.mobStreak[x.id]) || 0;
-      const decayTag = (!x.boss && streakN > 0 && mobStreakMult(x.id) < 1)
-        ? `<span class="bc-decay" title="连续讨伐 ${streakN} 次，经验递减；换一只异兽即恢复全额">经验 ×${mobStreakMult(x.id).toFixed(2)}</span>`
-        : '';
-      // 威胁评估（✔ 推荐 / 可讨 / ⚠ 危险）与「宜讨」（经验效率最高）合并显示：
-      // 两者兼具时只留一枚「✔ 宜讨」，不在卡头并排两个标签
-      const thTag = (x===pick && th.level==='recommend')
-        ? `<span class="bc-pick" title="当前可讨伐中经验效率最高，且胜算充足">${typeof markIcon==='function'?markIcon('check',13):'✔'} 宜讨</span>`
-        : `${x===pick?'<span class="bc-pick" title="当前可讨伐中经验效率最高">宜讨</span>':''}<span class="th ${th.level}">${th.mark&&typeof markIcon==='function'?markIcon(th.mark,13):''}${th.label}</span>`;
-      // 方块：图标 + 名 + 「录 n · Lv n」，五行与宜讨做角标，威胁改边框色；
-      // 气血/攻防/经验/掉落/产地/形态全进浮层——一屏能扫过整片山系
-      return `<div class="tile beast-tile ${th.level}${x===pick?' pick':''}${(!un||!lvOk)?' lock':''}"
-        data-bid="${x.id}" data-tip data-tip-title="${esc(x.name)}${x.py?`（${esc(x.py)}）`:''}"
-        role="button" tabindex="0" onclick="UI.openHuntModal('${x.id}')">
-        ${x.el?`<span class="bt-el el-${x.el}">${x.el}</span>`:''}
-        <span class="tile-ic bi-ic">${(typeof beastIcon==='function')?beastIcon(x):(CAT_EMOJI[x.category]||'🐾')}</span>
-        <span class="tile-nm">${esc(x.name)}</span>
-        <span class="tile-tag"><i class="bt-rec">录 ${rec.count}</i> · Lv ${x.needLvl||1}${counterEl?`<button class="bt-el-hint" type="button" title="一键切到${counterEl}属（${counterEl}克${x.el}，伤害 ×${TUNING.WUXING.KE}）"
-          onclick="event.stopPropagation();setCombatStyle('zhu');setZhuEl('${counterEl}');UI.renderTaofa()">宜${counterEl}</button>`:''}${decayTag?`<span class="bt-decay" title="连续讨伐 ${streakN} 次，经验递减；换一只异兽即恢复全额">×${mobStreakMult(x.id).toFixed(2)}</span>`:''}</span>
-        ${x===pick?'<span class="bt-pick">宜讨</span>':''}
-        <span class="tip-body hidden">
-          ${x.form?`<div class="bc-sub">${esc(x.form)}</div>`:''}
-          <div class="bc-sub">气血 ${fmt(x.hp)} · 攻 ${fmt(x.atk)} · 防 ${fmt(x.def)} · 经验 ${fmt(x.xp)}</div>
-          <div class="bc-sub drop-line">${typeof markIcon==='function'?markIcon('pin',13):'📍'} ${esc(node?node.name:'')}${drops?` · 掉落 ${esc(drops)}`:''}</div>
-          ${counterEl?`<div class="bc-sub">宜用 ${counterEl} 属（${counterEl}克${x.el}，伤害 ×${TUNING.WUXING.KE}）</div>`:''}
-          ${decayTag?`<div class="bc-sub">连续讨伐 ${streakN} 次，经验 ×${mobStreakMult(x.id).toFixed(2)}；换一只异兽即恢复全额</div>`:''}
-          <div class="bc-sub">${th.mark&&typeof markIcon==='function'?markIcon(th.mark,13):''}${th.label}${(!un||!lvOk)?' · 尚不可讨':''}</div>
-        </span>
-      </div>`;
-    }).join('');
-    list += `</div>`;
-    if (g.locked) list += `</details>`;
+    const open = isOpen(g);
+    if (open){
+      list += g.locked
+        ? `<details class="fold grp" open><summary>${esc(g.title)} · ${g.list.length} 种（山系未解锁）</summary>`
+        : `<h4>${g.title}</h4>`;
+      const ordered = pick ? [pick, ...g.list.filter(x=>x!==pick)] : g.list;
+      list += `<div class="beast-grid">${ordered.map(x=>beastCardHtml(x, pick)).join('')}</div>`;
+      if (g.locked) list += `</details>`;
+    } else {
+      list += `<details class="fold grp" data-g="${gi}" ontoggle="UI.loadBeastGroup(this)">
+        <summary>${esc(g.title)} · ${g.list.length} 种${g.locked?'（山系未解锁）':''}</summary>
+        <div class="beast-grid" data-loaded="0"></div>
+      </details>`;
+    }
   }
+  // 存到 UI 上而不是 this：taofaListHtml 是普通函数，调用处没有绑定接收者
+  UI._beastGroups = groups;
+  UI._beastPick = pick;
   return list + `</div>`;
 }
+
+// 折叠组展开时才生成卡片：316 只异兽全量渲染要 800 多 KB DOM，
+// 折起的组只留一个空容器，点开再填——切页与滚动的卡顿基本消失。
+UI.loadBeastGroup = function(det){
+  if (!det || !det.open) return;
+  const box = det.querySelector && det.querySelector('.beast-grid');
+  if (!box || box.getAttribute('data-loaded') === '1') return;
+  const g = (this._beastGroups || [])[+det.getAttribute('data-g')];
+  if (!g) return;
+  const pick = this._beastPick;
+  const ordered = pick ? [pick, ...g.list.filter(x=>x!==pick)] : g.list;
+  box.innerHTML = ordered.map(x=>beastCardHtml(x, pick)).join('');
+  box.setAttribute('data-loaded', '1');
+};
 
 UI.renderTaofa = function(){
   const box = $('content');
@@ -2631,7 +2664,7 @@ UI.renderShichan = function(){
       <span>贝币 <b data-stat="shells">${fmt(Game.shells)}</b></span>
       <span>商旅等级 <b>${levelOf('shanglv')}</b></span>
       <span>售价加成 <b>×${sellMult.toFixed(2)}</b></span>
-      <span class="price-trend">售价走势 ${sparkline(Game.priceHistory.map(p=>p.m), 90, 22)}</span>
+      <span class="price-trend">售价走势 ${sparkline((Game.priceHistory||[]).map(p=>p.m), 90, 22)}</span>
       <span class="filter-row">
         <button class="chip-btn ${this.invSort==='default'?'on':''}" onclick="UI.invSort='default';UI.renderShichan()">默认</button>
         <button class="chip-btn ${this.invSort==='value'?'on':''}" onclick="UI.invSort='value';UI.renderShichan()">价值↓</button>

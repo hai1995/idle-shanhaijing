@@ -17,6 +17,7 @@ const Game = {
   riteOf: {},            // 该山系此刻生效的是哪套礼 { regionId: riteId }（同区多礼时定归属）
   riteAuto: {},          // 续祭开关 { riteId: true }：到期前自动重备祭品
   riteStall: {},         // 续祭待料 { riteId: true }：开关仍开，只等祭品凑齐
+  priceHistory: [],      // 售价走势采样 [{ t, m }]（onSecond 每 60 秒落一点）
   recentLoot: [],        // 最近战利品 [{ itemId, qty }]
   omenImmune: {},        // 征兆免疫 { omenId: true }（鵕鸟/大鹗所赐，或御使駮）
   danmu: { stage:0, done:0 },  // 峚山丹木养成进度
@@ -64,7 +65,7 @@ function cloneDefaultGame(){
   g.inventory = { gui:5, shashi:5, guaimu:3, jing:3, zhuyu:3, tu:5, jiagufan:2, shuiping:2 };
   g.banking = {}; g.farms = {}; g.records = {}; g.map = { 'nanshan-1-01': true };
   g.observed = {}; g.buildings = {}; g.deployed = {}; g.omens = []; g.rites = {}; g.recentLoot = [];
-  g.riteOf = {}; g.riteAuto = {}; g.riteStall = {};
+  g.riteOf = {}; g.riteAuto = {}; g.riteStall = {}; g.priceHistory = [];
   g.omenImmune = {}; g.danmu = { stage:0, done:0 }; g.grow = {}; g.buff = null;
   g.node = 'nanshan-1-01'; g.activity = null; g.combat = null;
   g.queue = []; g.queueIdx = 0; g.queueRound = 0; g.queueRunning = false; g.queueLoop = true; g.fallback = null;
