@@ -4947,6 +4947,56 @@ section('谒见之赐');
   assert(row && row.gain.indexOf('初谒赐') >= 0 && row.gain.indexOf('吉玉') >= 0, '索引写明赐物：' + (row || {}).gain);
 }
 
+// ============ 84. 六凶 0/7：分子分母不是一回事 ============
+// 统计页写着「六凶 x/7」，而六凶只有六位；分子数的却是 bossKills 的全部键，
+// 于是杀过刑天/陆吾的档会把它们算进「六凶」。三处各抄一份 id 列表，
+// 分母写错也没人察觉——现在名单只有一份 SIX_BEASTS。
+section('六凶名单与统计口径');
+{
+  G.resetToDefault();
+  assert(Array.isArray(ST.SIX_BEASTS) && ST.SIX_BEASTS.length === 6, '六凶名单六位');
+  assert(ST.SIX_BEASTS.every(id => ST.Monsters[id] && ST.Monsters[id].boss), '名单里每一位都是 BOSS');
+  assert(new Set(ST.SIX_BEASTS).size === 6, '名单无重复');
+
+  // 名单是单一出处：成就与征伐页分组都得读它，不许再抄一份 id 列表
+  const dataSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'gameData.js'), 'utf8');
+  const uiSrc84 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  const msSrc = dataSrc.slice(dataSrc.indexOf("id:'boss_all'"), dataSrc.indexOf("id:'boss_all'") + 260);
+  assert(msSrc.includes('SIX_BEASTS.every'), '六凶伏诛按名单判定（不另写 id 数组）');
+  assert(uiSrc84.includes('SIX_BEASTS.includes'), '征伐页的六凶分组按名单筛');
+  assert(!uiSrc84.includes('bosses">${Object.keys(s.bossKills||{}).length}/7'),
+    '统计页不再写死 /7');
+
+  // 口径：杀过刑天不算六凶，但算「凶神」
+  ST.Game.stats.bossKills = { zaochi: true, xingtian: true };
+  ST.UI.currentTab = 'stats'; ST.UI.renderStats();
+  const html84 = (renderTargets.content || {}).innerHTML || '';
+  const bossAll = Object.values(ST.Monsters).filter(m => m.boss).length;
+  assert(html84.includes(`六凶 <b data-stat="six">1/6</b>`), '六凶 1/6（刑天不计入）');
+  assert(html84.includes(`凶神 <b data-stat="bosses">2/${bossAll}</b>`), `凶神 2/${bossAll}（全部 BOSS 单列）`);
+
+  // 成就：差一位不亮，六位齐了才亮
+  const ms = ST.Milestones.find(m => m.id === 'boss_all');
+  assert(ms.check() === false, '只杀两位时不亮');
+  ST.SIX_BEASTS.forEach(id => { ST.Game.stats.bossKills[id] = true; });
+  assert(ms.check() === true, '六凶齐了点亮');
+
+  // 读档：装备 id 已不在物产表（旧档改名）时不能凭空抹掉——那可能是一件 +18 的兵器
+  G.resetToDefault();
+  ST.Game.enhance = { __ghost: 18 };
+  ST.Game.gear.weapon = { id:'__ghost', slot:'weapon', dmg:99, lvl:40 };
+  G.saveGame();
+  G.loadGame();
+  assert(ST.Game.gear.weapon && ST.Game.gear.weapon.id === '__ghost', '失效装备按原样保留，不静默清空');
+  assert(ST.Game.gear.weapon.dmg === 99, '连同原数值一起保留（先保住，再提示换）');
+  assert(ST.Game.enhance.__ghost === 18, '强化等级也还在');
+  // 正常装备照旧一律按 Items 重建（新字段才跟得上平衡调整）
+  ST.Game.gear.weapon = { id:'pijia', slot:'armor', def:1 };
+  G.saveGame(); G.loadGame();
+  const pj = ST.Game.gear.weapon;
+  assert(pj && pj.def === ST.Items.pijia.def && pj.grade === ST.Items.pijia.grade, '正常装备仍按物品表重建（不沿用旧快照）');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

@@ -2132,12 +2132,19 @@ const BOUNTIES = [
 ];
 window.BOUNTIES = BOUNTIES;
 
+// ---------- 六凶名单（单一定义处） ----------
+// 后羿所诛六凶：统计页的分母、成就判定、征伐页的分组都读这一份。
+// 此前三处各抄一份 id 列表，分母还写成 7（实际是 6），于是杀满六凶显示 6/7，
+// 而杀过刑天/陆吾的档又会被算进「六凶」——分子算的是全部 BOSS，分母是六凶，两回事。
+const SIX_BEASTS = ['zaochi','jiuying','dafeng','yayu','xiushe','fenghui'];
+window.SIX_BEASTS = SIX_BEASTS;
+
 // ---------- 长线成就（里程碑） ----------
 const Milestones = [
   { id:'rec_5',    name:'初识山川',   desc:'著录 5 种对象',     check:()=>recordedCount()>=5,     bonus:'经验 +2%',   xp:0.02 },
   { id:'rec_30',   name:'簿录渐成',   desc:'著录 30 种对象',    check:()=>recordedCount()>=30,    bonus:'经验 +3%',   xp:0.03 },
   { id:'yudi_all', name:'南山舆图',   desc:'南山经 39 山全部解锁', check:()=>Object.keys(Game.map||{}).length>=39, bonus:'采集 +5%', gather:0.05 },
-  { id:'boss_all', name:'六凶伏诛',   desc:'击败六凶全部',      check:()=>['zaochi','jiuying','dafeng','yayu','xiushe','fenghui'].every(id=>Game.stats.bossKills && Game.stats.bossKills[id]), bonus:'伤害 +10%', dmg:0.10 },
+  { id:'boss_all', name:'六凶伏诛',   desc:'击败六凶全部',      check:()=>SIX_BEASTS.every(id=>Game.stats.bossKills && Game.stats.bossKills[id]), bonus:'伤害 +10%', dmg:0.10 },
   { id:'feng_omen',name:'凤皇来仪',   desc:'触发「天下安宁」吉兆', check:()=>!!Game.stats.omens?.fenghuang, bonus:'采获 +5%', yield:0.05 },
   { id:'guan_all', name:'三谷观象',   desc:'三处观象全部完成',  check:()=>Object.values(Game.observed||{}).filter(Boolean).length>=3, bonus:'离线上限 +1h', offlineCap:3600 },
   { id:'jingwei',  name:'精卫填海',   desc:'樵采累计 10000 次', check:()=>(Game.stats.gathers?.qiaocai||0)>=10000, bonus:'采集速度 +8%', gather:0.08 },
@@ -2395,7 +2402,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.28.0',
+  version: '1.28.1',
   codename:'五臧 · 神赐',
   updated: '2026-10-25',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',

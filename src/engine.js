@@ -231,17 +231,28 @@ function applySave(d){
     }
     // 校正装备引用（装备槽存的是物品对象，其 id 必须仍存在）
     // 兼容两种历史形态：{id, ...} 对象（当前）与裸 id 字符串（早期档）。
+    const lostGear = [];
     for (const slot in Game.gear){
       const g = Game.gear[slot];
       if (!g) continue;
       const gid = (typeof g === 'string') ? g : g.id;
-      if (!gid || !Items[gid]){ Game.gear[slot] = null; continue; }
+      if (!gid){ Game.gear[slot] = null; continue; }
+      if (!Items[gid]){
+        // 物品表里找不到这件（旧档里有、后来改名或并入别处）。不能直接抹成 null：
+        // 玩家身上可能是一件淬到 +18 的兵器，凭空消失比数值过时严重得多。
+        // 保留原样，并在日志里点明，让他知道该换一件了。
+        Game.gear[slot] = (typeof g === 'object') ? Object.assign({}, g, { id: gid }) : null;
+        lostGear.push(gid);
+        continue;
+      }
       // 一律按 Items 重建。存档只该记住「戴着哪一件」，不该记住它当时值多少——
       // 否则每次调平衡，老档里的那件还是旧数字；更糟的是后来新增的字段
       // （品阶 grade、神兵特性 divine）在旧快照里根本没有，读出来是 undefined：
       // 神兵不带特性、珍品显示成良品、强化上限也对不上。
       Game.gear[slot] = Object.assign({}, Items[gid], { id: gid });
     }
+    if (lostGear.length && typeof log === 'function')
+      log(`⚠️ 存档中的装备已不在物产表（${lostGear.join('、')}），暂按原数值保留——请另换一件`, 'bad', 'sys');
     // 校正御使槽位
     for (const k in Game.deployed){ if (!Monsters[Game.deployed[k]]) delete Game.deployed[k]; }
   } catch(e){

@@ -165,6 +165,21 @@ for (const [name, map] of [['观象', W.OBSERVE_SITES], ['养成', W.GROW_SITES]
   });
 }
 
+// ---------- 6.1b 六凶名单 ----------
+// 名单是单一出处：统计页分母、成就判定、征伐页分组都读它。
+{
+  const six = W.SIX_BEASTS || [];
+  if (six.length !== 6) bad('六凶', `名单有 ${six.length} 项，应为六`);
+  six.forEach(id => {
+    const m = W.Monsters[id];
+    if (!m) bad('六凶', `名单里的 ${id} 不存在`);
+    else if (!m.boss) bad('六凶', `名单里的 ${m.name} 不是 BOSS`);
+  });
+  if (new Set(six).size !== six.length) bad('六凶', '名单有重复项');
+  // 名单之外是否还有 BOSS 不必报——「凶神」一行按 BOSS 总数现算，添多少都跟得上。
+  // 这里只守一件事：六凶这六个名字必须是真 BOSS，否则成就会永远点不亮。
+}
+
 // ---------- 6.2 成就的达成口径要与文字一致 ----------
 // 「谒见西山全部 14 位神祇」里的 14 若写死，日后添一位神祇就变成「谒见十一位也算圆满」。
 {

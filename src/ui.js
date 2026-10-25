@@ -2134,7 +2134,7 @@ function taofaListHtml(){
   }
   // 特殊目标组只有几只，直接展开（always），否则玩家看不到「六凶」还藏着一个折叠条
   groups.push({ title:'祷过之山 · 可猎', list:Object.values(Monsters).filter(x=>x.hunt), always:true });
-  groups.push({ title:'六凶（后羿所诛）', list:Object.values(Monsters).filter(x=>x.boss&&['zaochi','jiuying','dafeng','yayu','xiushe','fenghui'].includes(x.id)), always:true });
+  groups.push({ title:'六凶（后羿所诛）', list:Object.values(Monsters).filter(x=>x.boss&&SIX_BEASTS.includes(x.id)), always:true });
   groups.push({ title:'刑天', list:Object.values(Monsters).filter(x=>x.id==='xingtian'), always:true });
   groups.push({ title:'西山神祇（守关）', list:Object.values(Monsters).filter(x=>x.boss&&['luwu','xiwangmu','dijiang'].includes(x.id)), always:true });
   // 「宜讨」：当前节点已解锁、讨伐等级达标、非 BOSS 中经验最高的一只——
@@ -3798,12 +3798,18 @@ UI.renderStats = function(){
   if (!box) return;
   const s = Game.stats;
   const gatherRows = Object.entries(s.gathers||{}).map(([k,v])=>`<span>${Skills[k]?Skills[k].name:k} <b data-gather="${k}">${v}</b></span>`).join('') || '<span class="hint">未采</span>';
+  // 六凶与全部凶神分开算：分子分母必须同一口径，否则「杀过刑天」会被算进六凶
+  const bossList = Object.values(Monsters).filter(m => m.boss);
+  const bossDone = bossList.filter(m => (s.bossKills || {})[m.id]).length;
+  const sixDone = (typeof SIX_BEASTS !== 'undefined' ? SIX_BEASTS : []).filter(id => (s.bossKills || {})[id]).length;
+  const bossAll = bossList.length;
   box.innerHTML = `<div class="stat-grid">
     <div class="panel stat-panel"><h3>讨伐</h3>
       <div class="stat-rows">
         <span>击杀 <b data-stat="kills">${s.kills}</b></span>
         <span>败北 <b data-stat="deaths">${s.deaths}</b></span>
-        <span>六凶 <b data-stat="bosses">${Object.keys(s.bossKills||{}).length}/7</b></span>
+        <span>六凶 <b data-stat="six">${sixDone}/${SIX_BEASTS.length}</b></span>
+        <span>凶神 <b data-stat="bosses">${bossDone}/${bossAll}</b></span>
         <span>造成伤害 <b data-stat="damageDealt">${fmt(s.damageDealt)}</b></span>
         <span>承受伤害 <b data-stat="damageTaken">${fmt(s.damageTaken)}</b></span>
       </div></div>
