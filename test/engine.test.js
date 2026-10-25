@@ -4696,6 +4696,64 @@ section('三签 · 本轮短课');
   assert(ST.Game.bounties.length === 3 && ST.Game.bounties[0].id === 'hunt', '读档后三签还在');
 }
 
+// ============ 80. 御使选优：三十种增益、九只槽，总得有个说法 ============
+// 御使增益有三十来种，槽位只有九只，玩家很难口算该上哪几只。
+// 这里给每个增益一个「百分比当量」权重（防御是点数，按 1 点 ≈ 0.75% 生存折算），
+// 既能排序，也能一键择优；成对御使（蛮蛮）占两槽，分数要折半才公平。
+section('御使选优');
+{
+  G.resetToDefault();
+  ST.Game.skills.yushi.level = 81;              // 九槽
+  const mark = (id, tier) => { ST.Game.records[id] = { count: 60, tier }; };
+  ['shengsheng','gudiao','lushu','lu','jiuwei','boyi','hujiao','chiru','lili','yuyu']
+    .forEach(id => mark(id, 4));
+
+  assert(ST.beastSlots() === 9, '九九御使 → 九槽');
+  assert(ST.deployableBeasts().length === 10, '十只可御使');
+
+  // 增益文字：百分比 + 点数分开写，不能把「防御 4」写成「防御 +400%」
+  const txt = ST.beastBuffText('boyi');
+  assert(/防御 \+[\d.]+/.test(txt) && txt.indexOf('%') < 0, '点数型增益不写成百分比：' + txt);
+  const txt2 = ST.beastBuffText('gudiao');
+  assert(txt2.indexOf('伤害 +') === 0 || txt2.indexOf('伤害 +') > 0, '百分比型增益正常：' + txt2);
+
+  // 著录阶越高，同一只增益越强
+  ST.Game.records.shengsheng = { count: 60, tier: 3 };
+  const s3 = ST.deployScore('shengsheng');
+  ST.Game.records.shengsheng = { count: 60, tier: 5 };
+  const s5 = ST.deployScore('shengsheng');
+  assert(s5 > s3, `著录阶抬升收益：tier3 ${s3.toFixed(2)} → tier5 ${s5.toFixed(2)}`);
+
+  // 一键最优：填满、按每槽收益择优、低分的让位
+  ST.Game.deployed = { 0:'lu' };                // 先放一只垫底的（气血 +3%）
+  const r = ST.autoDeployBest();
+  assert(r.count === 9, '一键填满九槽（占 ' + r.count + '）');
+  const top = ST.deployableBeasts()
+    .map(b => ({ id:b.id, s:ST.deployScore(b.id) }))
+    .sort((a, b) => b.s - a.s);
+  const inSlot = Object.values(ST.Game.deployed);
+  assert(inSlot.includes(top[0].id), '收益最高的一只（' + top[0].id + '）在槽中');
+  const worst = top[top.length - 1];
+  assert(!inSlot.includes(worst.id), '收益最低的一只（' + worst.id + '）被挤出槽位');
+
+  // 成对御使占两槽：把蛮蛮的增益临时调到最高，逼它入选，看槽位怎么落
+  if (ST.Monsters.manman && ST.Monsters.manman.pair){
+    ST.Game.records.manman = { count: 60, tier: 5 };
+    const oldBuff = ST.BEAST_BUFFS.manman;
+    ST.BEAST_BUFFS.manman = { label:'蛮蛮·相得', xp: 3 };     // 临时抬到第一
+    try {
+      const r2 = ST.autoDeployBest();
+      assert(r2.count <= ST.beastSlots(), '成对御使不超编（占 ' + r2.count + ' 槽，上限 ' + ST.beastSlots() + '）');
+      const idxs = Object.keys(ST.Game.deployed)
+        .filter(k => ST.Game.deployed[k] === 'manman').map(Number).sort((x, y) => x - y);
+      assert(idxs.length === 2, '分数最高时成对占两槽（' + idxs.length + '）');
+      assert(idxs[1] - idxs[0] === 1, '两槽相邻（' + idxs.join(',') + '）');
+    } finally {
+      if (oldBuff) ST.BEAST_BUFFS.manman = oldBuff; else delete ST.BEAST_BUFFS.manman;
+    }
+  }
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

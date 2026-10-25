@@ -2311,6 +2311,15 @@ UI.patchBeastCard = function(id){
 };
 
 // ================= 御使 =================
+// 一键最优：整体重排（低分的也换掉），按「每槽收益」择优
+UI.autoDeployBest = function(){
+  if (typeof autoDeployBest !== 'function'){ this.toast('御使未开'); return; }
+  const r = autoDeployBest();
+  this.renderYushi();
+  if (this.renderTopbar) this.renderTopbar();
+  this.toast(r.count ? `🐾 已择优御使 ${r.kinds} 只（占 ${r.count} 槽）` : '暂无可御使的异兽');
+};
+
 UI.renderYushi = function(){
   const box = $('content');
   if (!box) return;
@@ -2338,9 +2347,10 @@ UI.renderYushi = function(){
     <div class="bonus-line">当前增益（御使）：${bonusText}</div>
     <div class="bonus-line">当前增益（征兆）：${omenText}</div>
   </div>
-  <div class="panel deploy-panel"><h3>可御使之异兽（著录至「通形」）</h3>
+  <div class="panel deploy-panel"><h3>可御使之异兽（著录至「通形」）
+      <button class="btn small gear-best" type="button" onclick="UI.autoDeployBest()">一键最优</button></h3>
     <div class="tile-grid beast-grid">
-    ${deployableBeasts().map(b=>{
+    ${deployableBeasts().slice().sort((a,b)=>deployScore(b.id)-deployScore(a.id)).map(b=>{
       const rec = Game.records[b.id];
       const def = BEAST_BUFFS[b.id]||{};
       const scale = 0.6 + 0.1*rec.tier;
@@ -2354,8 +2364,8 @@ UI.renderYushi = function(){
         <span class="tile-tag">${TUNING.MASTERY.NAMES[rec.tier]} · 录${rec.count}</span>
         ${inSlot?'<span class="tile-more" title="已在御使槽中">✓</span>':''}
         <span class="tip-body hidden">
-          <div class="bc-sub">${esc(def.label||'')}（按著录阶 ×${scale.toFixed(1)}）</div>
-          <div class="bc-sub">著录 ${rec.count} 次${Monsters[b.id]&&Monsters[b.id].pair?' · 成对，占两槽':''}</div>
+          <div class="bc-sub">${esc(def.label||'')}${(typeof beastBuffText==='function' && beastBuffText(b.id))?`：<b>${esc(beastBuffText(b.id))}</b>`:''}</div>
+          <div class="bc-sub">按著录阶 ×${scale.toFixed(1)}　·　著录 ${rec.count} 次${Monsters[b.id]&&Monsters[b.id].pair?' · 成对，占两槽':''}</div>
         </span>
       </div>`;
     }).join('') || `<div class="hint">尚无达标异兽——往讨异兽并累积著录度<br><button class="btn small" style="margin-top:10px" onclick="UI.switchTab('taofa')">${typeof markIcon==='function'?markIcon('bolt',14):'⚔️'} 去征伐</button></div>`}

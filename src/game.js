@@ -1995,6 +1995,76 @@ const BEAST_BUFFS = {
 function deployableBeasts(){
   return Object.values(Monsters).filter(m=>!m.boss && ((Game.records[m.id]||{}).tier||0) >= 3);
 }
+// ---------- 御使选优 ----------
+// 三十来种御使增益、九只槽，玩家很难口算该上哪几只。这里给每个增益一个
+// 「百分比当量」权重（def 是点数，按 1 点 ≈ 0.75% 生存折算），算出每槽收益，
+// 既能排序，也能一键择优。
+const BUFF_WEIGHT = {
+  xp:100, gatherSpeed:85, yield:85, dmg:90, hp:60, loot:70,
+  offline:55, def:0.75, trade:40, div:30, farmSpeed:50,
+  heal:35, cookQty:20, build:30,
+};
+const BUFF_UNIT = {
+  gatherSpeed:'采集速度', xp:'经验', yield:'采获', dmg:'伤害', loot:'掉落',
+  offline:'离线效率', trade:'售价', div:'卜筮', farmSpeed:'圃艺速度',
+  heal:'食疗', cookQty:'炊爨', build:'营造',
+};
+function beastBuffOf(id){
+  if (!Monsters[id]) return null;
+  return BEAST_BUFFS[id] || genericBeastBuff(Monsters[id]);
+}
+// 实际增益（已按著录阶缩放）的文字形式，如「采集速度 +3.6% · 气血 +3%」
+function beastBuffText(id){
+  const def = beastBuffOf(id);
+  if (!def) return '';
+  const scale = 0.6 + 0.1 * ((Game.records[id] || {}).tier || 0);
+  const parts = [];
+  for (const k in def){
+    if (k === 'label' || typeof def[k] !== 'number') continue;
+    const v = def[k] * scale;
+    if (k === 'def') parts.push(`防御 +${Math.round(v * 10) / 10}`);
+    else if (BUFF_UNIT[k]) parts.push(`${BUFF_UNIT[k]} +${Math.round(v * 1000) / 10}%`);
+  }
+  return parts.join(' · ');
+}
+// 每槽收益：成对御使（蛮蛮）占两槽，分数要折半才公平
+function deploySlotsNeed(id){ return (Monsters[id] && Monsters[id].pair) ? 2 : 1; }
+function deployScore(id){
+  const def = beastBuffOf(id);
+  if (!def) return 0;
+  const scale = 0.6 + 0.1 * ((Game.records[id] || {}).tier || 0);
+  let s = 0;
+  for (const k in def){
+    if (k === 'label' || typeof def[k] !== 'number') continue;
+    s += def[k] * scale * (BUFF_WEIGHT[k] || 0);
+  }
+  return s / deploySlotsNeed(id);
+}
+// 一键最优：整体重排（不是只填空槽）——把低分的换掉才算「最优」
+function autoDeployBest(){
+  const slots = beastSlots();
+  const cands = deployableBeasts()
+    .map(b => ({ id:b.id, score:deployScore(b.id), need:deploySlotsNeed(b.id) }))
+    .sort((a, b) => b.score - a.score);
+  const picked = [];
+  let used = 0;
+  for (const c of cands){
+    if (used + c.need > slots) continue;
+    picked.push(c);
+    used += c.need;
+  }
+  Game.deployed = {};
+  let idx = 0;
+  for (const p of picked){
+    Game.deployed[idx++] = p.id;
+    if (p.need === 2) Game.deployed[idx++] = p.id;   // 成对：相邻两槽放同一只
+  }
+  saveGame();
+  UI && UI.renderBuffBtn && UI.renderBuffBtn();
+  return { count: used, kinds: picked.length };
+}
+window.beastBuffText = beastBuffText; window.deployScore = deployScore;
+window.deploySlotsNeed = deploySlotsNeed; window.autoDeployBest = autoDeployBest;
 function deployBeast(beastId){
   if (!Monsters[beastId]) return false;
   const tier = (Game.records[beastId]||{}).tier || 0;
