@@ -215,10 +215,17 @@ window.requiredSkillName = requiredSkillName; window.gearPower = gearPower;
 window.maybeAutoEquip = maybeAutoEquip; window.equipBest = equipBest;
 
 // ---------- 商旅贸易 ----------
+// 墟市在售之物，回收只给七折。商人不会按原价收你刚从他那买走的东西——
+// 没有这一条，建成市廛（售价 +5%）之后「买火种再卖回」就是无限刷钱：
+// 火种单价恰好等于其价值，tradeMult 一旦过 1 就凭空生贝。
+const SHOP_ITEM_IDS = new Set((typeof ShopStock !== 'undefined' ? ShopStock : []).map(s => s.itemId));
+const SHOP_BUYBACK = 0.7;
 function sellValue(itemId, qty){
   const it = Items[itemId];
   if (!it || !it.value) return 0;
-  return Math.round(it.value * qty * tradeMult());
+  let m = tradeMult();
+  if (SHOP_ITEM_IDS.has(itemId)) m *= SHOP_BUYBACK;
+  return Math.round(it.value * qty * m);
 }
 function sellItem(itemId, qty){
   qty = Math.floor(qty||1);

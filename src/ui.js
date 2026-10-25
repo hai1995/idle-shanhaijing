@@ -1105,6 +1105,34 @@ function nextStepHtml(tab){
   }</div>`;
 }
 
+// 某门技艺「接下来会解锁什么」：未来数级内新可采的物产、新可做的配方。
+// 练级时最想知道的其实是这个——否则升级只是数字变大，玩家不知道在等什么。
+function nextUnlocks(skillId, within){
+  const cur = levelOf(skillId);
+  const lim = Math.min(TUNING.MAX_LEVEL, cur + (within || 6));
+  const out = [];
+  for (const it of Object.values(Items)){
+    if (it.skill !== skillId) continue;
+    const l = it.lvl || 1;
+    if (l <= cur || l > lim) continue;
+    out.push({ lvl:l, name:it.name, kind:'采' });
+  }
+  for (const r of Recipes){
+    if (typeof mapRecipeSkill === 'function' && mapRecipeSkill(r.type) !== skillId) continue;
+    const l = r.lvl || 1;
+    if (l <= cur || l > lim) continue;
+    out.push({ lvl:l, name:(Items[r.out]||{}).name || r.out, kind:'制' });
+  }
+  out.sort((a, b) => a.lvl - b.lvl);
+  return out;
+}
+// 压成一行：「Lv13 梓、荆、杞　Lv15 青雘」——同级的并在一起
+function nextUnlockText(list){
+  const by = {};
+  list.forEach(u => { (by[u.lvl] = by[u.lvl] || []).push(u.name); });
+  return Object.entries(by).map(([lv, names]) => `Lv${lv} ${names.join('、')}`).join('　');
+}
+
 function skillLevelBarHtml(id, name){
   const sk = Game.skills[id] || { level:1, xp:0 };
   const lv = sk.level || 1;
@@ -1566,6 +1594,10 @@ UI.renderSkills = function(){
           <div class="sc-desc">${esc(sk.desc||'')}</div>
           ${nf?`<button class="btn-mini skill-go" onclick="UI.selRegion='${nf.regionId}';UI.selNode='${nf.nodeId}';UI.switchTab('yudi')">${typeof markIcon==='function'?markIcon('pin',13):'📍'} 产出地</button>`:''}
           ${matBtns}${matInv}
+          ${(() => {
+            const nx = nextUnlocks(id, 6);
+            return nx.length ? `<div class="sc-next" title="再练几级便能采到 / 做到"><b>将至</b>${esc(nextUnlockText(nx))}</div>` : '';
+          })()}
         </span>
       </div>`;
     }).join('')}
@@ -1592,7 +1624,7 @@ UI.renderSkills = function(){
         <span class="tile-tag">${sk.name} ${r.lvl}</span>
         ${can?`<button class="tile-more" type="button" title="连作：做到材料用尽"
           onclick="event.stopPropagation();startActivity('craft','${r.type}::${r.out}')">连</button>`:''}
-        <span class="tip-body hidden"><div class="rc-cost">${costChips(r.cost)}</div><div class="rc-xp">经验 ${r.xp}</div>${!lvOk?`<div class="hint">需${sk.name} ${r.lvl} 级</div>`:''}</span>
+        <span class="tip-body hidden"><div class="rc-cost">${costChips(r.cost)}</div><div class="rc-xp">经验 ${r.xp}</div>${!lvOk?`<div class="hint ${r.lvl - levelOf(mapRecipeSkill(r.type)) <= 2 ? 'near' : ''}">再升 ${r.lvl - levelOf(mapRecipeSkill(r.type))} 级（${sk.name} ${r.lvl}）</div>`:''}</span>
       </div>`;
     }).join('')}
     </div>

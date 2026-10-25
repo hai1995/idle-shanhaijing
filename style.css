@@ -1253,6 +1253,17 @@ svg.bi.mk{ vertical-align:-2px; }
 }
 .enh-heat .htxt{ font-family:var(--f-num); font-size:10.5px; color:var(--jin); }
 .hint.danger{ color:var(--zhu); }
+/* 配方「再升 N 级」：差一两级时染金，告诉玩家这是眼下的目标 */
+.hint.near{ color:var(--jin); }
+/* 技能浮层的解锁预告 */
+.sc-next{
+  margin-top:5px; padding-top:4px; border-top:1px dashed var(--rule-2);
+  font-size:11px; line-height:1.6; color:var(--ink-3);
+}
+.sc-next b{
+  display:inline-block; margin-right:5px; font-family:var(--f-kai); font-weight:400;
+  color:var(--jin); letter-spacing:.08em;
+}
 /* 槽位左上角已被「兵器/甲胄」占着，品阶印落到右下；强化 +N 仍在右上 */
 .gear-tile .gd{ position:absolute; right:3px; bottom:3px; margin:0;
   font-size:9.5px; line-height:13px; padding:0 3px; }

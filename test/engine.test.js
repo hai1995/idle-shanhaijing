@@ -3913,6 +3913,74 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   assert(ST.Items.fenghuiyue.lvl >= 74, '封豨钺本身也不再是 58 级的"过时货"');
 }
 
+// ============ 68. 商店无套利（v1.18.3） ============
+{
+  G.resetToDefault();
+  // 把商旅加成推到最大：市廛 + 商旅满级 + 御使 + 里程碑
+  ST.Game.buildings.shichan = true;
+  for (const sid of ST.ALL_SKILL_IDS) ST.Game.skills[sid] = { level: 81, xp: 1e9 };
+  ST.Game.deployed = { 0: 'bo' };
+  const tm = ST.tradeMult();
+  assert(tm > 1.1, '满配商旅倍数确实过 1（' + tm.toFixed(2) + '）——这正是套利的温床');
+
+  const deals = [];
+  ST.ShopStock.forEach((s, i) => {
+    const it = ST.Items[s.itemId];
+    if (!it) return;
+    const back = ST.sellValue(s.itemId, s.qty);      // 整批买回来再整批卖回
+    if (back >= s.cost) deals.push(`${it.name}：买 ${s.cost} 卖回 ${back}`);
+  });
+  assert(deals.length === 0, '墟市没有「买进再卖出」的净赚（' + (deals.join('；') || '无') + '）');
+
+  // 火种是唯一「单价 = 价值」的货，最容易被刷；单独盯一条
+  const hz = ST.ShopStock.find(s => s.itemId === 'huozhong');
+  if (hz){
+    assert(ST.sellValue('huozhong', 1) < hz.cost / hz.qty,
+      '火种回收价低于买价（' + ST.sellValue('huozhong', 1) + ' < ' + (hz.cost / hz.qty) + '）');
+  }
+
+  // 订单一律求购「地里长出来的」，不含墟市货——否则买来交单同样能套
+  const shopIds = new Set(ST.ShopStock.map(s => s.itemId));
+  const leak = ST.ORDER_POOL.filter(it => shopIds.has(it.id));
+  assert(leak.length === 0, '方国订单池不含墟市在售之物（' + (leak.map(x => x.name).join('、') || '无') + '）');
+}
+
+// ============ 69. 技能「将至」与配方门槛（v1.18.3） ============
+{
+  G.resetToDefault();
+  const uiSrc69 = readText('src/ui.js');
+  assert(uiSrc69.includes('function nextUnlocks') && uiSrc69.includes('function nextUnlockText'),
+    '有解锁预告');
+
+  // 樵采 1 级：六格之内应当列出待解锁的物产，且不含已可采的
+  ST.Game.skills.qiaocai = { level: 1, xp: 0 };
+  const nx = ST.UI && typeof ST.nextUnlocks === 'function' ? ST.nextUnlocks('qiaocai', 6) : null;
+  if (nx){
+    assert(nx.length > 0, '樵采一级时确有将至之物（' + nx.map(u => u.lvl + ':' + u.name).slice(0,4).join(' ') + '）');
+    assert(nx.every(u => u.lvl > 1 && u.lvl <= 7), '只报 1~7 级之间尚未解锁的');
+  }
+
+  // 采集类：11 级樵采 → 13 级的梓/枏/荆/杞（数据修正后它们同落 13 级）
+  ST.Game.skills.qiaocai = { level: 11, xp: 0 };
+  if (typeof ST.nextUnlocks === 'function'){
+    const q = ST.nextUnlocks('qiaocai', 6);
+    assert(q.some(u => u.name === '梓' && u.lvl === 13), '11 级樵采的将至里有 13 级的梓');
+    assert(!q.some(u => (ST.Items[u.name] || {}).lvl <= 11), '不含已经能采的');
+  }
+
+  // 制作类：4 级冶铸 → 6 级石斧
+  ST.Game.skills.yezhu = { level: 4, xp: 0 };
+  if (typeof ST.nextUnlocks === 'function'){
+    const y = ST.nextUnlocks('yezhu', 6);
+    assert(y.some(u => u.name === '石斧' && u.lvl === 6), '4 级冶铸的将至里有 6 级石斧');
+  }
+
+  // 配方卡片改成「再升 N 级」，差一两级染金（此前只写「需冶铸 6 级」，读不出还差多少）
+  assert(uiSrc69.includes('再升 ${r.lvl - levelOf(mapRecipeSkill(r.type))} 级'), '配方写明还差几级');
+  assert(uiSrc69.includes("class=\"hint ${r.lvl - levelOf(mapRecipeSkill(r.type)) <= 2 ? 'near' : ''}\""),
+    '差一两级时高亮');
+}
+
 // ============ 47. 物品用途面板（v1.14.3） ============
 {
   G.resetToDefault();
