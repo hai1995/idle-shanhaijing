@@ -2551,7 +2551,9 @@ section('物品族形图标');
   assert(typeof ii === 'function', 'itemIcon 已导出');
   assert(typeof ic === 'function', 'itemIc 已导出');
   assert(indexOfOf('index.html', 'src/itemIcon.js') >= 0, 'itemIcon.js 已引入页面');
-  assert(indexOfOf('scripts/build-standalone.js', 'itemIcon.js') >= 0, 'itemIcon.js 已并入独立版构建');
+  // 构建顺序改由 index.html 决定（见第 89 节），所以查「是否被页面引用」即为「是否入构建」
+  assert(require(path.join(__dirname, '..', 'scripts', 'build-standalone.js')).scriptOrder().includes('itemIcon.js'),
+    'itemIcon.js 已并入独立版构建');
   // 31.2 族形数量足够覆盖：每个物品都能落到一个族
   const fams = ST.ITEM_ICON_FAMILIES;
   assert(fams.length >= 50, '物品族形共 ' + fams.length + ' 枚（≥50）');
@@ -4192,9 +4194,9 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   assert(gameSrc44.includes('Game.buildings.fenghuotai') && gameSrc44.includes('Game.buildings.xuegong'), '烽火台 / 学宫效果落地（此前只有文案）');
 
   // 44.7b 单文件构建的文件清单必须含新模块（漏一个就等于单文件版少一块功能）
-  const buildSrc44 = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'build-standalone.js'), 'utf8');
-  assert(buildSrc44.includes("'affix.js'"), '单文件构建清单含 affix.js');
-  assert(buildSrc44.indexOf("'gameData.js'") < buildSrc44.indexOf("'affix.js'"), 'affix.js 在 gameData.js 之后内联（依赖 Items）');
+  const order44 = require(path.join(__dirname, '..', 'scripts', 'build-standalone.js')).scriptOrder();
+  assert(order44.includes('affix.js'), '单文件构建含 affix.js');
+  assert(order44.indexOf('gameData.js') < order44.indexOf('affix.js'), 'affix.js 在 gameData.js 之后内联（依赖 Items）');
 
   // 44.8 收集成就：状态流转 · 领取 · 不可重复 · 入档
   G.resetToDefault();
@@ -5215,6 +5217,42 @@ section('问神');
   ST.UI.renderYudi();
   const h2 = (renderTargets.content || {}).innerHTML || '';
   assert(h2.includes('🕯️ 问神') && h2.includes('此地未录之物'), '录满后改称「问神」并说明去问什么');
+}
+
+// ============ 89. 构建产物：单文件版必须和多文件版是同一部书 ============
+// scripts/build-standalone.js 里曾另抄了一份脚本清单，漏掉 zhongshanData.js，
+// 于是单文件版少了整个中山经：14 系 250 山、图鉴 831（多文件版是 26 系 447 山、1122）。
+// 两边都能正常启动，跑起来毫无异样——这类「少了一半内容还能跑」的错，
+// 只能靠对着数核。
+section('构建产物一致');
+{
+  const { scriptOrder, build } = require(path.join(__dirname, '..', 'scripts', 'build-standalone.js'));
+  const order = scriptOrder();
+  const srcDir = path.join(__dirname, '..', 'src');
+  const srcFiles = fs.readdirSync(srcDir).filter(f => f.endsWith('.js'));
+
+  const orphan = srcFiles.filter(f => !order.includes(f));
+  assert(orphan.length === 0, 'src 下每个脚本都被 index.html 引用' + (orphan.length ? '：' + orphan.join('、') : ''));
+  assert(order.every(f => fs.existsSync(path.join(srcDir, f))), 'index.html 引用的脚本都存在');
+
+  // 数据文件必须先于 gameData（否则 WORLD 还没建，gameData 里的派生表全是空）
+  const gi = order.indexOf('gameData.js');
+  ['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','zhongshanData.js'].forEach(f => {
+    assert(order.indexOf(f) >= 0 && order.indexOf(f) < gi, f + ' 在 gameData 之前加载');
+  });
+
+  // 构建脚本不得自带一份清单（历史 bug 就是从这儿来的）
+  const buildSrc = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'build-standalone.js'), 'utf8');
+  assert(!/'(nanshan|xishan|beishan|dongshan|zhongshan)Data\.js'/.test(buildSrc),
+    '构建脚本不硬编码数据文件清单（顺序只从 index.html 读）');
+
+  // 真跑一次构建：产物必须含每个文件的横幅，一个都不能少
+  const r = build();
+  assert(r.order.length === order.length, '构建用的是同一份顺序（' + r.order.length + ' 个脚本）');
+  const outTxt = fs.readFileSync(path.join(__dirname, '..', 'idle-shanhaijing-standalone.html'), 'utf8');
+  const lost = order.filter(f => !outTxt.includes('// ===== ' + f + ' ====='));
+  assert(lost.length === 0, '单文件版含全部脚本的横幅' + (lost.length ? '，缺：' + lost.join('、') : ''));
+  assert(outTxt.length > 800 * 1024, '单文件版体积合理（' + Math.round(outTxt.length / 1024) + ' KB）');
 }
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
