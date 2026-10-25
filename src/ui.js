@@ -1050,7 +1050,7 @@ function nextStepHtml(tab){
       const rec = Recipes.find(x=>x.out===id);
       return rec && canAfford(rec.cost) && levelOf('jisi') >= rec.lvl;
     });
-    if (rite) out.push({ label:`行祭「${(Items[rite[0]]||{}).name||'祠礼'}」（产出 +30% 一时）`, act:`UI.tryRite('${rite[0]}')` });
+    if (rite) out.push({ label:`行祭「${(Items[rite[0]]||{}).name||'祠礼'}」（此域采获 +30% 一时）`, act:`UI.tryRite('${rite[0]}')` });
     const xiong = Game.omens.some(o=>OMENS[o.id] && OMENS[o.id].polarity === '凶');
     if (xiong) out.push({ label:'禳解当前凶兆', tab:'jisi' });
   }
@@ -1222,10 +1222,10 @@ UI.renderYudi = function(){
       <h3>${esc(region.regionName)} · 诸山</h3>
       ${(()=>{
         const r = (typeof activeRiteOf === 'function') ? activeRiteOf(region.regionId) : null;
-        return r ? `<div class="rite-here" title="${esc(r.name)}：此域产出 +${Math.round(r.bonus*100)}%，余 ${fmtTime(r.left)}">
+        return r ? `<div class="rite-here" title="${esc(r.name)}：此域采获 +${Math.round(r.bonus*100)}%（约合产量 +${typeof riteRealYield==='function'?riteRealYield(r.bonus):Math.round(r.bonus*50)}%），余 ${fmtTime(r.left)}">
           <span class="mi-ic">${typeof markIcon==='function'?markIcon('lamp',13):'🕯️'}</span>
           <span class="rh-name">${esc(r.name)}</span>
-          <span class="rh-bonus">产出 +${Math.round(r.bonus*100)}%</span>
+          <span class="rh-bonus">采获 +${Math.round(r.bonus*100)}%</span>
           <b class="rh-left">${fmtClock(r.left)}</b>
         </div>` : '';
       })()}
@@ -2432,7 +2432,7 @@ UI.renderJisi = function(){
           <div class="rc-sub">${esc(region?region.regionName:'常祭')}</div>
           ${(region&&region.deity)?`<div class="rc-sub">${esc(region.deity.form||'')}</div>`:''}
           <div class="rc-cost">${costChips(rec.cost)}</div>
-          <div class="hint">${def.regionId?`其域产出 +${Math.round(def.yieldBonus*(Game.buildings.citan?1.5:1)*100)}%，持续 ${Math.round(def.dur/3600)} 小时`:'常祭，无区域增益'}</div>
+          <div class="hint">${def.regionId?`此域采获 +${Math.round(def.yieldBonus*(Game.buildings.citan?1.5:1)*100)}%（约合产量 +${typeof riteRealYield==='function'?riteRealYield(def.yieldBonus*(Game.buildings.citan?1.5:1)):'—'}%），持续 ${Math.round(def.dur/3600)} 小时`:'常祭，无区域增益'}</div>
           ${st.active?`<div class="hint">生效中，余 ${fmtTime(st.left)}</div>`:''}
           <div class="hint">现备材料可续 ${st.times} 次${auto?(st.stall?'　·　续祭待料':'　·　已开续祭'):''}</div>
           ${(Items[id]||{}).note?`<div class="hint">${esc((Items[id]||{}).note)}</div>`:''}
@@ -2441,7 +2441,7 @@ UI.renderJisi = function(){
       </div>`;
     }).join('')}
     </div>
-    <div class="hint">行祭后该山系采集产出 +${Math.round(30*(Game.buildings.citan?1.5:1))}%（祠坛 ×1.5），持续 1 小时。</div>
+    <div class="hint">行祭后该山系采获 +${Math.round(30*(Game.buildings.citan?1.5:1))}%（祠坛 ×1.5），持续 1 小时。采获加成提高的是「一次得两份／三份」的几率，折算约合产量 +${typeof riteRealYield==='function'?riteRealYield(0.30*(Game.buildings.citan?1.5:1)):'—'}%。</div>
   </div>
 
   <div class="panel omen-panel"><h3>征兆（原文「见则X」）</h3>

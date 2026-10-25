@@ -2914,7 +2914,12 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   assert(ST.activeRiteOf('beishan-1') === null, '没有行祭的山系不虚报');
   ST.Game.rites['nanshan-1'] = ST.Game.stats.time - 1;
   assert(ST.activeRiteOf('nanshan-1') === null, '过期即不再提示');
-  assert(uiSrc48.includes('class="rite-here"') && uiSrc48.includes('此域产出'), '舆地页有祠礼生效条');
+  assert(uiSrc48.includes('class="rite-here"') && uiSrc48.includes('此域采获'), '舆地页有祠礼生效条');
+  // 「产出 +30%」实际只作用于双份/三份概率，折算约 +15%——文案要说实话
+  assert(typeof ST.riteRealYield === 'function', 'riteRealYield 已导出');
+  assert(ST.riteRealYield(0.30) === 15, '30% 采获约合产量 +15%（' + ST.riteRealYield(0.30) + '%）');
+  assert(ST.riteRealYield(0.45) === 22, '祠坛加成后 45% 约合 +22%');
+  assert(uiSrc48.includes('约合产量'), '界面同时给出折算后的真实产量');
 
   // 48.7 存档往返
   G.resetToDefault();

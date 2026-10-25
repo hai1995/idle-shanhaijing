@@ -566,8 +566,8 @@ function performRite(riteId, opts){
   if (def.deity) recordObject(def.deity, 1);
   const r = def.regionId ? regionOf(def.regionId) : null;
   if (r){
-    log(`🕯️ 行${Items[riteId].name}：${r.regionName}之神，其域产出 +${Math.round(def.yieldBonus*mult*100)}%（${Math.round(def.dur/3600)} 小时）`, 'gold', 'sys');
-    if (!silent) UI && UI.toast(`🕯️ ${Items[riteId].name} 已成\n${r.regionName}产出 +${Math.round(def.yieldBonus*mult*100)}%`);
+    log(`🕯️ 行${Items[riteId].name}：${r.regionName}之神，此域采获 +${Math.round(def.yieldBonus*mult*100)}%（约合产量 +${riteRealYield(def.yieldBonus*mult)}%，${Math.round(def.dur/3600)} 小时）`, 'gold', 'sys');
+    if (!silent) UI && UI.toast(`🕯️ ${Items[riteId].name} 已成\n${r.regionName}采获 +${Math.round(def.yieldBonus*mult*100)}%（产量约 +${riteRealYield(def.yieldBonus*mult)}%）`);
   } else {
     log(`🕯️ ${Items[riteId].name}：${(Items[riteId]||{}).note||''}`, 'gold', 'sys');
     if (!silent) UI && UI.toast(`🕯️ ${Items[riteId].name}`);
@@ -664,6 +664,13 @@ function tickAutoRites(){
   }
 }
 function riteAutoCount(){ return Object.keys(Game.riteAuto||{}).length; }
+// 「产出 +30%」落在什么地方：它加的是「一次得两份 / 三份」的概率，不是直接乘件数。
+// 基础期望 1 + 0.25 = 1.25 件/次，+30% 加的是 0.15 的双份概率与 0.036 的三份概率，
+// 折算下来真实产量约 +15%。文案原先只说 30%，玩家行完祭发现没那么猛，只会觉得是 bug。
+function riteRealYield(bonus){
+  if (!(bonus > 0)) return 0;
+  return Math.round((bonus * 0.5 + bonus * 0.12) / 1.25 * 100);
+}
 // 某山系此刻在供的是哪一礼（舆地页据此提示「此域产出 +X% · 余 42:10」）
 // 行祭给的是看不见的百分比，玩家不翻祠礼页就不知道它还在不在供——
 // 把它摆到山系名旁边，礼才有存在感。
@@ -681,6 +688,7 @@ window.performRite = performRite; window.regionRiteBonus = regionRiteBonus;
 window.riteState = riteState; window.toggleRiteAuto = toggleRiteAuto;
 window.tickAutoRites = tickAutoRites; window.riteAutoOn = riteAutoOn;
 window.riteAutoCount = riteAutoCount; window.activeRiteOf = activeRiteOf;
+window.riteRealYield = riteRealYield;
 
 // ---------- 观象 / 观瑞 ----------
 function startObserve(siteId){
