@@ -1403,6 +1403,10 @@ function combatTick(elapsed){
     c.spec = (c.spec||0) + elapsed;
     if (c.spec >= m.special.every){ c.spec = 0; doMonsterSpecial(c, m); }
   }
+  // 进食收口：伤害来自普攻、特殊技、蛇毒三条路，各自在末尾检查容易漏一处，
+  // 漏掉的表现就是「背包里三十份食物，一口没吃，硬生生被打死」。
+  // 这里统一补一次——血量掉到阈值以下就该吃，不问是谁打的。
+  if (c.playerHp > 0 && c.playerHp <= playerMaxHp() * Prefs.autoEat) autoEat(c);
   if (c.playerHp <= 0) onPlayerDeath(c, m);
 }
 
@@ -1581,6 +1585,9 @@ function doMonsterSpecial(c, m){
   if (c.playerHp > 0 && c.playerHp <= playerMaxHp() * Prefs.autoEat) autoEat(c);
 }
 
+// 自动进食：血量掉到 Prefs.autoEat 以下时吃一份回血最多的食物。
+// 导出供测试与调试——它只在攻击/受击之后被调用，一旦条件写错就会静默失效
+// （带着一包食物却永远不吃，玩家会以为食物没用）。
 function autoEat(c){
   const candidates = [];
   for (const id in Game.inventory){
@@ -1764,6 +1771,7 @@ window.doMonsterSpecial = doMonsterSpecial;
 window.ULTIMATE_NAMES = ULTIMATE_NAMES; window.ULTIMATE_MULT = ULTIMATE_MULT;
 window.doPlayerUltimate = doPlayerUltimate;
 window.healAmount = healAmount;
+window.autoEat = autoEat;
 
 // 威胁评估：估算 dps 比
 function playerDpsEstimate(){

@@ -4377,6 +4377,62 @@ section('开战前的账');
   assert(easy.cls === 'good' && mult(easy.html) === 0, '稳赢的目标不显示承伤账（不制造无谓焦虑）');
 }
 
+// ============ 74. 实战：真跑 combatTick，BOSS 打得过、药也吃得上 ============
+// 前面几节都是稳态估算（DPS = 平均伤害 ÷ 攻击间隔）。估算看不出绝技、连击、
+// 特殊技、进食这些过程性机制，而「打不打得过」恰恰取决于它们。
+// 这里用真引擎逐 tick 跑完整一场，是唯一能证明数值可玩的证据。
+//
+// ⚠️ 造等级时必须同时把 xp 补到位：gainXp 会按 xp 反算等级，只改 level 不改 xp 的话，
+// 第一刀砍出去玩家就从 40 级掉回 1 级——早期模拟得出的「BOSS 必败」全是这个坑。
+section('实战：一场打完');
+{
+  const rnd0 = Math.random;
+  let seed = 20261025;
+  Math.random = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+  const runFight = (id, L, foodN) => {
+    G.resetToDefault();
+    let xpAt = 0; for (let i = 1; i < L; i++) xpAt += ST.xpForNextLevel(i);
+    ['yudi','bing','ming','she','zhu','taofa'].forEach(s => {
+      if (ST.Game.skills[s]){ ST.Game.skills[s].level = L; ST.Game.skills[s].xp = xpAt; }
+    });
+    ST.Game.gear.weapon = { id:'__f_w', slot:'weapon', dmg: Math.round(ST.GEAR_BASE.melee(L)), lvl:L, grade:'fine' };
+    ST.Game.gear.armor  = { id:'__f_a', slot:'armor',  def: Math.max(1, Math.round(ST.GEAR_BASE.armor(L))), lvl:L, grade:'fine' };
+    ST.Game.gear.charm = null; ST.Game.gear.quiver = null; ST.Game.enhance = {};
+    ST.Game.inventory = foodN ? { danmushi: foodN } : {};
+    const m = ST.Monsters[id];
+    ST.Game.combat = { monsterId:id, monsterHp:m.hp, playerHp:ST.playerMaxHp(), timer:0, maxtimer:0,
+      spec:0, style:'attack', dmgOut:0, dmgIn:0, round:0, flee:0, repeat:1,
+      el:m.el, momentum:0, combo:0, ults:0 };
+    const d0 = ST.Game.stats.deaths;
+    let t = 0;
+    while (ST.Game.combat && t < 200){ ST.combatTick(0.05); t += 0.05; }
+    return { win: !ST.Game.combat && ST.Game.stats.deaths === d0, t:+t.toFixed(1),
+             eaten: foodN - (ST.Game.inventory.danmushi || 0) };
+  };
+  try {
+    const bosses = Object.values(ST.Monsters).filter(m => m.boss).sort((a, b) => a.needLvl - b.needLvl);
+    const lost = [], slow = [], eats = [];
+    bosses.forEach(m => {
+      const r = runFight(m.id, m.needLvl, 30);
+      if (!r.win) lost.push(m.name);
+      if (r.t > 120) slow.push(`${m.name} ${r.t}s`);
+      eats.push(r.eaten);
+    });
+    assert(lost.length === 0, '十尊 BOSS 同级裸装 + 一包吃食，逐 tick 实跑全部可胜' + (lost.length ? '：' + lost.join('、') : ''));
+    assert(slow.length === 0, '没有一场拖过两分钟' + (slow.length ? '：' + slow.join('、') : ''));
+    assert(Math.max(...eats) <= 8, '单场最多吃掉 ' + Math.max(...eats) + ' 份，不至于把存粮一次清空');
+
+    const zc = runFight('zaochi', 40, 30);
+    assert(zc.win && zc.eaten >= 1, `凿齿一战吃下 ${zc.eaten} 份（受击与特殊技之后都会补一口）`);
+    const sg = runFight('shengsheng', 1, 0);
+    assert(sg.win && sg.t < 15, `一级徒手打狌狌 ${sg.t} 秒收工（新手第一战不劝退）`);
+    const tl = runFight('tulou', 35, 0);
+    assert(tl.win, '人形凶兽土蝼 Lv35 徒手可胜（不必嗑药）');
+  } finally {
+    Math.random = rnd0;
+  }
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
