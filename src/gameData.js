@@ -1931,7 +1931,7 @@ addMonster({ id:'jiuying', name:'九婴', boss:true, el:'水', needLvl:50, hp:90
 addMonster({ id:'dafeng', name:'大风', boss:true, el:'木', needLvl:58, hp:8000, atk:85, def:15, xp:18000,
   coins:4000, drop:'dafengyu', threat:5,
   form:'巨鸟，其翼遮天，飞则大风起（传闻形态，原文未详述）',
-  special:{ name:'飘风', every:12, dmg:1.3, pierce:0.4, dodge:0.5 }, desc:' Periodic 大幅闪避' });
+  special:{ name:'飘风', every:12, dmg:1.3, pierce:0.4, dodge:0.5 }, desc:'周期性大幅闪避，半空难击' });
 addMonster({ id:'yayu', name:'猰貐', boss:true, el:'土', needLvl:64, hp:14000, atk:70, def:45, xp:24000,
   coins:5200, drop:'yayupi', threat:5, py:'yà yǔ',
   form:'其状如牛，赤身、人面、马足，其音如婴儿，是食人（《北次二经》）',
@@ -2246,7 +2246,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.15.6',
+  version: '1.15.7',
   codename:'五臧 · 续火',
   updated: '2026-10-25',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',

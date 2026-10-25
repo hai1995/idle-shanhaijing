@@ -1805,7 +1805,7 @@ function taofaArenaHtml(){
       <div class="vs">对</div>
       <div class="fighter enemy" id="monsterFighter">
         ${m?`<div class="f-portrait">${(typeof beastIcon==='function')?beastIcon(m):''}</div>
-        <div class="f-name">${esc(m.name)} ${elBadge(m.el)}</div>
+        <div class="f-name">${esc(m.name)} ${elBadge(m.el)}${m.special?`<span class="m-spec" title="${esc(m.special.name)}${m.desc?`：${esc(m.desc)}`:''}">${esc(m.special.name)}</span>`:''}</div>
         <div class="f-hp"><div class="fill enemy" style="width:${Math.max(0,c.monsterHp/m.hp*100)}%"></div></div>
         <div class="f-sub">${fmt(Math.max(0,c.monsterHp))} / ${fmt(m.hp)}</div>`:`<div class="f-name">待机</div>
         <div class="f-hp"><div class="fill enemy" style="width:0%"></div></div>
@@ -2022,6 +2022,7 @@ UI.openHuntModal = function(id){
      </div>`,
     `<div class="hm-line">${esc(node ? node.name : '')}${drops ? ' · 掉落 ' + esc(drops) : ''}</div>`,
     `<div class="hm-line">五行 ${x.el || '—'}${counterEl ? ` · <b>宜用 ${counterEl} 属</b>（伤害 ×${TUNING.WUXING.KE}）` : ''}</div>`,
+    x.special ? `<div class="hm-line hm-spec"><b>${esc(x.special.name)}</b>${x.desc ? ' · ' + esc(x.desc) : ''}</div>` : '',
     `<div class="hm-line">${th.label}${x.boss ? ' · BOSS' : ''}${x.pair ? ' · 成对（占两槽）' : ''}</div>`,
     `<div class="hm-line">已录 <b>${rec.count}</b> 次（${TUNING.MASTERY.NAMES[rec.tier] || ''}）${decay < 1 ? ` · 连杀递减 ×${decay.toFixed(2)}` : ''}</div>`,
   ].filter(Boolean).join('');

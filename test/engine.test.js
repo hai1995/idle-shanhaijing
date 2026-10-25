@@ -3228,6 +3228,33 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   assert(uiSrc56.includes("(!recOk ? '著录未及' : '')"), '未达时装备按钮标「著录未及」');
 }
 
+// ============ 57. BOSS 特性上屏（v1.15.7） ============
+{
+  G.resetToDefault();
+  const uiSrc57 = readText('src/ui.js');
+  const bosses = Object.values(ST.Monsters).filter(m => m.special);
+  assert(bosses.length >= 6, '六凶各有特性（' + bosses.length + ' 只带 special）');
+  assert(bosses.every(b => b.special.name && b.desc), '特性有名有说（' + bosses.map(b => b.special.name).join('/') + '）');
+  assert(!bosses.some(b => /Periodic/.test(b.desc || '')), '数据里不再夹带英文占位词');
+
+  // 弹窗：特性一行
+  assert(uiSrc57.includes('class="hm-line hm-spec"') && uiSrc57.includes('x.special.name'),
+    '征伐弹窗单列「特性」行（此前只写在数据里，界面一字不提）');
+  // 竞技场：名字旁徽标
+  assert(uiSrc57.includes('class="m-spec"') && uiSrc57.includes('m.special.name'),
+    '竞技场敌人名旁挂特性徽标');
+
+  // 行为：构造一场战斗，渲染后应出现徽标
+  const m = ST.Monsters.yayu;
+  ST.Game.combat = { monsterId: 'yayu', monsterHp: m.hp * 0.6, playerHp: 120, timer: 0, maxtimer: 0,
+    spec: 0, style: 'attack', dmgOut: 0, dmgIn: 0, round: 3, flee: 0, repeat: null, momentum: 40, combo: 2, ults: 0 };
+  ST.UI.currentTab = 'taofa';
+  ST.UI.renderTaofa();
+  const html57 = (document.getElementById('content') || {}).innerHTML || '';
+  assert(/m-spec/.test(html57) && /革甲/.test(html57), '渲染结果里确实有「革甲」徽标');
+  ST.Game.combat = null;
+}
+
 // ============ 47. 物品用途面板（v1.14.3） ============
 {
   G.resetToDefault();

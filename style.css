@@ -1214,6 +1214,13 @@ svg.bi.mk{ vertical-align:-2px; }
 }
 .rite-auto-bar b{ color:var(--jin); font-family:var(--f-num); }
 .rite-auto-bar b.stall{ color:var(--zhu); }
+/* BOSS 特性：竞技场里挂在名字旁，点开弹窗给全句 */
+.m-spec{
+  display:inline-block; margin-left:6px; padding:0 5px; vertical-align:1px;
+  font-family:var(--f-kai); font-size:10.5px; line-height:16px; letter-spacing:0;
+  color:#FCFBF6; background:var(--zhu); border-radius:2px; cursor:help;
+}
+.hm-spec b{ color:var(--zhu); font-family:var(--f-kai); }
 /* 地气标签：特殊节点的实际影响 */
 .geo-tags{ display:flex; flex-wrap:wrap; gap:5px; margin-top:5px; }
 .geo-tag{
