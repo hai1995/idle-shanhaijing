@@ -2748,7 +2748,10 @@ UI.showOracle = function(regionId, siteName){
     <p class="hint">${esc(rn)} 尚有 ${total} 条未录。点一行即定位到那座山——神只说有什么，怎么拿还得自己走一趟。</p>
     ${total ? group('物产', miss.items, 8) + group('异兽', miss.beasts, 8) + group('神祇', miss.deities, 4)
       : '<p class="ab-p">此系已录尽——山中所有物类皆在简上。</p>'}
-    <div class="modal-btns"><button class="btn primary" onclick="UI.closeModal()">领命</button></div>`);
+    <div class="modal-btns">
+      <button class="btn" onclick="UI.codexTab='thing';UI.codexOnlyMiss=true;UI.switchTab('codex');UI.closeModal()">去图鉴看未录</button>
+      <button class="btn primary" onclick="UI.closeModal()">领命</button>
+    </div>`);
 };
 
 UI.renderJisi = function(){

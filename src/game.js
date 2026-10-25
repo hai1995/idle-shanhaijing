@@ -1081,7 +1081,11 @@ function startAudience(nodeId){
   UI && UI.refreshActivity();
   return true;
 }
-function doAudience(nodeId){
+// opts.oracle：只有「玩家自己点的那一趟」才弹问神。
+// 队列与离线结算也会反复调这个函数（离线挂谒见一小时就是 120 次），
+// 若不加这个开关，每次都会盖一层弹窗——一屏弹窗关不完。
+let _oracleHintAt = 0;
+function doAudience(nodeId, opts){
   const site = AUDIENCE_SITES[nodeId];
   if (!site) return;
   const n = nodeOf(nodeId);
@@ -1116,7 +1120,14 @@ function doAudience(nodeId){
     // 诸神已录：这一趟不再只是「再谒」，改问「此地还有何物未录」
     const regionId = String(nodeId).replace(/-\d+$/, '');
     if (typeof log === 'function') log(`🕯️ 再谒${site.name}，问此地未录之物`, 'jisi', 'skill');
-    if (UI && UI.showOracle) UI.showOracle(regionId, site.name);
+    const manual = !!(opts && opts.oracle);
+    if (manual && UI && UI.showOracle) UI.showOracle(regionId, site.name);
+    else if (Date.now() - _oracleHintAt > 60000){
+      // 自动途径（队列 / 离线）不弹窗，但要留一句提示——只是别留一百八十句。
+      // 离线挂谒见一小时会调这个函数 180 次，逐次记日志等于把日志框刷满。
+      _oracleHintAt = Date.now();
+      if (typeof log === 'function') log('🕯️ 诸神已录——可往舆地页「问神」，查此系未录之物', 'sys', 'skill');
+    }
   }
   saveGame();
 }
@@ -1237,9 +1248,11 @@ function heteroSites(){
     // 赐物写进索引：「初谒赐 吉玉」比「初谒得赐」有用——玩家能判断这一趟值不值
     const gifts = [...new Set((s.deities || []).map(d => d.gift).filter(Boolean))]
       .map(g => (Items[g] || {}).name || g);
+    const allDone = total > 0 && got >= total;
     put({ kind: '谒见', id: nodeId, name: s.name, nodeId,
-      done: total > 0 && got >= total, prog: { got, total },
-      gain: '神祇入录' + (gifts.length ? ` · 初谒赐 ${gifts.join('/')}` : ''),
+      done: allDone, prog: { got, total },
+      // 录满之后这处不再是「去录神」，而是「去问此地还缺什么」——索引里说清楚
+      gain: (allDone ? '已录 · 可问缺录' : '神祇入录') + (gifts.length ? ` · 初谒赐 ${gifts.join('/')}` : ''),
       act: `startAudience('${nodeId}')` });
   }
   for (const [id, s] of Object.entries(GROW_SITES || {})){
@@ -2415,7 +2428,7 @@ function performAction(a){
     case 'gather':  doGather(a.itemId); break;
     case 'craft':   doRecipeAction(a); break;
     case 'observe': doObserve(a.siteId); Game.activity = null; break;
-    case 'audience': doAudience(a.nodeId);
+    case 'audience': doAudience(a.nodeId, { oracle: a.src === 'manual' });
       if (typeof queueOnSpecialDone === 'function') queueOnSpecialDone(a); break;
     case 'grow':    doGrow(a.siteId);
       if (typeof queueOnSpecialDone === 'function') queueOnSpecialDone(a); break;

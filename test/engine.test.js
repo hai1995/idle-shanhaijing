@@ -5164,11 +5164,21 @@ section('问神');
     assert(oracle === null, '初谒只录神祇，不弹问神');
     assert(((ST.Game.records[site.deities[0].id] || {}).count || 0) === 1, '神祇已入录');
     site.deities.forEach(d => { ST.Game.records[d.id] = { count: 1, tier: 1 }; });
+    // 队列与离线结算也会反复调 doAudience（离线挂一小时就是 120 次），
+    // 所以只有「玩家自己点的那一趟」才弹窗——否则会盖出一屏弹窗。
     ST.doAudience(nid);
-    assert(oracle && oracle.rid === 'xishan-3', '录满之后再谒 → 问神（' + (oracle && oracle.rid) + '）');
+    assert(oracle === null, '自动（队列 / 离线）途径不弹问神');
+    ST.doAudience(nid, { oracle: true });
+    assert(oracle && oracle.rid === 'xishan-3', '手动再谒 → 问神（' + (oracle && oracle.rid) + '）');
   } finally {
     ST.UI.showOracle = oldOracle;
   }
+
+  // 自动途径不刷日志：离线挂谒见一小时会调 180 次，逐次记一条就把日志框刷满
+  ST.UI.logEntries = [];
+  for (let i = 0; i < 10; i++) ST.doAudience(nid);
+  const hints = ST.UI.logEntries.filter(e => String(e.msg).indexOf('诸神已录') >= 0).length;
+  assert(hints <= 1, `十次自动谒见最多留一条提示（实为 ${hints}）`);
 
   // 弹窗：按类分组、写明山系、条目可点
   let html88 = '';
