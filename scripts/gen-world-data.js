@@ -83,7 +83,7 @@ derive('dongshanjing_nodes.json', 'dongshanData.js', {
 // 中山：raw 691–850 → 69–81（全书收卷。五藏山经最后一部，十二系；
 // 2026-10-24 首录中次一经/中次二经/中次三经三系共 29 山，余九系 region 框架先立、nodes 待补）
 derive('zhongshanjing_nodes.json', 'zhongshanData.js', {
-  title: '中山经世界数据（十二系，首录三系 29 山）',
+  title: '中山经世界数据（十二系，全录 197 山）',
   global: 'ZHONGSHAN',
   mapLevel: bandMap,
   note: '中山经是神祇与氏族记载最密的一部：十二系各有祠礼，多系末明言「冢也」（宗主山）与「帝也」（帝冢）。本轮 nodes 仅录中次一经 15 山、中次二经 9 山、中次三经 5 山；中次四经至中次十二经 nodes 为空、region 元数据俱全，待逐系补录。',

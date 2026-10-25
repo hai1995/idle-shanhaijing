@@ -1917,3 +1917,14 @@ mark.hit{
 /* 弹窗标题里的兽形图标定尺（beastIcon 的 svg 默认 100% 撑满，需给容器定死） */
 #modal h3 .mi-ic{ display:inline-block; width:22px; height:22px; vertical-align:-4px; margin-right:5px; }
 #modal h3 .mi-ic svg{ width:22px; height:22px; display:block; }
+
+/* 叙录页·五臧全录印记：中山经 197 山补完时浮现的一枚朱印 */
+.ab-complete{
+  margin-left:auto; align-self:flex-start;
+  display:inline-flex; align-items:center; justify-content:center;
+  padding:7px 9px; writing-mode:vertical-rl; letter-spacing:.18em;
+  font-family:var(--f-kai); font-size:12px; line-height:1;
+  color:#fff; background:var(--zhu); border-radius:1px;
+  box-shadow:0 0 0 2px var(--paper), 0 0 0 3px var(--zhu);
+  opacity:.92;
+}

@@ -226,7 +226,7 @@ const UI = {
   // 由调用方传 { focus:true } 才切到征伐页。
   startCombat(m, opts){
     if (opts && opts.focus && this.currentTab !== 'taofa') this.switchTab('taofa');
-    // 只换竞技场：开战时列表 311 张卡不需要重建（重建会让滚动抖一下）
+    // 只换竞技场：开战时列表 316 张卡不需要重建（重建会让滚动抖一下）
     if (this.currentTab === 'taofa') this.patchCombatArena();
     this.refreshActivity();
   },
@@ -1583,7 +1583,7 @@ function taofaArenaHtml(){
   </div>`;
 }
 
-// 目标列表：311 只异兽分组平铺，只在切页或数据真变时重建
+// 目标列表：316 只异兽分组平铺，只在切页或数据真变时重建
 function taofaListHtml(){
   const groups = [];
   for (const r of WORLD.regions){
@@ -1595,7 +1595,7 @@ function taofaListHtml(){
   groups.push({ title:'刑天', list:Object.values(Monsters).filter(x=>x.id==='xingtian') });
   groups.push({ title:'西山神祇（守关）', list:Object.values(Monsters).filter(x=>x.boss&&['luwu','xiwangmu','dijiang'].includes(x.id)) });
   // 「宜讨」：当前节点已解锁、讨伐等级达标、非 BOSS 中经验最高的一只——
-  // 311 只异兽平铺时，玩家（与挂机队列）最需要的答案就是「现在打哪只」
+  // 316 只异兽平铺时，玩家（与挂机队列）最需要的答案就是「现在打哪只」
   const pick = (()=>{
     let best = null;
     for (const g of groups){
@@ -2793,9 +2793,13 @@ UI.renderAbout = function(){
     ['在册', fmtTime(s.time)],
   ]);
 
+  // 中山经 197 山是否全录（全书收卷的判据：五臧山经最后一系补完）
+  const zsTotal = (typeof ZHONGSHAN !== 'undefined')
+    ? ZHONGSHAN.regions.reduce((a, r) => a + r.nodes.length, 0) : 0;
   const volumes = cells([
     ['山系', WORLD.regions.length + ' 系'],
     ['山川', nodeCount + ' 山'],
+    ['山经', zsTotal + ' / 197 山'],
     ['异兽', monsterIds.length + ' 只'],
     ['六凶', bossCount + ' 首'],
     ['图鉴', codexDone + ' / ' + codexTotal + ' 条'],
@@ -2817,12 +2821,13 @@ UI.renderAbout = function(){
         <h3>${esc(M.name)}</h3>
         <p class="hint">v${esc(M.version)} · ${esc(M.codename)} · ${esc(M.updated)}</p>
       </div>
+      ${zsTotal >= 197 ? `<span class="ab-complete" title="五臧山经一百九十七山全录">五臧全录</span>` : ''}
     </div>
 
     <section class="ab-sec">
       <h4>缘起</h4>
       <p class="ab-p">昔者洪水滔天，禹疏九河、随山刊木，所至命人记其山川：某山之首，其上多玉，其下多铜；有兽焉，其状如禺而白耳，食之善走。伯益受而次之，是为《五藏山经》。</p>
-      <p class="ab-p">其书不记人事，唯志山海——草木之形、金石之藏、鸟兽之状、神灵之礼，与其吉凶之兆。文极简而物极繁，四万余言之间，载山二百五十、兽四百有余，皆先民耳目所及，非尽虚妄。</p>
+      <p class="ab-p">其书不记人事，唯志山海——草木之形、金石之藏、鸟兽之状、神灵之礼，与其吉凶之兆。文极简而物极繁，四万余言之间，载山四百四十有七、异兽三百余、物产六百余，皆先民耳目所及，非尽虚妄。</p>
       <p class="ab-p">后人重其辞而疑其物，遂以志怪目之。然所谓「怪」者，不过未识之名、未至之地耳。</p>
     </section>
 
