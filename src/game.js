@@ -1276,6 +1276,17 @@ function doGrow(siteId){
     const got = Object.keys(site.reward).map(id => (Items[id] ? Items[id].name : id)).join('·') || '养成物';
     log(`🌳 ${site.name}乃成：得 ${got}`, 'gold', 'skill');
     UI && UI.toast(`🌳 ${site.name}乃成！\n得 ${got}`);
+  } else if (site.stepEvery && st.stage % site.stepEvery === 0){
+    // 长线路标：200 阶每阶 10 分钟，中间三十多小时若只有逐阶 toast，
+    // 玩家感觉不到「在推进」。每 25 阶给一次实物 + 一点贝，数值刻意小。
+    const sw = site.stepReward || {};
+    if (sw.item && sw.qty) giveItem(sw.item, sw.qty, false);
+    const shell = Math.round((sw.shellPerStage || 0) * st.stage);
+    if (shell > 0){ Game.shells += shell; Game.stats.totalEarned += shell; }
+    const got = [sw.item && sw.qty ? `${(Items[sw.item]||{}).name || sw.item} ×${sw.qty}` : '', shell > 0 ? `${shell} 贝` : '']
+      .filter(Boolean).join(' · ');
+    log(`🌊 ${site.name} ${st.stage}/${site.stages} 阶：东海又浅一分${got ? '（得 ' + got + '）' : ''}`, 'gold', 'skill');
+    UI && UI.toast(`🌊 ${site.name} ${st.stage} 阶\n东海又浅一分${got ? ' · ' + got : ''}`);
   } else {
     log(`🌱 灌${site.name}一阶（${st.stage}/${site.stages}）`, 'puyi', 'skill');
     UI && UI.toast(`🌱 ${site.name} ${st.stage}/${site.stages}`);

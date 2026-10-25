@@ -1286,7 +1286,10 @@ const GROW_SITES = {
     nodeId:'beishan-3-22', kind:'养成', name:'精卫填海', stages:200, sec:600,    // 每时辰投一木石，东海渐浅
     cost:[['w_柘木',1]],
     desc:'炎帝之少女女娃，溺于东海，故为精卫，常衔西山之木石以堙于东海——发鸠之山多柘木',
-    reward:{ yu:1 },
+    // 200 阶 × 10 分钟 = 33 小时。若只在终点给一次，中间三十多个钟头毫无节点感；
+    // 每 25 阶给一次「东海又浅一分」的路标（羽 ×1 + 阶数×4 贝），大成再加重。
+    stepEvery:25, stepReward:{ item:'jingweiyu', qty:1, shellPerStage:4 },
+    reward:{ yu:3, jingweiyu:5 },
     infiniteNote:'无限累积，对应「樵采累计」长线里程碑；东海渐浅 200 阶后封顶',
   },
 };
@@ -2450,7 +2453,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.9',
+  version: '1.31.10',
   codename:'五臧 · 问神',
   updated: '2026-10-25',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',

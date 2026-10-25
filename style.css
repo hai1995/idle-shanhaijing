@@ -104,6 +104,10 @@
   --shadow:0 2px 12px rgba(0,0,0,.45);
 }
 /* 滚动条与若干浅色 hover/边框在暗底需反相，否则隐没 */
+/* 暗底上的小字：11–12px 用 ink-3 在 #201B14 上只有约 4.8:1，实机截图偏糊。
+   这两类（弹窗信息行、交易区标签）在暗色下提一档到 ink-2。 */
+[data-theme="night"] .meta,
+[data-theme="night"] .trade-block > b{ color:var(--ink-2); }
 [data-theme="night"] ::-webkit-scrollbar-thumb{ background:rgba(236,230,216,.2); }
 [data-theme="night"] ::-webkit-scrollbar-thumb:hover{ background:rgba(236,230,216,.34); }
 [data-theme="night"] .tab:hover,
@@ -2336,11 +2340,11 @@ mark.hit{
 .relic-box > summary b{ color:var(--gamboge); }
 .relic-list{ display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; }
 .relic{ font-size:11px; line-height:1.5; padding:4px 9px; border:1px solid var(--rule-2);
-  border-radius:2px; background:var(--paper-3); }
+  border-radius:2px; background:var(--paper-3); white-space:nowrap; }
 .relic b{ display:block; font-family:var(--f-kai); font-size:12px; letter-spacing:.06em; }
 .relic i{ font-style:normal; color:var(--ink-3); }
 .relic.on{ border-color:rgba(156,118,40,.55); background:rgba(217,165,33,.10); }
-.relic.off{ color:var(--ink-4); opacity:.7; }
+.relic.off{ color:var(--ink-3); opacity:.85; }
 
 /* 祠礼：一条「备料可行者 N 套」的工具行 + 缺料与产地提示 */
 .rite-bar{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:8px 0 10px; }

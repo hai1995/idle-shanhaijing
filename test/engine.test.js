@@ -5626,6 +5626,42 @@ section('离线结算与线上同口径');
   G.resetToDefault();
 }
 
+// ============ 101. 精卫填海：长线路标 ============
+// 200 阶 × 10 分钟 = 33 小时。若只在终点给一次奖励，中间三十多个钟头毫无节点感。
+// 每 25 阶给一次「东海又浅一分」（羽 ×1 + 阶数×4 贝），大成再加重。
+{
+  G.resetToDefault();
+  const site = ST.GROW_SITES.jingwei;
+  assert(site && site.stepEvery === 25, '精卫填海每 25 阶一个路标');
+  const mat = site.cost[0][0];
+  ST.giveItem(mat, 400, false);
+
+  // 第 24 → 25 阶：跨过路标
+  ST.Game.grow = { jingwei: { stage: 24, done: 0 } };
+  const fur0 = ST.totalOf('jingweiyu'), sh0 = ST.Game.shells;
+  ST.doGrow('jingwei');
+  assert(ST.Game.grow.jingwei.stage === 25, '阶数推进到 25');
+  assert(ST.totalOf('jingweiyu') - fur0 === 1, '得精卫之羽 ×1');
+  assert(ST.Game.shells - sh0 === 100, '得贝 ' + (ST.Game.shells - sh0) + '（25 阶 × 4）');
+
+  // 第 25 → 26 阶：不在路标上，不再发
+  const fur1 = ST.totalOf('jingweiyu'), sh1 = ST.Game.shells;
+  ST.doGrow('jingwei');
+  assert(ST.Game.grow.jingwei.stage === 26, '阶数到 26');
+  assert(ST.totalOf('jingweiyu') === fur1 && ST.Game.shells === sh1, '非路标阶只长经验，不发物');
+
+  // 第 199 → 200 阶：走大成分支，不发路标、发大成奖励并归零
+  ST.Game.grow.jingwei = { stage: 199, done: 0 };
+  const yu0 = ST.totalOf('yu'), fur2 = ST.totalOf('jingweiyu');
+  ST.doGrow('jingwei');
+  assert(ST.Game.grow.jingwei.stage === 0 && ST.Game.grow.jingwei.done === 1, '大成后阶数归零、计一次完工');
+  assert(ST.totalOf('yu') - yu0 === 3, '大成得玉 ×3');
+  assert(ST.totalOf('jingweiyu') - fur2 === 5, '大成得精卫之羽 ×5');
+
+  // 丹木 / 器酸 没有 stepEvery，行为不变
+  assert(!ST.GROW_SITES.mishan.stepEvery && !ST.GROW_SITES.qisuan.stepEvery, '短周期养成不设路标');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
