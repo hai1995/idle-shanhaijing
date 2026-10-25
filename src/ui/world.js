@@ -452,6 +452,12 @@ function codexNode(e){
   }
   return null;
 }
+// 遗物加成的人话版：{ xp:0.02 } → 「经验 +2%」
+function relicText(r){
+  const NAME = { xp:'经验', yield:'采获', def:'防御', hp:'气血' };
+  return Object.entries(r.bonus || {}).map(([k, v]) => `${NAME[k] || k} +${Math.round(v * 100)}%`).join(' · ');
+}
+
 // ================= 技能 =================
 UI.renderSkills = function(){
   const box = $('content');
@@ -584,6 +590,21 @@ UI.renderSkills = function(){
         <span>最高技艺 <b>${esc(best.name || '—')} ${best.level}<i class="rb-cap">/${TUNING.REBIRTH.MIN_LEVEL}</i></b></span>
         <span>修为累计 <b>${fmt(Game.stats.totalXp || 0)}</b></span>
       </div>
+      ${(() => {
+        const all = window.RELICS || [];
+        if (!all.length) return '';
+        const owned = (typeof relicOwned === 'function') ? relicOwned() : [];
+        const ownedIds = new Set(owned.map(r => r.id));
+        const next = all.find(r => r.at > cnt);
+        return `<details class="relic-box">
+          <summary>前世遗物 <b>${owned.length}</b> / ${all.length}${next ? ` · 下一件「${esc(next.name)}」在第 ${next.at} 转` : ' · 皆已归于掌中'}</summary>
+          <div class="relic-list">
+            ${all.map(r => ownedIds.has(r.id)
+              ? `<span class="relic on" title="${esc(r.note || '')}"><b>${esc(r.name)}</b><i>${esc(relicText(r))}</i></span>`
+              : `<span class="relic off"><b>？？？</b><i>第 ${r.at} 转</i></span>`).join('')}
+          </div>
+        </details>`;
+      })()}
       ${(() => {
         const hist = (Game.rebirth && Game.rebirth.history) || [];
         if (!hist.length) return '<p class="hint">这一卷尚未落笔，成绩会自动记下。</p>';

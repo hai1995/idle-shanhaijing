@@ -2139,6 +2139,22 @@ window.BOUNTIES = BOUNTIES;
 const SIX_BEASTS = ['zaochi','jiuying','dafeng','yayu','xiushe','fenghui'];
 window.SIX_BEASTS = SIX_BEASTS;
 
+// ---------- 前世遗物（轮回配套） ----------
+// 转生一直只给「更快」，世界本身不变。这里补一层「记得」：每转一件遗物，
+// 加成都很小（各项合计 3–6%），是「这一卷确实留下了什么」的凭证，不是数值台阶。
+// 关键：由 rebirth.count 派生，**不写存档字段**——旧档读进来转数是多少，遗物就是几件。
+const RELICS = [
+  { at:1, id:'relic_yanhuo', name:'厌火之烬', note:'厌火国在其南，兽身黑色，生火出其口中',        bonus:{ xp:0.02 } },
+  { at:2, id:'relic_yushan', name:'羽山之璧', note:'羽山，其下多水，其上多雨',                  bonus:{ yield:0.02 } },
+  { at:3, id:'relic_xiehe',  name:'羲和之晷', note:'羲和者，帝俊之妻，生十日',                    bonus:{ xp:0.02 } },
+  { at:4, id:'relic_kunlun', name:'昆仑之丘', note:'昆仑之丘，是实惟帝之下都',                    bonus:{ def:0.02 } },
+  { at:5, id:'relic_jianmu', name:'建木之枝', note:'建木，百仞无枝，上有九欘，下有九枸',            bonus:{ xp:0.02 } },
+  { at:6, id:'relic_ganyuan',name:'甘渊之水', note:'羲和浴日于甘渊',                            bonus:{ yield:0.02 } },
+  { at:7, id:'relic_busi',   name:'不死之药', note:'开明东有巫彭、巫抵…皆操不死之药',              bonus:{ hp:0.03 } },
+  { at:8, id:'relic_xirang', name:'息壤之土', note:'洪水滔天，鲧窃帝之息壤以堙洪水',                bonus:{ def:0.02 } },
+];
+window.RELICS = RELICS;
+
 // ---------- 长线成就（里程碑） ----------
 // 每条都写 prog()：返回 [已得, 目标]。check 由它派生（见数组下面的循环），
 // 于是「界面上的进度条」与「判定是否达成」永远读同一份数，不可能走岔。
@@ -2434,7 +2450,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.8',
+  version: '1.31.9',
   codename:'五臧 · 问神',
   updated: '2026-10-25',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',

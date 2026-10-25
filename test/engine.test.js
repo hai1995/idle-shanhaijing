@@ -4641,7 +4641,8 @@ section('轮回 · 再著一卷');
   assert(ST.Game.buildings.zhai === true, '营造保留');
   assert(ST.Game.map['xishan-3-08'] === true, '地图保留');
   assert(ST.Game.deployed[0] === 'shengsheng', '御使保留');
-  assert(Math.abs(ST.xpMult() - (mult0 + 0.30)) < 1e-9, `修为乘区 ${mult0.toFixed(2)} → ${ST.xpMult().toFixed(2)}（+30%）`);
+  // 一转同时给「轮回印 +30%」与「遗物·厌火之烬 +2%」
+  assert(Math.abs(ST.xpMult() - (mult0 + 0.30 + 0.02)) < 1e-9, `修为乘区 ${mult0.toFixed(2)} → ${ST.xpMult().toFixed(2)}（轮回印 +30% + 遗物 +2%）`);
   assert(Math.abs(ST.globalYieldBonus() - (yield0 + 0.10)) < 1e-9, '采获 +10%');
   assert(ST.Game.combat === null && ST.Game.activity === null, '旧战斗与旧行动一并收掉');
   assert(ST.Game.node === 'nanshan-1-01', '送回南山起点（原处多半已打不动）');
@@ -5581,6 +5582,48 @@ section('离线结算与线上同口径');
   // 构建脚本不许出现写死的清单（顺序只从 index.html 读）
   const build = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'build-standalone.js'), 'utf8');
   assert(!/src\/ui\/core\.js/.test(build), '构建脚本没有另抄 ui 文件清单');
+}
+
+// ============ 100. 前世遗物：由转数派生，不写存档 ============
+// 转生原先只给「更快」，世界本身不变。补一层「记得」：每转一件遗物，加成很小
+// （xp / yield 各 6%，def 4%，hp 3%）。关键设计：**不新增存档字段**，
+// 由 rebirth.count 现算——旧档读进来转数是几就有几件。
+{
+  G.resetToDefault();
+  assert(ST.relicOwned().length === 0 && ST.relicSum('xp') === 0, '0 转无遗物');
+
+  ST.Game.rebirth = { count:3, at:0, best:0, startedAt:0, history:[] };
+  assert(ST.relicOwned().length === 3, '3 转得 3 件');
+  assert(Math.abs(ST.relicSum('xp') - 0.04) < 1e-9, '3 转经验 +4%（厌火 + 羲和）');
+  assert(Math.abs(ST.relicSum('yield') - 0.02) < 1e-9, '3 转采获 +2%（羽山）');
+  assert(Math.abs(ST.relicSum('def')) < 1e-9, '3 转还没有防御类遗物');
+
+  ST.Game.rebirth.count = 8;
+  assert(ST.relicOwned().length === ST.RELICS.length, '8 转集齐 ' + ST.RELICS.length + ' 件');
+  assert(Math.abs(ST.relicSum('xp') - 0.06) < 1e-9, '经验合计 +6%');
+  assert(Math.abs(ST.relicSum('yield') - 0.04) < 1e-9, '采获合计 +4%');
+  assert(Math.abs(ST.relicSum('def') - 0.04) < 1e-9, '防御合计 +4%');
+  assert(Math.abs(ST.relicSum('hp') - 0.03) < 1e-9, '气血合计 +3%');
+
+  ST.Game.rebirth.count = 12;
+  assert(ST.relicOwned().length === ST.RELICS.length, '超过 8 转也不重复发放');
+
+  // 加成真的进了乘区（不是只写在数据里）
+  ST.Game.skills.ming = { level: 30, xp: ST.xpForLevel(30) };
+  ST.Game.rebirth.count = 0;
+  const hp0 = ST.playerMaxHp();
+  const def0 = ST.totalDefence();
+  ST.Game.rebirth.count = 8;
+  const hp8 = ST.playerMaxHp();
+  const def8 = ST.totalDefence();
+  assert(hp8 > hp0 && Math.abs(hp8 / hp0 - 1.03) < 0.01, `气血 +3%（${hp0} → ${hp8}）`);
+  assert(def8 > def0 && Math.abs(def8 / def0 - 1.04) < 0.01, `防御 +4%（${def0.toFixed(1)} → ${def8.toFixed(1)}）`);
+
+  // 存档里不许多出 relics 字段（否则就变成两份真相）
+  ST.Game.rebirth.count = 8;
+  const sv = ST.serializeSave();
+  assert(!('relics' in sv) && !('relics' in (sv.rebirth || {})), '存档不新增 relics 字段（由转数现算）');
+  G.resetToDefault();
 }
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）

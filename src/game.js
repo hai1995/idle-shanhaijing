@@ -228,6 +228,18 @@ function rebirthYield(){ return rebirthCount() * TUNING.REBIRTH.YIELD; } // 采�
 function rebirthStartLevel(){
   return Math.min(TUNING.REBIRTH.START_CAP, rebirthCount() * TUNING.REBIRTH.START_PER);
 }
+// ---------- 前世遗物 ----------
+// 每转一件，由 rebirth.count 派生——**不新增存档字段**，旧档读进来转数是几就有几件。
+// 加成都很小（xp / yield 各 6%，def 4%，hp 3%），是「这一卷留下了什么」的凭证，不是数值台阶。
+function relicOwned(){
+  const n = rebirthCount();
+  return (window.RELICS || []).filter(r => n >= r.at);
+}
+function relicSum(key){
+  let s = 0;
+  for (const r of relicOwned()) if (r.bonus && r.bonus[key]) s += r.bonus[key];
+  return s;
+}
 function bestSkillLevel(){
   let best = 0, id0 = '';
   for (const id in Game.skills){
@@ -343,7 +355,9 @@ function shareText(){
 }
 window.shareText = shareText; window.bestEnhance = bestEnhance;
 
-window.rebirthCount = rebirthCount; window.rebirthGain = rebirthGain; window.rebirthYield = rebirthYield;
+window.rebirthCount = rebirthCount; window.rebirthGain = rebirthGain;
+window.rebirthYield = rebirthYield;
+window.relicSum = relicSum; window.relicOwned = relicOwned;
 window.rebirthStartLevel = rebirthStartLevel; window.canRebirth = canRebirth;
 window.doRebirth = doRebirth; window.bestSkillLevel = bestSkillLevel;
 
@@ -354,6 +368,7 @@ function xpMult(){
   if (Game.buildings.cangshuge) m += 0.10;          // 藏书阁：修行经验 +10%
   if (Game.buff && Game.buff.def && Game.buff.def.kind === 'xp') m += Game.buff.def.xpBonus || 0;
   m += rebirthGain();                               // 轮回印：越转越快，不封顶
+  m += relicSum('xp');                              // 前世遗物：每卷一缕旧学
   return m;
 }
 function dmgMult(){
@@ -405,6 +420,7 @@ function globalYieldBonus(){
   b += omenMod('yield');             // 凤皇「天下安宁」：采获 +15%
   if (Game.buff && Game.buff.def && Game.buff.def.kind === 'all' && Game.buff.def.yield) b += Game.buff.def.yield;
   b += rebirthYield();               // 轮回印：采获随转数递增
+  b += relicSum('yield');            // 前世遗物
   return b;
 }
 function isWise(){                       // 灌灌「佩之不惑」
@@ -1729,6 +1745,7 @@ function totalDefence(){
   const af = (typeof affixTotals === 'function') ? affixTotals() : affixZero();
   d += af.def;                                    // 词条「固」：定值防御
   d *= currentTactic().def;                       // 战法：沉稳厚、破军薄
+  d *= (1 + relicSum('def'));                     // 前世遗物：昆仑之丘 / 息壤之土
   return d;
 }
 function playerMaxHp(){
@@ -1737,7 +1754,7 @@ function playerMaxHp(){
   // 体魄系数 4 → 7：怪的攻成长改了指数（见 gameData.js beastStat），
   // 气血若仍按每级 4 点线性涨，后期一记就要掉四分之一血，只能靠不停进食硬顶。
   // 现在九九（81 级）约 590 点，同级怪一记三四十，能挨十几下——才谈得上「打一场」。
-  return Math.floor((20 + levelOf('ming')*7) * (1 + deployedBonuses().hp));
+  return Math.floor((20 + levelOf('ming')*7) * (1 + deployedBonuses().hp) * (1 + relicSum('hp')));
 }
 // 食物回血：御使「虎蛟·不肿」的 heal 加成同样需要落地
 function healAmount(it){
