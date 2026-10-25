@@ -2305,3 +2305,37 @@ mark.hit{
 .rc-lack{ color:var(--zhu-d); font-size:12px; margin-top:4px; }
 .rc-src{ color:var(--ink-3); font-size:11px; }
 .build-bar{ margin:6px 0 8px; }
+
+/* 异迹索引：观象 / 谒见 / 灌木散在四百多座山里，一张表列全，点一行即选中那座山 */
+details.hetero-panel{ margin:10px 0 4px; border:1px solid var(--rule); border-radius:var(--r); background:var(--paper-2); }
+details.hetero-panel > summary{ display:flex; align-items:center; gap:10px; padding:7px 11px; cursor:pointer;
+  font-size:12px; color:var(--ink); list-style:none; }
+details.hetero-panel > summary::-webkit-details-marker{ display:none; }
+details.hetero-panel > summary::before{ content:'▸'; color:var(--ink-4); font-size:10px; transition:transform .18s; }
+details.hetero-panel[open] > summary::before{ transform:rotate(90deg); }
+details.hetero-panel .hp-tally{ font-style:normal; color:var(--ink-3); }
+details.hetero-panel .hp-tally b{ color:var(--ink); font-family:var(--f-num); }
+details.hetero-panel .hp-left{ margin-left:auto; font-style:normal; color:var(--qing); font-size:11px; }
+.hetero-list{ border-top:1px solid var(--rule); max-height:320px; overflow:auto; }
+.hetero-row{ display:grid; grid-template-columns:3.2em minmax(6em,1fr) minmax(7em,1.2fr) minmax(8em,2fr) 6.6em;
+  align-items:center; gap:8px; padding:5px 11px; font-size:12px; color:var(--ink-2);
+  border-bottom:1px dashed var(--rule); cursor:pointer; }
+.hetero-row:last-child{ border-bottom:none; }
+.hetero-row:hover{ background:var(--paper-3); }
+.hetero-row.done{ opacity:.62; }
+.hetero-row.lock{ cursor:default; }
+.hetero-row.lock:hover{ background:transparent; }
+.hr-kind{ font-size:11px; text-align:center; padding:1px 0; border-radius:2px; color:var(--paper); background:var(--ink-3); }
+.hr-kind.k-观瑞{ background:var(--zhu); }
+.hr-kind.k-谒见{ background:var(--tai); }
+.hr-kind.k-灌木{ background:var(--qing); }
+.hetero-row .hr-name{ color:var(--ink); }
+.hetero-row .hr-ok{ font-style:normal; margin-left:5px; font-size:11px; color:var(--qing); }
+.hetero-row .hr-where{ color:var(--ink-3); font-size:11px; }
+.hetero-row .hr-gain{ color:var(--ink-3); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.hetero-row .hr-lock{ text-align:right; font-size:11px; color:var(--ink-4); white-space:nowrap; }
+.hetero-row .hr-go{ padding:1px 8px; justify-self:end; }
+@media (max-width:720px){
+  .hetero-row{ grid-template-columns:3em 1fr 4em; }
+  .hetero-row .hr-where, .hetero-row .hr-gain{ display:none; }
+}

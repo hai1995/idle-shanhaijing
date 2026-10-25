@@ -4800,6 +4800,96 @@ section('祠礼 · 备料可行');
   assert(low.every(x => x.st.lvOk), '名单里不会出现等级不够的礼');
 }
 
+// ============ 82. 异迹索引：三十二处散在四百多座山里 ============
+// 观象 9 处、谒见 20 处、灌木 3 处，每处的按钮只在该山的详情里出现。
+// 统计页写着「观象处 3/9」，玩家却没有办法知道差的那 6 处在哪——只能一座座点开看。
+// 这一节守两件事：索引不漏类、不少处；达成的口径与实物一致（不写死数字）。
+section('异迹索引');
+{
+  G.resetToDefault();
+  ST.Game.skills.yudi.level = 60; ST.Game.skills.lvxian.level = 60;
+  const list = ST.heteroSites();
+  const total = Object.keys(ST.OBSERVE_SITES).length + Object.keys(ST.AUDIENCE_SITES).length + Object.keys(ST.GROW_SITES).length;
+  assert(list.length === total && total >= 30, `索引列出 ${list.length} 处（三表合计 ${total}）`);
+
+  const kinds = new Set(list.map(x => x.kind));
+  assert(kinds.has('观象') && kinds.has('观瑞') && kinds.has('谒见') && kinds.has('灌木'), '四类异迹齐全：' + [...kinds].join('/'));
+  assert(list.every(x => x.nodeName && x.regionId && x.gain && x.act), '每一处都带山名、山系、收益与入口（缺一格索引里就是空白）');
+
+  // 未完成且已解锁的排最前——打开索引第一眼看到的就是现在能去的
+  const first = list[0];
+  assert(!first.done && first.unlocked, `首行是「现在能去且还没做」的：${first.kind} ${first.name}`);
+  const tail = list[list.length - 1];
+  assert(tail.done || !tail.unlocked, '末尾是已完成或尚未解锁的');
+
+  // 状态跟着存档走，不是另记一份
+  const obs = list.find(x => x.kind === '观象');
+  assert(obs.done === false, '未观之处的 done 为假');
+  ST.Game.observed[obs.id] = true;
+  assert(ST.heteroSites().find(x => x.id === obs.id).done === true, '观过之后 done 转真');
+
+  const aud = list.find(x => x.kind === '谒见');
+  assert(aud.prog && aud.prog.total > 0, `谒见带进度（${aud.prog.got}/${aud.prog.total}）`);
+  const site = ST.AUDIENCE_SITES[aud.nodeId];
+  site.deities.forEach(d => { ST.Game.records[d.id] = { count: 1, tier: 1 }; });
+  const aud2 = ST.heteroSites().find(x => x.id === aud.id);
+  assert(aud2.done === true && aud2.prog.got === aud2.prog.total, '谒见遍全部神祇后 done 为真');
+  site.deities.forEach(d => { delete ST.Game.records[d.id]; });
+
+  ST.Game.grow = { qisuan: { stage: 0, done: 1 } };
+  assert(ST.heteroSites().find(x => x.kind === '灌木' && x.id === 'qisuan').done === true, '灌木成过一次即算已得');
+
+  // 面板：三十二行、顶部计数与实况对得上
+  ST.UI.currentTab = 'yudi';
+  ST.UI.selRegion = 'nanshan-1'; ST.UI.selNode = null;
+  ST.UI.renderYudi();
+  const html82 = (renderTargets.content || {}).innerHTML || '';
+  assert(html82.includes('hetero-panel') && html82.includes('异迹索引'), '舆地页挂出异迹索引');
+  const rows = (html82.match(/class="hetero-row/g) || []).length;
+  assert(rows === total, `索引渲染 ${rows} 行（应为 ${total}）`);
+  // 整页 innerHTML 会重建（点一行、点「往」、每次结算刷新），不记展开状态就会一碰就收
+  assert(html82.includes('ontoggle="UI.heteroOpen=this.open"'), '展开状态自己记着');
+  ST.UI.heteroOpen = true;
+  ST.UI.renderYudi();
+  assert((renderTargets.content.innerHTML.match(/<details class="hetero-panel" open/) || []).length === 1,
+    '记过之后重绘仍保持展开');
+  ST.UI.heteroOpen = false;
+  // 能去的那几行给的是真入口（点下去就是该山的动作，不是另写一套）
+  const gotoActs = ST.heteroSites().filter(x => x.unlocked).map(x => x.act);
+  assert(gotoActs.some(a2 => a2.startsWith("startObserve('")) && gotoActs.some(a2 => a2.startsWith('startAudience(')),
+    '入口分派到各自动作的 start* 函数');
+  // 顶部计数逐类核对：三种异迹各报「已得/总数」，与清单里的 done 一致
+  const sumOf = (k) => { const a2 = ST.heteroSites().filter(x => x.kind === k); return `${k} <b>${a2.filter(x => x.done).length}</b>/${a2.length}`; };
+  ['观象', '谒见', '灌木'].forEach(k => {
+    assert(html82.includes(sumOf(k)), `顶部报「${sumOf(k).replace(/<[^>]+>/g, '')}」`);
+  });
+
+  // 攻口径：西山百神的位数从数据现算，不是写死的 14
+  const xs = [];
+  for (const s2 of Object.values(ST.AUDIENCE_SITES)){
+    if (String(s2.nodeId).indexOf('xishan-') !== 0) continue;
+    for (const d of (s2.deities || [])) xs.push(d.id);
+  }
+  const ms = ST.Milestones.find(m => m.id === 'xs_deity');
+  assert(ms && ms.desc.indexOf(String(xs.length) + ' 位') > 0, `西山百神说明与实际一致：${ms.desc}`);
+  G.resetToDefault();
+  const msR = ST.Milestones.find(m => m.id === 'xs_deity');
+  assert(msR.check() === false, '一位都没谒见时不亮');
+  xs.slice(0, -1).forEach(id => { ST.Game.records[id] = { count: 1, tier: 1 }; });
+  assert(msR.check() === false, `差一位（${xs.length - 1}/${xs.length}）仍不亮`);
+  ST.Game.records[xs[xs.length - 1]] = { count: 1, tier: 1 };
+  assert(msR.check() === true, `谒遍 ${xs.length} 位后点亮`);
+
+  // 回归：山志浮层一份 + 正文一份。此前正文里重复渲染了两遍，同一段「地气」连着出现三次。
+  G.resetToDefault();
+  ST.Game.skills.yudi.level = 81; ST.Game.skills.lvxian.level = 81;
+  const spId = Object.keys(ST.SPECIAL_NODES)[0];
+  ST.UI.selRegion = spId.replace(/-\d+$/, ''); ST.UI.selNode = spId;
+  ST.UI.renderYudi();
+  const spCnt = ((renderTargets.content.innerHTML.match(/class="special-note"/g)) || []).length;
+  assert(spCnt === 2, `特殊节点的「地气」只出现两处（山志浮层 1 + 正文 1，实为 ${spCnt}）`);
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

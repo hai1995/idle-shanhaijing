@@ -121,6 +121,48 @@ for (const [name, map] of [['观象', W.OBSERVE_SITES], ['养成', W.GROW_SITES]
   }
 }
 
+// ---------- 6.1 异迹：图鉴可查、索引不漏 ----------
+// 观象 / 谒见 / 灌木是「一次性地点」，散在四百多座山里。三类并成一张表时
+// 漏掉一类，那几处就再也找不到；谒见的神祇若不在图鉴里，录了也看不见。
+{
+  const codexIds = new Set(Object.keys(W.CODEX || {}));
+  for (const [nodeId, s] of Object.entries(W.AUDIENCE_SITES || {})){
+    for (const d of s.deities || []){
+      if (!codexIds.has(d.id))
+        bad('异迹', `${s.name} 的神祇 ${d.name}（${d.id}）不在图鉴——谒见入了录，图鉴里却查不到`);
+    }
+  }
+  const total = Object.keys(W.OBSERVE_SITES || {}).length
+    + Object.keys(W.AUDIENCE_SITES || {}).length
+    + Object.keys(W.GROW_SITES || {}).length;
+  const listed = (typeof W.heteroSites === 'function') ? W.heteroSites().length : -1;
+  if (listed !== total)
+    bad('异迹', `异迹索引列出 ${listed} 处，三表合计 ${total} 处——有同类没接进索引`);
+  (typeof W.heteroSites === 'function' ? W.heteroSites() : []).forEach(x => {
+    if (!x.gain) bad('异迹', `${x.kind} ${x.name} 没写收益，索引那一格会是空白`);
+    if (!x.regionId) bad('异迹', `${x.kind} ${x.name} 找不到所属山系（${x.nodeId}）`);
+    if (!x.nodeName) bad('异迹', `${x.kind} ${x.name} 对应的山不存在（${x.nodeId}）`);
+  });
+}
+
+// ---------- 6.2 成就的达成口径要与文字一致 ----------
+// 「谒见西山全部 14 位神祇」里的 14 若写死，日后添一位神祇就变成「谒见十一位也算圆满」。
+{
+  const xs = [];
+  for (const site of Object.values(W.AUDIENCE_SITES || {})){
+    if (String(site.nodeId).indexOf('xishan-') !== 0) continue;
+    for (const d of (site.deities || [])) xs.push(d.id);
+  }
+  const ms = (W.Milestones || []).find(m => m.id === 'xs_deity');
+  if (!ms) bad('成就', '西山百神里程碑不见了');
+  else {
+    const said = /(\d+)\s*位/.exec(ms.desc || '');
+    if (!said) bad('成就', '西山百神的说明里没有写位数');
+    else if (parseInt(said[1], 10) !== xs.length)
+      bad('成就', `西山百神写「${said[1]} 位」，实有 ${xs.length} 位`);
+  }
+}
+
 // ---------- 输出 ----------
 const stats = {
   山: W.WORLD.regions.reduce((a, r) => a + r.nodes.length, 0),

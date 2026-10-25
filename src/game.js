@@ -1110,6 +1110,55 @@ function doGrow(siteId){
 }
 window.startGrow = startGrow; window.doGrow = doGrow;
 
+// ---------- 异迹总览（观象 / 谒见 / 灌木） ----------
+// 这三类「一次性地点」散落在 447 座山里：观象 9 处、谒见 20 处、灌木 3 处，
+// 每处的按钮只在该山的详情里出现。统计页写着「观象处 3/9」，玩家却没有任何办法
+// 知道自己差的那 6 处在哪——只能一座一座山点开看。这里给一份统一的清单：
+// 三类合成一张表，标出「已得 / 未得 / 未解锁（差几级）」，舆地页据此出索引。
+function heteroSites(){
+  const out = [];
+  const put = (o) => {
+    const n = nodeOf(o.nodeId);
+    const r = regionOf(o.nodeId);
+    out.push(Object.assign({
+      nodeName: n ? n.name : o.nodeId,
+      regionId: r ? r.regionId : '',
+      regionName: r ? r.regionName : '',
+      level: n ? (n.unlockLevel || 1) : 0,
+      unlocked: n ? nodeUnlocked(n) : false,
+      done: false, prog: null,
+    }, o));
+  };
+  for (const [id, s] of Object.entries(OBSERVE_SITES || {})){
+    put({ kind: s.kind === '观瑞' ? '观瑞' : '观象', id, name: s.name, nodeId: s.nodeId,
+      done: !!Game.observed[id], gain: s.gain || '', act: `startObserve('${id}')` });
+  }
+  for (const [nodeId, s] of Object.entries(AUDIENCE_SITES || {})){
+    const total = (s.deities || []).length;
+    let got = 0;
+    for (const d of (s.deities || [])) if (((Game.records || {})[d.id] || {}).count > 0) got++;
+    put({ kind: '谒见', id: nodeId, name: s.name, nodeId,
+      done: total > 0 && got >= total, prog: { got, total },
+      gain: '神祇入录' + ((s.deities || []).some(d => d.gift) ? ' · 初谒得赐' : ''),
+      act: `startAudience('${nodeId}')` });
+  }
+  for (const [id, s] of Object.entries(GROW_SITES || {})){
+    const st = growState(id);
+    put({ kind: '灌木', id, name: s.name, nodeId: s.nodeId,
+      done: (st.done || 0) > 0, prog: { got: st.stage || 0, total: s.stages || 1 },
+      gain: Object.keys(s.reward || {}).map(k => (Items[k] || {}).name || k).join('·') || '养成物',
+      act: `startGrow('${id}')` });
+  }
+  // 能去的排前面，其中「还没做完」的更前；同段内按门槛升序（顺着路走过去）
+  out.sort((a, b) => {
+    if (a.done !== b.done) return a.done ? 1 : -1;
+    if (a.unlocked !== b.unlocked) return a.unlocked ? -1 : 1;
+    return a.level - b.level;
+  });
+  return out;
+}
+window.heteroSites = heteroSites;
+
 // ---------- 卜筮 ----------
 function divine(){
   if ((Game.inventory.jian||0) < 1){ UI && UI.toast('卜筮需 白菅×1'); return null; }

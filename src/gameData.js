@@ -2145,14 +2145,21 @@ const Milestones = [
   { id:'xs_danmu', name:'丹木五岁',   desc:'峚山养成完成一次',  check:()=>(Game.danmu||{}).done>=1, bonus:'采集速度 +15%', gather:0.15 },
   // 原先数的是 records 里 deity_ 开头的键（那是祠礼的神祇，27 个），与「谒见」无关；
   // 达成口径与 desc 对不上，玩家谒见完全部西山神祇反而不亮。现在按谒见点实计。
-  { id:'xs_deity', name:'西山百神',   desc:'谒见西山全部 14 位神祇', check:()=>{
-      let n = 0;
-      for (const site of Object.values(AUDIENCE_SITES || {})){
-        if (String(site.nodeId).indexOf('xishan-') !== 0) continue;
-        for (const d of (site.deities || [])) if (((Game.records || {})[d.id] || {}).count > 0) n++;
-      }
-      return n >= 14;
-    }, bonus:'祭祀经验 +20%', jisi:0.20 },
+  // ⚠️ 两个数都从 AUDIENCE_SITES 现算，不写死：以后给西山添一位神祇，
+  // 门槛会自动跟着涨——写死的话就成了「谒见十一位也算圆满」。
+  (() => {
+    const xsDeities = [];
+    for (const site of Object.values(AUDIENCE_SITES || {})){
+      if (String(site.nodeId).indexOf('xishan-') !== 0) continue;
+      for (const d of (site.deities || [])) xsDeities.push(d.id);
+    }
+    return { id:'xs_deity', name:'西山百神', desc:`谒见西山全部 ${xsDeities.length} 位神祇`,
+      check:()=>{
+        let n = 0;
+        for (const id of xsDeities) if (((Game.records || {})[id] || {}).count > 0) n++;
+        return xsDeities.length > 0 && n >= xsDeities.length;
+      }, bonus:'祭祀经验 +20%', jisi:0.20 };
+  })(),
   // ---- 北山经长线成就 ----
   { id:'bs_yudi',  name:'北山舆图',   desc:'北山经 88 山全部解锁', check:()=>Object.keys(Game.map||{}).filter(id=>id.indexOf('beishan-')===0).length>=88, bonus:'采获 +10%', yield:0.10 },
   { id:'bs_qisuan',name:'器酸三岁',   desc:'咸山器酸养成完成',    check:()=>!!(Game.grow&&Game.grow.qisuan&&Game.grow.qisuan.done), bonus:'采集速度 +10%', gather:0.10 },
@@ -2382,8 +2389,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.26.0',
-  codename:'五臧 · 齐礼',
+  version: '1.27.0',
+  codename:'五臧 · 异迹',
   updated: '2026-10-25',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',

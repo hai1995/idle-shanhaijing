@@ -798,7 +798,8 @@ function openHelp(){
       <div class="help-sec"><b>五行相克</b><p class="hint">兵器与异兽分属金木水火土。相克 ×1.35、被克 ×0.75、同属 ×1.00、相生 ×1.15。相克：金克木、木克土、土克水、水克火、火克金；相生：金生水、水生木、木生火、火生土、土生金。装备相克属性的兵器可压制目标。</p></div>
       <div class="help-sec"><b>征兆</b><p class="hint">首次著录异兽可能触发吉凶之兆（如「其邑大水」「有大兵」），影响区域产出或全局采获。部分物品可免疫对应征兆（如「佩之不惑」之符、「御兵」之兽）。</p></div>
       <div class="help-sec"><b>祠祀 · 卜筮</b><p class="hint">谒见山神献祭以增益区域产出；卜筮可问吉凶、抉择事件走向。</p></div>
-      <div class="help-sec"><b>商旅 · 观象 · 圃艺</b><p class="hint">以贝币买卖物品、低买高卖；观象提升离线上限（基础 ${TUNING.OFFLINE.CAP_H} 小时，每处观象 +1、仓廪 +2、土窟 +1，另有长线成就加成；现为 ${offlineCapHours()} 小时）与离线效率；圃艺种植收成。</p></div>
+      <div class="help-sec"><b>商旅 · 观象 · 圃艺</b><p class="hint">以贝币买卖物品、低买高卖；观象提升离线上限（基础 ${TUNING.OFFLINE.CAP_H} 小时，每处观象 +1、仓廪 +2、土窟 +1，另有长线成就加成；现为 ${offlineCapHours()} 小时）与离线效率；圃艺种植收成。</p>
+        <p class="hint">观象、谒见、灌木这三类「一次性地点」散在各山，<b>舆地页末的「异迹索引」</b>一并列出：谁已得、谁还没去、差几级，点一行即定位到那座山，右侧「往」直接动身。</p></div>
       <div class="help-sec"><b>离线收益</b><p class="hint">离开页面仍按离线时长结算（效率随「观象」等提升，封顶约 0.85）。离山较久归来会弹出「离线归来」汇总。</p></div>
       <div class="help-sec"><b>存档</b><p class="hint">游戏每 5 秒自动存档在本机浏览器；「统计」页可导出 / 导入 / 重置存档。想在多设备间续玩，可在「设置 → 存档」填入云端存档服务器地址：停止操作约 3 秒自动上传，离开页面时强传一次；拉取时与本地进度按规则合并（经验 / 著录取大，地图 / 背包并集，贝币取较新），不丢进度。</p></div>
       <div class="help-sec"><b>快捷键</b><p class="hint">1–9 切页 · S 存档 · Q 停止当前行动 · Esc 关闭弹窗。</p></div>
@@ -1246,6 +1247,45 @@ UI.faunaChipHtml = function(sel, f){
   return `<span class="fauna-chip ${rec && rec.count>0 ? 'seen':''}"${f.effect?` title="${esc(f.effect)}"`:''}><span class="fc-ic">${ic}</span>${esc(f.name)}${tag}</span>`;
 };
 
+// 异迹索引：观象 9 处、谒见 20 处、灌木 3 处散在 447 座山里，
+// 每处的按钮只在该山的详情里出现。统计页写着「观象处 3/9」，玩家却没有办法
+// 知道差的那 6 处在哪——只能一座一座山点开看。这里一张表列全：
+// 点一行即选中那座山（看它周围有什么），右侧「往」直接动身。
+function heteroPanelHtml(){
+  if (typeof heteroSites !== 'function') return '';
+  const list = heteroSites();
+  if (!list.length) return '';
+  const kinds = ['观象', '观瑞', '谒见', '灌木'];
+  const summary = kinds
+    .filter(k => list.some(x => x.kind === k))
+    .map(k => { const a = list.filter(x => x.kind === k); return `${k} <b>${a.filter(x => x.done).length}</b>/${a.length}`; })
+    .join(' · ');
+  const left = list.filter(x => !x.done && x.unlocked).length;
+  const yl = levelOf('yudi');
+  // 展开状态要自己记着：整页 innerHTML 重建（点一行、点「往」、每次结算后刷新）会把
+  // <details> 的 open 属性一起抹掉，不记的话点一下就自动收起，等于用不了。
+  return `<details class="hetero-panel" ${UI.heteroOpen ? 'open' : ''} ontoggle="UI.heteroOpen=this.open">
+    <summary>异迹索引 <i class="hp-tally">${summary}</i><em class="hp-left">${left ? `可往 ${left} 处` : '暂无可往'}</em></summary>
+    <div class="hetero-list">
+    ${list.map(x => {
+      const gap = Math.max(0, x.level - yl);
+      const prog = x.prog ? ` · ${Math.min(x.prog.got, x.prog.total)}/${x.prog.total}` : '';
+      return `<div class="hetero-row ${x.done ? 'done' : ''} ${x.unlocked ? '' : 'lock'}"
+          title="${esc(x.gain)}${prog}"
+          onclick="UI.selRegion='${esc(x.regionId)}';UI.selNode='${esc(x.nodeId)}';UI.renderYudi()">
+        <span class="hr-kind k-${x.kind}">${x.kind}</span>
+        <span class="hr-name">${esc(x.name)}${x.done ? '<i class="hr-ok">已得</i>' : ''}</span>
+        <span class="hr-where">${esc(x.nodeName)}${x.regionName ? ` · ${esc(x.regionName)}` : ''}</span>
+        <span class="hr-gain">${esc(x.gain)}${prog}</span>
+        ${x.unlocked
+          ? `<button class="btn small hr-go" type="button" onclick="event.stopPropagation();${x.act}">往</button>`
+          : `<span class="hr-lock">需 ${x.level} 级${gap > 0 ? `（差 ${gap}）` : ''}</span>`}
+      </div>`;
+    }).join('')}
+    </div>
+  </details>`;
+}
+
 UI.renderYudi = function(){
   const box = $('content');
   if (!box) return;
@@ -1391,11 +1431,11 @@ UI.renderYudi = function(){
         <div class="nd-sec"><b>异兽</b>${faunaRows}</div>
         ${sel.source?`<blockquote class="quote">${esc(sel.source)}<cite>${esc(sel.chapter||'山海经')}</cite></blockquote>`:''}
         ${sel.note?`<div class="nd-sec note-line"><b>注解</b>${esc(sel.note)}</div>`:''}
-        ${specialNodeNote(sel)||''}
         ${nodeMythBlock(sel)||''}
       </div>`;
     })() : ''}
-    </div></div>`;
+    </div></div>`
+    + heteroPanelHtml();
   box.innerHTML = html;
 };
 // 此山是否有「现在就能点的动作」。
