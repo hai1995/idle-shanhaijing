@@ -5536,6 +5536,16 @@ section('离线结算与线上同口径');
   G.resetToDefault();
 }
 
+// ============ 97. 首屏 meta：群号不被当成电话、分享有标题 ============
+// 「关于」页把 QQ 群号当纯文本渲染，iOS 会把它识别成电话号码并染蓝；
+// 群里转发链接时，没有 og:title / og:description 就只剩一条裸链接。
+{
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  assert(/name="format-detection"[^>]*telephone=no/.test(html), '关掉电话识别（群号不会被染成蓝色号码）');
+  assert(/property="og:title"/.test(html) && /property="og:description"/.test(html), '有分享标题与描述');
+  assert(/name="viewport"[^>]*viewport-fit=cover/.test(html), 'viewport-fit=cover（safe-area 的前提）');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
