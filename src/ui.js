@@ -653,15 +653,29 @@ const UI = {
     const btn = $('buffBtn'), n = $('buffCount');
     if (!btn) return;
     const s = this.buffSummary();
+    // 这里每 500ms 被调一次（顶栏刷新）。同值写 textContent / title / classList
+    // 都会触发一次属性变更与样式重算，挂机一晚毫无意义——先比后写。
     if (n){
-      n.textContent = s.count > 99 ? '99+' : String(s.count);
-      n.classList.toggle('hidden', s.count === 0);
+      const txt = s.count > 99 ? '99+' : String(s.count);
+      if (n.textContent !== txt) n.textContent = txt;
+      const hide = s.count === 0;
+      if (n.classList.contains('hidden') !== hide) n.classList.toggle('hidden', hide);
     }
-    btn.classList.toggle('on', s.count > 0);
-    btn.title = s.count ? `增益一览（${s.count} 项）` : '增益一览（当前无）';
-    // 浮层开着就连带刷新：增益 / 征兆到期时展开层的内容要跟上（倒计时尤其）
+    const on = s.count > 0;
+    if (btn.classList.contains('on') !== on) btn.classList.toggle('on', on);
+    const title = on ? `增益一览（${s.count} 项）` : '增益一览（当前无）';
+    if (btn.title !== title) btn.title = title;
+    // 浮层开着就连带刷新：增益 / 征兆到期时展开层的内容要跟上（倒计时尤其）。
+    // 浮层里的倒计时按秒变，500ms 重建纯属浪费，节流到 1 秒。
     const pop = $('buffPop');
-    if (pop && !pop.classList.contains('hidden')) pop.innerHTML = this.buffPopHtml();
+    if (pop && !pop.classList.contains('hidden')){
+      const now = Date.now();
+      if (!this._buffPopAt || now - this._buffPopAt >= 1000){
+        this._buffPopAt = now;
+        const html = this.buffPopHtml();
+        if (pop._buffSig !== html){ pop._buffSig = html; pop.innerHTML = html; }
+      }
+    }
   },
   // 浮层内容：分三段列清，末尾给两行合计（御使 / 征兆各自的总加成）
   buffPopHtml(){

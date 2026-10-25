@@ -635,9 +635,18 @@ loadJS('ui.js');
 // 等先加载脚本里的 UI 仍指向桩对象。
 context.UI = ST.UI;
 const renderTargets = {};
-const mkTarget = ()=>({ innerHTML:'', dataset:{}, style:{}, classList:{ add(){}, remove(){}, toggle(){} }, textContent:'', value:'', checked:false, appendChild(){}, remove(){} });
+// classList 用真实 Set 实现：`contains` 恒 false 的假对象会让「是否已有弹窗」的守卫全部误判
+const mkTarget = (init)=>{
+  const set = new Set(init || []);
+  return { innerHTML:'', dataset:{}, style:{},
+    classList:{ add:(...a)=>a.forEach(c=>set.add(c)), remove:(...a)=>a.forEach(c=>set.delete(c)),
+      toggle:(c,f)=>{ const on = f===undefined ? !set.has(c) : !!f; if (on) set.add(c); else set.delete(c); return on; },
+      contains:(c)=>set.has(c) },
+    textContent:'', value:'', checked:false, appendChild(){}, remove(){} };
+};
 ['content','tabs','toasts','modal','modalBox','logList','actionProg','actionProgFill','activityText','hpDisplay','buffDisplay','buffBtn','buffCount','buffPop','shellCount','totalLevel','recordCount','guidance','btnSettings','btnStop','fab','drawerMask','topdock'].forEach(t=>renderTargets[t]=mkTarget());
-renderTargets.buffPop.classList.contains = ()=> true;   // 默认视为收起，closeBuffPop 不重复动作
+renderTargets.modal.classList.add('hidden');            // 未开弹窗：与真实 DOM 初始一致
+renderTargets.buffPop.classList.add('hidden');           // 默认视为收起，closeBuffPop 不重复动作
 renderTargets.tabs.innerHTML = '';
 renderTargets.tabs.querySelectorAll = () => [];
 context.document.getElementById = (id)=> renderTargets[id] || {
@@ -966,6 +975,7 @@ assert(typeof ST.UI.maybeShowDeployHint === 'function', 'maybeShowDeployHint 存
 let dhOk = true;
 try {
   ST.Game.stats.seenDeployHint = false;
+  ST.UI.closeModal();     // 前面的冒烟可能留着离线弹窗；引导遇已有弹窗会主动让位（正确行为）
   ST.UI.maybeShowDeployHint({ id:'__t', name:'试兽', boss:false });
 } catch(e){ dhOk = false; console.error('御使引导异常：'+e.stack); }
 assert(dhOk, '御使引导不抛错');
@@ -2283,7 +2293,8 @@ section('实时性：状态变化即刻上屏');
   assert((gameSrc.match(/if \(UI && UI\.patchOmens\) UI\.patchOmens\(\);/g)||[]).length >= 3, '到期 / 落地 / 举烽三处都补绘');
 
   // 43.3 增益浮层展开时连带刷新（倒计时尤其）
-  assert(uiSrc.includes("if (pop && !pop.classList.contains('hidden')) pop.innerHTML = this.buffPopHtml();"), '增益浮层展开时内容跟随刷新');
+  assert(uiSrc.includes("!pop.classList.contains('hidden')") && uiSrc.includes('this.buffPopHtml()'),
+    '增益浮层展开时内容跟随刷新（并节流到 1 秒、同内容不重写）');
 
   // 43.4 售价走势：秒级采样，挂机也有轨迹；渲染只读无副作用
   assert(gameSrc.includes("Date.now() - _pm.t > 60*1000"), '售价走势按 60 秒间隔采样');
