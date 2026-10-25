@@ -9,7 +9,7 @@
 //
 // 依赖：仅用标准 Web API，不引用本项目其它模块（保证可独立测试）。
 
-const SAVE_VERSION = 3;                       // 当前存档结构版本
+const SAVE_VERSION = 4;                       // 当前存档结构版本
 const SAVE_KEY = 'shj_zhulu_save_v1';         // 本地存档键（沿用旧键，旧档直接可读）
 const SAVE_TIME_KEY = SAVE_KEY + '_time';     // 最后写入时间戳（离线结算用）
 const SAVE_META_KEY = 'shj_zhulu_meta_v1';    // 元数据：rev / dirty / savedAt / deviceId
@@ -26,6 +26,12 @@ const SAVE_MIGRATIONS = {
     d.mobStreak = (d.mobStreak && typeof d.mobStreak === 'object') ? d.mobStreak : {};
     d.orders = Array.isArray(d.orders) ? d.orders : [];
     d.ordersAt = isFinite(d.ordersAt) ? d.ordersAt : 0;
+    return d;
+  },
+  // v3 → v4：轮回记录（转生次数 / 时刻 / 历史最高总等级）
+  3: (d) => {
+    const r = (d.rebirth && typeof d.rebirth === 'object') ? d.rebirth : {};
+    d.rebirth = { count: isFinite(r.count) ? r.count : 0, at: isFinite(r.at) ? r.at : 0, best: isFinite(r.best) ? r.best : 0 };
     return d;
   },
   // v2 → v3：补齐养成点、丹木、征兆免疫等结构
@@ -82,6 +88,7 @@ function serializeSave(){
     queueRunning: !!G.queueRunning, queueLoop: G.queueLoop !== false, fallback: G.fallback || null,
     mobStreak: G.mobStreak || {}, orders: G.orders || [], ordersAt: G.ordersAt || 0,
     enhance: G.enhance || {}, enhanceHeat: G.enhanceHeat || {}, affixSalt: G.affixSalt || {},
+    rebirth: G.rebirth || { count:0, at:0, best:0 },
     // 只记「离山时在打谁」，不记战斗细节：战斗本身不跨会话恢复（见 applySave 注释），
     // 这一项只为离线结算知道该往哪只怪身上算账。
     combat: G.combat ? { monsterId: G.combat.monsterId } : null,

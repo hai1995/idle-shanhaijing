@@ -2376,7 +2376,7 @@ section('云端化存档层');
   const engSrc2 = readText('src/engine.js');
   // 28.1 独立存档模块存在且已接入加载顺序
   assert(!!SM, 'SaveManager 已加载');
-  assert(/const SAVE_VERSION = 3/.test(saveSrc), '存档结构版本号为 3');
+  assert(/const SAVE_VERSION = 4/.test(saveSrc), '存档结构版本号为 4（轮回记录）');
   assert(indexOfOf('index.html', 'src/save.js') < indexOfOf('index.html', 'src/engine.js'), 'save.js 在 engine.js 之前加载');
   // 28.2 engine 只做委托，不再直接写 localStorage
   assert(/SaveManager\.save\(\)/.test(engSrc2), 'saveGame 委托 SaveManager.save');
@@ -4542,6 +4542,70 @@ section('行囊检索与全售');
   assert((ST.Game.inventory.shougu || 0) === 0 && ST.Game.shells === shells0 + allPrice,
     '全售后该栈清空、贝币入账 +' + allPrice);
   assert((ST.Game.inventory.lurou || 0) === 3, '其它栈不受影响');
+}
+
+// ============ 78. 轮回：等级归零，修为与著录俱在 ============
+// 三层各管一件事：等级解锁内容（转生清）、修为终身累计（不清）、轮回印是乘区（不清）。
+// 这一节守的就是「转生不能顺手把人清空」——著录、装备、贝币、地图、营造、御使
+// 任何一项被清，玩家都会直接弃游，而不是重开一轮。
+section('轮回 · 再著一卷');
+{
+  G.resetToDefault();
+  const xpAt = (lv) => ST.xpForLevel(lv);
+  ST.Game.skills.taofa   = { level: 81, xp: xpAt(81) };
+  ST.Game.skills.caiyao  = { level: 30, xp: xpAt(30) };
+  ST.Game.skills.yudi    = { level: 60, xp: xpAt(60) };
+  ST.Game.skills.lvxian  = { level: 55, xp: xpAt(55) };
+  ST.Game.stats.totalXp  = 1234567;
+  ST.Game.records = { shengsheng: { count: 5, tier: 1 } };
+  ST.Game.shells = 9999;
+  ST.Game.inventory = { shougu: 7 };
+  ST.Game.gear.weapon = { id:'tie_sword', name:'铁剑', slot:'weapon', dmg:20 };
+  ST.Game.buildings = { zhai: true };
+  ST.Game.map = { 'nanshan-1-01': true, 'xishan-3-08': true };
+  ST.Game.deployed = { 0: 'shengsheng' };
+  const mult0 = ST.xpMult(), yield0 = ST.globalYieldBonus();
+
+  assert(ST.canRebirth(), '任一技艺至九九方可轮回');
+  const r1 = ST.doRebirth();
+  assert(r1.ok && r1.count === 1, '第一次轮回成立');
+  assert(ST.Game.skills.taofa.level === 4, '技艺归起手 4 级');
+  assert(ST.Game.skills.caiyao.level === 4, '采集同样归 4 级');
+  assert(ST.Game.skills.yudi.level === 60, '舆地保留（走过的路不忘）');
+  assert(ST.Game.skills.lvxian.level === 55, '履险保留');
+  assert(ST.Game.stats.totalXp === 1234567, '修为一分不少（终身累计）');
+  assert(ST.Game.records.shengsheng.count === 5, '著录保留');
+  assert(ST.Game.shells === 9999, '贝币保留');
+  assert((ST.Game.inventory.shougu || 0) === 7, '行囊保留');
+  assert(ST.Game.gear.weapon && ST.Game.gear.weapon.id === 'tie_sword', '装备保留');
+  assert(ST.Game.buildings.zhai === true, '营造保留');
+  assert(ST.Game.map['xishan-3-08'] === true, '地图保留');
+  assert(ST.Game.deployed[0] === 'shengsheng', '御使保留');
+  assert(Math.abs(ST.xpMult() - (mult0 + 0.08)) < 1e-9, `修为乘区 ${mult0.toFixed(2)} → ${ST.xpMult().toFixed(2)}（+8%）`);
+  assert(Math.abs(ST.globalYieldBonus() - (yield0 + 0.05)) < 1e-9, '采获 +5%');
+  assert(ST.Game.combat === null && ST.Game.activity === null, '旧战斗与旧行动一并收掉');
+  assert(ST.Game.node === 'nanshan-1-01', '送回南山起点（原处多半已打不动）');
+
+  // 二次轮回：起手 +4、轮回印 +8%
+  ST.Game.skills.taofa = { level: 81, xp: xpAt(81) };
+  const r2 = ST.doRebirth();
+  assert(r2.ok && r2.count === 2 && r2.startLv === 8, '第二轮回起手 8 级');
+  assert(Math.abs(ST.rebirthGain() - 0.16) < 1e-9, '两枚轮回印 = 修为 +16%');
+  assert(ST.Game.rebirth.best >= 240, '记下历史最高总等级 ' + ST.Game.rebirth.best);
+
+  // 未满级不可轮回
+  ST.Game.skills.taofa = { level: 80, xp: xpAt(80) };
+  assert(ST.canRebirth() === false, '差一级也不许落笔');
+  const r3 = ST.doRebirth();
+  assert(!r3.ok && !!r3.reason, '不可轮回时给出原因：' + r3.reason);
+
+  // 入档与回读
+  G.saveGame();
+  const raw = JSON.parse(ST.localStorage.getItem('shj_zhulu_save_v1'));
+  assert(raw.rebirth && raw.rebirth.count === 2, '轮回记录入档');
+  G.loadGame();
+  assert(ST.Game.rebirth.count === 2, '读档后转数仍在');
+  assert(ST.Game.stats.totalXp === 1234567, '读档后修为仍在');
 }
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）

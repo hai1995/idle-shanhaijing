@@ -40,6 +40,8 @@ const Game = {
     damageDealt:0, damageTaken:0, hits:0, omens:{}, rites:0, observes:0, divines:0,
     seenMilestones:{}, winStreak:0, deathStreak:0, deathStreakOf:null, seenDeployHint:false, seenFallbackHint:false, _unlockedRegions:[],
   },
+  // 轮回：count 转生次数（轮回印 = count × TUNING.REBIRTH.XP）、at 上次转生时刻、best 历史最高总等级
+  rebirth: { count: 0, at: 0, best: 0 },
   startedAt: Date.now(),
   version: 2,
 };
@@ -74,6 +76,7 @@ function cloneDefaultGame(){
   g.mobStreak = {};
   g.enhance = {}; g.enhanceHeat = {};
   g.orders = []; g.ordersAt = 0;
+  g.rebirth = { count:0, at:0, best:0 };      // 转生：新档即零转
   g.skills = {};
   for (const id of ALL_SKILL_IDS) g.skills[id] = { level:1, xp:0 };
   g.stats = { kills:0, deaths:0, actions:0, totalXp:0, time:0, bossKills:{}, totalEarned:0,
@@ -135,6 +138,16 @@ function applySave(d){
     // 无动画、统计不涨）。战斗是瞬时行为，离线收益另走采集/队列结算。
     Game._droppedCombat = d.combat ? d.combat.monsterId : null;
     Game.combat = null;
+    // 轮回记录（旧档无此字段：补零转，不影响任何既有数值）
+    {
+      const r = (d.rebirth && typeof d.rebirth === 'object') ? d.rebirth : {};
+      const c = parseInt(r.count, 10);
+      Game.rebirth = {
+        count: isFinite(c) && c > 0 ? Math.min(999, c) : 0,
+        at: isFinite(r.at) ? r.at : 0,
+        best: isFinite(r.best) && r.best > 0 ? r.best : 0,
+      };
+    }
     Game.startedAt = d.startedAt || Date.now();
     if (d.prefs) Object.assign(Prefs, d.prefs);
     // 行动队列

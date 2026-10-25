@@ -130,12 +130,81 @@ function genericBeastBuff(beast){
   if (beast.category === '水族') return { label:'驭水族', def:1 };
   return { label:'驭兽', hp:0.02 };
 }
+// ---------- 轮回（转生） ----------
+// 三层各管一件事，互不覆盖：
+//   · 等级　　→ 本轮练到哪（解锁山/怪/配方），转生归 1
+//   · 修为　　→ stats.totalXp，终身累计，永不清零，将来排行榜排这个
+//   · 轮回印　→ 转生次数换的永久乘区，永不清零，越转越快
+// 转生只重置「技艺等级与经验」。著录、图鉴、成就、装备、贝币、地图、建筑、御使一概不动——
+// 清掉那些不是让玩家重来一遍，是让他直接弃游。舆地与履险也保留：走过的路不会忘。
+const REBIRTH_KEEP = { yudi: true, lvxian: true };
+function rebirthCount(){ return (Game.rebirth && Game.rebirth.count) || 0; }
+function rebirthGain(){ return rebirthCount() * TUNING.REBIRTH.XP; }      // 修为乘区
+function rebirthYield(){ return rebirthCount() * TUNING.REBIRTH.YIELD; } // 采获加成
+function rebirthStartLevel(){
+  return Math.min(TUNING.REBIRTH.START_CAP, rebirthCount() * TUNING.REBIRTH.START_PER);
+}
+function bestSkillLevel(){
+  let best = 0, id0 = '';
+  for (const id in Game.skills){
+    const lv = (Game.skills[id] || {}).level || 1;
+    if (lv > best){ best = lv; id0 = id; }
+  }
+  return { level: best, id: id0, name: (Skills[id0] || {}).name || id0 };
+}
+// 轮回的凭据：任一技艺至九九。不是「总等级达标」——那会让玩家为了凑数去练用不上的技艺。
+function canRebirth(){
+  const need = TUNING.REBIRTH.MIN_LEVEL;
+  for (const id in Game.skills){
+    if (((Game.skills[id] || {}).level || 1) >= need) return true;
+  }
+  return false;
+}
+function doRebirth(){
+  if (!canRebirth()) {
+    return { ok:false, reason:`需任一技艺至 ${TUNING.REBIRTH.MIN_LEVEL} 级（九九圆满）` };
+  }
+  const totalBefore = totalSkillLevel();
+  const bestBefore = bestSkillLevel();
+  const count = rebirthCount() + 1;
+  Game.rebirth = {
+    count,
+    at: Date.now(),
+    best: Math.max((Game.rebirth && Game.rebirth.best) || 0, totalBefore),
+  };
+  const startLv = Math.min(TUNING.REBIRTH.START_CAP, count * TUNING.REBIRTH.START_PER);
+  const xpAt = (typeof xpForLevel === 'function') ? xpForLevel(startLv) : 0;
+  for (const id in Game.skills){
+    if (REBIRTH_KEEP[id]) continue;                 // 舆地 / 履险：走过的路不忘
+    Game.skills[id] = { level: Math.max(1, startLv), xp: xpAt };
+  }
+  // 旧战斗与旧行动一并收掉：转生后打不动原来的怪，留着只会「往讨：X」空转
+  Game.combat = null;
+  Game.activity = null;
+  Game.mobStreak = {};
+  Prefs.lastHuntId = null; Prefs.lastHuntTimes = null;
+  Game.combat = null;
+  autoAttack = false;
+  // 送回南山起点：当前那座山多半已打不动
+  Game.node = 'nanshan-1-01';
+  log(`♻️ 第 ${count} 次轮回：技艺归 ${startLv} 级，修为与著录俱在`, 'gold', 'sys');
+  UI && UI.toast(`♻️ 第 ${count} 次轮回 · 起手 ${startLv} 级 · 轮回印 +${Math.round(rebirthGain()*100)}%`);
+  if (typeof invalidateMilestones === 'function') invalidateMilestones();
+  saveGame();
+  return { ok:true, count, startLv, gain: rebirthGain(),
+           totalBefore, best: bestBefore.level, bestName: bestBefore.name };
+}
+window.rebirthCount = rebirthCount; window.rebirthGain = rebirthGain; window.rebirthYield = rebirthYield;
+window.rebirthStartLevel = rebirthStartLevel; window.canRebirth = canRebirth;
+window.doRebirth = doRebirth; window.bestSkillLevel = bestSkillLevel;
+
 function xpMult(){
   let m = 1;
   (window.Milestones||[]).forEach(ms=>{ if (ms.xp && ms.check()) m += ms.xp; });
   m += deployedBonuses().xp;
   if (Game.buildings.cangshuge) m += 0.10;          // 藏书阁：修行经验 +10%
   if (Game.buff && Game.buff.def && Game.buff.def.kind === 'xp') m += Game.buff.def.xpBonus || 0;
+  m += rebirthGain();                               // 轮回印：越转越快，不封顶
   return m;
 }
 function dmgMult(){
@@ -186,6 +255,7 @@ function globalYieldBonus(){
   if (Game.buildings.zhai) b += 0.03;   // 柴栅：结木为栅，以固所获
   b += omenMod('yield');             // 凤皇「天下安宁」：采获 +15%
   if (Game.buff && Game.buff.def && Game.buff.def.kind === 'all' && Game.buff.def.yield) b += Game.buff.def.yield;
+  b += rebirthYield();               // 轮回印：采获随转数递增
   return b;
 }
 function isWise(){                       // 灌灌「佩之不惑」

@@ -1652,8 +1652,69 @@ UI.renderSkills = function(){
     <div class="tile-grid farm-grid">
     ${farmTilesHtml()}
     </div>
-  </div>`;
+  </div>
+
+  ${(typeof rebirthCount === 'function') ? (() => {
+    const cnt = rebirthCount();
+    const gain = Math.round(rebirthGain() * 100);
+    const yl = Math.round(rebirthYield() * 100);
+    const start = rebirthStartLevel();
+    const best = bestSkillLevel();
+    const ok = canRebirth();
+    const nextStart = Math.min(TUNING.REBIRTH.START_CAP, (cnt + 1) * TUNING.REBIRTH.START_PER);
+    return `<div class="panel rebirth-panel">
+      <h3>轮回 · 第 ${cnt + 1} 卷</h3>
+      <div class="rb-grid">
+        <span>轮回印 <b>${cnt} 枚</b></span>
+        <span>修为 <b>+${gain}%</b></span>
+        <span>采获 <b>+${yl}%</b></span>
+        <span>转后起手 <b>${nextStart} 级</b></span>
+        <span>最高技艺 <b>${esc(best.name || '—')} ${best.level}</b></span>
+        <span>修为累计 <b>${fmt(Game.stats.totalXp || 0)}</b></span>
+      </div>
+      <p class="hint">再著一卷，是从头写，不是从头认识：诸技归 ${nextStart} 级，舆地与履险不忘；著录、装备、贝币、营造、御使与修为俱在。</p>
+      ${ok
+        ? `<button class="btn primary" type="button" onclick="UI.openRebirth()">再著一卷</button>`
+        : `<button class="btn" type="button" disabled>未至九九，不可轮回</button>
+           <span class="hint">任一技艺至 ${TUNING.REBIRTH.MIN_LEVEL} 级方可落笔</span>`}
+    </div>`;
+  })() : ''}`;
   box.innerHTML = html;
+};
+
+// 轮回确认：把「失去 / 保留 / 得到」三栏摊开再让人点。
+// 转生是不可逆的重置，最忌讳的就是点完才发现丢了什么。
+UI.openRebirth = function(){
+  if (typeof canRebirth !== 'function' || !canRebirth()){
+    this.toast(`需任一技艺至 ${TUNING.REBIRTH.MIN_LEVEL} 级`); return;
+  }
+  const cnt = rebirthCount() + 1;
+  const start = Math.min(TUNING.REBIRTH.START_CAP, cnt * TUNING.REBIRTH.START_PER);
+  const best = bestSkillLevel();
+  const gain = Math.round(cnt * TUNING.REBIRTH.XP * 100);
+  const yl = Math.round(cnt * TUNING.REBIRTH.YIELD * 100);
+  this.modal(`
+    <h3><span class="mi-ic">${typeof markIcon==='function'?markIcon('moon',18):'♻️'}</span> 再著一卷</h3>
+    <p class="hint">「${esc(best.name)}」已至九九，本卷可收。落笔之后各门技艺重新从 ${start} 级起，走过的路与写下的字都还在。</p>
+    <div class="rb-cols">
+      <div class="rb-col lose"><b>将失去</b>
+        <ul><li>各门技艺等级（归 ${start} 级）</li><li>进行中的采制与往讨</li><li>连杀递减计数</li></ul></div>
+      <div class="rb-col keep"><b>将保留</b>
+        <ul><li>修为 ${fmt(Game.stats.totalXp || 0)}（终身累计）</li><li>著录 ${recordedCount()} 条 · 图鉴与成就</li><li>装备、贝币、营造、御使</li><li>舆地与履险（走过的路不忘）</li></ul></div>
+      <div class="rb-col gain"><b>将得到</b>
+        <ul><li>第 ${cnt} 枚轮回印</li><li>修为 +${gain}%（终身）</li><li>采获 +${yl}%</li><li>起手 ${start} 级</li></ul></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn" onclick="UI.closeModal()">再想想</button>
+      <button class="btn primary" onclick="UI.confirmRebirth()">落笔</button>
+    </div>`);
+};
+UI.confirmRebirth = function(){
+  const r = (typeof doRebirth === 'function') ? doRebirth() : { ok:false, reason:'轮回未开' };
+  this.closeModal();
+  if (!r.ok){ this.toast(r.reason || '未能轮回'); return; }
+  if (this.refreshActivity) this.refreshActivity();
+  this.switchTab('skills');
 };
 
 // 田地方块 HTML（整页渲染与就地补绘共用）
