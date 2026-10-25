@@ -62,8 +62,8 @@ const CHAPTERS = [
   { id:'xishan',  name:'第二章 · 西山经', sub:'神话舞台', regionIds:['xishan-1','xishan-2','xishan-3','xishan-4'] },
   { id:'beishan', name:'第三章 · 北山经', sub:'长篇养成', regionIds:['beishan-1','beishan-2','beishan-3'] },
   { id:'dongshan',name:'第四章 · 东山经', sub:'荒经水路', regionIds:['dongshan-1','dongshan-2','dongshan-3','dongshan-4'] },
-  // 第五章先挂已入录九系（中次一至九经）；中次十经至中次十二经 nodes 补录后逐一加入
-  { id:'zhongshan',name:'第五章 · 中山经', sub:'帝之密都', regionIds:['zhongshan-1','zhongshan-2','zhongshan-3','zhongshan-4','zhongshan-5','zhongshan-6','zhongshan-7','zhongshan-8','zhongshan-9'] },
+  // 第五章先挂已入录十系（中次一至十经）；中次十一经、十二经 nodes 补录后逐一加入
+  { id:'zhongshan',name:'第五章 · 中山经', sub:'帝之密都', regionIds:['zhongshan-1','zhongshan-2','zhongshan-3','zhongshan-4','zhongshan-5','zhongshan-6','zhongshan-7','zhongshan-8','zhongshan-9','zhongshan-10'] },
 ];
 function chapterOf(regionId){ return CHAPTERS.find(c=>c.regionIds.includes(regionId)) || null; }
 
@@ -567,6 +567,12 @@ addItem(
   XW('zs_longxiu','龙修','herb',['zhongshan-9-16'],{ icon:'🌾', skill:'caiyao', note:'即龙须草——可为席', py:'lóng xiū' }),
   XW('zs_meizhe','美赭','mineral',['zhongshan-9-16'],{ icon:'🟤', skill:'caiyu', note:'优质赭土——可染赤', py:'měi zhě' }),
   XW('zs_yilang','𤜣狼','beast',['zhongshan-9-06'],{ icon:'🦊', skill:'lie', note:'状如狐而白尾长耳——见则国内有兵', py:'yǐ láng' }),
+  // ---- 中次十经（首阳九山；raw 865–873 → L78）----
+  XW('zs_fengshi','封石','mineral',['zhongshan-10-02'],{ icon:'🪨', skill:'caiyu', note:'封石——可琢为器（与中次十一经封石互见）', py:'fēng shí' }),
+  XW('zs_zhigou','枝勾','herb',['zhongshan-10-03'],{ icon:'🌿', skill:'caiyao', note:'枝勾——蔓生之草，枝屈如勾', py:'zhī gōu' }),
+  XW('zs_qizhong','跂踵','bird',['zhongshan-10-05'],{ icon:'🦉', skill:'lie', note:'状如鸮而一足、彘尾——见则其国大疫', py:'qí zhǒng' }),
+  XW('zs_qiyu','鸜鹆','bird',['zhongshan-10-07'],{ icon:'🐦', skill:'lie', note:'即八哥——黑羽白点，能效人言', py:'qú yù' }),
+  XW('zs_shenniu','弞杻','wood',['zhongshan-10-09'],{ icon:'🪵', skill:'qiaocai', note:'弞杻——杻之一种，木理细（弞音 shěn）', py:'shěn niǔ' }),
 );
 
 // ---- 长尾产出自动派生 ----
@@ -775,6 +781,8 @@ R('jade','zs_zaogui',1,320,74,[['zaoyu',1],['yu',1]]);   // 藻玉 + 玉 → 藻
 R('rite','rite_zs8',1,1060,77,[['xiongji',1],['zs_zaogui',1],['tu',2]]);
 // 中次九经：山神皆马身龙首——其祠毛用一雄鸡瘗，糈用稌；文山/勾檷/风雨/騩为冢，羞酒少牢具，婴毛一吉玉；熊山席也，太牢一璧
 R('rite','rite_zs9',1,1080,78,[['xiongji',1],['jiyu2',1],['tu',1]]);
+// 中次十经：山神皆龙身人面——其祠毛用一雄鸡瘗，糈用五种之糈（稌黍稻稷粱五种米）
+R('rite','rite_zs10',1,1100,78,[['xiongji',1],['tu',1],['shu',1],['dao',1]]);
 
 // ---- 西山制作链 ----
 // 琢玉：祠器与玉符
@@ -831,6 +839,7 @@ addItem(
   I('rite_zs7','羊羞藻玉','rite',{ value:0, icon:'🕯️', note:'中次七经·苦山十九山神：其十六神者皆豕身而人面，其祠毛牷用一羊羞，婴用一藻玉瘗；苦山、少室、太室皆冢也，其祠之太牢之具，婴以吉玉——其神状皆人面而三首，其余属皆豕身人面' }),
   I('rite_zs8','雄鸡藻圭','rite',{ value:0, icon:'🕯️', note:'中次八经·荆山二十三山神：其神状皆鸟身而人面，其祠用一雄鸡祈瘗，用一藻圭，糈用稌；骄山冢也，其祠用羞酒少牢祈瘗，婴毛一璧' }),
   I('rite_zs9','雄鸡吉玉','rite',{ value:0, icon:'🕯️', note:'中次九经·岷山十六山神：其神状皆马身而龙首，其祠毛用一雄鸡瘗，糈用稌；文山、勾檷、风雨、騩之山皆冢也，其祠羞酒少牢具，婴毛一吉玉；熊山席也，其祠羞酒太牢具，婴毛一璧，干舞用兵以禳，祈璆冕舞' }),
+  I('rite_zs10','雄鸡五种','rite',{ value:0, icon:'🕯️', note:'中次十经·首阳九山神：其神状皆龙身而人面，其祠毛用一雄鸡瘗，糈用五种之糈（黍稻稷麦粱）。末句另有「堵山冢也，少牢具，羞酒祠，婴毛一璧瘗；騩山帝也，羞酒太牢具，合巫祝二人舞，婴一璧」——二山不在本经正文，存疑照录' }),
   I('caiyi','彩衣','rite',{ value:60, icon:'🎀', note:'中次四经祠礼「以彩衣之」——彩衣供奉' }),
 );
 // ---- 西山新制成品 ----
@@ -899,7 +908,7 @@ addItem(
     '金':['zhongshan-2-02','zhongshan-2-03','zhongshan-2-04','zhongshan-2-07','zhongshan-2-09','zhongshan-3-04'],
     '玉':['zhongshan-2-02','zhongshan-2-03','zhongshan-2-04','zhongshan-2-07','zhongshan-2-09','zhongshan-3-04'],
     '砥砺':['zhongshan-2-02'], '桑':['zhongshan-2-01'], '美枣':['zhongshan-3-03'],
-    '赭':['zhongshan-3-01'], '黄金':['zhongshan-3-01','zhongshan-8-02','zhongshan-8-04','zhongshan-9-03','zhongshan-9-06','zhongshan-9-10'], '㻬琈之玉':['zhongshan-3-01','zhongshan-3-03','zhongshan-4-04','zhongshan-5-02'],
+    '赭':['zhongshan-3-01'], '黄金':['zhongshan-3-01','zhongshan-8-02','zhongshan-8-04','zhongshan-9-03','zhongshan-9-06','zhongshan-9-10','zhongshan-10-05'], '㻬琈之玉':['zhongshan-3-01','zhongshan-3-03','zhongshan-4-04','zhongshan-5-02'],
     '铜':['zhongshan-4-05'], '漆':['zhongshan-4-07'], '棕':['zhongshan-4-07'],
     '榖':['xishan-1-11','zhongshan-5-02','zhongshan-5-12','zhongshan-5-14'],
     '柞':['xishan-1-11','zhongshan-5-02','zhongshan-5-12','zhongshan-5-14'],
@@ -908,8 +917,8 @@ addItem(
     '桐':['zhongshan-5-05'],
     '芍药':['beishan-3-27','zhongshan-5-05'],
     '苍玉':['xishan-1-12','zhongshan-5-06','zhongshan-5-11'],
-    '金':['zhongshan-2-02','zhongshan-2-03','zhongshan-2-04','zhongshan-2-07','zhongshan-2-09','zhongshan-3-04','zhongshan-5-09','zhongshan-5-15','zhongshan-6-02','zhongshan-6-05','zhongshan-6-09','zhongshan-6-11','zhongshan-6-14','zhongshan-8-01','zhongshan-8-02','zhongshan-8-05','zhongshan-8-09','zhongshan-8-10','zhongshan-8-11','zhongshan-8-13','zhongshan-8-16','zhongshan-8-19','zhongshan-9-02','zhongshan-9-07','zhongshan-9-08'],
-    '玉':['zhongshan-2-02','zhongshan-2-03','zhongshan-2-04','zhongshan-2-07','zhongshan-2-09','zhongshan-3-04','zhongshan-5-02','zhongshan-5-10','zhongshan-6-02','zhongshan-6-05','zhongshan-6-08','zhongshan-6-09','zhongshan-6-11','zhongshan-6-13','zhongshan-6-14','zhongshan-7-09','zhongshan-7-11','zhongshan-8-01','zhongshan-8-03','zhongshan-8-04','zhongshan-8-05','zhongshan-8-09','zhongshan-8-13','zhongshan-8-19','zhongshan-9-02','zhongshan-9-08','zhongshan-9-10'],
+    '金':['zhongshan-2-02','zhongshan-2-03','zhongshan-2-04','zhongshan-2-07','zhongshan-2-09','zhongshan-3-04','zhongshan-5-09','zhongshan-5-15','zhongshan-6-02','zhongshan-6-05','zhongshan-6-09','zhongshan-6-11','zhongshan-6-14','zhongshan-8-01','zhongshan-8-02','zhongshan-8-05','zhongshan-8-09','zhongshan-8-10','zhongshan-8-11','zhongshan-8-13','zhongshan-8-16','zhongshan-8-19','zhongshan-9-02','zhongshan-9-07','zhongshan-9-08','zhongshan-10-01'],
+    '玉':['zhongshan-2-02','zhongshan-2-03','zhongshan-2-04','zhongshan-2-07','zhongshan-2-09','zhongshan-3-04','zhongshan-5-02','zhongshan-5-10','zhongshan-6-02','zhongshan-6-05','zhongshan-6-08','zhongshan-6-09','zhongshan-6-11','zhongshan-6-13','zhongshan-6-14','zhongshan-7-09','zhongshan-7-11','zhongshan-8-01','zhongshan-8-03','zhongshan-8-04','zhongshan-8-05','zhongshan-8-09','zhongshan-8-13','zhongshan-8-19','zhongshan-9-02','zhongshan-9-08','zhongshan-9-10','zhongshan-10-01'],
     '美玉':['zhongshan-5-11'],
     '砺石':['zhongshan-1-14','zhongshan-5-13'],
     '赤铜':['zhongshan-1-05','zhongshan-1-09','zhongshan-1-15','zhongshan-2-06','zhongshan-5-13'],
@@ -919,12 +928,12 @@ addItem(
     '沙石':['nanshan-1-09','zhongshan-6-01'],
     '水玉':['nanshan-1-02','zhongshan-6-06'],
     '枏':['nanshan-2-14','zhongshan-6-13','zhongshan-8-06'],
-    '赤金':['nanshan-1-04','zhongshan-7-16','zhongshan-8-02','zhongshan-8-09','zhongshan-8-21','zhongshan-9-12','zhongshan-9-14','zhongshan-9-15'],
-    '白金':['nanshan-1-04','zhongshan-7-17','zhongshan-9-09','zhongshan-9-11','zhongshan-9-13'],
+    '赤金':['nanshan-1-04','zhongshan-7-16','zhongshan-8-02','zhongshan-8-09','zhongshan-8-21','zhongshan-9-12','zhongshan-9-14','zhongshan-9-15','zhongshan-10-02'],
+    '白金':['nanshan-1-04','zhongshan-7-17','zhongshan-9-09','zhongshan-9-11','zhongshan-9-13','zhongshan-10-04'],
     // 中次八经补录（荆山二十三山；上述同名产出多由派生自动挂号，此五味需手工补产地）
     '丹粟':['nanshan-2-01','zhongshan-8-01','zhongshan-9-08'],
-    '青雘':['nanshan-1-08','zhongshan-8-03','zhongshan-8-05','zhongshan-8-09','zhongshan-8-11','zhongshan-8-13','zhongshan-8-16','zhongshan-8-22','zhongshan-9-08'],
-    '梓':['zhongshan-2-06','zhongshan-8-06','zhongshan-8-12','zhongshan-9-04','zhongshan-9-08','zhongshan-9-09'],
+    '青雘':['nanshan-1-08','zhongshan-8-03','zhongshan-8-05','zhongshan-8-09','zhongshan-8-11','zhongshan-8-13','zhongshan-8-16','zhongshan-8-22','zhongshan-9-08','zhongshan-10-07'],
+    '梓':['zhongshan-2-06','zhongshan-8-06','zhongshan-8-12','zhongshan-9-04','zhongshan-9-08','zhongshan-9-09','zhongshan-10-09'],
     '桃枝':['xishan-2-01','zhongshan-8-14'],
     '钩端':['xishan-2-01','zhongshan-8-14'],
     // 中次九经补录（岷山十六山）
@@ -939,6 +948,23 @@ addItem(
     it.nodes = it.nodes || (it.node ? [it.node] : []);
     nodes.forEach(n=>{ if (!it.nodes.includes(n)) it.nodes.push(n); });
     it.node = it.nodes[0];
+  }
+})();
+
+// 派生的 w_ 条目先于手工条目前生成：若同名两者并存，把 w_ 的产地并入手工条目并删除 w_，
+// 保证「一名一 id」（测试的 id 唯一性审计即守此不变量）。此前手工条目全部早于派生执行，
+// 直到中次十经出现首个「XW 定义的木名（椐）同时出现在节点 yields」的情形才暴露。
+(function mergeAutoIntoManual(){
+  const byName = {};
+  for (const it of Object.values(Items)) if (!it.auto) byName[it.name] = it;
+  for (const it of Object.values(Items)){
+    if (!it.auto) continue;
+    const m = byName[it.name];
+    if (!m) continue;
+    m.nodes = m.nodes || (m.node ? [m.node] : []);
+    (it.nodes || (it.node ? [it.node] : [])).forEach(n=>{ if (!m.nodes.includes(n)) m.nodes.push(n); });
+    m.node = m.nodes[0];
+    delete Items[it.id];
   }
 })();
 
@@ -977,7 +1003,7 @@ const RITES = {
   rite_ds1: { regionId:'dongshan-1', yieldBonus:0.30, dur:3600, xp:850, deity:'deity_dongshan-1' },
   rite_ds2: { regionId:'dongshan-2', yieldBonus:0.30, dur:3600, xp:870, deity:'deity_dongshan-2' },
   rite_ds3: { regionId:'dongshan-3', yieldBonus:0.30, dur:3600, xp:900, deity:'deity_dongshan-3' },
-  // 中山九套祠礼（帝之密都·全书收卷；2026-10-25 首录九系）
+  // 中山十套祠礼（帝之密都·全书收卷；2026-10-25 首录十系）
   rite_zs1: { regionId:'zhongshan-1', yieldBonus:0.30, dur:3600, xp:920, deity:'deity_zhongshan-1' },
   rite_zs2: { regionId:'zhongshan-2', yieldBonus:0.30, dur:3600, xp:940, deity:'deity_zhongshan-2' },
   rite_zs3: { regionId:'zhongshan-3', yieldBonus:0.35, dur:3600, xp:960, deity:'deity_zhongshan-3' },
@@ -987,6 +1013,7 @@ const RITES = {
   rite_zs7: { regionId:'zhongshan-7', yieldBonus:0.30, dur:3600, xp:1040, deity:'deity_zhongshan-7' },
   rite_zs8: { regionId:'zhongshan-8', yieldBonus:0.30, dur:3600, xp:1060, deity:'deity_zhongshan-8' },
   rite_zs9: { regionId:'zhongshan-9', yieldBonus:0.30, dur:3600, xp:1080, deity:'deity_zhongshan-9' },
+  rite_zs10: { regionId:'zhongshan-10', yieldBonus:0.30, dur:3600, xp:1100, deity:'deity_zhongshan-10' },
 };
 
 // ---------- 征兆系统（原文「见则X」，首次著录触发） ----------
@@ -1474,6 +1501,9 @@ const FAUNA_META = {
   '鼍':     { id:'zs_tuo',     el:'水', drop:'zs_tuo_r',     py:'tuó',     note:'似蜥蜴而大，长丈余——即扬子鳄，皮可为鼓' },
   '夔牛':   { id:'zs_kuiniu',  el:'土', drop:'zs_kuiniu_r',  py:'kuí',     note:'牛形无角，苍身——其声如雷，皮可为鼓' },
   '䲀鱼':   { id:'zs_zhiyu',   el:'水', drop:'zs_zhiyu_r',   py:'zhì',     note:'江水多䲀鱼——鱼而多刺，骨可疗' },
+  // 中次十经：复州跂踵（见则大疫）、又原鸜鹆（八哥）
+  '跂踵':   { id:'zs_qizhong', el:'火', drop:'zs_qizhong_r', py:'qí zhǒng', note:'状如鸮而一足、彘尾，见则其国大疫' },
+  '鸜鹆':   { id:'zs_qiyu',    el:'木', drop:'zs_qiyu_r',    py:'qú yù',    note:'即八哥——黑羽白点，能效人言' },
   // ===== 东山经（四系 46 山）=====  —— 常兽虎/麋/鹿/大蛇/䱻鱼已在他经存在，复用其 meta
   '鳙鳙之鱼':{ id:'ds_yongyu',  el:'水', drop:'ds_yongyu_r' },
   '从从':    { id:'ds_congcong',el:'土', drop:'ds_congcong_r' },
@@ -1609,8 +1639,8 @@ addItem(
   I('bs_puyi_r','蒲夷之鱼鳞','material',{value:48,xp:116,lvl:69,icon:'🐟',py:'pú yí zhī yú'}),
 );
 
-// 中山经首录九系具名异兽掉落物（自研；形态/效果以原文为准，数值与节点等次挂钩）
-// 帝之密都九系 L69–78：主治草木线收官区，数值较北山同阶上浮约三成
+// 中山经首录十系具名异兽掉落物（自研；形态/效果以原文为准，数值与节点等次挂钩）
+// 帝之密都十系 L69–78：主治草木线收官区，数值较北山同阶上浮约三成
 addItem(
   I('zs_nao_r','㔮肉','food',{value:22,xp:52,lvl:69,icon:'🍖',heal:55,effect:'食之已瘿',py:'náo'}),
   I('zs_haoyu_r','豪鱼肉','food',{value:22,xp:52,lvl:69,icon:'🐟',heal:55,effect:'可以已白癣',py:'háo'}),
@@ -1650,6 +1680,9 @@ addItem(
   I('zs_tuo_r','鼍皮','material',{value:46,xp:94,lvl:78,icon:'🐊',py:'tuó',note:'鼍皮可为鼓，声闻数里'}),
   I('zs_kuiniu_r','夔牛之革','material',{value:50,xp:98,lvl:78,icon:'🐂',py:'kuí',note:'夔牛皮可为鼓，其声如雷'}),
   I('zs_zhiyu_r','䲀鱼之骨','material',{value:34,xp:76,lvl:78,icon:'🐟',py:'zhì',note:'鱼而多刺——其骨可疗'}),
+  // 中次十经：跂踵、鸜鹆
+  I('zs_qizhong_r','跂踵之羽','material',{value:44,xp:90,lvl:78,icon:'🪶',py:'qí zhǒng',note:'状如鸮而一足、彘尾——见则其国大疫'}),
+  I('zs_qiyu_r','鸜鹆之舌','material',{value:36,xp:78,lvl:78,icon:'🐦',py:'qú yù',note:'八哥舌——剪而捻之，能效人言'}),
 );
 
 // 祷过之山「多犀、兕、多象」——可猎之兽（非异兽）
@@ -1918,7 +1951,7 @@ function buildCodex(){
     deity_xs3:'西次三经 · 羊身人面之神', deity_xs4:'西次四经 · 山神',
     deity_bs1:'北次一经 · 人面蛇身之神', deity_bs2:'北次二经 · 蛇身人面之神',
     deity_bs3:'北次三经 · 神祇（廿神藻茝瘗／十四神玉不瘗／十神璧瘗）',
-    // 中山经（帝之密都；首录九系）
+    // 中山经（帝之密都；首录十系）
     deity_zs1:'中次一经 · 薄山十五山神（历儿为冢）',
     deity_zs2:'中次二经 · 人面鸟身之神',
     deity_zs3:'中次三经 · 帝之密都群神（熏池／武罗／泰逢）',
@@ -1928,6 +1961,7 @@ function buildCodex(){
     deity_zs7:'中次七经 · 苦山十九山神（十六神豕身人面；苦山/少室/太室为冢）',
     deity_zs8:'中次八经 · 荆山二十三山神（鸟身人面；骄山为冢）',
     deity_zs9:'中次九经 · 岷山十六山神（马身龙首；文山/勾檷/风雨/騩为冢，熊山为席）',
+    deity_zs10:'中次十经 · 首阳九山神（龙身人面；末句另称堵山为冢、騩山为帝）',
   };
   for (const def of Object.values(RITES)){
     if (cx[def.deity] || !RITE_DEITY_NAMES[def.deity]) continue;
@@ -2029,8 +2063,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.10.0',
-  codename:'密都 · 岷山',
+  version: '1.11.0',
+  codename:'密都 · 首阳',
   updated: '2026-10-25',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
