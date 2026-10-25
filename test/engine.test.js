@@ -3185,6 +3185,49 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   assert(uiSrc55.includes('class="geo-tag"') && uiSrc55.includes('地气'), '山志显示地气标签');
 }
 
+// ============ 56. 符箓的著录前置（v1.15.6） ============
+{
+  G.resetToDefault();
+  const intSrc56 = readText('src/interact.js');
+  const uiSrc56 = readText('src/ui.js');
+
+  const charms = Object.values(ST.Items).filter(i => i.reqRecord);
+  assert(charms.length === 7, '七张符写明佩用前置（' + charms.length + '）');
+  assert(charms.every(c => c.equip && c.slot === 'charm'), '带前置的都是护符');
+  assert(intSrc56.includes('function reqRecordOk') && intSrc56.includes('function reqRecordText'),
+    '前置判定与说明已实现（此前 reqRecord 字段从未被读）');
+
+  // 行为：著录未及时戴不上
+  G.resetToDefault();
+  for (const sid of ST.ALL_SKILL_IDS) ST.Game.skills[sid] = { level: 60, xp: 1e6 };
+  ST.giveItem('migufu', 1, false);
+  const okBefore = ST.reqRecordOk(ST.Items.migufu);
+  ST.equipItem('migufu');
+  assert(okBefore === false, '未著录迷榖时前置不满足');
+  assert(!ST.Game.gear.charm, '未达前置时装备不生效（装备槽仍空）');
+  assert(/需著录「迷榖」至通形/.test(ST.reqRecordText(ST.Items.migufu)), '说明写明缺什么（' + ST.reqRecordText(ST.Items.migufu) + '）');
+
+  // 达标后可戴
+  ST.Game.records.migu = { count: 60, tier: 3 };
+  assert(ST.reqRecordOk(ST.Items.migufu) === true, '著录至通形后前置满足');
+  ST.equipItem('migufu');
+  assert(ST.Game.gear.charm && ST.Game.gear.charm.id === 'migufu', '此时可正常装备');
+
+  // 旧档中已戴着不满足前置的符：不该被强行脱下（装备是既有状态），
+  // 但自动换装不得再选中未达标的
+  G.resetToDefault();
+  for (const sid of ST.ALL_SKILL_IDS) ST.Game.skills[sid] = { level: 60, xp: 1e6 };
+  ST.giveItem('lushufu', 1, false);
+  ST.Game.records.lushu = { count: 10, tier: 1 };
+  const changes = ST.equipBest();
+  assert(!changes.some(c => /鹿蜀符/.test(c)), '一键最优装跳过前置未达的符');
+  assert(!ST.Game.gear.charm || ST.Game.gear.charm.id !== 'lushufu', '且没有把它戴上');
+
+  assert(intSrc56.includes('if (!reqRecordOk(it)) continue;'), '自动装备同样校验');
+  assert(uiSrc56.includes('reqRecordText(it)') && uiSrc56.includes('<b>佩用</b>'), '物品详情显示佩用前置');
+  assert(uiSrc56.includes("(!recOk ? '著录未及' : '')"), '未达时装备按钮标「著录未及」');
+}
+
 // ============ 47. 物品用途面板（v1.14.3） ============
 {
   G.resetToDefault();

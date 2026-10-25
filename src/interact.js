@@ -100,12 +100,34 @@ function equipSlotOf(it){
   if (it.type === 'arrow') return 'quiver';
   return 'weapon';
 }
+// 佩用之前：符箓要先「识得」所佩之物。数据里七张符都写了 reqRecord
+// （迷榖符须著录迷榖、文鳐符须著录文鳐…），此前没有任何校验——打到符就能戴。
+function reqRecordOk(it){
+  const r = it && it.reqRecord;
+  if (!r) return true;
+  const rec = (Game.records || {})[r.id];
+  return !!rec && (rec.tier || 0) >= (r.tier || 0);
+}
+function reqRecordText(it){
+  const r = it && it.reqRecord;
+  if (!r) return '';
+  // 前置对象多是异兽（迷榖、鹿蜀），少数是物品——两边都查
+  const nm = (Items[r.id] || {}).name || (Monsters[r.id] || {}).name || r.id;
+  const need = TUNING.MASTERY.NAMES[r.tier] || (r.tier + ' 阶');
+  const cur = ((Game.records || {})[r.id] || {}).tier || 0;
+  return `需著录「${nm}」至${need}（今 ${TUNING.MASTERY.NAMES[cur] || '未录'}）`;
+}
 function equipItem(itemId){
   const it = Items[itemId];
   if (!it || !it.equip){ log('该物品无法装备', 'bad'); return; }
   if ((it.lvl||1) > relevantLevel(it)){
     log(`🔒 需${requiredSkillName(it)} ${it.lvl} 级`, 'bad');
     UI && UI.toast(`🔒 需${requiredSkillName(it)} ${it.lvl} 级`);
+    return;
+  }
+  if (!reqRecordOk(it)){
+    log(`🔒 ${reqRecordText(it)}`, 'bad');
+    UI && UI.toast(`🔒 ${reqRecordText(it)}`);
     return;
   }
   if ((Game.inventory[itemId]||0) <= 0){ log('行囊中没有该物品', 'bad'); return; }
@@ -152,6 +174,7 @@ function maybeAutoEquip(){
       const it = Items[id];
       if (!it || !it.equip || equipSlotOf(it) !== slot) continue;
       if ((it.lvl||1) > relevantLevel(it)) continue;
+      if (!reqRecordOk(it)) continue;
       const p = gearPower(it);
       if (p > bestPower){ best = it; bestPower = p; }
     }
@@ -172,6 +195,7 @@ function equipBest(){
       if ((Game.inventory[id]||0) <= 0) continue;
       if (equipSlotOf(it) !== slot) continue;
       if ((it.lvl||1) > relevantLevel(it)) continue;
+      if (!reqRecordOk(it)) continue;
       const p = gearPower(it);
       if (p > bestPower){ best = it; bestPower = p; }
     }
@@ -185,6 +209,7 @@ function equipBest(){
 }
 window.GearSlotLabels = GearSlotLabels;
 window.equipItem = equipItem; window.unequip = unequip;
+window.reqRecordOk = reqRecordOk; window.reqRecordText = reqRecordText;
 window.equipSlotOf = equipSlotOf; window.relevantLevel = relevantLevel;
 window.requiredSkillName = requiredSkillName; window.gearPower = gearPower;
 window.maybeAutoEquip = maybeAutoEquip; window.equipBest = equipBest;

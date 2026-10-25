@@ -3137,8 +3137,11 @@ function showItemDetail(itemId){
   const rec = Game.records[itemId];
   const actions = [];
   if (it.equip){
-    const ok = (it.lvl||1) <= relevantLevel(it);
-    actions.push(`<button class="btn ${ok?'primary':''}" ${ok?'':'disabled'} onclick="equipItem('${itemId}');UI.closeModal()">装备${ok?'':'（需'+requiredSkillName(it)+' '+it.lvl+'）'}</button>`);
+    const lvOk = (it.lvl||1) <= relevantLevel(it);
+    const recOk = (typeof reqRecordOk !== 'function') || reqRecordOk(it);
+    const ok = lvOk && recOk;
+    const why = !lvOk ? `需${requiredSkillName(it)} ${it.lvl}` : (!recOk ? '著录未及' : '');
+    actions.push(`<button class="btn ${ok?'primary':''}" ${ok?'':'disabled'} onclick="equipItem('${itemId}');UI.closeModal()">装备${ok?'':'（'+why+'）'}</button>`);
   }
   if (it.heal || it.buff) actions.push(`<button class="btn primary" onclick="useConsumable('${itemId}');UI.closeModal()">${it.heal?'食用':'服用'}</button>`);
   // 淬炼：装备专属长线投入（+9 上限，每级 +6% 基础伤害 / 防御）
@@ -3167,6 +3170,7 @@ function showItemDetail(itemId){
     ${it.form?`<div class="reveal"><b>形态</b>${esc(it.form)}</div>`:''}
     ${it.effect?`<div class="reveal"><b>效果</b>${esc(it.effect)}</div>`:''}
     ${it.note?`<div class="reveal"><b>出处</b>${esc(it.note)}</div>`:''}
+    ${it.reqRecord?`<div class="reveal"><b>佩用</b><span class="${(typeof reqRecordOk==='function'&&reqRecordOk(it))?'':'lack-n'}">${esc(typeof reqRecordText==='function'?reqRecordText(it):'')}</span></div>`:''}
     ${(() => {
       const uses = itemUses(itemId);
       const crop = it.crop ? `<span class="use-chip">可作嘉种（收 ${esc((Items[it.crop]||{}).name || it.crop)}）</span>` : '';
