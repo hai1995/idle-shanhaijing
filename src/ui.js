@@ -806,6 +806,15 @@ const UI = {
   },
 };
 
+// 存档体积：玩家反馈「卡 / 存不上」时，第一件事是问存档多大。
+// 这里直接序列化一次算字节数（约 4KB，毫秒级），不读 localStorage。
+function saveSizeKb(){
+  try {
+    const txt = JSON.stringify(serializeSave());
+    return Math.max(1, Math.round(txt.length / 1024));
+  } catch(e){ return '—'; }
+}
+
 // ---------- 设置（独立页签，不弹窗） ----------
 // 早先是 modal；设置项一多，弹窗滚动局促，且每改一项都要「关掉再开」刷新选中态。
 // 现在做成与其余功能并列的一页：改任何开关就地重绘本页，顶栏/侧栏状态照常。
@@ -861,6 +870,10 @@ UI.renderSettings = function(){
           <div class="form-row"><span>自动存档</span><b>每 5 秒</b><span class="hint">写入浏览器本地</span></div>
           <div class="form-row"><span>存档格式</span><b>v${typeof SaveManager!=='undefined'?SaveManager.version:3}</b>
             <span class="hint">旧档自动升级，无需手动处理</span></div>
+          <div class="form-row"><span>存档体积</span><b>${saveSizeKb()} KB</b>
+            <span class="hint">${Object.keys(Game.records||{}).length} 条著录 · ${Object.keys(Game.map||{}).length} 座山已访</span></div>
+          <div class="form-row"><span>版本</span><b>v${esc((typeof GAME_META!=='undefined'&&GAME_META.version)||'—')}</b>
+            <span class="hint">${esc((typeof GAME_META!=='undefined'&&GAME_META.updated)||'')}</span></div>
           <div class="form-row"><span>导出 / 导入 / 重置</span>
             <span class="hint">在「统计」页</span></div>
           <p class="hint">进度仅存本机。多设备同步将由账号系统统一提供——存档结构（版本号 / 修订号 / 时间戳）与合并规则已为此预留，届时登录即可续玩，无需另填服务器。</p>
