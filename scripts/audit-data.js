@@ -73,12 +73,16 @@ Object.values(W.Monsters).forEach(m => {
 });
 W.Recipes.forEach(r => source.add(r.out));
 (W.ShopStock || []).forEach(s => source.add(s.itemId));
+// 奖励字段有两种写法：养成点是 { id: 数量 }，观瑞/谒见是单个 id 字符串
+const rewardIds = v => (typeof v.reward === 'string' ? [v.reward] : Object.keys(v.reward || {}));
 Object.values(W.GROW_SITES || {}).forEach(v => {
   (v.cost || []).forEach(([id]) => source.add(id));
-  Object.keys(v.reward || {}).forEach(id => source.add(id));
+  rewardIds(v).forEach(id => source.add(id));
 });
-// 观瑞之赐写在 game.js 观瑞分支，不落数据表
-['fenghuangyu', 'yuanchuyu'].forEach(id => source.add(id));
+Object.values(W.OBSERVE_SITES || {}).forEach(v => rewardIds(v).forEach(id => source.add(id)));
+Object.values(W.AUDIENCE_SITES || {}).forEach(v => {
+  (v.deities || []).forEach(d => { if (d.gift) source.add(d.gift); });
+});
 const needs = new Set();
 W.Recipes.forEach(r => (r.cost || []).forEach(([id]) => needs.add(id)));
 Object.values(W.GROW_SITES || {}).forEach(v => (v.cost || []).forEach(([id]) => needs.add(id)));
@@ -112,7 +116,8 @@ for (const [name, map] of [['观象', W.OBSERVE_SITES], ['养成', W.GROW_SITES]
   for (const [k, v] of Object.entries(map || {})){
     if (v.nodeId && !nodeIds.has(v.nodeId)) bad('地点', `${name}.${k} 节点不存在 ${v.nodeId}`);
     (v.cost || []).forEach(([id]) => { if (!I[id]) bad('地点', `${name}.${k} 耗材不存在 ${id}`); });
-    Object.keys(v.reward || {}).forEach(id => { if (!I[id]) bad('地点', `${name}.${k} 奖励不存在 ${id}`); });
+    rewardIds(v).forEach(id => { if (!I[id]) bad('地点', `${name}.${k} 奖励不存在 ${id}`); });
+    (v.deities || []).forEach(d => { if (d.gift && !I[d.gift]) bad('地点', `${name}.${k} 神赐不存在 ${d.gift}`); });
   }
 }
 

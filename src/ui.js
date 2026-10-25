@@ -824,25 +824,12 @@ window.showTutorial = showTutorial; window.tutNext = tutNext; window.tutPrev = t
 window.tutSkip = tutSkip; window.tutFinish = tutFinish;
 
 // ---------- 通用渲染片段 ----------
-function skillLevelTag(skillId){
-  const lv = levelOf(skillId);
-  return `<span class="tier">${TUNING.TIER_NAMES[tierOfLevel(lv)]}</span> <b>${lv}</b>`;
-}
 // 提示条标记：按提示类型取意象，原先各用不同 emoji，此处统一到标记族
 const HINT_MARKS = { yudi:'compass', yushi:'lamp', queue:'bolt' };
 function hintMark(h){
   if (!h) return 'lamp';
   return HINT_MARKS[h.tab] || 'lamp';
 }
-function xpBar(skillId){
-  const sk = Game.skills[skillId];
-  const cur = xpForLevel(sk.level);
-  const next = xpForLevel(sk.level + 1);
-  const pct = next > cur ? Math.min(100, (sk.xp - cur) / (next - cur) * 100) : 100;
-  return `<div class="xpbar"><div class="fill" style="width:${pct.toFixed(1)}%"></div></div>
-    <div class="xpnum">${fmt(sk.xp - cur)} / ${fmt(next - cur)}</div>`;
-}
-
 // 页面 → 主技能：每页顶部固定一条「等级 · 当前经验 / 升级所需」，
 // 免得玩家在祠祀、营造、墟市里不知道自己在什么火候。
 const PAGE_SKILL = {
@@ -3023,6 +3010,70 @@ function itemUses(id){
   return out;
 }
 
+// 「这东西从哪来」——与 itemUses 正好相反的一问。行祭、制作、淬炼时常缺某样材料，
+// 只说「缺 牛 0/1」等于把找料的活儿丢回给玩家；这里把产地、掉落、墟市价一次报清。
+function itemSources(id){
+  const it = Items[id] || {};
+  const out = [];
+  const nodes = it.nodes || (it.node ? [it.node] : []);
+  if (it.skill && nodes.length){
+    const names = nodes.map(n => (nodeOf(n) || {}).name).filter(Boolean);
+    out.push({ kind:(Skills[it.skill] || {}).name || '采集', lvl: it.lvl || 1,
+      where: names.slice(0, 2).join('、') + (names.length > 2 ? ` 等 ${names.length} 山` : '') });
+  }
+  for (const r of Recipes){
+    if (r.out !== id || !Array.isArray(r.cost)) continue;
+    const mats = r.cost.map(([iid, q]) => `${(Items[iid] || {}).name || iid}×${q}`).join('、');
+    out.push({ kind: RECIPE_KIND[r.type] || '制作', lvl: r.lvl || 1,
+      where:`需 ${r.lvl || 1} 级 · ${mats}` });
+    break;
+  }
+  // 同名异兽散在各山（㸲牛一类的写法在原文里遍地都是），按名去重再计数
+  const drops = [];
+  const seenDrop = {};
+  for (const m of Object.values(typeof Monsters !== 'undefined' ? Monsters : {})){
+    // BOSS 走单值 drop，小妖走 loot 表；两者都要看（m.loot 可能是空数组，别被真值骗了）
+    const loot = (Array.isArray(m.loot) && m.loot.length) ? m.loot : [];
+    const l = loot.length ? loot : (m.drop ? [[m.drop, 1, 1]] : []);
+    if (!Array.isArray(l) || !l.some(x => Array.isArray(x) && x[0] === id)) continue;
+    if (!m.name || seenDrop[m.name]) continue;
+    seenDrop[m.name] = 1;
+    drops.push(m.name);
+  }
+  if (drops.length) out.push({ kind:'讨伐', where: drops.slice(0, 3).join('、') + (drops.length > 3 ? ` 等 ${drops.length} 种` : '') });
+  for (const s of (typeof ShopStock !== 'undefined' ? ShopStock : [])){
+    if (s.itemId !== id) continue;
+    out.push({ kind:'墟市', lvl: s.lvl || 1, where:`${s.cost} 贝 / ${s.qty} 件（需 ${s.lvl || 1} 级）` });
+    break;
+  }
+  // 观瑞：丹穴初见得凤皇羽一类，来源写在 OBSERVE_SITES.reward 上
+  for (const o of Object.values(typeof OBSERVE_SITES !== 'undefined' ? OBSERVE_SITES : {})){
+    if (o.reward !== id) continue;
+    out.push({ kind:'观瑞', where:`${o.name}（初见得一）` });
+    break;
+  }
+  // 谒见：神祇不讨伐，其「遗物」唯谒见可得（如刚山神的神𩲜之足）
+  for (const site of Object.values(typeof AUDIENCE_SITES !== 'undefined' ? AUDIENCE_SITES : {})){
+    const d = (site.deities || []).find(x => x.gift === id);
+    if (!d) continue;
+    out.push({ kind:'谒见', where:`${d.name}（初谒得赐）` });
+    break;
+  }
+  // 养成点：丹木、器酸一类三五年一熟的奇产，既非采集也非掉落
+  for (const g of Object.values(typeof GROW_SITES !== 'undefined' ? GROW_SITES : {})){
+    if (!g.reward || !g.reward[id]) continue;
+    const hrs = Math.round((g.sec || 3600) * (g.stages || 1) / 3600 * 10) / 10;
+    out.push({ kind:'养成', where:`${g.name}（${hrs} 小时一成）` });
+    break;
+  }
+  // 作物：没有产地也没有配方，但种得出来——不反查种子就只剩「回收 4 贝」一条
+  const seed = Object.values(Items).find(x => x.crop === id);
+  if (seed) out.push({ kind:'圃艺', where:`植 ${seed.name}（${seed.grow || 10} 秒熟）` });
+  if (it.crop) out.push({ kind:'圃艺', where:`作种可得 ${(Items[it.crop] || {}).name || ''}`.trim() });
+  if (it.value) out.push({ kind:'回收', where:`${sellValue(id, 1)} 贝 / 件` });
+  return out;
+}
+
 function showItemDetail(itemId){
   const it = Items[itemId];
   if (!it) return;
@@ -3334,9 +3385,25 @@ UI.tryRite = function(id){
   if (!rec) return;
   if (levelOf('jisi') < rec.lvl){ UI.toast(`🔒 需祭祀 ${rec.lvl} 级`); return; }
   if (!canAfford(rec.cost)){
-    const lacks = rec.cost.filter(([iid, q]) => totalOf(iid) < q)
-      .map(([iid, q]) => `${(Items[iid] || {}).name || iid} ${totalOf(iid)}/${q}`);
-    UI.toast(lacks.length ? `祭品不足：缺 ${lacks.join('、')}` : '祠礼材料不备');
+    // 缺料不该只用一句 toast 打发：玩家站在原地不知道「牛」去哪儿找。
+    // 逐项列出缺多少，并附上产地 / 掉落 / 墟市价。
+    const rows = rec.cost.filter(([iid, q]) => totalOf(iid) < q).map(([iid, q]) => {
+      const it = Items[iid] || {};
+      const src = itemSources(iid).filter(s => s.kind !== '回收');
+      const where = src.length
+        ? src.map(s => `<span class="use-chip">${s.kind}·${esc(s.where)}</span>`).join('')
+        : '<span class="hint">来源未明</span>';
+      return `<div class="lack-row">
+        <b>${esc(it.name || iid)}</b>
+        <span class="lack-n">缺 ${q - totalOf(iid)}</span><span class="lack-have">现 ${totalOf(iid)} / ${q}</span>
+        <span class="use-box">${where}</span>
+      </div>`;
+    }).join('');
+    UI.modal(`<h3>祭品不备</h3>
+      <p class="hint">「${esc((Items[id] || {}).name || id)}」所需祭品尚缺：</p>
+      ${rows}
+      <div class="hint">备齐后再点方块行祭；若已开续祭，备齐后自会续上。</div>
+      <div class="modal-btns"><button class="btn on" onclick="UI.closeModal()">知道了</button></div>`);
     return;
   }
   performRite(id);
@@ -3652,7 +3719,7 @@ Object.keys(TAB_RENDER).forEach(tab=>{
 
 // 纯函数式的小工具挂到 window：浏览器里 window === globalThis 本无差别，
 // 但测试在 vm 里跑，顶层 function 声明只落 context、不落 window，显式导出才可断言。
-window.itemUses = itemUses;
+window.itemUses = itemUses; window.itemSources = itemSources;
 window.gatherGate = gatherGate;
 window.combatStatBreakdown = combatStatBreakdown;
 window.structureEffectRows = structureEffectRows;

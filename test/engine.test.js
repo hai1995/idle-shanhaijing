@@ -2027,7 +2027,7 @@ section('方块语言：技能 / 祠礼 / 墟市');
 
   assert(uiSrc.includes('class="tile rite-tile') && uiSrc.includes('class="tile-seal"'), '祠礼改为方块 + 首字朱印');
   assert(uiSrc.includes('UI.tryRite = function(id)'), '祠礼点按走 tryRite（校验等级与祭品）');
-  assert(uiSrc.includes('祭品不足：缺'), '缺祭品时说清缺哪几样');
+  assert(uiSrc.includes('祭品不备') && uiSrc.includes('class="lack-row"'), '缺祭品时开弹窗逐项列缺（附产地/掉落/市价）');
   assert(/\.rite-grid\{[^}]*minmax\(92px,1fr\)/.test(css), '祠礼方格 92px');
 
   assert(uiSrc.includes('class="tile shop-tile') && uiSrc.includes("onclick=\"buyItem(${idx},1)\""), '商品方块点按买一份');
@@ -2957,6 +2957,57 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
 
   assert(uiSrc49.includes('off-cap') && uiSrc49.includes('未计入'), '弹窗说明超出部分未计入');
   assert(uiSrc49.includes('ACT_NAMES') && uiSrc49.includes('class="off-acts"'), '弹窗列出离线所做之事');
+}
+
+// ============ 50. 物品来路（v1.15） ============
+{
+  G.resetToDefault();
+  assert(typeof ST.itemSources === 'function', 'itemSources 已导出');
+
+  const dao = ST.itemSources('dao');
+  assert(dao.some(x => x.kind === '圃艺'), '稻米反查到种子（此前只剩「回收 7 贝」）');
+  assert(ST.itemSources('jian').some(x => /菅苗/.test(x.where)), '白菅指到菅苗');
+  assert(ST.itemSources('zhang').some(x => x.kind === '琢玉' && /玉×1/.test(x.where)), '玉璋列出配方材料');
+
+  const niu = ST.itemSources('niu').filter(x => x.kind === '讨伐')[0];
+  assert(!!niu, '牛牲指到讨伐来路');
+  assert(!/㸲牛、㸲牛/.test(niu.where), '同名异兽去重（不再「㸲牛、㸲牛、㸲牛」）');
+
+  assert(ST.itemSources('fenghuangyu').some(x => x.kind === '观瑞'), '凤皇羽来自观瑞');
+  assert(ST.itemSources('shenlingzu').some(x => x.kind === '谒见'), '神𩲜之足来自谒见（神祇不讨伐）');
+  assert(ST.itemSources('danmu').some(x => x.kind === '养成'), '丹木来自峚山养成');
+  assert(ST.itemSources('__nope__').length === 0, '未知物品返回空');
+
+  // 全局：671 件里每一件都该说得清「从哪来」，否则玩家拿到了也不知所以
+  const noSrc = Object.values(ST.Items).filter(i => ST.itemSources(i.id).filter(x => x.kind !== '回收').length === 0);
+  assert(noSrc.length === 0, '每件物品都查得到来路（缺 ' + noSrc.length + '：' + noSrc.slice(0, 5).map(i => i.name).join('、') + '）');
+
+  // 观瑞所赐归到数据里，不再写死在 doObserve 的临时表上
+  assert(ST.OBSERVE_SITES.danxue.reward === 'fenghuangyu', '观瑞奖励记在 OBSERVE_SITES.reward');
+  const gameSrc50 = fs.readFileSync(path.join(__dirname, '..', 'src', 'game.js'), 'utf8');
+  assert(!/const plume = \{ danxue:/.test(gameSrc50), 'doObserve 不再自建映射表');
+}
+
+// ============ 51. 无死函数（v1.15） ============
+{
+  const srcDir = path.join(__dirname, '..', 'src');
+  const files = fs.readdirSync(srcDir).filter(f => f.endsWith('.js'));
+  const all = files.map(f => fs.readFileSync(path.join(srcDir, f), 'utf8')).join('\n');
+  const dead = [];
+  for (const f of files){
+    const src = fs.readFileSync(path.join(srcDir, f), 'utf8');
+    const re = /^function\s+([A-Za-z_$][\w$]*)\s*\(/gm;
+    let m;
+    while ((m = re.exec(src))){
+      const name = m[1];
+      const safe = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');   // $ 之类不能直接进正则
+      // 引用计数（含调用、对象简写、字符串里的 onclick），定义本身算 1 次
+      const refs = (all.match(new RegExp('(?<![\\w$.])' + safe + '(?![\\w$])', 'g')) || []).length;
+      const exported = new RegExp('window\\.' + safe + '\\s*=').test(all);
+      if (refs <= 1 && !exported) dead.push(f + ':' + name);
+    }
+  }
+  assert(dead.length === 0, '无既未调用也未导出的顶层函数（' + (dead.join('、') || '无') + '）');
 }
 
 // ============ 47. 物品用途面板（v1.14.3） ============

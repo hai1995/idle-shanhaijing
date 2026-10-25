@@ -1130,8 +1130,10 @@ const OBSERVE_SITES = {
   qiuwu:    { nodeId:'nanshan-2-17', kind:'观象', name:'日次',   desc:'处于东海，望丘山，其光载出载入，是惟日次', gain:'离线上限 +1 小时' },
   yugu:     { nodeId:'nanshan-3-05', kind:'观象', name:'凯风',   desc:'其南有谷，曰育遗，多怪鸟，凯风自是出',     gain:'离线上限 +1 小时' },
   zhonggu:  { nodeId:'nanshan-3-10', kind:'观象', name:'条风',   desc:'其南有谷焉，曰中谷，条风自是出',           gain:'离线上限 +1 小时' },
-  danxue:   { nodeId:'nanshan-3-03', kind:'观瑞', name:'凤皇',   desc:'丹穴之山有鸟焉，五采而文，见则天下安宁',   gain:'触发「天下安宁」吉兆' },
-  nanyu:    { nodeId:'nanshan-3-13', kind:'观瑞', name:'鹓雏',   desc:'南禺之山有凤皇、鹓雏',                     gain:'触发「天下安宁」吉兆' },
+  // reward：初见得瑞羽一件。此前写死在 doObserve 里的一张临时表上，
+  // 物品「凤皇羽」的出处因此查不出来，现在归到数据里。
+  danxue:   { nodeId:'nanshan-3-03', kind:'观瑞', name:'凤皇',   desc:'丹穴之山有鸟焉，五采而文，见则天下安宁',   gain:'触发「天下安宁」吉兆', reward:'fenghuangyu' },
+  nanyu:    { nodeId:'nanshan-3-13', kind:'观瑞', name:'鹓雏',   desc:'南禺之山有凤皇、鹓雏',                     gain:'触发「天下安宁」吉兆', reward:'yuanchuyu' },
 };
 
 // 东山经观象点：据 node.observation 数据驱动接入（全经 4 座「X望Y」方位山，非手填）
@@ -2235,7 +2237,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.15.0',
+  version: '1.15.1',
   codename:'五臧 · 续火',
   updated: '2026-10-25',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',

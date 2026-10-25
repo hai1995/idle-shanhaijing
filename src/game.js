@@ -712,10 +712,11 @@ function doObserve(siteId){
   } else {
     UI && UI.log(`🌅 又观${site.name}`, 'guanxiang', 'skill');
   }
-  // 观瑞：初见得瑞羽（凤皇羽 / 鹓雏羽）
-  const plume = { danxue:'fenghuangyu', nanyu:'yuanchuyu' }[siteId];
+  // 观瑞：初见得瑞羽（凤皇羽 / 鹓雏羽）。所赐之物记在 OBSERVE_SITES.reward 上，
+  // 不再用一张写死的临时表——否则物品详情查不到「从哪来」。
   if (site.kind === '观瑞'){
-    if (plume && first){ giveItem(plume, 1, false); log(`🪽 得 ${Items[plume].name}`, 'gold', 'skill'); }
+    const plume = site.reward;
+    if (plume && Items[plume] && first){ giveItem(plume, 1, false); log(`🪽 得 ${Items[plume].name}`, 'gold', 'skill'); }
     activateOmen('fenghuang');   // 见凤皇/鹓雏 → 天下安宁
   }
   saveGame();

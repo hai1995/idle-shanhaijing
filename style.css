@@ -1214,6 +1214,14 @@ svg.bi.mk{ vertical-align:-2px; }
 }
 .rite-auto-bar b{ color:var(--jin); font-family:var(--f-num); }
 .rite-auto-bar b.stall{ color:var(--zhu); }
+/* 缺料清单：一项一行，缺多少 + 去哪儿找 */
+.lack-row{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;
+  padding:7px 0; border-bottom:1px solid var(--rule-2); font-size:12.5px; }
+.lack-row:last-child{ border-bottom:none; }
+.lack-row b{ flex:0 0 auto; font-family:var(--f-kai); color:var(--ink); font-weight:400; }
+.lack-row .lack-n{ flex:0 0 auto; font-family:var(--f-num); font-size:11px; color:var(--zhu); }
+.lack-row .lack-have{ flex:0 0 auto; font-family:var(--f-num); font-size:10.5px; color:var(--ink-4); }
+.lack-row .use-box{ flex:1 1 100%; margin-top:2px; }
 /* 山系页：此域祠礼生效提示 */
 /* 单行不折：山系栏本就窄，折行后「42:10」孤零零挂在第二行更难看 */
 .rite-here{
