@@ -680,24 +680,9 @@ UI.renderSettings = function(){
           <div class="form-row"><span>自动存档</span><b>每 5 秒</b><span class="hint">写入浏览器本地</span></div>
           <div class="form-row"><span>存档格式</span><b>v${typeof SaveManager!=='undefined'?SaveManager.version:3}</b>
             <span class="hint">旧档自动升级，无需手动处理</span></div>
-          <div class="form-row"><span>同步状态</span>
-            <b id="cloudState">${cloudStatusText()}</b>
-            <span class="hint">${cloudStatusHint()}</span></div>
-          <div class="form-row"><span>云端地址</span>
-            <input type="text" id="cloudEndpoint" maxlength="200" placeholder="https://你的存档服务器（留空则仅本地）" value="${esc((typeof SaveManager!=='undefined'&&SaveManager.cloudConfig()||{}).endpoint||'')}">
-            <button class="btn" onclick="saveCloudConfig()">连接</button></div>
-          <div class="form-row"><span>访问令牌</span>
-            <input type="password" id="cloudToken" maxlength="200" placeholder="服务端设了令牌才需填写" value="${esc((typeof SaveManager!=='undefined'&&SaveManager.cloudConfig()||{}).token||'')}">
-            <span class="hint">仅存于本机浏览器</span></div>
-          <div class="form-row"><span>自动同步</span>
-            <button class="btn ${(typeof SaveManager!=='undefined'&&SaveManager.cloudConfig()||{}).autoSync!==false?'on':''}" onclick="toggleCloudAutoSync()">${(typeof SaveManager!=='undefined'&&SaveManager.cloudConfig()||{}).autoSync!==false?'开':'关'}</button>
-            <span class="hint">停止操作约 3 秒后自动上传；离开页面时强传一次</span></div>
-          <div class="form-row"><span>手动操作</span><span class="btn-group">
-            <button class="btn" onclick="cloudSyncNow()">立即上传</button>
-            <button class="btn" onclick="cloudPullNow()">拉取合并</button>
-            <button class="btn" onclick="cloudDisconnect()">断开</button>
-          </span><span class="hint">导出 / 导入 / 重置在「统计」页</span></div>
-          <p class="hint">多设备同时玩：两边进度按「经验 / 著录 / 统计取大，地图 / 背包并集，贝币取较新」合并，不丢进度也不凭空造物。服务端可跑仓库里的 <code>server/cloud-save-server.js</code>（零依赖）。</p>
+          <div class="form-row"><span>导出 / 导入 / 重置</span>
+            <span class="hint">在「统计」页</span></div>
+          <p class="hint">进度仅存本机。多设备同步将由账号系统统一提供——存档结构（版本号 / 修订号 / 时间戳）与合并规则已为此预留，届时登录即可续玩，无需另填服务器。</p>
         </section>
         <section class="set-sec">
           <h4>快捷键</h4>
@@ -711,80 +696,6 @@ UI.renderSettings = function(){
   </div>`;
 };
 
-// ---------- 云端存档（设置页接线） ----------
-// 状态行文案：syncReady() 同步返回，无需 await；错误时带上服务端/网络原因
-function cloudStatusText(){
-  if (typeof SaveManager === 'undefined') return '本地存档';
-  const r = SaveManager.syncReady();
-  if (!r.ready) return '未接入云端';
-  const map = { idle:'待同步', pending:'有待上传的改动', syncing:'同步中…', ok:'已与云端一致', error:'同步失败', offline:'云端不可达' };
-  let s = map[r.state] || r.state;
-  if (r.state === 'ok' && SaveManager.lastSyncAt) s += ' · ' + fmtClock(SaveManager.lastSyncAt);
-  if (r.state === 'error' && SaveManager.lastError) s += '（' + esc(SaveManager.lastError) + '）';
-  return s;
-}
-function cloudStatusHint(){
-  if (typeof SaveManager === 'undefined' || !SaveManager.cloudConfig()) return '填云端地址即可接入，留空则只用本地';
-  const c = SaveManager.cloudConfig();
-  return '自动同步' + (c.autoSync !== false ? '已开' : '已关') + ' · 修订号 ' + (typeof SaveManager!=='undefined' ? SaveManager.rev() : 0);
-}
-function fmtClock(t){ const d = new Date(t); return ('0'+d.getHours()).slice(-2) + ':' + ('0'+d.getMinutes()).slice(-2); }
-
-// 连接 / 更新云端配置：地址需为 http(s) URL；留空表示断开
-function saveCloudConfig(){
-  if (typeof SaveManager === 'undefined'){ UI.toast('存档层未就绪'); return; }
-  const ep = String(($('cloudEndpoint')||{}).value || '').trim();
-  const tk = String(($('cloudToken')||{}).value || '').trim();
-  if (ep && !/^https?:\/\/[^\s]+$/i.test(ep)){ UI.toast('⚠️ 云端地址需以 http(s):// 开头'); return; }
-  const prev = SaveManager.cloudConfig() || {};
-  SaveManager.setCloud({ endpoint: ep, token: tk, autoSync: prev.autoSync !== false });
-  UI.toast(ep ? '☁️ 云端存档已连接' : '已断开云端');
-  saveGame();
-  UI.renderSettings();
-}
-// 自动同步开关（改的是持久化配置，不动连接状态）
-function toggleCloudAutoSync(){
-  if (typeof SaveManager === 'undefined') return;
-  const c = SaveManager.cloudConfig();
-  if (!c){ UI.toast('尚未接入云端'); return; }
-  SaveManager.setCloud({ endpoint: c.endpoint, token: c.token, autoSync: c.autoSync === false });
-  UI.renderSettings();
-}
-// 立即上传（手动）
-function cloudSyncNow(){
-  if (typeof SaveManager === 'undefined') return;
-  if (!SaveManager.cloudConfig()){ UI.toast('尚未接入云端'); return; }
-  UI.toast('☁️ 正在上传…');
-  SaveManager.sync().then(r=>{ UI.toast(r.ok ? '☁️ ' + r.reason : '⚠️ 上传失败：' + r.reason); UI.renderSettings(); })
-    .catch(e=>UI.toast('⚠️ 上传失败：' + (e && e.message || e)));
-}
-// 拉取云端档并与本地合并（多端进度按规则合并，不丢进度）
-function cloudPullNow(){
-  if (typeof SaveManager === 'undefined') return;
-  if (!SaveManager.cloudConfig()){ UI.toast('尚未接入云端'); return; }
-  UI.toast('☁️ 正在拉取…');
-  SaveManager.pull().then(r=>{
-    if (!r.ok){ UI.toast('⚠️ 拉取失败：' + r.reason); UI.renderSettings(); return; }
-    loadGame();                       // 合并结果装配回内存状态
-    if (UI.renderCurrent) UI.renderCurrent();
-    if (UI.refreshTopbar) UI.refreshTopbar();
-    UI.toast('☁️ 已合并云端存档');
-    UI.renderSettings();
-    // 合并档与云端不再一致：安排一次同步把合并结果推回云端
-    if (SaveManager.scheduleSync) SaveManager.scheduleSync();
-  }).catch(e=>UI.toast('⚠️ 拉取失败：' + (e && e.message || e)));
-}
-// 断开云端（本地存档不动；服务端存档保留，要连服务端一起抹掉请用统计页「重置」）
-function cloudDisconnect(){
-  if (typeof SaveManager === 'undefined') return;
-  SaveManager.clearCloud();
-  UI.toast('已断开云端，本地存档不受影响');
-  UI.renderSettings();
-}
-window.saveCloudConfig = saveCloudConfig; window.toggleCloudAutoSync = toggleCloudAutoSync;
-window.cloudSyncNow = cloudSyncNow; window.cloudPullNow = cloudPullNow; window.cloudDisconnect = cloudDisconnect;
-
-// 兼容旧调用点（侧栏入口、setTheme / setFx / saveNickname 的刷新）：一律切到设置页
 function openSettings(){ UI.switchTab('settings'); }
 function setFx(v){ Prefs.fxLevel = v; saveGame(); openSettings(); }
 // 昼夜切换（设置内两态按钮）：带一次柔和过渡，与旧顶栏按钮同一套动画
@@ -3177,18 +3088,8 @@ window.showTipFor = showTipFor; window.hideTip = hideTip;
 // ---------- 初始化 ----------
 function init(){
   loadGame();
-  // 云端存档：恢复上次接入配置；已接入则先拉取合并再继续（失败不影响本地档）
-  if (typeof restoreCloudSave === 'function') restoreCloudSave();
-  if (typeof SaveManager !== 'undefined' && SaveManager.cloud && SaveManager.cloud.available()){
-    SaveManager.pull().then(r=>{
-      if (r && r.ok){
-        loadGame();
-        if (UI.renderCurrent) UI.renderCurrent();
-        if (UI.renderTopbar) UI.renderTopbar();
-        UI.toast('☁️ 已与云端存档合并');
-      }
-    }).catch(()=>{});
-  }
+  // 同步交给将来的账号系统：启动时不再读取任何自定义云地址 / 令牌。
+  // SaveManager 的多端合并与可插拔后端仍保留在 save.js，登录层只需 setCloud 即可接管。
   // 预置已解锁山系，避免开局重复播报起始山系
   Game.stats._unlockedRegions = (WORLD.regions||[]).filter(r=>regionUnlocked(r)).map(r=>r.regionId);
   // 顶栏与导航

@@ -641,7 +641,7 @@ try {
 } catch(e){ uiOk = false; console.error('UI 渲染异常：'+e.stack); }
 assert(uiOk, '全部页面渲染不抛错');
 assert(renderTargets.content.innerHTML.length > 100, '内容区有实际输出');
-assert(renderTargets.content.innerHTML.indexOf('cloudEndpoint') >= 0 && renderTargets.content.innerHTML.indexOf('立即上传') >= 0, '设置页渲染出云端存档控件');
+assert(renderTargets.content.innerHTML.indexOf('cloudEndpoint') < 0 && renderTargets.content.innerHTML.indexOf('立即上传') < 0, '设置页不再暴露云端配置（改由账号系统接管）');
 // 战斗不得强行切页（挂机连战每杀一只都会触发 startCombat，跳焦点会打断玩家）
 ST.UI.currentTab = 'codex';
 G.startCombat('shengsheng');
@@ -1031,11 +1031,11 @@ const tabsRule = (css2.match(/#tabs\{[^}]*\}/) || [''])[0];
 assert(/flex-direction:column/.test(tabsRule), '#tabs 竖排（flex-direction:column）');
 assert(css2.includes('body.drawer-open #tabs'), '抽屉展开规则 body.drawer-open #tabs 存在');
 assert(css2.includes('body.drawer-open #tabs{') && css2.includes('width:min(228px, 80vw);'), '移动端侧边栏展开为宽菜单（228px）');
-assert(/position:fixed; left:0; top:0; bottom:0; width:var\(--rail-w\);/.test(css), '移动端图标栏铺满全高（上接书脊，左侧无断带空白）');
-assert(/var\(--chrome\) 0 var\(--topbar-h, 48px\),\s*var\(--paper\) var\(--topbar-h, 48px\)/.test(css), '图标栏墨色只铺到书脊下沿、再转纸色（白天非整块深墨）');
+assert(/position:fixed; left:0; top:var\(--topdock-h, 87px\); bottom:0; width:var\(--rail-w\);/.test(css), '移动端图标栏自吸顶区下沿开始（不顶到最上）');
+assert(/#tabs\{[\s\S]{0,700}background:var\(--paper\);/.test(css) && !/var\(--chrome\) 0 var\(--topbar-h, 48px\)/.test(css), '图标栏为纯纸色（不再与书脊拼接）');
 // 回归：墨色若铺满整条吸顶区，左上角会出现一块 54×82 的纯墨空白，比右边书脊高出一截
 assert(!/var\(--chrome\) 0 var\(--topdock-h/.test(css), '墨色不再铺满整条吸顶区（消除左上角深色空块）');
-assert(/\.tab-expand\{[^}]*position:absolute; left:0; top:0; width:100%; height:var\(--topbar-h, 48px\)/.test(css), '折叠态「≡」落在栏顶书脊格里（填补左上角）');
+assert(/\.tab-expand\{[^}]*position:static; width:100%; height:auto; min-height:36px/.test(css), '折叠态「≡」为图标栏首行（栏自吸顶区下沿起）');
 assert(/min-height:42px;[^}]*color:var\(--ink-3\)/.test(css), '图标栏页签用纸色系墨灰（白天可读）');
 assert(/#tabs \.tab\.active\{ color:var\(--zhu\); background:var\(--zhu-w\); \}/.test(css), '图标栏选中项为朱红淡底（与桌面同一套语言）');
 assert(/body\.drawer-open #tabs\{[^}]*width:min\(228px, 80vw\);[^}]*top:var\(--topdock-h, 87px\)/.test(css), '展开态宽菜单退到吸顶区下沿，不遮挡书脊');
@@ -1043,10 +1043,10 @@ assert(/body\.drawer-open #tabs\{[^}]*width:min\(228px, 80vw\);[^}]*top:var\(--t
 // topdock-h，渐变会把抽屉头部一条带误涂成书脊墨色（盖住 ≪ 与首行页签，
 // 淡朱底活动行叠在深墨上成暗红）——白天模式下尤其明显
 assert(/body\.drawer-open #tabs\{[^}]*background:var\(--paper\);/.test(css), '展开态覆盖为纯纸色（消除渐变残留的伪书脊带）');
-assert(/#guidance\{ padding:8px 34px 8px calc\(var\(--rail-w\) \+ 12px\); font-size:11\.5px; line-height:1\.5; \}/.test(css), '指引条让出侧栏宽度（padding-left 随 --rail-w）');
+assert(/#guidance\{ padding:8px 34px 8px 12px; font-size:11\.5px; line-height:1\.5; \}/.test(css), '指引条横贯全宽（与吸顶区一致）');
 assert(/#guidance span:not\(\.goto\)\{[\s\S]*?-webkit-line-clamp:2/.test(css), '指引条文本最多两行（切换页签不挤兑内容）');
-assert(/#topbar\{ padding:8px 8px 9px calc\(var\(--rail-w\) \+ 12px\); \}/.test(css), '窄屏书脊让出侧栏宽度');
-assert(/#statusbar\{ padding:0 8px 0 calc\(var\(--rail-w\) \+ 12px\); gap:10px; \}/.test(css), '窄屏仪表带让出侧栏宽度');
+assert(/#topbar\{ padding:8px 8px 9px 12px; \}/.test(css), '窄屏书脊横贯全宽（印章居左）');
+assert(/#statusbar\{ padding:0 12px; gap:10px; \}/.test(css), '窄屏仪表带横贯全宽');
 assert(/#topbar \.stat\[data-s="录"\] \.meter\{ display:none; \}/.test(css), '窄屏隐藏已录细线，为让位腾出宽度');
 assert(css2.includes('padding-left:var(--rail-w)'), '移动端主内容为常驻图标栏让位（padding-left 随 --rail-w）');
 assert(css2.includes('visibility:visible'), '图标栏默认常驻可见（不再整体移出屏外）');
@@ -2288,7 +2288,7 @@ section('移动端缩放与不溢出');
   assert(uiM.includes('连续讨伐 ${streakN} 次，经验 ×'), '浮层补充经验递减说明（窄屏藏角标时仍可查）');
   // 4) 侧栏宽度集中为变量，窄屏缩放只改一处
   assert(/--rail-w:\s*54px/.test(cssM), '默认侧栏宽度变量为 54px');
-  assert((cssM.match(/var\(--rail-w\)/g)||[]).length >= 6, '侧栏宽度统一走 --rail-w（改一处即全局生效）');
+  assert((cssM.match(/var\(--rail-w\)/g)||[]).length >= 3, '侧栏宽度统一走 --rail-w（改一处即全局生效）');
   // 5) 窄屏点击热区：工具条上的小控件用透明伪元素撑到 34px（视觉不变，指尖可点）
   assert(/\.hint-close,\.btn-mini\{ position:relative; \}/.test(cssM), '窄屏小控件可挂伪元素（补点击热区）');
   assert(/\.hint-close::after,\.btn-mini::after\{[^}]*width:34px; height:34px;/.test(cssM), '窄屏小控件命中区撑到 34px');
@@ -2579,14 +2579,12 @@ section('云端存档接入');
   // 32.3 engine.saveGame 接上防抖钩子（每次存档后尝试调度）
   assert(/SaveManager\.scheduleSync\(\)/.test(engSrc), 'saveGame 委托 SaveManager.scheduleSync');
   // 32.4 UI 接线：设置页控件 + 初始化恢复 + 离页强传
-  assert(uiM32.includes('id="cloudEndpoint"'), '设置页提供云端地址输入');
-  assert(uiM32.includes('id="cloudToken"'), '设置页提供访问令牌输入');
-  assert(uiM32.includes('onclick="cloudSyncNow()"') && uiM32.includes('onclick="cloudPullNow()"'), '设置页提供立即上传 / 拉取合并');
-  assert(uiM32.includes('onclick="saveCloudConfig()"') && uiM32.includes('onclick="cloudDisconnect()"'), '设置页提供连接 / 断开');
-  assert(uiM32.includes('restoreCloudSave()'), '初始化时恢复云端接入配置');
+  assert(!uiM32.includes('id="cloudEndpoint"') && !uiM32.includes('id="cloudToken"'), '设置页不再暴露云端地址 / 令牌输入');
+  assert(!uiM32.includes('onclick="cloudSyncNow()"') && !uiM32.includes('onclick="cloudPullNow()"'), '设置页不再提供手动同步按钮');
+  assert(!uiM32.includes('restoreCloudSave()'), '初始化不再恢复自定义云端配置（交给账号系统）');
   assert(/visibilitychange[\s\S]{0,200}flushCloudSave/.test(uiM32), '页面切后台时强传待上传改动');
   assert(/beforeunload[\s\S]{0,160}flushCloudSave/.test(uiM32), '关闭页面前强传待上传改动');
-  assert(uiM32.includes('cloudStatusText()'), '同步状态行实时反映 syncReady');
+  assert(!uiM32.includes('cloudStatusText()'), '同步状态行已撤（交由账号系统统一呈现）');
   // 32.5 异步用例（上传 / 合并 / 参考后端契约）收尾后再出汇总
   pending.push((async ()=>{
     // 32.5.1 flushSync：取消防抖立即上传，keepalive 透传，成功后清脏标记
