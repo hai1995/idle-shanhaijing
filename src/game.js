@@ -1114,12 +1114,15 @@ function doAudience(nodeId, opts){
       }
     }
   }
-  gainXp('jisi', 200 + (n ? n.unlockLevel*4 : 0));
-  gainXp('zhulu', 20);
+  // 首谒与再谒分开算经验：与观象同例（首次给足，再观只给一点）。
+  // 不分的话，录满之后这里就成了一台免费经验机——离线按 20 秒一算，
+  // 一小时 180 次 × 340 祭祀经验，比采集还快，而它不产任何东西。
+  const ret = recorded === 0;      // 本次没有新入录，即「再谒」
+  gainXp('jisi', ret ? 40 : 200 + (n ? n.unlockLevel*4 : 0));
+  gainXp('zhulu', ret ? 5 : 20);
   if (!recorded){
     // 诸神已录：这一趟不再只是「再谒」，改问「此地还有何物未录」
     const regionId = String(nodeId).replace(/-\d+$/, '');
-    if (typeof log === 'function') log(`🕯️ 再谒${site.name}，问此地未录之物`, 'jisi', 'skill');
     const manual = !!(opts && opts.oracle);
     if (manual && UI && UI.showOracle) UI.showOracle(regionId, site.name);
     else if (Date.now() - _oracleHintAt > 60000){

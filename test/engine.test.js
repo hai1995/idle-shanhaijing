@@ -5174,6 +5174,21 @@ section('问神');
     ST.UI.showOracle = oldOracle;
   }
 
+  // 经验：首谒给足，再谒只给一点（与观象同例）。
+  // 不分的话，录满之后这里就是一台免费经验机——离线按 20 秒一算，一小时 180 次，
+  // 而它不产任何东西，比同长度的观象高出十几倍。
+  G.resetToDefault();
+  ST.Game.skills.jisi.level = 40; ST.Game.skills.jisi.xp = ST.xpForLevel(40);
+  const nid2 = 'xishan-3-05';
+  const j0 = ST.Game.skills.jisi.xp;
+  ST.doAudience(nid2);                       // 首谒：神祇尚未入录
+  const firstXp = Math.round(ST.Game.skills.jisi.xp - j0);
+  const j1 = ST.Game.skills.jisi.xp;
+  ST.doAudience(nid2);                       // 再谒：已录满
+  const repXp = Math.round(ST.Game.skills.jisi.xp - j1);
+  assert(firstXp > repXp * 3, `再谒经验 ${repXp} 不到首谒 ${firstXp} 的三分之一`);
+  assert(repXp > 0, '再谒仍有少量经验（不是白跑一趟）');
+
   // 自动途径不刷日志：离线挂谒见一小时会调 180 次，逐次记一条就把日志框刷满
   ST.UI.logEntries = [];
   for (let i = 0; i < 10; i++) ST.doAudience(nid);
