@@ -4754,6 +4754,41 @@ section('御使选优');
   }
 }
 
+// ============ 81. 祠礼：备料可行者一眼可见，可续者一并开 ============
+// 二十八套礼平铺，玩家看不出哪套现在就能祭。判据只有两条——材料够、祭祀等级够，
+// 抽成 riteReadyList 一份，界面排序、计数、一并开续都走它，免得三处各算一遍。
+section('祠礼 · 备料可行');
+{
+  G.resetToDefault();
+  ST.Game.skills.jisi.level = 81;
+  const ids = Object.keys(ST.RITES);
+  const recOf = (id) => ST.Recipes.find(r => r.type === 'rite' && r.out === id);
+
+  ST.Game.inventory = {};
+  const r1 = recOf(ids[0]), r2 = recOf(ids[1]);
+  r1.cost.forEach(([iid, q]) => { ST.Game.inventory[iid] = (ST.Game.inventory[iid] || 0) + q * 2; });
+  r2.cost.forEach(([iid, q]) => { ST.Game.inventory[iid] = (ST.Game.inventory[iid] || 0) + q * 6; });
+
+  const list = ST.riteReadyList();
+  assert(list.length >= 2, '两套备料可行的礼入列（' + list.length + '）');
+  assert(list.every(x => x.st.lvOk && x.st.times > 0), '入列的都必须「等级够 + 材料够」');
+  let desc = true;
+  for (let i = 1; i < list.length; i++) if ((list[i-1].st.times || 0) < (list[i].st.times || 0)) desc = false;
+  assert(desc, '名单按可续次数降序（先看能续得多的）');
+
+  const idle = list.filter(x => !x.st.auto).length;
+  const opened = ST.openAllRites();
+  assert(opened === idle, `一并开续只开名单上的（${opened}/${idle} 套）`);
+  assert(list.every(x => ST.Game.riteAuto[x.id] === true), '名单上的礼都已开续祭');
+  assert(ST.openAllRites() === 0, '再点一次不会重复计数');
+
+  // 等级不足的礼不该混进名单
+  ST.Game.skills.jisi.level = 1;
+  const low = ST.riteReadyList();
+  assert(low.length < list.length, '祭祀等级降回一级后，备料可行者变少（' + low.length + ' 套）');
+  assert(low.every(x => x.st.lvOk), '名单里不会出现等级不够的礼');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

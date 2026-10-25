@@ -2660,19 +2660,46 @@ function omenPanelHtml(){
         禳解 ${xiong.length?`（${xiong.map(o=>OMENS[o.id].type).join('、')}）`:''}</button>
     </div>`;
 }
+// 一并开续：只挑「备料够、等级够、还没开」的那几套。
+// 有门槛的东西才敢批量——不然一把把所有礼都挂上，材料立刻见底、门人集体待料。
+UI.autoRiteAll = function(){
+  const n = (typeof openAllRites === 'function') ? openAllRites() : 0;
+  if (!n){ this.toast('暂无可续之礼（备料或祭祀等级不足）'); return 0; }
+  saveGame();
+  this.renderJisi();
+  this.toast(`🕯️ 已为 ${n} 套礼开续祭`);
+  return n;
+};
+
 UI.renderJisi = function(){
   const box = $('content');
   if (!box) return;
   const autoIds = Object.keys(Game.riteAuto || {}).filter(id => Game.riteAuto[id]);
   const stallIds = autoIds.filter(id => (Game.riteStall||{})[id]);
+  // 二十八套礼平铺，材料够的那几套要一眼看见——按「能不能祭」分两段、段内按可续次数排。
+  // 先算一遍再排序，模板里不再重复调 riteState（每调一次都要翻一遍配方表）。
+  const rows = Object.entries(RITES).map(([id, def]) => ({ id, def, st: riteState(id) }))
+    .filter(r => r.st);
+  rows.sort((a, b) => {
+    const ra = (a.st.times > 0 && a.st.lvOk) ? 0 : 1;
+    const rb = (b.st.times > 0 && b.st.lvOk) ? 0 : 1;
+    if (ra !== rb) return ra - rb;
+    return (b.st.times || 0) - (a.st.times || 0);
+  });
+  const readyN = rows.filter(r => r.st.times > 0 && r.st.lvOk).length;
+  const readyIdleN = rows.filter(r => r.st.times > 0 && r.st.lvOk && !r.st.auto).length;
   let html = `<div class="panel rite-panel"><h3>祠礼（据原文祠礼格式）</h3>
     ${autoIds.length ? `<div class="rite-auto-bar">
       <span class="hint">续祭中 <b>${autoIds.length}</b> 套：到期前 60 秒自动重备同样祭品${stallIds.length?`　·　<b class="stall">${stallIds.length}</b> 套待料`:'，备齐自续'}。</span>
       <button class="btn" onclick="UI.stopAllRiteAuto()">全停</button>
     </div>` : `<div class="hint">点方块右上「续」可交由门人代祭——到期自动续上，不必守着时辰。</div>`}
+    <div class="rite-bar">
+      <span class="hint">备料可行者 <b>${readyN}</b> 套${readyIdleN ? `（其中 <b>${readyIdleN}</b> 套尚未续祭）` : ''}</span>
+      <button class="btn small" type="button" onclick="UI.autoRiteAll()">可续者一并开续</button>
+    </div>
     <div class="rite-grid">
-    ${Object.entries(RITES).map(([id,def])=>{
-      const st = riteState(id);
+    ${(() => {
+      return rows.map(({ id, def, st }) => {
       const rec = st.rec;
       const region = WORLD.regions.find(r=>r.regionId===def.regionId);
       const lvOk = st.lvOk;
@@ -2697,10 +2724,22 @@ UI.renderJisi = function(){
           ${st.active?`<div class="hint">生效中，余 ${fmtTime(st.left)}</div>`:''}
           <div class="hint">现备材料可续 ${st.times} 次${auto?(st.stall?'　·　续祭待料':'　·　已开续祭'):''}</div>
           ${(Items[id]||{}).note?`<div class="hint">${esc((Items[id]||{}).note)}</div>`:''}
-          ${!lvOk?`<div class="hint">需祭祀 ${rec.lvl} 级</div>`:''}
+          ${!lvOk?`<div class="hint">需祭祀 ${rec.lvl} 级（现 ${levelOf('jisi')} 级）</div>`:''}
+          ${(() => {
+            // 缺料去哪儿找：只给前两种，多了反而看不清
+            const lacks = rec.cost.filter(([iid, q]) => totalOf(iid) < q);
+            if (!lacks.length) return '';
+            return `<div class="rc-lack">缺 ${lacks.map(([iid, q]) => `${esc((Items[iid]||{}).name || iid)}×${q - totalOf(iid)}`).join('、')}</div>` +
+              lacks.slice(0, 2).map(([iid]) => {
+                const src = (typeof itemSources === 'function') ? itemSources(iid)[0] : null;
+                if (!src) return '';
+                return `<div class="rc-sub rc-src">${esc((Items[iid]||{}).name || iid)}：${esc(src.kind)} Lv${src.lvl}${src.where ? ' · ' + esc(src.where) : ''}</div>`;
+              }).join('');
+          })()}
         </span>
       </div>`;
-    }).join('')}
+      }).join('');
+    })()}
     </div>
     <div class="hint">行祭后该山系采获 +${Math.round(30*(Game.buildings.citan?1.5:1))}%（祠坛 ×1.5），持续 1 小时。采获加成提高的是「一次得两份／三份」的几率，折算约合产量 +${typeof riteRealYield==='function'?riteRealYield(0.30*(Game.buildings.citan?1.5:1)):'—'}%。</div>
   </div>

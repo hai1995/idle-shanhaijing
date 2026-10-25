@@ -2298,3 +2298,9 @@ mark.hit{
 .bounty-item .bn-swap{ flex:0 0 auto; padding:1px 7px; font-size:11px; color:var(--ink-3);
   background:transparent; border:1px solid var(--rule); border-radius:var(--r); cursor:pointer; }
 .bounty-item .bn-swap:hover{ color:var(--zhu-d); border-color:var(--zhu); }
+
+/* 祠礼：一条「备料可行者 N 套」的工具行 + 缺料与产地提示 */
+.rite-bar{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:8px 0 10px; }
+.rite-bar .hint{ margin:0; }
+.rc-lack{ color:var(--zhu-d); font-size:12px; margin-top:4px; }
+.rc-src{ color:var(--ink-3); font-size:11px; }

@@ -864,6 +864,29 @@ function riteState(riteId){
            lvOk: levelOf('jisi') >= rec.lvl, auto: riteAutoOn(riteId),
            stall: !!((Game.riteStall||{})[riteId]) };
 }
+// 「备料可行」的礼：能续（材料够）且祭祀等级够。列表按可续次数降序，
+// 界面据此排序与计数，一并开续也走这份名单——同一套判据只写一次。
+function riteReadyList(){
+  const out = [];
+  for (const id in RITES){
+    const st = riteState(id);
+    if (st && st.times > 0 && st.lvOk) out.push({ id, st });
+  }
+  out.sort((a, b) => (b.st.times || 0) - (a.st.times || 0));
+  return out;
+}
+// 一并开续：只挑备料够、等级够、还没开的那几套。
+// 有门槛才敢批量——一把全挂上，材料立刻见底，门人集体待料。
+function openAllRites(){
+  const list = riteReadyList().filter(x => !x.st.auto);
+  if (!list.length) return 0;
+  Game.riteAuto = Game.riteAuto || {};
+  for (const x of list) Game.riteAuto[x.id] = true;
+  saveGame();
+  return list.length;
+}
+window.riteReadyList = riteReadyList; window.openAllRites = openAllRites;
+
 function toggleRiteAuto(riteId){
   const st = riteState(riteId);
   if (!st) return false;
