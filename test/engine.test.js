@@ -5564,6 +5564,25 @@ section('离线结算与线上同口径');
   assert(css.includes('[role="button"][tabindex]:focus-visible'), '键盘焦点有可见描边');
 }
 
+// ============ 99. 拆分后的一致性：index.html 的 ui 清单 = 测试清单 ============
+// 历史上「文件加了但没被引入」出过事（单文件版少了整个中山经）。
+// 这里钉住三件事：清单顺序一致、core 在最前、每个文件都真的存在。
+{
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const inHtml = [...html.matchAll(/src="(src\/ui\/[^"]+\.js)"/g)].map(m => m[1].replace(/^src\//, ''));
+  assert(inHtml.length > 0, 'index.html 里取到了 ui 文件清单（' + inHtml.length + ' 个）');
+  assert(inHtml.join(',') === UI_FILES.join(','),
+    'index.html 的 ui 清单与测试 UI_FILES 一致（html: ' + inHtml.join(',') + '）');
+  assert(inHtml[0] === 'ui/core.js', 'core.js 最先加载（UI 对象在那里定义）');
+  for (const f of UI_FILES){
+    const p2 = path.join(__dirname, '..', 'src', f);
+    assert(fs.existsSync(p2) && fs.statSync(p2).size > 1000, '文件存在且非空：' + f);
+  }
+  // 构建脚本不许出现写死的清单（顺序只从 index.html 读）
+  const build = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'build-standalone.js'), 'utf8');
+  assert(!/src\/ui\/core\.js/.test(build), '构建脚本没有另抄 ui 文件清单');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
