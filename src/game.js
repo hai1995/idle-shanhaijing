@@ -2419,6 +2419,7 @@ let saveTick = 0;
 let idleSeconds = 0;            // 持续闲置秒数（兜底行动计时）
 function onSecond(){
   if (Object.keys(Game.farms).length){ farmTick(1); if (UI && UI.patchFarmsProgress) UI.patchFarmsProgress(); }
+  if (UI && UI.patchSkillBars) UI.patchSkillBars();      // 技能页经验条秒级跟进（不重建节点）
   if (UI && UI.patchQueueProgress) UI.patchQueueProgress();   // 巡历队列：进度/当前标记/轮数秒级兜底
   // 售价走势采样：倍率随商旅/营造/御使/征兆而变，倍率一变或每满 60 秒留一个点，
   // 挂机时也有轨迹可看（渲染时只读，不再有采样副作用）

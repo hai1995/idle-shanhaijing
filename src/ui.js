@@ -367,6 +367,28 @@ const UI = {
     // 重绘一遍，滚动位置直接跳回顶部。现在只改「哪张卡是高亮」这一件事。
     this.patchSkillActive();
   },
+  // 技能页的经验条每秒跟进：挂机时等级与进度原本只在切页 / 重建时更新，
+  // 玩家盯着看会以为「没在涨」。只改数字与宽度，不动节点。
+  patchSkillBars(){
+    if (this.currentTab !== 'skills' || typeof document === 'undefined') return;
+    const tiles = document.querySelectorAll('.skill-tile');
+    if (!tiles || !tiles.length) return;
+    for (const el of tiles){
+      const id = el.dataset && el.dataset.skill;
+      const raw = id && Game.skills[id];
+      if (!raw) continue;
+      const lv = raw.level || 1;
+      const xc = xpForLevel(lv), xn = xpForLevel(lv + 1);
+      const pct = xn > xc ? Math.min(100, Math.max(0, ((raw.xp || 0) - xc) / (xn - xc) * 100)) : 100;
+      const lvEl = el.querySelector('.sk-lv');
+      if (lvEl && lvEl.textContent !== String(lv)) lvEl.textContent = String(lv);
+      const bar = el.querySelector('.sk-bar i');
+      if (bar){
+        const w = pct.toFixed(1) + '%';
+        if (bar.style.width !== w) bar.style.width = w;
+      }
+    }
+  },
   // 技能页当前的行动高亮：只切 class，不重建节点
   patchSkillActive(){
     if (this.currentTab !== 'skills' || typeof document === 'undefined') return;
