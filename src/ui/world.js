@@ -347,15 +347,32 @@ function audienceButtonForNode(node){
   return `<button class="btn ${un && !done ? 'primary' : ''}" ${un?'':'disabled'} onclick="startAudience('${node.id}')"
     title="${done ? '诸神已录：问此地未录之物' : '神祇不可讨伐，以谒见入录'}">🕯️ ${done ? '问神' : '谒见'} ${esc(site.name)}<i>${done ? '此地未录之物' : (site.deities.length + ' 位神祇')}</i></button>`;
 }
-// 峚山 · 玉膏灌丹木
+// 养成点（峚山丹木 / 器酸 / 精卫填海）
+// ⚠️ 这里原先写死 `Game.danmu`：于是精卫填海与器酸的按钮显示的永远是丹木的阶数，
+// 而且文案也写死「五岁乃成 · 耗玉膏×1」。三处养成各有自己的进度与耗材，必须走 growState。
 function growButtonForNode(node){
-  const site = Object.values(GROW_SITES).find(s=>s.nodeId === node.id);
-  if (!site) return '';
+  const key = Object.keys(GROW_SITES).find(k => GROW_SITES[k].nodeId === node.id);
+  if (!key) return '';
+  const site = GROW_SITES[key];
   const un = nodeUnlocked(node);
-  const st = Game.danmu || { stage:0 };
-  const done = (st.stage||0) >= site.stages;
-  return `<button class="btn ${un && !done?'primary':''}" ${un && !done?'':'disabled'} onclick="startGrow('${Object.keys(GROW_SITES).find(k=>GROW_SITES[k].nodeId===node.id)}')"
-    title="${esc(site.desc)}">🌱 灌木 ${esc(site.name)}<i>${done?'五岁乃成，先取其实':`${st.stage||0}/${site.stages} 岁 · 耗玉膏×1`}</i></button>`;
+  const st = (typeof growState === 'function') ? growState(key) : { stage:0, done:0 };
+  const stage = st.stage || 0;
+  const done = stage >= site.stages;
+  const cost = (site.cost || []).map(([id, q]) => `${(Items[id] || {}).name || id}×${q}`).join('、');
+  // 长线（stepEvery）额外报「下一路标」：200 阶的养成若只写 37/200，看不出还有多远
+  let stepTip = '';
+  if (site.stepEvery && !done){
+    const next = Math.min(site.stages, (Math.floor(stage / site.stepEvery) + 1) * site.stepEvery);
+    stepTip = ` · 下一路标 ${next} 阶`;
+  }
+  const stepTxt = site.sec >= 3600
+    ? `${Math.round(site.sec / 3600)} 小时一阶`
+    : `${Math.round(site.sec / 60)} 分一阶`;
+  const sub = done
+    ? `${site.stages}/${site.stages} 已成 · 可再投`
+    : `${stage}/${site.stages}${stepTip} · ${stepTxt}${cost ? ' · 耗 ' + cost : ''}`;
+  return `<button class="btn ${un && !done?'primary':''}" ${un && !done?'':'disabled'} onclick="startGrow('${key}')"
+    title="${esc(site.desc)}">🌱 灌木 ${esc(site.name)}<i>${sub}</i></button>`;
 }
 // 特殊节点的「地气」：原文设定之外，把它实际影响什么写清楚。
 // 尽沙 / 百仞 / 干河三处原先只有一句原文，玩家不知道走进去会怎样。

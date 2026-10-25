@@ -5662,6 +5662,30 @@ section('离线结算与线上同口径');
   assert(!ST.GROW_SITES.mishan.stepEvery && !ST.GROW_SITES.qisuan.stepEvery, '短周期养成不设路标');
 }
 
+// ============ 102. 养成按钮读自己的状态，不是丹木的 ============
+// growButtonForNode 曾写死 `const st = Game.danmu`，于是精卫填海 / 器酸的按钮
+// 显示的是丹木的阶数，文案也写死「五岁乃成 · 耗玉膏×1」。
+// 三处养成各有各的进度与耗材，必须走 growState(key)。
+{
+  G.resetToDefault();
+  ST.Game.danmu = { stage: 4 };
+  ST.Game.grow = { jingwei: { stage: 75, done: 0 }, qisuan: { stage: 1, done: 0 } };
+
+  const jw = G.growButtonForNode(ST.nodeOf('beishan-3-22'));
+  assert(/精卫填海/.test(jw), '按钮渲染的是精卫填海');
+  assert(/75\/200/.test(jw), '显示精卫自己的 75/200（不是丹木的 4）');
+  assert(/下一路标 100 阶/.test(jw), '长线给出下一路标：' + (jw.match(/下一路标\s*\d+\s*阶/) || [''])[0]);
+  assert(/柘木/.test(jw), '耗材写的是柘木，不是玉膏');
+  assert(!/玉膏/.test(jw), '不再硬编码玉膏');
+
+  const qs = G.growButtonForNode(ST.nodeOf(ST.GROW_SITES.qisuan.nodeId));
+  assert(/1\/3/.test(qs), '器酸显示自己的 1/3');
+  assert(!/下一路标/.test(qs), '短周期养成不报路标');
+
+  const dm = G.growButtonForNode(ST.nodeOf(ST.GROW_SITES.mishan.nodeId));
+  assert(/4\/5/.test(dm), '丹木仍读 Game.danmu（4/5）');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
