@@ -27,6 +27,7 @@ const Game = {
   farms: {},             // 圃艺田地 { 'p0'..: { seedId, remain, grow } }
   mobStreak: {},         // 同目标连续讨伐计数 { monsterId: n }（经验递减用，换目标即重置）
   enhance: {},           // 装备淬炼等级 { itemId: 0..30 }（按物品 id 记，同 id 共享）
+  enhanceHeat: {},       // 淬炼火候 { itemId: 0..10 }：失败累积、成功清空
   orders: [],            // 方国求购订单 [{ id, itemId, regionId, qty, premium, total, xp }]
   ordersAt: 0,           // 当前一批订单的生成时间戳（ms，30 分钟轮换）
   node: 'nanshan-1-01',  // 当前所在节点
@@ -71,7 +72,7 @@ function cloneDefaultGame(){
   g.node = 'nanshan-1-01'; g.activity = null; g.combat = null;
   g.queue = []; g.queueIdx = 0; g.queueRound = 0; g.queueRunning = false; g.queueLoop = true; g.fallback = null;
   g.mobStreak = {};
-  g.enhance = {};
+  g.enhance = {}; g.enhanceHeat = {};
   g.orders = []; g.ordersAt = 0;
   g.skills = {};
   for (const id of ALL_SKILL_IDS) g.skills[id] = { level:1, xp:0 };
@@ -156,6 +157,17 @@ function applySave(d){
         for (const k in d.enhance){
           const v = parseInt(d.enhance[k], 10);
           if (isFinite(v) && v > 0) Game.enhance[k] = Math.min(cap, v);
+        }
+      }
+    }
+    // 火候（旧档无此字段）：0..HEAT_MAX，非数字丢弃
+    Game.enhanceHeat = {};
+    {
+      const hm = (typeof window !== 'undefined' && window.ENHANCE_HEAT && window.ENHANCE_HEAT.MAX) || 10;
+      if (d.enhanceHeat && typeof d.enhanceHeat === 'object'){
+        for (const k in d.enhanceHeat){
+          const v = parseInt(d.enhanceHeat[k], 10);
+          if (isFinite(v) && v > 0) Game.enhanceHeat[k] = Math.min(hm, v);
         }
       }
     }

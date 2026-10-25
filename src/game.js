@@ -1082,6 +1082,21 @@ const ENHANCE_RATE = [
   0.048, 0.042, 0.036, 0.031, 0.026,     // 25–29
 ];
 const ENHANCE_SAFE = 10;              // 此级以下失败只损材料，不掉级
+// 火候：一次「尽毁」烧出一层，每层让下次成功率高 8%，最多十二层，成了不减。
+// 「十级以上失败归零」很重，光靠硬碰会劝退——火候把白烧的材料变成进度，
+// 才谈得上「持续去强」：毁得越多，下一炉越准，直到把这座炉子烧透。
+const ENHANCE_HEAT = { STEP: 0.08, MAX: 12 };
+function enhanceHeatOf(itemId){
+  const v = (Game.enhanceHeat && Game.enhanceHeat[itemId]) || 0;
+  return Math.max(0, Math.min(ENHANCE_HEAT.MAX, v | 0));
+}
+// 实际成功率 = 该级基础 + 火候。封顶 95%，不做到「必成」——必成就不叫赌了。
+function enhanceRateFor(itemId){
+  const base = enhanceRate(enhanceLevel(itemId));
+  if (base >= 1) return 1;                    // 0→1 本就必成，别被 95% 的封顶拉下来
+  const hot = enhanceHeatOf(itemId) * ENHANCE_HEAT.STEP;
+  return Math.min(0.95, base + hot);
+}
 // 强化上限按品阶分档：凡 +12、良 +18、精 +22、珍 +26、神 +30。
 // 此前众生平等 +30，神兵「更耐淬」这件事无从体现；现在它是品阶带来的
 // 第三件实事（另两件是数值系数与获取难度）。
@@ -1129,13 +1144,22 @@ function enhanceItem(itemId, opts){
   Game.stats.spent = (Game.stats.spent || 0) + cost.shells;
   if (!Game.enhance) Game.enhance = {};
 
-  const success = Math.random() < enhanceRate(lv);
-  let lost = false;
+  const success = Math.random() < enhanceRateFor(itemId);
+  let lost = false, wiped = false;
   if (success){
     Game.enhance[itemId] = lv + 1;
+    // 成了也留着火候：炉子是同一座炉，烧过就是烧过。
+    // 若让「成功」消耗火候，则每次归零后重爬 0→9 的九次成功会把它吃干，
+    // 火候永远攒不起来——那样「一败俱毁」就成了死局（实测 +15 都摸不到）。
   } else if (lv >= ENHANCE_SAFE && !usedStone){
-    Game.enhance[itemId] = lv - 1;       // 十级以上失败掉一阶
-    lost = true;
+    // 十级以上一败俱毁：这一炉的阶数全归零。镇物可保，否则从头再来。
+    Game.enhance[itemId] = 0;
+    lost = true; wiped = true;
+  }
+  // 火候只在「真烧毁了」时攒——安全区里的失败不掉级，不该白送火候
+  if (wiped){
+    Game.enhanceHeat = Game.enhanceHeat || {};
+    Game.enhanceHeat[itemId] = Math.min(ENHANCE_HEAT.MAX, enhanceHeatOf(itemId) + 1);
   }
   if (usedStone){
     Game.inventory.zhenwu -= 1;
@@ -1146,6 +1170,9 @@ function enhanceItem(itemId, opts){
     if (success){
       log(`🔨 ${it.name} 淬炼至 +${after}`, 'gold', 'trade');
       UI && UI.toast(`🔨 ${it.name} +${after}`);
+    } else if (wiped){
+      log(`💥 ${it.name} 淬炼失败，阶数尽毁（+${lv} → +0）`, 'bad', 'trade');
+      UI && UI.toast(`💥 淬炼失败\n${it.name} 阶数尽毁（+${lv} → +0）`);
     } else if (lost){
       log(`💥 ${it.name} 淬炼失败，跌落至 +${after}`, 'bad', 'trade');
       UI && UI.toast(`💥 淬炼失败\n${it.name} 跌落至 +${after}`);
@@ -1157,7 +1184,8 @@ function enhanceItem(itemId, opts){
   saveGame();
   UI && UI.refreshGear && UI.refreshGear();
   UI && UI.refreshInventory && UI.refreshInventory();
-  return { ok:true, success, lvBefore:lv, lvAfter:after, lost, usedStone, cost };
+  return { ok:true, success, lvBefore:lv, lvAfter:after, lost, wiped, usedStone, cost,
+           heat: enhanceHeatOf(itemId), rate: enhanceRateFor(itemId) };
 }
 // 强化至目标等级：连续单次强化，直到达标 / 材料耗尽 / 触顶。
 // guard 防止「+30 附近反复失败」时无限循环。
@@ -1165,7 +1193,7 @@ function enhanceToTarget(itemId, target, opts){
   const itemCap = enhanceCapOf(Items[itemId]);
   const cap = Math.max(1, Math.min(itemCap, target | 0));
   const stone = !!(opts && opts.stone);
-  let tries = 0, ups = 0, downs = 0, stones = 0, tan = 0, shells = 0;
+  let tries = 0, ups = 0, downs = 0, stones = 0, tan = 0, shells = 0, wiped = false;
   while (enhanceLevel(itemId) < cap && tries < 400){
     const before = enhanceLevel(itemId);
     const r = enhanceItem(itemId, { silent:true, stone });
@@ -1175,6 +1203,8 @@ function enhanceToTarget(itemId, target, opts){
     if (r.success) ups++;
     else if (r.lost) downs++;
     if (r.usedStone) stones++;
+    // 一败俱毁就别再自动往下烧了：让玩家自己决定是继续还是收手
+    if (r.wiped){ wiped = true; break; }
     if (enhanceLevel(itemId) === before && !r.success && !r.lost) {
       // 失败且未掉级（保护期 / 镇物）——继续下一次
     }
@@ -1184,13 +1214,15 @@ function enhanceToTarget(itemId, target, opts){
   const it = Items[itemId] || {};
   const msg = done
     ? `🔨 ${it.name} 已至 +${lv}（${tries} 次，成 ${ups} 败 ${downs}${stones ? ` · 镇物 ${stones}` : ''}）`
-    : `… ${it.name} 止于 +${lv}（${tries} 次，成 ${ups} 败 ${downs}${stones ? ` · 镇物 ${stones}` : ''}，材料或已告罄）`;
-  log(msg, done ? 'gold' : 'sys', 'trade');
-  UI && UI.toast(msg);
+    : wiped
+      ? `💥 ${it.name} 阶数尽毁，止于 +${lv}（${tries} 次，成 ${ups} 败 ${downs}）`
+      : `… ${it.name} 止于 +${lv}（${tries} 次，成 ${ups} 败 ${downs}${stones ? ` · 镇物 ${stones}` : ''}，材料或已告罄）`;
+  log(msg, done ? 'gold' : (wiped ? 'bad' : 'sys'), 'trade');
+  if (!(opts && opts.noToast)) UI && UI.toast(msg);
   saveGame();
   UI && UI.refreshGear && UI.refreshGear();
   UI && UI.refreshInventory && UI.refreshInventory();
-  return { ok:true, done, lv, tries, ups, downs, stones, tan, shells };
+  return { ok:true, done, lv, tries, ups, downs, stones, tan, shells, wiped };
 }
 // ---------- 神兵 ----------
 // BOSS 专属兵器：数值高于同级普通装，带一条普通装备没有的特性，且不可锻造。
@@ -1213,7 +1245,8 @@ window.divineOf = divineOf; window.divineHas = divineHas;
 window.enhanceItem = enhanceItem; window.enhanceLevel = enhanceLevel; window.enhanceCost = enhanceCost;
 window.enhanceScaled = enhanceScaled; window.enhanceRate = enhanceRate;
 window.enhanceToTarget = enhanceToTarget; window.enhanceHasStone = enhanceHasStone;
-window.enhanceCapOf = enhanceCapOf;
+window.enhanceCapOf = enhanceCapOf; window.enhanceRateFor = enhanceRateFor;
+window.enhanceHeatOf = enhanceHeatOf; window.ENHANCE_HEAT = ENHANCE_HEAT;
 window.ENHANCE_MAX = ENHANCE_MAX; window.ENHANCE_SAFE = ENHANCE_SAFE;
 
 function playerWeaponDmg(){

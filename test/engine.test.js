@@ -3372,7 +3372,7 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
 
   ST.Game.enhance = { bailianjian: 12 };
   const f2 = ST.enhanceItem('bailianjian');
-  assert(f2.lost && ST.enhanceLevel('bailianjian') === 11, '+12 失败跌至 +11');
+  assert(f2.lost && f2.wiped && ST.enhanceLevel('bailianjian') === 0, '+12 失败阶数尽毁（直落 +0）');
 
   // 镇物：失败亦保原阶，并扣一枚
   ST.Game.enhance = { bailianjian: 12 };
@@ -3682,6 +3682,93 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   assert(uiSrc64.includes('举烽后 45 秒'), '营邑预览写明应验延时');
   assert(/\.omen-pend-box\{/.test(readText('style.css')), '烽烟有独立样式（朱边以示未落）');
   assert(uiSrc64.includes('rec.omensLanded') && uiSrc64.includes('兆应验'), '离线归来弹窗交代烽烟已应验');
+}
+
+// ============ 65. 强化：归零与火候（v1.18） ============
+{
+  G.resetToDefault();
+  for (const sid of ST.ALL_SKILL_IDS) ST.Game.skills[sid] = { level: 80, xp: 1e9 };
+  ST.Game.inventory.tan = 99999; ST.Game.shells = 1e9;
+
+  // 65.1 十级以上失败阶数尽毁
+  ST.Game.enhance = { bailianjian: 12 };
+  const realRandom = Math.random;
+  Math.random = () => 0.999;                      // 必败
+  const w1 = ST.enhanceItem('bailianjian');
+  assert(w1.ok && w1.wiped && w1.lvAfter === 0, '一败俱毁：+12 直落 +0');
+  assert(ST.Game.enhanceHeat.bailianjian === 1, '烧毁换一层火候');
+
+  // 安全期内失败不掉级、也不送火候（否则可以在 +9 白刷火候）
+  ST.Game.enhance = { bailianjian: 5 };
+  ST.Game.enhanceHeat = {};
+  const w2 = ST.enhanceItem('bailianjian');
+  assert(!w2.lost && ST.enhanceLevel('bailianjian') === 5, '安全区内失败只损材料');
+  assert(!ST.Game.enhanceHeat.bailianjian, '安全区失败不攒火候（防刷）');
+
+  // 65.2 火候提高成功率（用 +12：基础 30%，加满火候也不至于顶到 95% 的封顶）
+  ST.Game.enhance = { bailianjian: 12 };
+  ST.Game.enhanceHeat = { bailianjian: 0 };
+  const r0 = ST.enhanceRateFor('bailianjian');
+  ST.Game.enhanceHeat = { bailianjian: 6 };
+  const r6 = ST.enhanceRateFor('bailianjian');
+  assert(Math.abs((r6 - r0) - 6 * ST.ENHANCE_HEAT.STEP) < 1e-9,
+    '火候 6 层 ≈ +' + Math.round(6*ST.ENHANCE_HEAT.STEP*100) + '%（' + (r0*100).toFixed(0) + '% → ' + (r6*100).toFixed(0) + '%）');
+  ST.Game.enhanceHeat = { bailianjian: 99 };
+  assert(ST.enhanceRateFor('bailianjian') <= 0.95, '火候不能把成功率顶成必成（封顶 95%）');
+  assert(ST.enhanceHeatOf('bailianjian') === ST.ENHANCE_HEAT.MAX, '层数钳在十二层');
+
+  // 65.3 火候不清退：成了也留着（否则每次归零后重爬的九次成功会把它吃干）
+  ST.Game.enhance = { bailianjian: 11 };
+  ST.Game.enhanceHeat = { bailianjian: 8 };
+  Math.random = () => 0;                          // 必成
+  const up = ST.enhanceItem('bailianjian');
+  assert(up.success && up.lvAfter === 12, '成功 +1');
+  assert(ST.enhanceHeatOf('bailianjian') === 8, '成了火候不减');
+  Math.random = realRandom;
+
+  // 65.4 镇物：毁了也保原阶，且不攒火候之外的任何东西
+  ST.Game.enhance = { bailianjian: 12 };
+  ST.Game.enhanceHeat = { bailianjian: 2 };
+  ST.Game.inventory.zhenwu = 3;
+  Math.random = () => 0.999;
+  const st1 = ST.enhanceItem('bailianjian', { stone: true });
+  Math.random = realRandom;
+  assert(st1.usedStone && !st1.wiped && ST.enhanceLevel('bailianjian') === 12, '镇物护住 +12');
+  assert(ST.Game.inventory.zhenwu === 2, '镇物耗一枚');
+
+  // 65.5 批量强化遇毁即停（不替玩家把材料烧穿）
+  ST.Game.enhance = { bailianjian: 10 };
+  ST.Game.enhanceHeat = {};
+  let calls = 0;
+  const guardRandom = () => { calls++; return calls === 1 ? 0 : 0.999; };   // 先成一次，再必败
+  Math.random = guardRandom;
+  const batch = ST.enhanceToTarget('bailianjian', 18, {});
+  Math.random = realRandom;
+  assert(batch.wiped && !batch.done, '批量强化遇尽毁即停');
+  assert(ST.enhanceLevel('bailianjian') === 0, '停在 +0');
+
+  // 65.6 存档往返
+  G.resetToDefault();
+  ST.Game.enhance = { bailianjian: 4 };
+  ST.Game.enhanceHeat = { bailianjian: 7 };
+  const ser65 = ST.serializeSave();
+  assert(ser65.enhanceHeat && ser65.enhanceHeat.bailianjian === 7, '火候随存档保存');
+  ST.importSaveText(JSON.stringify(ser65));
+  assert(ST.enhanceHeatOf('bailianjian') === 7, '读档后火候还在');
+  const bad65 = ST.serializeSave();
+  bad65.enhanceHeat = { bailianjian: 999, x: -3 };
+  ST.importSaveText(JSON.stringify(bad65));
+  assert(ST.enhanceHeatOf('bailianjian') === ST.ENHANCE_HEAT.MAX, '越界火候钳到上限');
+  assert(!ST.Game.enhanceHeat.x, '负数剔除');
+
+  // 65.7 界面与演出
+  const uiSrc65 = readText('src/ui.js');
+  assert(uiSrc65.includes('class="enh-heat"') && uiSrc65.includes('hcells'), '面板有十二格火候');
+  assert(uiSrc65.includes('失败阶数尽毁，直落 +0'), '写明失败后果');
+  assert(uiSrc65.includes('UI._enhBusy') && uiSrc65.includes('鼓铸中'), '演出期间锁按钮（防连点）');
+  assert(uiSrc65.includes('UI.forgeShow(it, { heavy:false })'), '强化播打铁演出再揭晓');
+  assert(uiSrc65.includes('UI._revealEnh'), '揭晓有单独反馈（成功跳数字 / 失败震窗）');
+  assert(/\.pack-wrap \.inv-panel\{ order:-1; \}/.test(readText('style.css')), '行装页行囊排在前（窄屏在上）');
 }
 
 // ============ 47. 物品用途面板（v1.14.3） ============

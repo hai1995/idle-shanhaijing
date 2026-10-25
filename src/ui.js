@@ -3024,9 +3024,9 @@ UI.renderPack = function(){
         <button class="chip-btn ${this.invSort==='qty'?'on':''}" onclick="UI.invSort='qty';UI.renderPack()">数量↓</button>
         <span class="hint">仓廪暂无，材料尽在行囊</span>
       </div>
-      <div class="bulk-sell">
+      <details class="bulk-sell">
+        <summary class="bs-sum">廛市清整<i>批量售出原材料</i></summary>
         <div class="bs-head">
-          <span class="bs-title">廛市清整</span>
           <span class="hint">售出<b>档位及以下</b>的原材料；食物 / 药品 / 装备 / 嘉种 / 嘉谷不碰</span>
         </div>
         <div class="filter-row">
@@ -3043,7 +3043,7 @@ UI.renderPack = function(){
               <button class="btn primary" onclick="bulkSellRun()">清整售出</button>
             </div>`;
         })()}
-      </div>
+      </details>
       <div class="inv-grid">
       ${inv.map(([id,q])=>{
         const it = Items[id];
@@ -3205,16 +3205,27 @@ function enhancePanelHtml(itemId, it){
     ? enhanceCapOf(it) : ENHANCE_MAX;
   const cur = Math.floor(enhanceScaled(base, lv));
   const label = it.dmg ? '伤害' : '防御';
+  const heat = (typeof enhanceHeatOf === 'function') ? enhanceHeatOf(itemId) : 0;
+  const heatMax = (typeof ENHANCE_HEAT !== 'undefined') ? ENHANCE_HEAT.MAX : 12;
+  const heatStep = (typeof ENHANCE_HEAT !== 'undefined') ? ENHANCE_HEAT.STEP : 0.08;
   if (lv >= max){
     return `<div class="reveal"><b>淬炼</b><span class="enh-max">已至 +${max}（上限）· ${label} ${cur}</span></div>`;
   }
   const cost = enhanceCost(itemId);
-  const rate = Math.round(enhanceRate(lv) * 100);
+  const baseRate = enhanceRate(lv);
+  const rate = Math.round((typeof enhanceRateFor === 'function' ? enhanceRateFor(itemId) : baseRate) * 100);
   const nxt = Math.floor(enhanceScaled(base, lv + 1));
   const safe = lv < ENHANCE_SAFE;
   const stones = Game.inventory.zhenwu || 0;
   const last = (UI._enhLast && UI._enhLast.id === itemId) ? UI._enhLast : null;
   const cls = rate >= 50 ? 'ok' : rate >= 20 ? 'mid' : 'hard';
+  // 火候：十二格炉温。毁一次添一格，成了也不熄——这是「一败俱毁」的补偿，
+  // 不写明的话玩家只会觉得这系统在坑他。
+  const cells = Array.from({ length: heatMax }, (_, i) =>
+    `<i class="${i < heat ? 'on' : ''}"></i>`).join('');
+  const heatTip = heat
+    ? `火候 +${Math.round(heat * heatStep * 100)}%（基础 ${Math.round(baseRate*100)}% → 实成 ${rate}%）`
+    : `火候未起：每毁一次添一格，每格 +${Math.round(heatStep*100)}%`;
   return `<div class="reveal enh-box">
     <b>淬炼</b>
     <div class="enh-hd">
@@ -3224,7 +3235,11 @@ function enhancePanelHtml(itemId, it){
       ${last ? `<span class="enh-log ${last.cls}">${esc(last.text)}</span>` : ''}
     </div>
     <div class="enh-val">${label} <b>${cur}</b> → <b>${nxt}</b>
-      <span class="hint">${safe ? `未至 +${ENHANCE_SAFE}，失败只损材料` : `失败跌至 +${Math.max(0, lv - 1)}（镇物可护）`}</span></div>
+      <span class="hint ${safe ? '' : 'danger'}">${safe ? `未至 +${ENHANCE_SAFE}，失败只损材料` : '失败阶数尽毁，直落 +0（镇物可护）'}</span></div>
+    <div class="enh-heat" title="${esc(heatTip)}">
+      <span class="hlabel">火候</span><span class="hcells">${cells}</span>
+      <span class="htxt">${heat ? `+${Math.round(heat*heatStep*100)}%` : '—'}</span>
+    </div>
     <div class="enh-cost">炭 ×${cost.tan} · ${fmt(cost.shells)} 贝${safe ? '' : `　·　镇物 ×1（有 ${stones}）`}</div>
     <div class="enh-btns">
       <button class="btn small primary" onclick="UI.enhanceOne('${itemId}')">强化 +1</button>
@@ -3312,27 +3327,87 @@ UI.refreshItemModal = function(itemId){
   if (box2) box2.scrollTop = y;
 };
 
+// 锁定面板上的强化按钮：演出期间不接受第二次点击
+UI._lockEnhPanel = function(){
+  const box = $('modalBox');
+  if (!box) return;
+  const one = box.querySelector('.enh-btns .btn.primary');
+  if (one){ one.disabled = true; one.textContent = '鼓铸中…'; }
+  const to = box.querySelector('.enh-to .btn');
+  if (to) to.disabled = true;
+};
+
+// 揭晓：等级数字跳一下；失败震一下弹窗，掉零再补一句「尽毁」
+UI._revealEnh = function(itemId, r){
+  const box = $('modalBox');
+  if (!box) return;
+  const lvEl = box.querySelector('.enh-lv');
+  if (typeof FX === 'undefined') return;
+  if (r.success && lvEl){
+    FX.pop(lvEl);
+    FX.floatAtEl(box.querySelector('.enh-val') || lvEl, `淬成 +${r.lvAfter}`, '#D9A521', true);
+  } else if (r.wiped){
+    FX.shakeHard(box);
+    FX.floatAtEl(box.querySelector('.enh-val') || lvEl, '阶数尽毁', '#B03A2B', true);
+  } else if (r.lost){
+    FX.shakeHard(box);
+  }
+};
+
 UI.enhanceOne = function(itemId){
+  if (UI._enhBusy) return;
   const stoneEl = $('enhStone');
   const stone = !!(stoneEl && stoneEl.checked);
+  const it = Items[itemId];
+  // 先落库：料照扣、成败已定，但先扣着不揭晓——那一秒半的锤声就是悬念。
   const r = enhanceItem(itemId, { stone });
-  if (!r.ok) UI._enhLast = { id:itemId, text: r.reason || '未能强化', cls:'bad' };
-  else if (r.success) UI._enhLast = { id:itemId, text:`成：+${r.lvBefore} → +${r.lvAfter}`, cls:'good' };
+  if (!r.ok){
+    UI._enhLast = { id:itemId, text: r.reason || '未能强化', cls:'bad' };
+    UI.refreshItemModal(itemId);
+    return;
+  }
+  if (r.success) UI._enhLast = { id:itemId, text:`成：+${r.lvBefore} → +${r.lvAfter}`, cls:'good' };
+  else if (r.wiped) UI._enhLast = { id:itemId, text:`毁：+${r.lvBefore} → +0`, cls:'bad' };
   else if (r.lost) UI._enhLast = { id:itemId, text:`败：跌至 +${r.lvAfter}`, cls:'bad' };
   else UI._enhLast = { id:itemId, text:`败：${r.usedStone ? '镇物护住原阶' : '仅损材料'}`, cls:'sys' };
-  UI.refreshItemModal(itemId);
+
+  const played = (typeof UI.forgeShow === 'function') && UI.forgeShow(it, { heavy:false });
+  if (!played){ UI.refreshItemModal(itemId); UI._revealEnh(itemId, r); return; }
+
+  UI._enhBusy = true;
+  UI._lockEnhPanel();
+  setTimeout(()=>{
+    UI._enhBusy = false;
+    UI.refreshItemModal(itemId);
+    UI._revealEnh(itemId, r);
+  }, 1250);
 };
 
 UI.enhanceTo = function(itemId){
+  if (UI._enhBusy) return;
   const el = $('enhTarget');
   const t = parseInt(el && el.value, 10);
   if (!isFinite(t)){ UI.toast('先填目标等级'); return; }
   const stoneEl = $('enhStone');
   const stone = !!(stoneEl && stoneEl.checked);
-  const r = enhanceToTarget(itemId, t, { stone });
-  UI._enhLast = { id:itemId, cls: r.done ? 'good' : 'sys',
-    text: `${r.done ? '已至' : '止于'} +${r.lv}（${r.tries} 次 · 成 ${r.ups} 败 ${r.downs}${r.stones ? ` · 镇物 ${r.stones}` : ''}）` };
-  UI.refreshItemModal(itemId);
+  const it = Items[itemId];
+  const played = (typeof UI.forgeShow === 'function') && UI.forgeShow(it, { heavy:true });
+  if (played){ UI._enhBusy = true; UI._lockEnhPanel(); }
+  const run = ()=>{
+    const r = enhanceToTarget(itemId, t, { stone, noToast: true });
+    UI._enhLast = { id:itemId, cls: r.done ? 'good' : (r.wiped ? 'bad' : 'sys'),
+      text: `${r.done ? '已至' : (r.wiped ? '尽毁于' : '止于')} +${r.lv}（${r.tries} 次 · 成 ${r.ups} 败 ${r.downs}${r.stones ? ` · 镇物 ${r.stones}` : ''}）` };
+    UI.toast(r.done ? `🔨 已至 +${r.lv}` : (r.wiped ? `💥 阶数尽毁，止于 +${r.lv}` : `… 止于 +${r.lv}`));
+    UI._enhBusy = false;
+    UI.refreshItemModal(itemId);
+    const box = $('modalBox');
+    if (box && typeof FX !== 'undefined'){
+      if (r.done){ FX.floatAtEl(box.querySelector('.enh-lv') || box, `已至 +${r.lv}`, '#D9A521', true); }
+      else if (r.wiped){ FX.shakeHard(box); }
+    }
+  };
+  if (played) setTimeout(run, 1450);
+  else run();
 };
 
 UI.reforgeNow = function(itemId){

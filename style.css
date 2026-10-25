@@ -1238,6 +1238,21 @@ svg.bi.mk{ vertical-align:-2px; }
 .gd-rel.up{ color:var(--tai); } .gd-rel.down{ color:var(--ink-4); }
 .gd-cap{ font-family:var(--f-num); font-size:11px; color:var(--jin); }
 .enh-grade{ margin-left:auto; font-family:var(--f-kai); font-size:10.5px; color:var(--ink-4); }
+/* 火候：十二格炉温，毁一次亮一格 */
+.enh-heat{ display:flex; align-items:center; gap:6px; margin:3px 0 5px; }
+.enh-heat .hlabel{ font-family:var(--f-kai); font-size:10.5px; letter-spacing:.08em; color:var(--ink-4); }
+.enh-heat .hcells{ display:inline-flex; gap:2px; }
+.enh-heat .hcells i{
+  width:9px; height:9px; border-radius:1px;
+  background:var(--paper-3); border:1px solid var(--rule);
+  transition:background .2s, box-shadow .2s;
+}
+.enh-heat .hcells i.on{
+  background:linear-gradient(180deg,#f2c04a,#c8801a); border-color:#b8761a;
+  box-shadow:0 0 5px rgba(240,178,60,.55);
+}
+.enh-heat .htxt{ font-family:var(--f-num); font-size:10.5px; color:var(--jin); }
+.hint.danger{ color:var(--zhu); }
 /* 槽位左上角已被「兵器/甲胄」占着，品阶印落到右下；强化 +N 仍在右上 */
 .gear-tile .gd{ position:absolute; right:3px; bottom:3px; margin:0;
   font-size:9.5px; line-height:13px; padding:0 3px; }
@@ -1394,7 +1409,27 @@ svg.bi.mk{ vertical-align:-2px; }
 /* ==========================================================================
    行装
    ========================================================================== */
-.pack-wrap{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.15fr); gap:14px; align-items:start; }
+/* 廛市清整折起：它是低频操作，展开后能省出半屏给物品格 */
+details.bulk-sell{ border:1px solid var(--rule); border-radius:var(--r); background:var(--paper-2); margin:8px 0 12px; }
+details.bulk-sell[open]{ padding-bottom:2px; }
+details.bulk-sell .bs-sum{
+  display:flex; align-items:center; gap:8px; padding:8px 11px; cursor:pointer;
+  font-family:var(--f-kai); font-size:12.5px; letter-spacing:.06em; color:var(--ink-2);
+  list-style:none; user-select:none;
+}
+details.bulk-sell .bs-sum::-webkit-details-marker{ display:none; }
+details.bulk-sell .bs-sum::before{ content:'▸'; color:var(--ink-4); font-size:10px; transition:transform .18s; }
+details.bulk-sell[open] .bs-sum::before{ transform:rotate(90deg); }
+details.bulk-sell .bs-sum i{ font-style:normal; font-size:11px; color:var(--ink-4); margin-left:auto; }
+details.bulk-sell .bs-head{ padding:0 11px; }
+details.bulk-sell .filter-row{ padding:0 11px; }
+details.bulk-sell .bs-preview, details.bulk-sell .bs-act{ margin-left:11px; margin-right:11px; }
+/* 装备只九格，滚动行囊时让它跟着走（窄屏不适用，单列时它本来就在下面） */
+@media (min-width:761px){ .pack-wrap .gear-panel{ position:sticky; top:10px; } }
+/* 行囊在前、装备在后：行囊是常看的那块，装备槽一天换不了两回。
+   桌面两列时行囊在左（列也给它宽一点），窄屏单列时自然落在上方。 */
+.pack-wrap{ display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); gap:14px; align-items:start; }
+.pack-wrap .inv-panel{ order:-1; }
 /* 装备槽：与行囊同一套方块，空槽用虚线框（不压灰，免得整页发暗） */
 /* 装备面板标题：左「装备」右「一键最优装」，一行摆平 */
 .gear-panel h3{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
