@@ -54,7 +54,7 @@
 ## 四、主循环与时间
 
 ```
-setInterval(gameLoop, 250)         // ui.js 初始化时挂上
+setInterval(gameLoop, 250)         // ui/misc.js 的 init() 里挂上
   └─ 每帧：按真实 dt 推进活动、战斗、田地、征兆、续祭、三签、状态条
 onSecond(1)                         // 每秒：计数、统计、日志节流、patchStats
 ```

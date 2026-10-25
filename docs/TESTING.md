@@ -15,7 +15,7 @@ node scripts/audit-data.js      # 数据跨表审计，零悬空才算过（有�
 `test/engine.test.js` 用 `vm` 起一个假浏览器上下文，按 `index.html` 的顺序加载全部脚本，然后一节一节断言：
 
 ```js
-loadJS('nanshanData.js'); … loadJS('ui.js');
+loadJS('nanshanData.js'); … UI_FILES.forEach(loadJS);   // ui/ 下 7 个文件，顺序同 index.html
 section('问神');
 {
   G.resetToDefault();

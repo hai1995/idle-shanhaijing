@@ -184,11 +184,22 @@ src/
   queue.js              巡历队列（任务顺序 / 阻塞顺延 / 兜底 / 循环 / 祠祀与谒见）
   interact.js           活动选择、装备、商旅贸易
   fx.js                 动效层（浮动文字 / 震动 / 粒子 / 铸造演出）
-  ui.js                 界面渲染与交互（11 页签 / 五章二十六系）
+  ui/
+    core.js             界面核心：UI 对象、弹窗、顶栏导航、日志、键盘可达性
+    world.js            舆地（区域/节点/异迹索引）+ 技能（技能卡/配方/田地/三签）
+    combat.js           征伐（异兽列表/竞技场/战斗估值）+ 御使
+    codex.js            图鉴（五阶揭示/未录筛选）+ 祠祀（礼制/征兆/卜筮）
+    trade.js            墟市（买卖/求购订单）+ 营造
+    pack.js             行动（巡历队列）+ 行装（装备/行囊/物品详情）
+    misc.js             统计 / 叙录 / 详情浮层 / init 初始化
 scripts/
   gen-world-data.js     JSON → src/{nanshan,xishan,beishan,dongshan,zhongshan}Data.js 派生脚本（含五章等级重排）
   build-standalone.js   多文件版 → idle-shanhaijing-standalone.html 自包含单文件（node scripts/build-standalone.js）
   audit-data.js         数据引用审计：配方产物 / 祠礼三表 / 种子 / 消耗品可达性 / 征兆触发源（node scripts/audit-data.js）
+  check.js              一键自检：版本一致 → 测试 → 审计 → 构建（node scripts/check.js）
+  measure-ttk.js        战斗节奏分布：按等级段给 TTK 中位 / p90 / 最大（--detail 列离群）
+  measure-rebirth.js    轮回曲线：每转所需经验 / 乘区 / 单位时间修为
+  fuzz.js               随机动作压测：真引擎跑几千个随机操作，捕获异常
 server/
   cloud-save-server.js  云端存档参考后端（零依赖；不启用则游戏纯本地运行）
 test/
