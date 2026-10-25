@@ -10,6 +10,7 @@
     "check": "node scripts/check.js",
     "ttk": "node scripts/measure-ttk.js",
     "rebirth": "node scripts/measure-rebirth.js",
+    "fuzz": "node scripts/fuzz.js",
     "serve": "node server/cloud-save-server.js"
   },
   "engines": {
