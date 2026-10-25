@@ -111,6 +111,44 @@ for (const m of Object.values(W.Monsters)){
   if (m.drop && !I[m.drop]) bad('异兽', `${m.name} 专属掉落不存在 ${m.drop}`);
 }
 
+// ---------- 5.1 三签：key 必须真的能计数 ----------
+// bountyCounter 对 recorded / gathered / bosses 有专门映射，其余直接读 stats[key]。
+// key 写错（如 casts 之于 crafts）不会报错，只是那条签永远停在 0——玩家会以为卡住了。
+{
+  const known = new Set(['recorded', 'gathered', 'bosses', ...Object.keys(W.Game.stats || {})]);
+  let n = 0;
+  for (const b of (W.BOUNTIES || [])){
+    n++;
+    if (!b.key) bad('三签', `${b.name} 没写 key，永远不计数`);
+    else if (!known.has(b.key)) bad('三签', `${b.name} 的 key「${b.key}」不在 stats 里，签永远做不完`);
+    let nn = 0, sh = 0;
+    try { nn = b.n(1); sh = b.shells(1); } catch(e){ bad('三签', `${b.name} 的 n/shells 抛错：${e.message}`); continue; }
+    if (!(nn > 0)) bad('三签', `${b.name} 一级的目标为 ${nn}，永远做不完`);
+    if (!(sh > 0)) bad('三签', `${b.name} 一级的赏钱为 ${sh}，白做`);
+  }
+  if (n === 0) bad('三签', '一条签都没查到——检查本身失效');
+}
+
+// ---------- 5.2 物产产地：nodes[] 里每座山都要存在 ----------
+// it.node 只记主产地，另有多产地写在 nodes[]。抄错一个 id 不会报错，
+// 只是那座山永远采不出这件东西（采集提示「此地不产」）。
+{
+  let n = 0;
+  for (const it of Object.values(I)){
+    const ns = it.nodes || [];
+    n += ns.length;
+    for (const id of ns) if (!nodeIds.has(id)) bad('物产', `${it.name} 的产地 ${id} 不存在`);
+    if (it.node && !nodeIds.has(it.node)) bad('物产', `${it.name} 的主产地 ${it.node} 不存在`);
+  }
+  if (!n) bad('物产', '一条 nodes[] 都没查到——检查本身失效');
+}
+
+// ---------- 5.3 墟市：在售之物必须存在 ----------
+for (const s of (W.ShopStock || [])){
+  if (!I[s.itemId]) bad('墟市', `在售 ${s.itemId} 不存在`);
+  if (!(s.cost > 0) || !(s.qty > 0)) bad('墟市', `${(I[s.itemId] || {}).name || s.itemId} 的价或量非正`);
+}
+
 // ---------- 6. 地点 ----------
 for (const [name, map] of [['观象', W.OBSERVE_SITES], ['养成', W.GROW_SITES], ['谒见', W.AUDIENCE_SITES]]){
   for (const [k, v] of Object.entries(map || {})){
