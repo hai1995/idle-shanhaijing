@@ -39,6 +39,9 @@ vm.createContext(context);
 
 const base = path.join(__dirname, '..', 'src');
 function loadJS(file){ vm.runInContext(fs.readFileSync(path.join(base, file), 'utf8'), context, {filename:file}); }
+// ui.js 已按页拆成 7 个文件（v1.31.8），顺序与 index.html 一致；core 必须最先。
+const UI_FILES = ['ui/core.js','ui/world.js','ui/combat.js','ui/codex.js','ui/trade.js','ui/pack.js','ui/misc.js'];
+const uiSrcAll = UI_FILES.map(f => fs.readFileSync(path.join(base, f), 'utf8')).join('\n');
 ['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','zhongshanData.js','gameData.js','affix.js','save.js','engine.js','game.js','queue.js','interact.js','fx.js','beastIcon.js','riteIcon.js','structureIcon.js','skillIcon.js','itemIcon.js','markIcon.js'].forEach(loadJS);
 const G = context;
 const ST = context.window;
@@ -115,7 +118,7 @@ assert(Object.keys(ST.OBSERVE_SITES).length === 9, '观象/观瑞 5 + 东山 4 =
 assert(Object.keys(ST.RITES).length === 3 + 6 + 1 + 3 + 3 + 12, '祠礼 3 + 6 + 常祭 + 北山 3 + 东山 3 + 中山 12 = 28 套 -> ' + Object.keys(ST.RITES).length);
 // 交互补充：切属性即开战 / 营造详情弹窗 / 行装页战斗数值条
 {
-  const uiSrc2 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  const uiSrc2 = uiSrcAll;
   assert(/切\$\{counterEl\}属并开战/.test(uiSrc2) && uiSrc2.includes("UI.startHuntTimes('${id}')\">切"),
     '征伐弹窗「切X属并开战」：切属性后立即开战，非只回到列表');
   assert(!uiSrc2.includes("UI.closeModal();UI.renderTaofa()\">切"), '旧「切属性后仅回列表」写法已移除');
@@ -244,7 +247,7 @@ section('配方原料可获得性审计');
   Object.values(ST.Monsters).forEach(m=>(m.loot||[]).forEach(([id])=>{ if (!ST.Items[id]) badLoot.push(id); }));
   assert(badLoot.length === 0, '战利品均为已定义物品');
   // 每个技能都有经验来源（源码中出现该技能的 gainXp / 计经验逻辑）
-  const srcAll = ['game.js','queue.js','interact.js','gameData.js','ui.js']
+  const srcAll = ['game.js','queue.js','interact.js','gameData.js', ...UI_FILES]
     .map(f=>fs.readFileSync(path.join(__dirname,'..','src',f),'utf8')).join('\n');
   const noXpSource = Object.keys(ST.Skills).filter(id=>!srcAll.includes(`'${id}'`));
   assert(noXpSource.length === 0, '26 技能均有经验来源' + (noXpSource.length?('，缺：'+noXpSource.join(',')):''));
@@ -629,7 +632,7 @@ assert(typeof ST.beastIcon === 'function' && typeof ST.parseForm === 'function',
 
 // ============ 16. UI 渲染冒烟 ============
 section('UI 渲染冒烟');
-loadJS('ui.js');
+UI_FILES.forEach(loadJS);
 // 浏览器中 window === globalThis，ui.js 末尾的 window.UI = UI 会让全局属性与
 // 词法绑定同为真实 UI；沙箱里 window 只是普通对象，需手动对齐，否则 game.js
 // 等先加载脚本里的 UI 仍指向桩对象。
@@ -950,7 +953,7 @@ assert(wa4.indexOf('相生') >= 0 && wa4.indexOf('×1.15') >= 0, '我生敌时�
 assert(wa5.indexOf('相持') >= 0 && wa5.indexOf('宜用「土」') >= 0, '相持时给出宜用属性');
 // 调用处参数顺序：wuxingAdvice(敌方属性, 我方属性)
 // 调用处参数顺序：wuxingAdvice(敌方属性, 我方属性)，且敌方取战斗内现属性
-assert(/wuxingAdvice\(\s*\(typeof foeElement[^)]*\)[^,]*foeElement\(m, c\)[^,]*,\s*playerElement\(\)\)/.test(fs.readFileSync(path.join(__dirname,'..','src','ui.js'),'utf8')), '征伐页按（敌, 我）顺序调用五行提示');
+assert(/wuxingAdvice\(\s*\(typeof foeElement[^)]*\)[^,]*foeElement\(m, c\)[^,]*,\s*playerElement\(\)\)/.test(uiSrcAll), '征伐页按（敌, 我）顺序调用五行提示');
 
 // ============ 16.12 战斗预估耗时 ============
 section('战斗预估耗时');
@@ -1004,7 +1007,7 @@ const root = path.join(__dirname, '..');
 function readText(rel){ return fs.readFileSync(path.join(root, rel), 'utf8'); }
 // 子串位置（-1 表示不存在），用于断言脚本加载顺序
 function indexOfOf(rel, sub){ return readText(rel).indexOf(sub); }
-const codeFiles = ['index.html','style.css','src/nanshanData.js','src/gameData.js','src/save.js','src/engine.js','src/game.js','src/queue.js','src/interact.js','src/fx.js','src/ui.js','src/beastIcon.js','src/riteIcon.js','src/structureIcon.js','src/skillIcon.js','src/itemIcon.js','src/markIcon.js','README.md'];
+const codeFiles = ['index.html','style.css','src/nanshanData.js','src/gameData.js','src/save.js','src/engine.js','src/game.js','src/queue.js','src/interact.js','src/fx.js',...UI_FILES.map(f=>'src/'+f),'src/beastIcon.js','src/riteIcon.js','src/structureIcon.js','src/skillIcon.js','src/itemIcon.js','src/markIcon.js','README.md'];
 const banned = ['Melvor','melvor','梅尔沃'];
 let ipHits = [];
 codeFiles.forEach(f=>{ const t = readText(f); banned.forEach(b=>{ if (t.includes(b)) ipHits.push(f+':'+b); }); });
@@ -1105,13 +1108,13 @@ assert(!html.includes('id="btnTheme"') && !html.includes('id="btnHelp"') && !htm
   '顶栏不再设昼夜 / 帮助 / 设置图标（统一并入侧边栏设置入口）');
 assert(html.includes("localStorage.getItem('shj-theme')"), '首屏内联脚本先定主题，避免由亮转暗闪烁');
 assert(html.includes('prefers-color-scheme'), '首次访问跟随系统外观');
-assert(fs.readFileSync(path.join(__dirname,'..','src','ui.js'),'utf8').includes('applyTheme'), 'ui.js 提供 applyTheme 主题应用');
+assert(uiSrcAll.includes('applyTheme'), 'ui.js 提供 applyTheme 主题应用');
 assert(/#fab\{ display:none; \}/.test(css2), '#fab 仅窄屏显示（PC 默认隐藏）');
-assert(readText('src/ui.js').includes('toggleDrawer'), 'ui.js 含抽屉开关实现');
+assert(uiSrcAll.includes('toggleDrawer'), 'ui.js 含抽屉开关实现');
 
 // ============ 19. 小单块 + 详情浮层（渐进披露） ============
 section('小单块与详情浮层');
-const uiSrc = readText('src/ui.js');
+const uiSrc = uiSrcAll;
 const gameDataSrc = readText('src/gameData.js');
 assert(uiSrc.includes('showTipFor') && uiSrc.includes('tip-body') && uiSrc.includes('bindTipEvents'), 'ui.js 含详情浮层组件（悬停/点按两路触发）');
 assert(uiSrc.includes('hideTip()') && /renderCurrent\(\)\{[^}]*hideTip/s.test(uiSrc), '重渲染时关闭浮层（防锚点销毁后残留）');
@@ -2324,7 +2327,7 @@ section('实时性：状态变化即刻上屏');
 section('移动端缩放与不溢出');
 {
   const cssM = readText('style.css');
-  const uiM = readText('src/ui.js');
+  const uiM = uiSrcAll;
   // 1) 三列网格必须用 minmax(0,1fr)：1fr 的最小尺寸是内容宽，窄卡片（图标+名+录数）
   //    会把整块撑出屏幕，横向出现滚动条、右侧一列被裁掉。
   assert(/\.beast-grid\{ grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/.test(cssM), '征伐网格三列用 minmax(0,1fr)（不撑出屏幕）');
@@ -2484,7 +2487,7 @@ section('营造建筑图标');
 {
   const si = ST.structureIcon;
   const stcSrc = readText('src/structureIcon.js');
-  const uiM29 = readText('src/ui.js');
+  const uiM29 = uiSrcAll;
   // 29.1 模块存在并已接入加载顺序
   assert(typeof si === 'function', 'structureIcon 已导出');
   // 不再写死八座：以后每加一座建筑，这里跟着走
@@ -2510,7 +2513,7 @@ section('营造建筑图标');
   // 29.3b 标记图标：代码里写死的 key 必须真在 MARK 表里。
   // markIcon 对未知 key 会静默退化（不报错、只是少一枚图），拼错只有肉眼能发现。
   {
-    const uiS = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+    const uiS = uiSrcAll;
     const gameS = fs.readFileSync(path.join(__dirname, '..', 'src', 'game.js'), 'utf8');
     const keys = new Set(ST.MARK_ICON_IDS || []);
     const lit = [...uiS.matchAll(/markIcon\(\s*'([^']+)'/g), ...gameS.matchAll(/markIcon\(\s*'([^']+)'/g)]
@@ -2540,7 +2543,7 @@ section('技能矢量图标');
 {
   const ki = ST.skillIcon;
   const skiSrc = readText('src/skillIcon.js');
-  const uiM30 = readText('src/ui.js');
+  const uiM30 = uiSrcAll;
   // 30.1 模块存在并已接入
   assert(typeof ki === 'function', 'skillIcon 已导出');
   assert(indexOfOf('index.html', 'src/skillIcon.js') >= 0, 'skillIcon.js 已引入页面');
@@ -2577,7 +2580,7 @@ section('物品族形图标');
   const ii = ST.itemIcon;
   const ic = ST.itemIc;
   const itemSrc = readText('src/itemIcon.js');
-  const uiM31 = readText('src/ui.js');
+  const uiM31 = uiSrcAll;
   // 31.1 模块存在并已接入
   assert(typeof ii === 'function', 'itemIcon 已导出');
   assert(typeof ic === 'function', 'itemIc 已导出');
@@ -2628,7 +2631,7 @@ section('云端存档接入');
   const SM = ST.SaveManager;
   const saveSrc = readText('src/save.js');
   const engSrc = readText('src/engine.js');
-  const uiM32 = readText('src/ui.js');
+  const uiM32 = uiSrcAll;
   // 32.1 配置持久化：接入一次，下次开页自动恢复
   SM.clearCloud();
   assert(SM.cloudConfig() === null, '未接入时无云端配置');
@@ -2744,7 +2747,7 @@ section('云端存档接入');
 section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
 {
   const gameSrc2 = fs.readFileSync(path.join(__dirname, '..', 'src', 'game.js'), 'utf8');
-  const uiSrc2 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  const uiSrc2 = uiSrcAll;
   const css2 = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
 
   // 42.1 顶栏数值随结算实时刷新（贝币不再等切页才变）
@@ -2843,7 +2846,7 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
 {
   G.resetToDefault();
   const gameSrc48 = fs.readFileSync(path.join(__dirname, '..', 'src', 'game.js'), 'utf8');
-  const uiSrc48 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  const uiSrc48 = uiSrcAll;
   const saveSrc48 = fs.readFileSync(path.join(__dirname, '..', 'src', 'save.js'), 'utf8');
   const engSrc48 = fs.readFileSync(path.join(__dirname, '..', 'src', 'engine.js'), 'utf8');
   // 技能等级由 xp 推导（gainXp 会按 xp 重算 level），直接改 level 字段无效
@@ -2989,7 +2992,7 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
 // ============ 49. 离线结算可读性（v1.15） ============
 {
   G.resetToDefault();
-  const uiSrc49 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  const uiSrc49 = uiSrcAll;
   ST.Game.skills.qiaocai = { level: 1, xp: 0 };
   const gid49 = (ST.GATHER_POOLS['qiaocai'] || []).find(id => {
     const it = ST.Items[id];
@@ -3076,7 +3079,7 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
 // ============ 52. 征伐页分组懒渲染（v1.15.2） ============
 {
   G.resetToDefault();
-  const uiSrc52 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  const uiSrc52 = uiSrcAll;
   ST.UI.currentTab = 'taofa';
   ST.UI.renderTaofa();
   const groups = ST.UI._beastGroups || [];
@@ -3136,7 +3139,7 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   assert(gameSrc53.includes('def.xp * mult * (1 + jisiBonus())'), '行祭经验接入该加成');
 
   // 文案不得写死早已过时的数字
-  const uiSrc53 = readText('src/ui.js');
+  const uiSrc53 = uiSrcAll;
   assert(!uiSrc53.includes('最高 15 小时'), '教程不再写死「最高 15 小时」（实际已随观象/营造涨到 18+）');
   assert(uiSrc53.includes('${offlineCapHours()}'), '玩法说明与教程改为读当前上限');
   assert(uiSrc53.includes("typeof s.body === 'function' ? s.body() : s.body"),
@@ -3190,7 +3193,7 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   // 浮层与顶栏汇总共用同一张标签表：最凶的「有兵」不能点开是空白
   const txt = ST.omenEffectText(ST.OMENS.zhuyan);
   assert(/伤害 -15%/.test(txt) && /所获 -10%/.test(txt), '「有兵」浮层写明伤害 -15%、所获 -10%（' + txt + '）');
-  const uiSrc54 = readText('src/ui.js');
+  const uiSrc54 = uiSrcAll;
   assert(uiSrc54.includes('OMEN_EFFECT_LABELS'), '效果标签抽成单一常量（浮层与汇总共用）');
   ST.Game.omens = [{ id: 'zhuyan', until: ST.Game.stats.time + 600 }];
   const agg = ST.UI && typeof ST.currentOmenEffects === 'function' ? ST.currentOmenEffects() : null;
@@ -3203,7 +3206,7 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
 {
   G.resetToDefault();
   const gameSrc55 = readText('src/game.js');
-  const uiSrc55 = readText('src/ui.js');
+  const uiSrc55 = uiSrcAll;
 
   // 白沙山「广员三百里，尽沙也」：流沙迟滞，橐驼可免
   assert(ST.SPECIAL_NODES['beishan-2-05'].desert === true, '白沙山标注为流沙');
@@ -3247,7 +3250,7 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
 {
   G.resetToDefault();
   const intSrc56 = readText('src/interact.js');
-  const uiSrc56 = readText('src/ui.js');
+  const uiSrc56 = uiSrcAll;
 
   const charms = Object.values(ST.Items).filter(i => i.reqRecord);
   assert(charms.length === 7, '七张符写明佩用前置（' + charms.length + '）');
@@ -3289,7 +3292,7 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
 // ============ 57. BOSS 特性上屏（v1.15.7） ============
 {
   G.resetToDefault();
-  const uiSrc57 = readText('src/ui.js');
+  const uiSrc57 = uiSrcAll;
   const bosses = Object.values(ST.Monsters).filter(m => m.special);
   assert(bosses.length >= 6, '六凶各有特性（' + bosses.length + ' 只带 special）');
   assert(bosses.every(b => b.special.name && b.desc), '特性有名有说（' + bosses.map(b => b.special.name).join('/') + '）');
@@ -3316,7 +3319,7 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
 // ============ 58. 图鉴「仅未录」（v1.15.8） ============
 {
   G.resetToDefault();
-  const uiSrc58 = readText('src/ui.js');
+  const uiSrc58 = uiSrcAll;
   assert(uiSrc58.includes('codexOnlyMiss'), '图鉴有「仅未录」状态');
   assert(uiSrc58.includes('仅未录 ${tabTotal-tabDone}'), '筛选按钮标出还缺多少条');
   assert(uiSrc58.includes("shown = shown.filter(e => !(((Game.records||{})[e.id]||{}).count > 0))"),
@@ -3443,7 +3446,7 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   Math.random = origRandom;
 
   // 弹窗不关闭：按钮走 UI.enhanceOne / UI.enhanceTo，执行后就地重绘
-  const uiSrc60 = readText('src/ui.js');
+  const uiSrc60 = uiSrcAll;
   assert(uiSrc60.includes("UI.enhanceOne('${itemId}')") && uiSrc60.includes("UI.enhanceTo('${itemId}')"),
     '详情里的强化按钮走就地刷新，不再 closeModal');
   assert(uiSrc60.includes('UI.refreshItemModal') && uiSrc60.includes('box2.scrollTop = y'),
@@ -3495,7 +3498,7 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   // 掉落接线 + 详情展示
   const gameSrc61 = readText('src/game.js');
   assert(gameSrc61.includes('m.divine && Items[m.divine] && chance(DIVINE_DROP)'), '击杀 BOSS 时按概率掉神兵');
-  const uiSrc61 = readText('src/ui.js');
+  const uiSrc61 = uiSrcAll;
   assert(uiSrc61.includes('class="dv-tag"') && uiSrc61.includes('hm-line hm-divine'), '详情与讨伐弹窗都标出神兵');
   assert(ST.itemSources('ganqi').some(x => x.kind === '神兵'), '神兵的来路写着「讨伐 刑天」');
 }
@@ -3580,7 +3583,7 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   assert(ST.Items.ganqi.dmg > ST.Items.cangyuyue.dmg * 1.3, '神兵比珍品再高一截');
 
   // 62.7 界面
-  const uiSrc62 = readText('src/ui.js');
+  const uiSrc62 = uiSrcAll;
   assert(uiSrc62.includes('function gradeBadge'), '有品阶徽标');
   assert(uiSrc62.includes('<b>等阶</b>') && uiSrc62.includes('较同级良品'),
     '详情列出等阶、较同级良品的强弱、可淬上限');
@@ -3643,7 +3646,7 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
 {
   G.resetToDefault();
   const gameSrc64 = readText('src/game.js');
-  const uiSrc64 = readText('src/ui.js');
+  const uiSrc64 = uiSrcAll;
 
   // 64.1 无烽火台：凶兆即时落地
   ST.Game.stats.time = 1000;
@@ -3816,7 +3819,7 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   assert(!ST.Game.enhanceHeat.x, '负数剔除');
 
   // 65.7 界面与演出
-  const uiSrc65 = readText('src/ui.js');
+  const uiSrc65 = uiSrcAll;
   assert(uiSrc65.includes('class="enh-heat"') && uiSrc65.includes('hcells'), '面板有十二格火候');
   assert(uiSrc65.includes('失败阶数尽毁，直落 +0'), '写明失败后果');
   assert(uiSrc65.includes('UI._enhBusy') && uiSrc65.includes('鼓铸中'), '演出期间锁按钮（防连点）');
@@ -3888,7 +3891,7 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   assert(Math.abs((e1 - e0) - 0.05) < 1e-9, '山海阁使离线效率 +5%');
 
   // 66.5 每座都有收益预览（营邑弹窗要说得清「建成后如何」）
-  const uiSrc66 = readText('src/ui.js');
+  const uiSrc66 = uiSrcAll;
   for (const id of ids){
     assert(uiSrc66.includes("case '" + id + "'"), id + ' 在 structureEffectRows 里有收益对比');
   }
@@ -3994,7 +3997,7 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
 // ============ 69. 技能「将至」与配方门槛（v1.18.3） ============
 {
   G.resetToDefault();
-  const uiSrc69 = readText('src/ui.js');
+  const uiSrc69 = uiSrcAll;
   assert(uiSrc69.includes('function nextUnlocks') && uiSrc69.includes('function nextUnlockText'),
     '有解锁预告');
 
@@ -4037,7 +4040,7 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   assert(usesYu.some(u => u.kind === '琢玉'), '用途区分出琢玉配方');
   const noUse = Object.values(ST.Items).find(i => i.skill && ST.itemUses(i.id).length === 0);
   assert(!!noUse, '存在「暂无合用之方」的物品（如 ' + (noUse && noUse.name) + '）——详情里会直说并给回收价');
-  const uiSrc47 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  const uiSrc47 = uiSrcAll;
   assert(uiSrc47.includes('class="use-box"') && uiSrc47.includes('暂无合用之方'), '详情弹窗有用途行与空态文案');
 }
 
@@ -4083,7 +4086,7 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
 
 // ============ 45. 战法姿态 / 连战残势 / 荒山文案（v1.14.1） ============
 {
-  const uiSrc45 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  const uiSrc45 = uiSrcAll;
   const gameSrc45 = fs.readFileSync(path.join(__dirname, '..', 'src', 'game.js'), 'utf8');
 
   // 45.1 战法：四种姿态、四个乘区各自生效
@@ -4140,7 +4143,7 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
 // ============ 44. 装备词条 / 势与绝技 / 数值构成 / 收集成就（v1.14） ============
 {
   const affixSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'affix.js'), 'utf8');
-  const uiSrc44 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  const uiSrc44 = uiSrcAll;
   const gameSrc44 = fs.readFileSync(path.join(__dirname, '..', 'src', 'game.js'), 'utf8');
 
   // 44.1 词条体系：池 / 条数 / 确定性 / 槽位
@@ -4408,7 +4411,7 @@ section('连败三阵收兵');
 // 现在给倍数（2 倍气血 = 备两份吃食），并在弹窗里写明这只已经连败几阵。
 section('开战前的账');
 {
-  const uiSrc73 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  const uiSrc73 = uiSrcAll;
   assert(uiSrc73.includes('倍气血') && uiSrc73.includes('包中无吃食'), '战斗评估给出承伤倍数；包里没吃食时直说');
   assert(uiSrc73.includes('Game.stats.deathStreakOf===id') && uiSrc73.includes('已连败 ${Game.stats.deathStreak} 阵'),
     '讨伐弹窗在连败两次后写明「已连败 N 阵」');
@@ -4577,7 +4580,7 @@ section('开机结算');
 // 682 种物品，行囊常常几十栈；找一件东西靠翻，清一栈要点几十下「出售 1」。
 section('行囊检索与全售');
 {
-  const uiSrc77 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  const uiSrc77 = uiSrcAll;
   assert(uiSrc77.includes('UI.packListHtml') && uiSrc77.includes('id="invGrid"'),
     '行囊清单抽成生成器，检索时只换清单');
   assert(uiSrc77.includes("id=\"packQ\"") && uiSrc77.includes('UI.patchPackList()'),
@@ -5006,7 +5009,7 @@ section('六凶名单与统计口径');
 
   // 名单是单一出处：成就与征伐页分组都得读它，不许再抄一份 id 列表
   const dataSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'gameData.js'), 'utf8');
-  const uiSrc84 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  const uiSrc84 = uiSrcAll;
   const msSrc = dataSrc.slice(dataSrc.indexOf("id:'boss_all'"), dataSrc.indexOf("id:'boss_all'") + 320);
   assert(/SIX_BEASTS\.(every|filter)/.test(msSrc), '六凶伏诛按名单判定（不另写 id 数组）');
   assert(uiSrc84.includes('SIX_BEASTS.includes'), '征伐页的六凶分组按名单筛');
@@ -5138,7 +5141,7 @@ section('同好与复制');
   const bossAll = Object.values(ST.Monsters).filter(m => m.boss).length;
   assert(seen['[data-stat="six"]'].textContent === '1/6', 'patch 后六凶仍是 1/6（' + seen['[data-stat="six"]'].textContent + '）');
   assert(seen['[data-stat="bosses"]'].textContent === '2/' + bossAll, 'patch 后凶神是 2/' + bossAll);
-  const uiSrc86 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  const uiSrc86 = uiSrcAll;
   assert(!uiSrc86.includes("bosses: Object.keys(s.bossKills || {}).length + '/7'"), '实时刷新里不再有写死的 /7');
 }
 
@@ -5397,7 +5400,7 @@ section('离线结算与线上同口径');
   assert(yuPay > 1800, `羭山大祭回本 ${Math.round(yuPay)} 秒，是唯一需要盘算的一礼`);
 
   // 面板上要把这行账露出来，否则算了也没人看见
-  const uiSrc91 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  const uiSrc91 = uiSrcAll;
   assert(uiSrc91.includes('class="rc-worth"') && uiSrc91.includes('riteWorth(id)'),
     '祠礼浮层显示「祭品折价 / 本域时采 / 此礼多得 / 回本」');
   const css91 = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
@@ -5406,7 +5409,7 @@ section('离线结算与线上同口径');
 
 // ============ 92. 交互一致性：单击出弹窗、数量自填、弹窗分段（v1.31.6） ============
 {
-  const uiSrc92 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  const uiSrc92 = uiSrcAll;
   const css92 = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
 
   // 92.1 物件卡单击一律先出详情：技能、配方、市廛买 / 卖（行囊与图鉴原本就是）
@@ -5497,7 +5500,7 @@ section('离线结算与线上同口径');
 {
   const uiMethods = new Set(Object.keys(ST.UI));
   assert(uiMethods.size > 80, 'UI 方法表取到了（' + uiMethods.size + ' 个）');
-  const srcFiles = ['ui.js','game.js','queue.js','interact.js','affix.js','engine.js','save.js'];
+  const srcFiles = [...UI_FILES, 'game.js','queue.js','interact.js','affix.js','engine.js','save.js'];
   const missing = [];
   for (const f of srcFiles){
     const src = fs.readFileSync(path.join(__dirname, '..', 'src', f), 'utf8');
@@ -5550,7 +5553,7 @@ section('离线结算与线上同口径');
 // 全站两百多个带 onclick 的 div，鼠标点得动、键盘 Tab 不到。
 // 现在渲染后统一补 role/tabindex，并由一处 keydown 委托把 Enter/空格转成 click。
 {
-  const uiSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  const uiSrc = uiSrcAll;
   const css = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
   assert(uiSrc.includes('function a11ySweep') && uiSrc.includes("setAttribute('tabindex', '0')"),
     '渲染后给可点击元素补 role/tabindex');

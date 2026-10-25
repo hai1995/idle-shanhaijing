@@ -14,14 +14,14 @@
 
 ---
 
-## 一页速览（v1.31.7）
+## 一页速览（v1.31.8）
 
 | 项 | 值 |
 |---|---|
 | 形态 | 纯静态站点，原生 JS，零依赖；GitHub Pages 直出 |
-| 入口 | `index.html`（20 个 `<script>`，顺序即依赖顺序） |
+| 入口 | `index.html`（26 个 `<script>`，顺序即依赖顺序） |
 | 单文件版 | `node scripts/build-standalone.js` → `idle-shanhaijing-standalone.html`（不入库） |
-| 源码 | `src/` 共 20 个文件、约 2.76 万行；`src/ui.js` 单文件约 4500 行 |
+| 源码 | `src/` 共 26 个文件、约 2.81 万行；`src/ui/` 按页拆成 7 个（最大 `core.js` 1300 行） |
 | 数据 | 山系 26 / 山川 447 / 物品 682 / 异兽 316 / 配方 104 / 图鉴 1122 / 祠礼 28 / 征兆 45 / 建造 12 / 成就 18 |
 | 存档 | `localStorage`，键 `shj_zhulu_save_v1`（`SAVE_VERSION = 4`），另记落盘时间 `…_time` |
 | 测试 | `node test/engine.test.js` —— 1878 条断言，97 节，单进程约 1.5 秒 |
