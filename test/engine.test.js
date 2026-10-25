@@ -112,6 +112,13 @@ assert(Object.keys(ST.CODEX).length >= 90, '图鉴条目 -> ' + Object.keys(ST.C
 assert(Object.keys(ST.OMENS).length === 8 + 15 + 4 + 15 + 3, '征兆 8 + 15 + 北山 4 + 东山 15 + 中山 3 = 45 条 -> ' + Object.keys(ST.OMENS).length);
 assert(Object.keys(ST.OBSERVE_SITES).length === 9, '观象/观瑞 5 + 东山 4 = 9 处');
 assert(Object.keys(ST.RITES).length === 3 + 6 + 1 + 3 + 3 + 12, '祠礼 3 + 6 + 常祭 + 北山 3 + 东山 3 + 中山 12 = 28 套 -> ' + Object.keys(ST.RITES).length);
+// 祠礼祭品不得张冠李戴：中次十一经原文「用一珪」，珪是 guiyu 而非桂（gui）
+{
+  const r11 = ST.Recipes.find(r => r.out === 'rite_zs11');
+  assert(r11 && r11.cost.some(([m]) => m === 'guiyu'), '中次十一经祠礼用「珪」（guiyu）');
+  assert(r11 && !r11.cost.some(([m]) => m === 'gui'), '中次十一经祠礼不误用「桂」（gui）当珪');
+  assert(ST.Items.guiyu && ST.Items.guiyu.name === '珪', 'guiyu 确为珪');
+}
 assert(ST.RITES.rite_chang.regionId === null, '常祭无区域归属（随时可行）');
 assert(Object.keys(ST.AUDIENCE_SITES).length >= 8, '谒见神祇之山 -> ' + Object.keys(ST.AUDIENCE_SITES).length);
 assert(Object.keys(ST.GROW_SITES).length === 3, '养成点（丹木 / 器酸 / 精卫）');
@@ -2196,6 +2203,12 @@ section('叙录 / 关于本作');
   assert(h.indexOf(String(ST.WORLD.regions.length)) >= 0, '卷帙含实时山系数');
   assert(h.indexOf(String(Object.keys(ST.Monsters).length)) >= 0, '卷帙含实时异兽数');
   assert(h.indexOf(String(Object.keys(ST.CODEX).length)) >= 0, '卷帙含实时图鉴条数');
+
+  // 39.3b 五臧收卷：中山经 197 山全录时的印记与「山经」格
+  const zsTotal = ST.ZHONGSHAN.regions.reduce((a, r) => a + r.nodes.length, 0);
+  assert(zsTotal === 197, '中山经十二系共 197 山（合古籍自述「大凡百九十七山」）-> ' + zsTotal);
+  assert(h.indexOf(zsTotal + ' / 197 山') >= 0, '卷帙含「山经 N / 197 山」一格');
+  assert(h.indexOf('ab-complete') >= 0 && h.indexOf('五臧全录') >= 0, '197 山全录时叙录页浮现「五臧全录」印记');
 
   // 39.4 版本印记集中一处，不散落各处硬编码
   assert(gameDataSrc.includes('const GAME_META = {'), '版本印记集中在 GAME_META 常量');

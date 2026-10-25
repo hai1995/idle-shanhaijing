@@ -1028,7 +1028,8 @@ UI.renderYudi = function(){
             const un = regionUnlocked(r);
             const done = r.nodes.filter(n=>Game.map[n.id]).length;
             const full = r.nodes.length > 0 && done >= r.nodes.length;
-            const todo = r.nodes.length > 0;   // 空山系（框架已立、诸山待补录）不按进度渲染
+            // 中山经十二系已于 v1.13 全录，此分支现仅在数据缺失时兜底（空山系不按进度渲染）
+            const todo = r.nodes.length > 0;
             // 方块：山系名 + 涉山进度；未解锁只留一把锁与所需等级
             return `<div class="tile region-tile ${r.regionId===this.selRegion?'on':''} ${un?'':'lock'} ${full?'full':''}"
                 title="${esc(r.regionName)}${un ? (todo ? ` · 已涉 ${done}/${r.nodes.length} 山` : ' · 原文已备，诸山待补录') : ` · 需舆地 ${r.unlockLevel} 级`}"
@@ -1628,7 +1629,8 @@ function taofaListHtml(){
       // 宜用属性 = 克敌方的属性。⚠️ 必须走 counterOf 反查：KE_MAP[敌方] 得到的是
       // 「敌方所克之物」——木敌会给出土，而克木的是金，正好反了。
       const counterEl = x.el ? (counterOf(x.el) || '') : '';
-      const drops = (x.loot||[]).map(([iid])=> (Items[iid]||{}).name || iid).slice(0,3).join('、');
+      const dropList = (x.loot && x.loot.length) ? x.loot : (x.drop ? [[x.drop,1,1]] : []);
+      const drops = dropList.map(([iid])=> (Items[iid]||{}).name || iid).slice(0,3).join('、');
       // 连杀递减提示：本目标已连杀 n 次时，明示当前经验系数（换一只打即恢复）
       const streakN = (Game.mobStreak && Game.mobStreak[x.id]) || 0;
       const decayTag = (!x.boss && streakN > 0 && mobStreakMult(x.id) < 1)
@@ -1718,7 +1720,8 @@ UI.openHuntModal = function(id){
   const rec = Game.records[id] || { count:0, tier:0 };
   const th = threatOf(x);
   const counterEl = x.el ? (counterOf(x.el) || '') : '';
-  const drops = (x.loot || []).map(([iid]) => (Items[iid]||{}).name || iid).join('、');
+  const dropList2 = (x.loot && x.loot.length) ? x.loot : (x.drop ? [[x.drop,1,1]] : []);
+  const drops = dropList2.map(([iid]) => (Items[iid]||{}).name || iid).join('、');
   const streakN = (Game.mobStreak && Game.mobStreak[id]) || 0;
   const decay = (!x.boss && streakN > 0) ? mobStreakMult(id) : 1;
   const can = un && lvOk;
@@ -2847,7 +2850,7 @@ UI.renderAbout = function(){
         <div><b>制作</b>制器 / 烹饪 / 炼药 / 营建。材料不足会直说缺哪样、差多少。</div>
         <div><b>征伐</b>五行相克 ×1.35、被克 ×0.75、相生 ×1.15。同兽连杀经验递减，六凶为终战。</div>
         <div><b>御使</b>著录至「通形」的异兽可入槽，化作被动增益与自动作业。</div>
-        <div><b>祠祀</b>十六套礼制，行祭得山系增益；吉凶之兆随之而动，可禳可禳解。</div>
+        <div><b>祠祀</b>二十八套礼制，行祭得山系增益；吉凶之兆随之而动，可禳可解。</div>
         <div><b>离线</b>离山亦不停笔，归来按效率一并结算，不令一日虚度。</div>
       </div>
     </section>

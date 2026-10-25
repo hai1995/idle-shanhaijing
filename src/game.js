@@ -582,6 +582,13 @@ function doAudience(nodeId){
       const me = clean(d.name);
       const hit = Object.keys(OMENS).find(k => OMENS[k].node === nodeId && clean(OMENS[k].beast).indexOf(me) === 0);
       if (hit) activateOmen(hit);
+      // 神赐：首次谒见得其遗物一件（如刚山神「神𩲜之足」——神祇不讨伐，唯谒见可得）
+      if (d.gift && Items[d.gift]){
+        giveItem(d.gift, 1, false);
+        pushRecentLoot(d.gift, 1);
+        log(`🎁 得 ${Items[d.gift].name} —— ${d.name}所赐`, 'gold', 'skill');
+        UI && UI.lootFloat(d.gift, 1);
+      }
     }
   }
   gainXp('jisi', 200 + (n ? n.unlockLevel*4 : 0));

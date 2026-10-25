@@ -793,7 +793,7 @@ R('rite','rite_bs1',1,800,63,[['xiongji',1],['yu',1],['tu',1]]);                
 R('rite','rite_bs2',1,820,64,[['xiongji',1],['bi',1],['yu',1]]);                            // 北次二经：蛇身人面，投而不糈
 R('rite','rite_bs3',1,850,65,[['yu',1],['bi',1],['tu',1]]);                                   // 北次三经：神祇各异（廿神藻茝瘗／十四神玉不瘗／十神璧瘗），综合以玉+璧+糈
 // 东山三套祠礼（终末章·荒经水路；东次四经无神无礼）
-R('rite','rite_ds1',1,850,71,[['baiquan',1],['yupei',1]]);   // 东山首经·人身龙首之神：毛用一犬祈，䎶用鱼
+R('rite','rite_ds1',1,850,71,[['baiquan',1],['yupei',1]]);   // 东山首经·人身龙首之神：毛用一犬祈，䎶用鱼（鱼牲以水族育沛当之）
 R('rite','rite_ds2',1,870,73,[['xiongji',1],['bi',1]]);      // 东次二经·兽身人面载觡之神：毛用一鸡祈，婴用一璧瘗
 R('rite','rite_ds3',1,900,77,[['yang',1],['shu',1]]);        // 东次三经·人身羊角之神：用一牡羊，米用黍
 // 中山三套祠礼（帝之密都·全书收卷；2026-10-24 首录三系）
@@ -818,7 +818,7 @@ R('rite','rite_zs9',1,1080,78,[['xiongji',1],['jiyu2',1],['tu',1]]);
 // 中次十经：山神皆龙身人面——其祠毛用一雄鸡瘗，糈用五种之糈（稌黍稻稷粱五种米）
 R('rite','rite_zs10',1,1100,78,[['xiongji',1],['tu',1],['shu',1],['dao',1]]);
 // 中次十一经：山神皆彘身人首——其祠毛用一雄鸡祈瘗，用一珪，糈用五种之精
-R('rite','rite_zs11',1,1120,79,[['xiongji',1],['gui',1],['tu',1],['shu',1]]);
+R('rite','rite_zs11',1,1120,79,[['xiongji',1],['guiyu',1],['tu',1],['shu',1]]);   // 「用一珪」——珪（guiyu），非「桂」（gui）
 // 中次十二经：山神皆鸟身而龙首——其祠毛用一雄鸡、一牝豚刏，糈用稌；夫夫/即公/尧/阳帝为冢，洞庭/荣余为神
 R('rite','rite_zs12',1,1140,80,[['xiongji',1],['zs_mutun',1],['tu',1]]);
 
@@ -1317,9 +1317,20 @@ const FAUNA_META = {
   '鹦鹉':   { id:'yingwu',   el:'火', drop:'niaoyu' },
   '牦牛':   { id:'maoniu',   el:'土', drop:'maoniupi', hunt:true, py:'máo' },
   '麢':     { id:'ling',     el:'木', drop:'shougu', py:'líng' },
-  '麝':     { id:'she',      el:'木', drop:'shepi', py:'shè' },
+  '麝':     { id:'she',      el:'木', drop:'shepi', py:'shè', extra:[['zs_she_r',0.45,1]], note:'似鹿而小，脐有香——麝香（中次十二经阳帝之山亦多麝）' },
+  // 中山经神祇（帝之密都诸神与山神）：deity 走「谒见」入录，不讨伐、不掉落
+  '武罗':     { id:'zs_wuluo',   el:'木', deity:true, py:'wǔ luó',  note:'青要之山神——人面豹文，小要而白齿，穿耳以鐻，其鸣如鸣玉' },
+  '泰逢':     { id:'zs_taifeng', el:'火', deity:true, py:'tài féng',note:'和山之神——其状如人而虎尾，好居于萯山之阳，出入有光' },
+  '骄虫':     { id:'zs_jiaochong', el:'火', deity:true, py:'jiāo chóng', note:'平逢之山神——其状如人而二首，是为螫虫，实惟蜂蜜之庐' },
+  '𬠷围':     { id:'zs_weiu',    el:'木', deity:true, py:'tuó wéi', note:'骄山神——其状如人面，羊角虎爪，恒游于雎漳之渊，出入有光' },
+  '计蒙':     { id:'zs_jimeng',  el:'水', deity:true, py:'jì méng', note:'光山神——其状人身而龙首，恒游于漳渊，出入必有飘风暴雨' },
+  '涉𬠷':     { id:'zs_shetuo',  el:'土', deity:true, py:'shè tuó', note:'岐山神——其状人身而方面，三足' },
+  '神人':     { id:'zs_shenren', el:'金', deity:true, py:'shén rén',note:'熊山之穴——恒出入神人，夏启而冬闭，冬启乃必有兵' },
+  '耕父':     { id:'zs_gengfu',  el:'水', deity:true, py:'gēng fù', note:'丰山神——常游清泠之渊，出入有光，见则其国为败' },
+  '于儿':     { id:'zs_yuer',    el:'水', deity:true, py:'yú ér',   note:'夫夫之山神——其状人身而身操两蛇，常游于江渊，出入有光' },
+  '帝之二女': { id:'zs_ernv',    el:'水', deity:true, py:'dì zhī èr nǚ', note:'洞庭之山——帝之二女居之，常游于江渊，出入必以飘风暴雨' },
   '鸓':     { id:'lei',      el:'木', drop:'niaoyu', py:'lěi' },
-  '白蛇':   { id:'baishe',   el:'水', drop:'baishepi' },
+  '白蛇':   { id:'baishe',   el:'水', drop:'baishepi', extra:[['zs_baishe_r',0.4,1]], note:'蛇而色白——其胆入药（中次十二经柴桑之山多白蛇）' },
   '虎':     { id:'hu',       el:'金', drop:'hupi', man:true },
   '豹':     { id:'bao',      el:'金', drop:'baopi', man:true },
   // —— 西次二经 ——
@@ -1564,9 +1575,7 @@ const FAUNA_META = {
   // 中次十二经：即公之山蛫（御火）、暴山就（鹫）、柴桑白蛇飞蛇、阳帝麝
   '蛫':     { id:'zs_gui2',    el:'水', drop:'zs_gui2_r',    py:'guǐ',    note:'其状如龟而白身赤首，可以御火' },
   '就':     { id:'zs_jiu',     el:'金', drop:'zs_jiu_r',     py:'jiù',    note:'即鹫——黑色猛禽，其羽可为箭翎' },
-  '白蛇':   { id:'zs_baishe',  el:'金', drop:'zs_baishe_r',  py:'bái shé',note:'蛇而色白——其胆入药' },
   '飞蛇':   { id:'zs_feishe',  el:'木', drop:'zs_feishe_r',  py:'fēi shé',note:'蛇而有翼，能飞，乘雾而行' },
-  '麝':     { id:'zs_she',     el:'土', drop:'zs_she_r',     py:'shè',    note:'似鹿而小，脐有香——即麝香' },
   // ===== 东山经（四系 46 山）=====  —— 常兽虎/麋/鹿/大蛇/䱻鱼已在他经存在，复用其 meta
   '鳙鳙之鱼':{ id:'ds_yongyu',  el:'水', drop:'ds_yongyu_r' },
   '从从':    { id:'ds_congcong',el:'土', drop:'ds_congcong_r' },
@@ -1802,6 +1811,7 @@ function addMonster(m){ Monsters[m.id] = m; }
         usedIds.add(id);
         const st = beastStat(node.unlockLevel, meta.man ? 'man' : 'normal');
         const loot = [[meta.drop, 1.0, 1], ['shougu', 0.8, 1]];
+        for (const ex of (meta.extra || [])) loot.push(ex);          // 附加掉落（同名异兽合并后仍保各章专属物）
         if (meta.riteDrop) loot.push([meta.riteDrop, 0.6, 1]);       // 祠牲（牛羊豕）
         if (meta.hunt) loot.push(['xi', 0.25, 1]);                   // 可猎之兽兼得祭「牺」
         addMonster({
@@ -1958,7 +1968,9 @@ addMonster({ id:'dijiang', name:'帝江', boss:true, el:'土', needLvl:61, hp:20
 // 前往其山，行谒见之礼（耗时 20s），入图鉴并得祝祐。BOSS 级神祇（陆吾/西王母/帝江）走讨伐。
 const AUDIENCE_SITES = {};
 (function buildAudienceSites(){
-  for (const region of XISHAN.regions){
+  // v1.13：原只遍历西山经，中山经接入后其十位神祇（武罗/泰逢/骄虫/𬠷围/计蒙/涉𬠷/神人/耕父/于儿/帝之二女）
+  // 既不可讨伐、又不在谒见表里，只作纯文本存在。改为遍历全书，凡 deity 型 fauna 皆可谒见。
+  for (const region of WORLD.regions){
     for (const node of region.nodes){
       const deities = (node.fauna||[]).filter(f=>{
         const meta = FAUNA_META[f.name];
@@ -1969,7 +1981,8 @@ const AUDIENCE_SITES = {};
         nodeId: node.id, kind:'谒见',
         name: deities.map(d=>d.name).join('・'),
         desc: node.source ? node.source.slice(0, 80) + '…' : '',
-        deities: deities.map(d=>({ name:d.name, id:FAUNA_META[d.name].id, form:d.form||null, duty:d.duty||null, note:FAUNA_META[d.name].note||null })),
+        deities: deities.map(d=>({ name:d.name, id:FAUNA_META[d.name].id, form:d.form||null, duty:d.duty||null, note:FAUNA_META[d.name].note||null,
+          gift: FAUNA_META[d.name].drop || null })),   // 神赐：首次谒见得其一物（如神𩲜之足）
       };
     }
   }
