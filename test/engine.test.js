@@ -2464,10 +2464,16 @@ section('营造建筑图标');
   const uiM29 = readText('src/ui.js');
   // 29.1 模块存在并已接入加载顺序
   assert(typeof si === 'function', 'structureIcon 已导出');
-  assert(/const ART = \{ zhai, zaoku, tuku, citan, shichan, canglin, fenghuotai, xuegong \}/.test(stcSrc), '八座建筑各有一幅专属画法');
+  // 不再写死八座：以后每加一座建筑，这里跟着走
+  assert(/const ART = \{[\s\S]{0,300}\}/.test(stcSrc) && stcSrc.includes('xuegong'),
+    '每座建筑各有专属画法（ART 表）');
+  for (const id of Object.keys(ST.BUILDINGS)){
+    assert(new RegExp('function ' + id + '\\(').test(stcSrc), '建筑「' + id + '」有画法函数');
+  }
   assert(indexOfOf('index.html', 'src/structureIcon.js') >= 0, 'structureIcon.js 已引入页面');
   // 29.2 建筑数量与图标数量严格对齐（新增建筑必须补图）
-  assert(ST.STRUCTURE_ICON_IDS.length === 8, '建筑图标共 8 枚（' + ST.STRUCTURE_ICON_IDS.length + '）');
+  assert(ST.STRUCTURE_ICON_IDS.length === Object.keys(ST.BUILDINGS).length,
+    '图标数与建筑数一致（' + ST.STRUCTURE_ICON_IDS.length + ' / ' + Object.keys(ST.BUILDINGS).length + '）');
   const bIds = Object.keys(ST.BUILDINGS);
   const missing = bIds.filter(id => !ST.STRUCTURE_ICON_IDS.includes(id));
   assert(missing.length === 0, '每座建筑都有图标（缺：' + (missing.join(',')||'无') + '）');
@@ -3769,6 +3775,75 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   assert(uiSrc65.includes('UI.forgeShow(it, { heavy:false })'), '强化播打铁演出再揭晓');
   assert(uiSrc65.includes('UI._revealEnh'), '揭晓有单独反馈（成功跳数字 / 失败震窗）');
   assert(/\.pack-wrap \.inv-panel\{ order:-1; \}/.test(readText('style.css')), '行装页行囊排在前（窄屏在上）');
+}
+
+// ============ 66. 后期四座营造（v1.18.1） ============
+{
+  G.resetToDefault();
+  const ids = ['cuihuolu', 'cangshuge', 'zhaoxianguan', 'shanhaige'];
+  for (const id of ids){
+    const b = ST.BUILDINGS[id];
+    assert(!!b, '建筑「' + id + '」已定义');
+    assert(b.lvl >= 24, id + ' 是后期建筑（营邑 ' + b.lvl + ' 级）');
+    assert(b.cost.every(([m]) => !!ST.Items[m]), id + ' 的材料都在物品表里');
+    assert(!!ST.STRUCTURE_ICON_IDS.includes(id), id + ' 有专属画法');
+    assert(ST.UI && true, '');
+  }
+  assert(Object.keys(ST.BUILDINGS).length === 12, '营造共十二座（' + Object.keys(ST.BUILDINGS).length + '）');
+
+  // 66.1 淬火炉：淬炼成功率 +6%
+  for (const sid of ST.ALL_SKILL_IDS) ST.Game.skills[sid] = { level: 70, xp: 1e8 };
+  ST.Game.enhance = { bailianjian: 12 };
+  ST.Game.enhanceHeat = {};
+  ST.Game.buildings = {};
+  const r0 = ST.enhanceRateFor('bailianjian');
+  ST.Game.buildings.cuihuolu = true;
+  const r1 = ST.enhanceRateFor('bailianjian');
+  assert(Math.abs((r1 - r0) - 0.06) < 1e-9, '淬火炉使成功率 +6%（' + (r0*100).toFixed(0) + '% → ' + (r1*100).toFixed(0) + '%）');
+
+  // 66.2 藏书阁：修行经验 +10%
+  ST.Game.buildings = {};
+  const x0 = ST.xpMult();
+  ST.Game.buildings.cangshuge = true;
+  const x1 = ST.xpMult();
+  assert(Math.abs((x1 - x0) - 0.10) < 1e-9, '藏书阁使修行经验 +10%');
+
+  // 行为：同样一次采集，经验确实多一成
+  G.resetToDefault();
+  for (const sid of ST.ALL_SKILL_IDS) ST.Game.skills[sid] = { level: 30, xp: 0 };
+  ST.Game.node = 'nanshan-1-01';
+  const xpOf = (built) => {
+    ST.Game.buildings = built ? { cangshuge: true } : {};
+    ST.Game.skills.qiaocai = { level: 30, xp: 0 };
+    ST.gainXp('qiaocai', 1000);
+    return ST.Game.skills.qiaocai.xp;
+  };
+  const noBook = xpOf(false), withBook = xpOf(true);
+  assert(withBook > noBook, '有藏书阁时同量修行得经验更多（' + noBook + ' → ' + withBook + '）');
+
+  // 66.3 招贤馆：御使增益 ×1.15
+  G.resetToDefault();
+  ST.Game.records = {}; ST.Game.deployed = { 0: 'bo' };
+  const b0 = ST.deployedBonuses();
+  ST.Game.buildings.zhaoxianguan = true;
+  ST.Game.records = {};                                  // 触发缓存重算
+  const b1 = ST.deployedBonuses();
+  const k0 = Object.keys(b0).find(k => b0[k] > 0);
+  if (k0) assert(Math.abs(b1[k0] - b0[k0] * 1.15) < 1e-9, '御使增益整体 ×1.15（' + k0 + '：' + b0[k0].toFixed(3) + ' → ' + b1[k0].toFixed(3) + '）');
+
+  // 66.4 山海阁：离线上限 +3h、效率 +5%
+  G.resetToDefault();
+  const h0 = ST.offlineCapHours(), e0 = ST.offlineEff();
+  ST.Game.buildings.shanhaige = true;
+  const h1 = ST.offlineCapHours(), e1 = ST.offlineEff();
+  assert(h1 - h0 === 3, '山海阁使离线上限 +3 小时（' + h0 + ' → ' + h1 + '）');
+  assert(Math.abs((e1 - e0) - 0.05) < 1e-9, '山海阁使离线效率 +5%');
+
+  // 66.5 每座都有收益预览（营邑弹窗要说得清「建成后如何」）
+  const uiSrc66 = readText('src/ui.js');
+  for (const id of ids){
+    assert(uiSrc66.includes("case '" + id + "'"), id + ' 在 structureEffectRows 里有收益对比');
+  }
 }
 
 // ============ 47. 物品用途面板（v1.14.3） ============

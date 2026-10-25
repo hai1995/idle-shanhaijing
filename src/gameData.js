@@ -1303,6 +1303,12 @@ const BUILDINGS = {
   canglin: { id:'canglin', name:'仓廪',   lvl:12, xp:22000, cost:[['guaimu',20],['tu',10]],             desc:'离线上限 +2 小时 · 离线效率 +5%' },
   fenghuotai:{ id:'fenghuotai',name:'烽火台',lvl:16, xp:38200, cost:[['shashi',20],['tan',10]],         desc:'凶兆先举烽，延时四十五秒方应验 · 其害减半' },
   xuegong: { id:'xuegong', name:'学宫',   lvl:20, xp:20000, cost:[['guaimu',30],['yu',5],['jian',10]],  desc:'著录度获取 +25%' },
+  // 后期四座：此前二十级封顶，建完学宫营邑就无事可做。这四座各接一条已有通道，
+  // 让「营邑」在四十级、五十级仍有下一座可盼。
+  cuihuolu:  { id:'cuihuolu',  name:'淬火炉', lvl:24, xp:56000,  cost:[['tan',40],['chijin',12],['guaimu',25]], desc:'炉火纯青 · 淬炼成功率 +6%' },
+  cangshuge: { id:'cangshuge', name:'藏书阁', lvl:30, xp:92000,  cost:[['guaimu',40],['yu',10],['jin',15]],     desc:'竹简盈室，日诵不辍 · 修行经验 +10%' },
+  zhaoxianguan:{ id:'zhaoxianguan', name:'招贤馆', lvl:40, xp:175000, cost:[['jin',20],['yu',15],['tan',20]],  desc:'广纳异兽，各尽其能 · 御使增益 +15%' },
+  shanhaige: { id:'shanhaige', name:'山海阁', lvl:52, xp:330000, cost:[['yu',25],['chijin',20],['tan',40]],    desc:'藏山海之图于阁上 · 离线上限 +3 小时、离线效率 +5%' },
 };
 
 // ---------- 墟市（商旅） ----------
@@ -2325,7 +2331,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.18.0',
+  version: '1.18.1',
   codename:'五臧 · 铸火',
   updated: '2026-10-25',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',

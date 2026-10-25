@@ -2831,6 +2831,18 @@ function structureEffectRows(id){
               { label:'凶兆应验', from: built ? '举烽后 45 秒' : '即时', to: built ? '已生效' : '延时 45 秒' }];
     case 'xuegong':
       return [{ label:'著录度获取', from: built ? '+25%' : '—', to: built ? '已生效' : '+25%' }];
+    // ---- 后期四座 ----
+    case 'cuihuolu':
+      return [{ label:'淬炼成功率', from: built ? '已含 +6%' : '按等级表', to: built ? '已生效' : '各级 +6%' }];
+    case 'cangshuge':
+      return [{ label:'修行经验', from: '×' + xpMult().toFixed(2), to: built ? '已生效' : '×' + (xpMult() + 0.10).toFixed(2) }];
+    case 'zhaoxianguan':
+      return [{ label:'御使增益', from: '×' + (built ? '1.15' : '1.00'), to: built ? '已生效' : '×1.15' }];
+    case 'shanhaige': {
+      const h = offlineCapHours(), e = offlineEff();
+      return [row('离线上限', h + ' 小时', (h + 3) + ' 小时'),
+              row('离线效率', pct(e), pct(e + 0.05))];
+    }
     default:
       return [];
   }

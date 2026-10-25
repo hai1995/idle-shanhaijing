@@ -103,9 +103,51 @@ function xuegong(){
     <path d="M25 11 H39 L37 16 H27 Z" fill="${WOOD}"/>`;
 }
 
-const ART = { zhai, zaoku, tuku, citan, shichan, canglin, fenghuotai, xuegong };
+// 淬火炉：圆腹炉身、炉口吐出火舌，右侧接一只风箱
+function cuihuolu(){
+  return `<path d="M18 56 Q15 41 22 30 H42 Q49 41 46 56 Z" fill="${INK}"/>
+    <path d="M20 40 Q32 36 44 40" stroke="${WOOD}" stroke-width="1.8" opacity=".55" fill="none"/>
+    <path d="M22 30 H42 V26 H22 Z" fill="${WOOD}"/>
+    <path d="M26 26 Q23 19 32 15 Q41 19 38 26 Z" fill="${FIRE}" opacity=".9"/>
+    <path d="M32 15 Q28 9 32 5" fill="none" stroke="${FIRE}" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="M47 38 H57 V49 H47 Z" fill="${WOOD}" opacity=".85"/>
+    <path d="M50 43 H54" stroke="${INK}" stroke-width="2" stroke-linecap="round"/>`;
+}
+// 藏书阁：两层楼阁，下悬卷册
+function cangshuge(){
+  return `<path d="M12 56 V42 H52 V56 Z" fill="${INK}"/>
+    <path d="M8 42 L32 31 L56 42 Z" fill="${INK}"/>
+    <path d="M20 31 V19 H44 V31 Z" fill="${INK}"/>
+    <path d="M16 19 L32 10 L48 19 Z" fill="${INK}"/>
+    <path d="M26 56 V47 H38 V56 Z" fill="#1F1C18"/>
+    <path d="M24 44 H40 V48 H24 Z" fill="${GOLD}" opacity=".85"/>
+    <path d="M27 44 V48 M31 44 V48 M35 44 V48" stroke="${INK}" stroke-width="1" opacity=".6"/>`;
+}
+// 招贤馆：厅堂之上立招贤旗
+function zhaoxianguan(){
+  return `<path d="M10 56 V39 H54 V56 Z" fill="${INK}"/>
+    <path d="M6 39 L32 27 L58 39 Z" fill="${INK}"/>
+    <path d="M27 56 V45 H37 V56 Z" fill="#1F1C18"/>
+    <path d="M32 27 V9" stroke="${INK}" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M32 11 H49 L44 16 L49 21 H32 Z" fill="${FIRE}" opacity=".92"/>
+    <path d="M18 47 H25 M39 47 H46" stroke="${GOLD}" stroke-width="2" stroke-linecap="round" opacity=".8"/>`;
+}
+// 山海阁：三重檐高阁，阁后露出山影
+function shanhaige(){
+  return `<path d="M15 56 L24 45 L29 50 L36 41 L45 56 Z" fill="${WOOD}" opacity=".5"/>
+    <path d="M20 56 V44 H44 V56 Z" fill="${INK}"/>
+    <path d="M6 44 L32 34 L58 44 Z" fill="${INK}"/>
+    <path d="M24 34 V26 H40 V34 Z" fill="${INK}"/>
+    <path d="M14 26 L32 17 L50 26 Z" fill="${INK}"/>
+    <path d="M29 26 V20 H35 V26 Z" fill="${GOLD}" opacity=".85"/>
+    <path d="M30 56 V48 H34 V56 Z" fill="#1F1C18"/>`;
+}
+
+const ART = { zhai, zaoku, tuku, citan, shichan, canglin, fenghuotai, xuegong,
+  cuihuolu, cangshuge, zhaoxianguan, shanhaige };
 // 每个建筑的主色（用于圆晕与地平）
-const TINT = { zhai:WOOD, zaoku:FIRE, tuku:WOOD, citan:GOLD, shichan:WOOD, canglin:GOLD, fenghuotai:FIRE, xuegong:GOLD };
+const TINT = { zhai:WOOD, zaoku:FIRE, tuku:WOOD, citan:GOLD, shichan:WOOD, canglin:GOLD, fenghuotai:FIRE, xuegong:GOLD,
+  cuihuolu:FIRE, cangshuge:GOLD, zhaoxianguan:GOLD, shanhaige:WOOD };
 
 function escAttr(s){
   return String(s==null?'':s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));

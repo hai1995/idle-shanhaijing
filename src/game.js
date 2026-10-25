@@ -104,6 +104,8 @@ function deployedBonuses(){
     const id = Game.deployed[k];
     sig += k + id + ((Game.records[id]||{}).tier||0) + ';';
   }
+  // 招贤馆会整体放大，必须进缓存键——否则造好之后仍拿旧值（建了等于没建）
+  if (Game.buildings && Game.buildings.zhaoxianguan) sig += 'Z';
   if (_dbCache.out && _dbCache.sig === sig) return _dbCache.out;
   const b = { gatherSpeed:0, xp:0, farmSpeed:0, div:0, hp:0, def:0, offline:0, trade:0, dmg:0, loot:0, cookQty:0, build:0, yield:0, heal:0 };
   for (const k in Game.deployed){
@@ -113,7 +115,13 @@ function deployedBonuses(){
     const scale = 0.6 + 0.1 * ((Game.records[beast.id]||{}).tier||0);
     for (const key in def) if (key !== 'label' && typeof def[key] === 'number') b[key] += def[key] * scale;
   }
-  _dbCache.sig = sig; _dbCache.out = b;
+  // 招贤馆：御使增益整体 +15%。它放大的是「所有」御使条目，
+  // 所以放在汇总之后统一乘，而不是逐条改 BEAST_BUFFS。
+  if (Game.buildings && Game.buildings.zhaoxianguan){
+    for (const k in b) if (typeof b[k] === 'number') b[k] *= 1.15;
+  }
+  _dbCache.sig = sig;
+  _dbCache.out = b;
   return b;
 }
 // 未单独设计的异兽：按类目给一份基础增益（西山异兽众多，各有其用）
@@ -126,6 +134,7 @@ function xpMult(){
   let m = 1;
   (window.Milestones||[]).forEach(ms=>{ if (ms.xp && ms.check()) m += ms.xp; });
   m += deployedBonuses().xp;
+  if (Game.buildings.cangshuge) m += 0.10;          // 藏书阁：修行经验 +10%
   if (Game.buff && Game.buff.def && Game.buff.def.kind === 'xp') m += Game.buff.def.xpBonus || 0;
   return m;
 }
@@ -188,6 +197,7 @@ function offlineEff(){
   let e = TUNING.OFFLINE.EFF_BASE + TUNING.OFFLINE.EFF_PER * Math.min(6, Math.floor(maxSkillLevel()/10));
   (window.Milestones||[]).forEach(ms=>{ if (ms.offlineEff && ms.check()) e += ms.offlineEff; });
   if (Game.buildings.canglin) e += 0.05;
+  if (Game.buildings.shanhaige) e += 0.05;
   if (Game.buff && Game.buff.def && Game.buff.def.kind === 'offline') e += Game.buff.def.offline;
   e += deployedBonuses().offline;
   e += omenMod('offline');              // 猾褢「大繇」：离线收益 -25%
@@ -197,6 +207,7 @@ function offlineCapHours(){
   let h = TUNING.OFFLINE.CAP_H;
   if (Game.buildings.canglin) h += 2;
   if (Game.buildings.tuku) h += 1;      // 土窟：因势窟土，以庇风雨
+  if (Game.buildings.shanhaige) h += 3;  // 山海阁：藏山海之图
   h += Object.values(Game.observed||{}).filter(Boolean).length;   // 每处观象 +1h
   // 长线成就里的「离线上限 +1h」原先只有文案、没人读——三谷观象做完，
   // 里程碑亮着「已达成」，上限却没动。这里补上。
@@ -1095,7 +1106,8 @@ function enhanceRateFor(itemId){
   const base = enhanceRate(enhanceLevel(itemId));
   if (base >= 1) return 1;                    // 0→1 本就必成，别被 95% 的封顶拉下来
   const hot = enhanceHeatOf(itemId) * ENHANCE_HEAT.STEP;
-  return Math.min(0.95, base + hot);
+  const forge = (Game.buildings && Game.buildings.cuihuolu) ? 0.06 : 0;   // 淬火炉
+  return Math.min(0.95, base + hot + forge);
 }
 // 强化上限按品阶分档：凡 +12、良 +18、精 +22、珍 +26、神 +30。
 // 此前众生平等 +30，神兵「更耐淬」这件事无从体现；现在它是品阶带来的
