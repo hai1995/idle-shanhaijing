@@ -38,7 +38,7 @@ const Game = {
     kills:0, deaths:0, actions:0, totalXp:0, time:0, bossKills:{}, totalEarned:0,
     harvests:0, purchases:0, sales:0, spent:0, sold:0, gathers:{}, crafts:0,
     damageDealt:0, damageTaken:0, hits:0, omens:{}, rites:0, observes:0, divines:0,
-    seenMilestones:{}, winStreak:0, seenDeployHint:false, seenFallbackHint:false, _unlockedRegions:[],
+    seenMilestones:{}, winStreak:0, deathStreak:0, deathStreakOf:null, seenDeployHint:false, seenFallbackHint:false, _unlockedRegions:[],
   },
   startedAt: Date.now(),
   version: 2,
@@ -79,7 +79,7 @@ function cloneDefaultGame(){
   g.stats = { kills:0, deaths:0, actions:0, totalXp:0, time:0, bossKills:{}, totalEarned:0,
               harvests:0, purchases:0, sales:0, spent:0, sold:0, gathers:{}, crafts:0,
               damageDealt:0, damageTaken:0, hits:0, omens:{}, rites:0, observes:0, divines:0,
-              seenMilestones:{}, claimed:{}, winStreak:0, seenDeployHint:false, seenFallbackHint:false, _unlockedRegions:[],
+              seenMilestones:{}, claimed:{}, winStreak:0, deathStreak:0, deathStreakOf:null, seenDeployHint:false, seenFallbackHint:false, _unlockedRegions:[],
               // 离线结算累计（统计页展示）：次数 / 时长 / 经验 / 物品件数 / 最近一次
               offlineCount:0, offlineSec:0, offlineXp:0, offlineItems:0, lastOffline:null };
   return g;

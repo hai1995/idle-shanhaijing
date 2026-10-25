@@ -2061,6 +2061,8 @@ mark.hit{
 .hm-eff{ color:var(--tai); }
 .hm-lock{ margin:10px 0; padding:8px 10px; font-size:12px; color:var(--zhu-d);
   background:var(--zhu-w); border-left:2px solid var(--zhu); }
+/* 连败提示：这只已经连着打倒你两阵以上，开战前就该看见，而不是再败一次才知道 */
+.hm-warn{ color:var(--zhu-d); font-weight:600; }
 .hm-times{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:12px 0 6px; }
 .hm-times label{ font-size:12px; color:var(--ink-2); }
 .hm-times input[type=number]{

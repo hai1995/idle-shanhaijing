@@ -1778,14 +1778,20 @@ function combatEstimateInner(m, c, hpNow){
   const hp = (hpNow==null ? m.hp : hpNow);
   const kill = Math.max(1, hp) / dps;
   const mdps = Math.max(1, m.atk - totalDefence()*0.3) * 0.6 / Math.max(1, monsterInterval(m, c));
-  const survive = kill * mdps <= playerMaxHp();
+  // 只看「撑不住」三个字，玩家不知道差多少。换成倍数：2 倍气血 = 得吃两份，
+  // 5 倍 = 别硬来，先去补器甲。BOSS 战本来就长，这条提示是开战前唯一的账。
+  const ratio = kill * mdps / Math.max(1, playerMaxHp());
+  const survive = ratio <= 1;
+  const tail = survive ? '' : ` · ⚠ 承伤约 ${ratio.toFixed(1)} 倍气血${ratio >= 1.5 ? '，需备吃食或补强' : ''}`;
   return { cls: survive ? 'good' : 'bad',
-    html: `预计击杀 ≈ ${fmtTime(Math.ceil(kill))} · 你 DPS≈${dps.toFixed(1)} · 敌 DPS≈${mdps.toFixed(1)}${survive?'':' · ⚠ 可能撑不住'}` };
+    html: `预计击杀 ≈ ${fmtTime(Math.ceil(kill))} · 你 DPS≈${dps.toFixed(1)} · 敌 DPS≈${mdps.toFixed(1)}${tail}` };
 }
 function combatEstimateHtml(m, c, hpNow){
   const r = combatEstimateInner(m, c, hpNow);
   return r ? `<div class="combat-est ${r.cls}" id="combatEst">${r.html}</div>` : '';
 }
+// 供测试与调试：开战前那条「预计击杀 / 承伤倍数」的账
+window.combatEstimateInner = combatEstimateInner;
 // 离线收益预估（纯读取，不改动任何状态）：仅依据当前活动/御使按真实公式估算
 function estimateOfflineGains(hours){
   const cap = offlineCapHours();
@@ -2086,7 +2092,7 @@ UI.openHuntModal = function(id){
     `<div class="hm-line">五行 ${x.el || '—'}${counterEl ? ` · <b>宜用 ${counterEl} 属</b>（伤害 ×${TUNING.WUXING.KE}）` : ''}</div>`,
     x.special ? `<div class="hm-line hm-spec"><b>${esc(x.special.name)}</b>${x.desc ? ' · ' + esc(x.desc) : ''}</div>` : '',
     (x.divine && Items[x.divine]) ? `<div class="hm-line hm-divine">遗神兵 <b>${esc(Items[x.divine].name)}</b>（${Math.round((typeof DIVINE_DROP==='number'?DIVINE_DROP:0.06)*100)}% 掉落 · ${esc((DIVINE_EFFECTS[Items[x.divine].divine]||{}).label||'')}）</div>` : '',
-    `<div class="hm-line">${th.label}${x.boss ? ' · BOSS' : ''}${x.pair ? ' · 成对（占两槽）' : ''}</div>`,
+    `<div class="hm-line">${th.label}${x.boss ? ' · BOSS' : ''}${x.pair ? ' · 成对（占两槽）' : ''}${(Game.stats.deathStreakOf===id && (Game.stats.deathStreak||0)>=2) ? ` · <span class="hm-warn">已连败 ${Game.stats.deathStreak} 阵</span>` : ''}</div>`,
     `<div class="hm-line">已录 <b>${rec.count}</b> 次（${TUNING.MASTERY.NAMES[rec.tier] || ''}）${decay < 1 ? ` · 连杀递减 ×${decay.toFixed(2)}` : ''}</div>`,
   ].filter(Boolean).join('');
   this.modal(`<h3><span class="mi-ic">${typeof beastIcon==='function'?beastIcon(x):'🐾'}</span> ${esc(x.name)}${x.py?`<span class="hm-py">（${esc(x.py)}）</span>`:''}</h3>

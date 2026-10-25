@@ -1615,6 +1615,7 @@ window.mobStreakMult = mobStreakMult; window.bumpMobStreak = bumpMobStreak;
 function meetKill(c, m){
   const isBoss = !!m.boss;
   Game.stats.kills++;
+  Game.stats.deathStreak = 0; Game.stats.deathStreakOf = null;   // 打下来了，连败清零
   // 连胜计数与轻量庆祝
   Game.stats.winStreak = (Game.stats.winStreak||0) + 1;
   if (UI && (Game.stats.winStreak === 3 || (Game.stats.winStreak >= 5 && Game.stats.winStreak % 5 === 0))){
@@ -1698,13 +1699,24 @@ window.pushRecentLoot = pushRecentLoot;
 function onPlayerDeath(c, m){
   Game.stats.deaths++;
   Game.stats.winStreak = 0;
+  // 连败计数：同一目标连着倒下几阵，说明眼下确实啃不动它。
+  const lastId = c && c.monsterId;
+  if (lastId && Game.stats.deathStreakOf === lastId) Game.stats.deathStreak = (Game.stats.deathStreak || 0) + 1;
+  else { Game.stats.deathStreak = 1; Game.stats.deathStreakOf = lastId || null; }
+  const stuck = Game.stats.deathStreak >= 3;
   // 败北视为链条中断：复讨同一目标时重新从全额经验起算
   if (Game.mobStreak) Game.mobStreak = {};
   log(`💀 汝为 ${m.name} 所败`, 'bad', 'combat');
   UI && UI.deathFloat();
-  const lastId = c && c.monsterId;
   Game.combat = null;
   UI && UI.afterCombatEnd && UI.afterCombatEnd(lastId);   // 败北：连杀清零，递减标签该消失
+  // 连败三阵即收兵：先前只会「倒下—复讨—再倒下」地无限循环，刷屏日志、吃空食物、
+  // 还一直占着行动位，玩家回来只看到一屏败报。停在这里，把「换目标还是补强」交回玩家。
+  if (stuck){
+    log(`⛔ 连败三阵，${m.name} 非此刻可制——且去历练、或添置器甲再来`, 'bad', 'combat');
+    if (Prefs.autoRevive){ UI && UI.toast(`⛔ 连败三阵，暂不复讨 ${m.name}`); }
+    return;
+  }
   // 限次往讨败北即收兵（尊重玩家设定的场次）；无线连战仍按偏好自动复讨
   if (Prefs.autoRevive && lastId && Monsters[lastId] && c.repeat == null){
     setTimeout(()=>{

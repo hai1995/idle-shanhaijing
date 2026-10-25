@@ -4301,6 +4301,58 @@ section('阴阳嬗变不污染静态表');
   assert(m.el === '水', '全程静态表仍是原文的水属');
 }
 
+// ============ 72. 连败三阵收兵 ============
+// 改数前的老问题：打不过的怪会被「败北 → 自动复讨 → 再败北」无限循环，
+// 玩家离开一会儿回来，日志刷满败报、食物吃空，行动位还一直被占着。
+section('连败三阵收兵');
+{
+  G.resetToDefault();
+  ST.Prefs.autoRevive = true;
+  const beastA = ST.Monsters.shengsheng, beastB = ST.Monsters.huan;
+  assert(ST.Game.stats.deathStreak === 0 && ST.Game.stats.deathStreakOf === null, '新档连败计数为空');
+  G.onPlayerDeath({ monsterId: 'shengsheng' }, beastA);
+  assert(ST.Game.stats.deathStreak === 1 && ST.Game.stats.deathStreakOf === 'shengsheng', '首败记 1 阵');
+  G.onPlayerDeath({ monsterId: 'shengsheng' }, beastA);
+  G.onPlayerDeath({ monsterId: 'shengsheng' }, beastA);
+  assert(ST.Game.stats.deathStreak === 3, '同一目标累到 3 阵');
+  assert(ST.Game.combat === null, '连败三阵后不再开新的一场（停手）');
+  G.onPlayerDeath({ monsterId: 'huan' }, beastB);
+  assert(ST.Game.stats.deathStreak === 1 && ST.Game.stats.deathStreakOf === 'huan', '换目标重新从 1 计');
+  ST.Game.stats.deathStreak = 2; ST.Game.stats.deathStreakOf = 'huan';
+  G.meetKill({ monsterId: 'huan' }, beastB);
+  assert(ST.Game.stats.deathStreak === 0 && ST.Game.stats.deathStreakOf === null, '打下来之后清零');
+}
+
+// ============ 73. 开战前的账：承伤倍数与连败提示 ============
+// 「⚠ 可能撑不住」只说了结论，玩家不知道差多少，也不知道差在哪一步。
+// 现在给倍数（2 倍气血 = 备两份吃食），并在弹窗里写明这只已经连败几阵。
+section('开战前的账');
+{
+  const uiSrc73 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  assert(uiSrc73.includes('倍气血') && uiSrc73.includes('需备吃食或补强'), '战斗评估给出承伤倍数与应对');
+  assert(uiSrc73.includes('Game.stats.deathStreakOf===id') && uiSrc73.includes('已连败 ${Game.stats.deathStreak} 阵'),
+    '讨伐弹窗在连败两次后写明「已连败 N 阵」');
+  assert(uiSrc73.includes('.hm-warn') || fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8').includes('.hm-warn'),
+    '连败提示有独立样式（不靠行内上色）');
+  // 倍数口径：同样的敌人，气血越高倍数越低——这是「补体魄能解决」的可读信号
+  G.resetToDefault();
+  const m = ST.Monsters.zaochi;
+  ST.Game.combat = { monsterId: 'zaochi', style: 'attack' };
+  ST.Game.skills.bing.level = 40; ST.Game.skills.ming.level = 40;
+  ST.Game.gear.weapon = { id:'__q_w', slot:'weapon', dmg:28, lvl:40, grade:'fine' };
+  ST.Game.gear.armor = null; ST.Game.gear.charm = null;
+  const est40 = ST.combatEstimateInner(m, ST.Game.combat);
+  ST.Game.skills.ming.level = 81;                       // 只提体魄，攻击不动
+  const est81 = ST.combatEstimateInner(m, ST.Game.combat);
+  ST.Game.combat = null;
+  const mult = (html) => { const g = /承伤约 ([0-9.]+) 倍气血/.exec(html); return g ? parseFloat(g[1]) : 0; };
+  assert(est40.cls === 'bad' && mult(est40.html) > 0, `四十级打凿齿撑不住，明写「${mult(est40.html)} 倍气血」`);
+  assert(mult(est81.html) > 0 && mult(est81.html) < mult(est40.html),
+    `体魄提到九九，同一战的承伤倍数由 ${mult(est40.html)} 降到 ${mult(est81.html)}（补体魄确实管用）`);
+  const easy = ST.combatEstimateInner(ST.Monsters.shengsheng, { monsterId: 'shengsheng' });
+  assert(easy.cls === 'good' && mult(easy.html) === 0, '稳赢的目标不显示承伤账（不制造无谓焦虑）');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
