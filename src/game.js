@@ -287,6 +287,62 @@ function doRebirth(){
   return { ok:true, count, startLv, gain: rebirthGain(),
            totalBefore, best: bestBefore.level, bestName: bestBefore.name, roundSec };
 }
+// ---------- 战绩（可粘贴的一段话） ----------
+// 群里对进度、报 bug 时，口述「我多少级」说不清；这里把该被比较的几个数
+// 一次列全：修为（终身累计）、轮回、著录、六凶、最高强化、单轮最快。
+// 也是将来排行榜要收的那几个字段——先把它们凑到一处，接口才好定。
+// 自带的两个小格式化：战绩文本不该依赖界面层（fmt / fmtTime 都定义在 ui.js，
+// 在 ui.js 加载之前调用就会抛 ReferenceError）。
+function fmtNum(v){
+  v = Math.round(v || 0);
+  if (v >= 1e8) return (v / 1e8).toFixed(2).replace(/\.?0+$/, '') + ' 亿';
+  if (v >= 1e4) return (v / 1e4).toFixed(1).replace(/\.0$/, '') + ' 万';
+  return String(v);
+}
+function fmtDur(sec){
+  sec = Math.max(0, Math.round(sec || 0));
+  const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60);
+  if (h >= 24) return Math.floor(h / 24) + ' 天 ' + (h % 24) + ' 小时';
+  if (h > 0) return h + ' 小时 ' + m + ' 分';
+  if (m > 0) return m + ' 分';
+  return sec + ' 秒';
+}
+
+function bestEnhance(){
+  let best = { id:null, lv:0 };
+  for (const id in (Game.enhance || {})){
+    const lv = Game.enhance[id] || 0;
+    if (lv > best.lv) best = { id, lv };
+  }
+  return best;
+}
+function shareText(){
+  const M = (typeof GAME_META !== 'undefined') ? GAME_META : { name:'山海经 · 著录', version:'—' };
+  const rec = recordedCount(), total = Object.keys(CODEX || {}).length;
+  const six = (typeof SIX_BEASTS !== 'undefined' ? SIX_BEASTS : []).filter(id => (Game.stats.bossKills || {})[id]).length;
+  const bossAll = Object.values(Monsters).filter(m => m.boss).length;
+  const bossDone = Object.values(Monsters).filter(m => m.boss && (Game.stats.bossKills || {})[m.id]).length;
+  const hist = (Game.rebirth && Game.rebirth.history) || [];
+  const fastest = hist.length ? hist.reduce((a, b) => (b.sec < a.sec ? b : a), hist[0]) : null;
+  const be = bestEnhance();
+  const who = be.id ? (Items[be.id] || {}).name || be.id : '';
+  const line = (k, v) => `${k}　${v}`;
+  return [
+    `《${M.name}》 v${M.version}`,
+    '————————————',
+    line('修为', fmtNum(Game.stats.totalXp || 0) + (rebirthCount() ? `　第 ${rebirthCount() + 1} 卷` : '')),
+    line('技艺', `总 ${totalSkillLevel()} 级`),
+    line('著录', `${rec} / ${total} 条`),
+    line('六凶', `${six} / 6　·　凶神 ${bossDone} / ${bossAll}`),
+    be.lv ? line('最高强化', `+${be.lv}　${who}`) : line('最高强化', '尚无'),
+    fastest ? line('单轮最快', fmtDur(fastest.sec)) : line('单轮最快', '尚未轮回'),
+    line('在册', fmtDur(Game.stats.time || 0)),
+    '————————————',
+    [M.group ? `同好群 ${M.group}` : '', M.site || ''].filter(Boolean).join('　·　'),
+  ].join('\n');
+}
+window.shareText = shareText; window.bestEnhance = bestEnhance;
+
 window.rebirthCount = rebirthCount; window.rebirthGain = rebirthGain; window.rebirthYield = rebirthYield;
 window.rebirthStartLevel = rebirthStartLevel; window.canRebirth = canRebirth;
 window.doRebirth = doRebirth; window.bestSkillLevel = bestSkillLevel;

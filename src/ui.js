@@ -3880,6 +3880,7 @@ UI.renderStats = function(){
     <div class="panel stat-panel save-panel"><h3>存档</h3>
       <div class="stat-rows">
         <button class="btn" onclick="saveGame();UI.toast('已存档')">手动存档（S）</button>
+        <button class="btn" onclick="UI.shareCard()">复制战绩</button>
         <button class="btn" onclick="exportSave()">导出存档</button>
         <button class="btn" onclick="importSave()">导入存档</button>
         <button class="btn danger" onclick="resetGame()">重置进度</button>
@@ -3917,6 +3918,29 @@ UI.craftDenied = function(key){
 // ================= 叙录（关于本作） =================
 // 「叙录」者，古者校书，每一书毕，条其篇目、撮其指意而奏之。
 // 此页答三问：此为何书、书中所志何物、此刻是何版本。
+// 复制文本：优先 Clipboard API，失败（http 页面、老浏览器、无权限）就弹一段可手选的文本。
+// 群里要贴的东西多半是长串数字，手打必错，所以这条降级不能省。
+UI.copyText = function(text, okMsg){
+  const done = () => UI.toast(okMsg || '已复制');
+  const fallback = () => UI.modal(`<h3>请手动复制</h3>
+    <p class="hint">此环境不允许自动复制，选中下面这行按 Ctrl/⌘ + C 即可。</p>
+    <textarea class="copy-box" rows="4" readonly onclick="this.select()">${esc(text)}</textarea>
+    <div class="modal-btns"><button class="btn primary" onclick="UI.closeModal()">好</button></div>`);
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done, fallback);
+    return true;
+  }
+  fallback();
+  return false;
+};
+
+// 战绩：一段可粘贴的纯文本。字段与将来的排行榜一致，先把它们凑到一处。
+UI.shareCard = function(){
+  const t = (typeof shareText === 'function') ? shareText() : '';
+  if (!t){ this.toast('暂无可录之绩'); return; }
+  this.copyText(t, '📜 战绩已复制，粘到群里即可');
+};
+
 UI.renderAbout = function(){
   const box = $('content');
   if (!box) return;
@@ -4017,6 +4041,21 @@ UI.renderAbout = function(){
     </section>
 
     <section class="ab-sec">
+      <h4>同好</h4>
+      <p class="ab-p">山海之大，一人录不完。有疑问、有错漏、想催更，或只是想说说哪座山的异兽最难缠——都请来群里坐坐。</p>
+      <div class="ab-group">
+        <span class="abg-lab">QQ 群</span>
+        <b class="abg-no">${esc(GAME_META.group || '')}</b>
+        <button class="btn small" type="button" onclick="UI.copyText('${esc(GAME_META.group || '')}','QQ 群号已复制')">复制群号</button>
+      </div>
+      <div class="ab-share">
+        <button class="btn small" type="button" onclick="UI.shareCard()">录一卷 · 复制战绩</button>
+        <span class="hint">修为、著录、六凶、最高强化一并列出，粘到群里即可（也可用来报进度 / 报错）</span>
+      </div>
+      <p class="hint ab-note">群号只此一处，本作不放任何外链；群里也不发安装包，进群只为说话。</p>
+    </section>
+
+    <section class="ab-sec">
       <h4>成书</h4>
         <div class="ab-kv">${facts}</div>
         <p class="hint ab-note">纯前端、无账号、无后端，进度只存于此设备的浏览器。清缓存或换设备前，记得在「统计」页导出存档。</p>
@@ -4029,9 +4068,16 @@ UI.patchStats = function(){
   if (this.currentTab !== 'stats') return;
   const s = Game.stats;
   const totalNodes = WORLD.regions.reduce((a, r) => a + r.nodes.length, 0);
+  // ⚠️ 这一处曾把「凶神」写成 `keys(bossKills).length + '/7'`：静态渲染修好之后，
+  // 统计页开着每秒一次的 patch 又把它改回错的那个数。两处的口径必须一起改。
+  const bossAll = Object.values(Monsters).filter(m => m.boss).length;
+  const bossDone = Object.values(Monsters).filter(m => m.boss && (s.bossKills || {})[m.id]).length;
+  const sixAll = (typeof SIX_BEASTS !== 'undefined' ? SIX_BEASTS : []);
+  const sixDone = sixAll.filter(id => (s.bossKills || {})[id]).length;
   const vals = {
     kills: String(s.kills), deaths: String(s.deaths),
-    bosses: Object.keys(s.bossKills || {}).length + '/7',
+    bosses: bossDone + '/' + bossAll,
+    six: sixDone + '/' + sixAll.length,
     damageDealt: fmt(s.damageDealt), damageTaken: fmt(s.damageTaken),
     actions: String(s.actions), harvests: String(s.harvests), crafts: String(s.crafts),
     rites: String(s.rites), observes: String(s.observes), divines: String(s.divines),
@@ -4068,6 +4114,17 @@ UI.patchStats = function(){
       mark.innerHTML = ok
         ? (typeof markIcon === 'function' ? markIcon('check',13) : '✔')
         : '<span class="ms-open"></span>';
+    }
+    // 进度数与进度条也要跟着走：统计页开着的时候，著录、讨伐都在变
+    if (typeof ms.prog === 'function'){
+      const p = ms.prog();
+      const prog = el.querySelector ? el.querySelector('.ms-prog') : null;
+      if (prog){
+        const txt = prNum(p[0]) + '/' + prNum(p[1]);
+        if (prog.textContent !== txt) prog.textContent = txt;
+      }
+      const bar = el.querySelector ? el.querySelector('.ms-bar > i') : null;
+      if (bar && bar.style) bar.style.width = Math.min(100, p[0] / Math.max(1, p[1]) * 100).toFixed(1) + '%';
     }
   });
 };

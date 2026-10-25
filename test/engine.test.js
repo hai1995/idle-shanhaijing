@@ -5052,6 +5052,88 @@ section('长线成就进度');
   assert(html85.includes('title="击败六凶全部"'), '悬停可见达成条件（名字太短，光看「六凶伏诛」猜不出要几位）');
 }
 
+// ============ 86. 同好：群号入介绍 + 复制降级 ============
+// 群里要贴的多半是一长串数字，手打必错；而 http 页面、老浏览器下
+// navigator.clipboard 根本不存在，所以必须有「弹一段可选文本」的降级。
+section('同好与复制');
+{
+  G.resetToDefault();
+  assert(/^\d{6,12}$/.test(ST.GAME_META.group || ''), '群号写在 GAME_META 里（' + ST.GAME_META.group + '）');
+
+  ST.UI.currentTab = 'about'; ST.UI.renderAbout();
+  const html86 = (renderTargets.content || {}).innerHTML || '';
+  assert(html86.includes(ST.GAME_META.group), '关于页显示群号');
+  assert(html86.includes('复制群号') && html86.includes('UI.copyText'), '并给一键复制');
+  assert(html86.indexOf('<h4>同好</h4>') > 0, '单列一栏「同好」，不塞在脚注里');
+
+  // 降级：没有 clipboard 就弹可手选的文本，而不是静默失败
+  // （沙箱里 navigator 是 Node 自带的，干脆整个换成一个只有 clipboard:undefined 的桩）
+  const hadNav = ('navigator' in context);
+  const oldNav = context.navigator;
+  context.navigator = { clipboard: undefined };
+  try {
+    renderTargets.modalBox.innerHTML = '';
+    const r = ST.UI.copyText('1132221462', '已复制');
+    assert(r === false, '无 Clipboard API 时返回 false');
+    assert(String(renderTargets.modalBox.innerHTML).includes('1132221462'), '改弹一段可手选的文本');
+    assert(String(renderTargets.modalBox.innerHTML).includes('请手动复制'), '并说明为什么');
+  } finally {
+    if (hadNav) context.navigator = oldNav; else delete context.navigator;
+  }
+
+  // 实时刷新：凶神的分子分母要同一口径（静态渲染改好了，patch 曾把它改回 /7）
+  ST.Game.stats.bossKills = { zaochi: true, xingtian: true };
+  ST.UI.currentTab = 'stats';
+  const seen = {};
+  const orig = G.document.querySelector;
+  G.document.querySelector = (sel) => (seen[sel] = seen[sel] || { textContent:'', classList:{ toggle(){} }, querySelector:()=>null, style:{} });
+  ST.UI.patchStats();
+  G.document.querySelector = orig;
+  const bossAll = Object.values(ST.Monsters).filter(m => m.boss).length;
+  assert(seen['[data-stat="six"]'].textContent === '1/6', 'patch 后六凶仍是 1/6（' + seen['[data-stat="six"]'].textContent + '）');
+  assert(seen['[data-stat="bosses"]'].textContent === '2/' + bossAll, 'patch 后凶神是 2/' + bossAll);
+  const uiSrc86 = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui.js'), 'utf8');
+  assert(!uiSrc86.includes("bosses: Object.keys(s.bossKills || {}).length + '/7'"), '实时刷新里不再有写死的 /7');
+}
+
+// ============ 87. 战绩：一段能贴进群里的话 ============
+// 群里对进度时，「我六十级」说不清——是总等级六十，还是某一门？讨伐过几位？
+// 这里把将来排行榜要收的几个字段凑成一段纯文本，粘过去就完了。
+section('战绩文本');
+{
+  G.resetToDefault();
+  const xpAt = (lv) => ST.xpForLevel(lv);
+  ['yudi','bing','ming','she','zhu','taofa','jisi','zhulu','caiyao','caiyu']
+    .forEach(k => { if (ST.Game.skills[k]) ST.Game.skills[k] = { level: 60, xp: xpAt(60) }; });
+  ST.Game.stats.totalXp = 988000;
+  ST.Game.stats.time = 45000;
+  ST.Game.stats.bossKills = { zaochi: true, jiuying: true, dafeng: true, luwu: true };
+  ST.Game.enhance = { zaochiren: 18, pijia: 6 };
+  ST.Game.rebirth = { count: 1, at: 1, best: 200, startedAt: 1, history: [{ at: 1, sec: 13200, total: 200, best: 60 }] };
+  ST.Game.records = { shengsheng: { count: 9, tier: 4 } };
+
+  const txt = ST.shareText();
+  assert(typeof txt === 'string' && txt.split('\n').length >= 8, '战绩是多行文本（' + txt.split('\n').length + ' 行）');
+  assert(txt.includes('1132221462'), '带同好群号');
+  assert(txt.includes('hai1995.github.io'), '带站点地址（群里新人才知道去哪玩）');
+  assert(txt.includes('六凶　3 / 6') && txt.includes('凶神 4 / 10'), '六凶与凶神分开报（口径不混）');
+  assert(txt.includes('+18') && txt.includes('凿齿獠牙'), '最高强化取最高那件并写名字');
+  assert(txt.includes('3 小时 40 分'), '单轮最快取历史纪录');
+  assert(txt.includes('第 2 卷'), '轮回后写「第 N 卷」（readable）');
+  assert(txt.includes('98.8 万'), '修为按万折算，不写一长串数字');
+
+  // 新档：没有强化、没有轮回，也要能生成（不能因为缺历史就报错）
+  G.resetToDefault();
+  const t2 = ST.shareText();
+  assert(t2.includes('最高强化　尚无') && t2.includes('单轮最快　尚未轮回'), '新档写明「尚无 / 尚未轮回」');
+  assert(ST.bestEnhance().lv === 0, '无强化时最高为 0');
+
+  // 不依赖界面层：fmt / fmtTime 都在 ui.js，若这里用了它们，早期调用会 ReferenceError
+  const gameSrc87 = fs.readFileSync(path.join(__dirname, '..', 'src', 'game.js'), 'utf8');
+  const fnBody = gameSrc87.slice(gameSrc87.indexOf('function shareText'), gameSrc87.indexOf('window.shareText'));
+  assert(!/(^|[^w.])fmt\(/.test(fnBody) && !fnBody.includes('fmtTime('), 'shareText 只用自带格式化，不借 ui.js 的');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
