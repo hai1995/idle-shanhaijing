@@ -111,6 +111,26 @@ for (const m of Object.values(W.Monsters)){
   if (m.drop && !I[m.drop]) bad('异兽', `${m.name} 专属掉落不存在 ${m.drop}`);
 }
 
+// ---------- 5.0 前世遗物：at 必须从 1 起连续，加成键必须在乘区里 ----------
+// 遗物由 rebirth.count 现算（不写存档）。at 若跳号或重复，要么某转白转、要么一转发两件；
+// bonus 的键若拼错（如 xps），加成永远不生效，而界面上还写着「经验 +2%」。
+{
+  const relics = W.RELICS || [];
+  if (!relics.length) bad('遗物', 'RELICS 为空——轮回面板那条会整个消失');
+  const KNOWN = new Set(['xp', 'yield', 'def', 'hp']);
+  let n = 0;
+  relics.forEach((r, i) => {
+    n++;
+    if (r.at !== i + 1) bad('遗物', `${r.name} 的 at=${r.at}，应为 ${i + 1}（须从 1 起连续）`);
+    if (!r.name || !r.id) bad('遗物', `第 ${i + 1} 件缺 name / id`);
+    for (const k of Object.keys(r.bonus || {})){
+      if (!KNOWN.has(k)) bad('遗物', `${r.name} 的加成键「${k}」没有并入任何乘区（只会显示，不生效）`);
+      else if (!(r.bonus[k] > 0)) bad('遗物', `${r.name} 的 ${k} 加成非正`);
+    }
+  });
+  if (!n) bad('遗物', '一件遗物都没查到——检查本身失效');
+}
+
 // ---------- 5.1 三签：key 必须真的能计数 ----------
 // bountyCounter 对 recorded / gathered / bosses 有专门映射，其余直接读 stats[key]。
 // key 写错（如 casts 之于 crafts）不会报错，只是那条签永远停在 0——玩家会以为卡住了。
