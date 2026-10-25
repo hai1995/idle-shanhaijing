@@ -4269,6 +4269,30 @@ section('战斗节奏');
   // 气血同阶：九九时一记 BOSS 重击不该超过血量的五分之一，否则只能靠不停进食硬顶
   ST.Game.skills.ming.level = ST.TUNING.MAX_LEVEL;
   assert(ST.playerMaxHp() >= 580, '九九体魄气血 ' + ST.playerMaxHp() + ' 点（≥580）');
+
+  // 祠礼：祭品若比山系门槛晚太多，那套礼在解锁时行不了，等于挂个空壳
+  const earliest = (id) => {
+    const it = ST.Items[id]; if (!it) return Infinity;
+    let best = Infinity;
+    if (it.skill && it.lvl) best = Math.min(best, it.lvl);
+    ST.Recipes.forEach(r => { if (r.out === id) best = Math.min(best, r.lvl || 1); });
+    Object.values(ST.Monsters).forEach(m => {
+      const loot = (Array.isArray(m.loot) && m.loot.length) ? m.loot : (m.drop ? [[m.drop, 1, 1]] : []);
+      if (loot.some(x => x[0] === id)) best = Math.min(best, m.needLvl || 1);
+    });
+    (ST.ShopStock || []).forEach(x => { if (x.itemId === id) best = Math.min(best, x.lvl || 1); });
+    return best;
+  };
+  const lateRites = [];
+  for (const [key, r] of Object.entries(ST.RITES)){
+    const region = ST.WORLD.regions.find(x => x.regionId === r.regionId);
+    const gate = region ? region.unlockLevel : 1;
+    (r.cost || []).forEach(([mat]) => {
+      const e = earliest(mat);
+      if (e !== Infinity && e > gate + 2) lateRites.push(`${key}→${mat}(${e}>${gate}+2)`);
+    });
+  }
+  assert(lateRites.length === 0, '二十八套祠礼的祭品都在山系门槛内可得' + (lateRites.length ? '：' + lateRites.join('、') : ''));
 }
 
 // ============ 71. 阴阳嬗变：改战斗内的属性，不改静态表 ============

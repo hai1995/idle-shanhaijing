@@ -191,6 +191,34 @@ const stats = {
   });
 }
 
+// ---------- 祠礼：祭品要在山系解锁时就能拿到 ----------
+// 祠礼是区域产出的主要加成，礼器配方与祭品若比山系门槛晚太多，
+// 那套礼在解锁时根本行不了，等于挂了个空壳。前面「配方材料可达性」一节
+// 跳过了 rite 类型（它的门槛不是配方等级而是山系等级），这里单独补上。
+{
+  const earliest = (id) => {
+    const it = I[id]; if (!it) return Infinity;
+    let best = Infinity;
+    if (it.skill && it.lvl) best = Math.min(best, it.lvl);
+    W.Recipes.forEach(r => { if (r.out === id) best = Math.min(best, r.lvl || 1); });
+    Object.values(W.Monsters).forEach(m => {
+      const loot = (Array.isArray(m.loot) && m.loot.length) ? m.loot : (m.drop ? [[m.drop, 1, 1]] : []);
+      if (loot.some(x => x[0] === id)) best = Math.min(best, m.needLvl || 1);
+    });
+    (W.ShopStock || []).forEach(x => { if (x.itemId === id) best = Math.min(best, x.lvl || 1); });
+    return best;
+  };
+  for (const [key, r] of Object.entries(W.RITES)){
+    const region = W.WORLD.regions.find(x => x.regionId === r.regionId);
+    const gate = region ? region.unlockLevel : 1;
+    (r.cost || []).forEach(([mat]) => {
+      const e = earliest(mat);
+      if (e !== Infinity && e > gate + 2)
+        bad('祠礼', `${key}（${r.regionId} 门槛 ${gate}）需 ${(I[mat]||{}).name || mat}（最早 ${e} 级才拿得到）`);
+    });
+  }
+}
+
 // ---------- 战斗节奏：怪血 / 怪攻的成长是否与玩家同阶 ----------
 // 这是最容易悄悄坏掉的一处：调完怪的数值，界面照样能跑，测试也不报错，
 // 但同级怪要砍一分钟、玩家十秒就倒，复讨只是无限重来——玩家会觉得「打不动」。
