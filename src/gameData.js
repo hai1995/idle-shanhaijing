@@ -218,6 +218,8 @@ addItem(
 // ---- 原料 ----
 addItem(
   I('tan','炭','material',   { value:4,  icon:'⚫' }),
+  // 镇物：淬炼的保险。十级往上失败会掉阶，投一枚镇物可护住原阶。
+  I('zhenwu','镇物','material',{ value:120, lvl:20, icon:'🪬', note:'淬炼时投入，败亦护住原阶', py:'zhèn' }),
   I('huozhong','火种','material',{ value:6, icon:'✨' }),
   I('shuiping','清水瓶','material',{ value:3, icon:'🧴' }),
   I('sheng','绳','material', { value:5,  icon:'🧵' }),
@@ -769,6 +771,7 @@ R('craft','luowang',1,200,26,[['sheng',4],['nan',2]]);
 // 琢玉
 R('jade','zhang',1,40,5,[['yu',1]]);
 R('jade','bi',1,80,10,[['yu',2]]);
+R('jade','zhenwu',1,60,20,[['yu',2],['tan',3]]);   // 镇物：玉为体、炭为用
 R('jade','migufu',1,90,5,[['migu',2],['yu',1]]);
 R('jade','lushufu',1,140,10,[['lushupi',1],['yu',1]]);
 R('jade','xuanguifu',1,150,10,[['xuanguijia',1],['yu',1]]);
@@ -897,6 +900,23 @@ addItem(
   I('cangyuyue','苍玉钺','weapon',{ equip:true, weapon:true, dmg:58, lvl:72, value:1400, icon:'🪓', el:'金', rarity:'RARE' }),
   I('langganjian','琅玕剑','weapon',{ equip:true, weapon:true, dmg:60, lvl:74, value:1700, icon:'🗡️', el:'水', rarity:'RARE', py:'láng gān' }),
   I('yuzhanggong','豫章弓','bow',{ equip:true, weapon:true, ranged:true, dmg:52, lvl:70, value:1200, icon:'🏹', el:'木', rarity:'RARE' }),
+  // ---- 神兵 ----
+  // 六凶与刑天各遗一件。不可锻造，只有 6% 的掉落——它是「打得过那位」的凭证。
+  // 每件带一条普通装备没有的特性（破甲 / 饮血 / 疾风 / 裂甲）。
+  I('zaochiren','凿齿獠牙','weapon',{ equip:true, weapon:true, dmg:62, lvl:40, value:2600, icon:'🗡️', el:'金',
+    rarity:'LEGENDARY', divine:'pierce', note:'凿齿之牙磨成，长三尺，破坚如朽' }),
+  I('jiuyingren','九婴血刃','weapon',{ equip:true, weapon:true, dmg:72, lvl:50, value:3400, icon:'🗡️', el:'水',
+    rarity:'LEGENDARY', divine:'drink', note:'九首之血淬刃，斫人自饮其血' }),
+  I('dafengyugong','大风羽弓','bow',{ equip:true, weapon:true, ranged:true, dmg:56, lvl:58, value:3600, icon:'🏹', el:'木',
+    rarity:'LEGENDARY', divine:'swift', note:'以大风之羽为弦，发则风随' }),
+  I('yayuzhua','猰貐魔爪','weapon',{ equip:true, weapon:true, dmg:82, lvl:64, value:4600, icon:'🗡️', el:'土',
+    rarity:'LEGENDARY', divine:'crit', note:'猰貐爪所铸，触之裂甲' }),
+  I('xiushebian','修蛇脊鞭','weapon',{ equip:true, weapon:true, dmg:90, lvl:70, value:5600, icon:'🗡️', el:'水',
+    rarity:'LEGENDARY', divine:'drink', note:'修蛇之脊，一节一饮' }),
+  I('fenghuifu','封豨重斧','weapon',{ equip:true, weapon:true, dmg:100, lvl:76, value:6800, icon:'🪓', el:'水',
+    rarity:'LEGENDARY', divine:'pierce', note:'封豨之牙为刃，重而能断' }),
+  I('ganqi','干戚','weapon',{ equip:true, weapon:true, dmg:118, lvl:81, value:12000, icon:'🪓', el:'金',
+    rarity:'LEGENDARY', divine:'crit', note:'刑天操干戚以舞——以乳为目，以脐为口，战而不屈' }),
   I('tongzu','铜镞矢','arrow',{ equip:true, slot:'quiver', dmg:12, lvl:66, value:60, icon:'➶', el:'金' }),
   I('tiezu','铁镞矢','arrow',{ equip:true, slot:'quiver', dmg:16, lvl:72, value:110, icon:'➶', el:'金' }),
   I('baihujia','白虎甲','armor',{ equip:true, slot:'armor', def:26, lvl:72, value:1500, icon:'🥋', rarity:'RARE' }),
@@ -1929,31 +1949,31 @@ function addMonster(m){ Monsters[m.id] = m; }
 // 缴大风于青邱之泽……断修蛇于洞庭，擒封豨于桑林」（公有领域）。
 // 机制各自不同：连啮 / 五行变换 / 疾风 / 皮甲 / 蛇毒 / 狂暴 / 无首。
 addMonster({ id:'zaochi', name:'凿齿', boss:true, el:'金', needLvl:40, hp:6000, atk:60, def:18, xp:8000,
-  coins:2000, drop:'zaochiya', threat:5,
+  coins:2000, drop:'zaochiya', divine:'zaochiren', threat:5,
   form:'人形兽，齿长三尺，其状如凿（传闻形态，原文未详述）',
   special:{ name:'连啮', every:8, dmg:1.1, pierce:0.2, hits:3 }, desc:'周期性三连快齿' });
 addMonster({ id:'jiuying', name:'九婴', boss:true, el:'水', needLvl:50, hp:9000, atk:75, def:22, xp:14000,
-  coins:3200, drop:'jiuyingfa', threat:5,
+  coins:3200, drop:'jiuyingfa', divine:'jiuyingren', threat:5,
   form:'九头怪，能喷水吐火（传闻形态，原文未详述）',
   special:{ name:'阴阳嬗变', every:14, dmg:1.2, pierce:0.3, elementShift:true }, desc:'周期性变换五行，克制关系随之改变' });
 addMonster({ id:'dafeng', name:'大风', boss:true, el:'木', needLvl:58, hp:8000, atk:85, def:15, xp:18000,
-  coins:4000, drop:'dafengyu', threat:5,
+  coins:4000, drop:'dafengyu', divine:'dafengyugong', threat:5,
   form:'巨鸟，其翼遮天，飞则大风起（传闻形态，原文未详述）',
   special:{ name:'飘风', every:12, dmg:1.3, pierce:0.4, dodge:0.5 }, desc:'周期性大幅闪避，半空难击' });
 addMonster({ id:'yayu', name:'猰貐', boss:true, el:'土', needLvl:64, hp:14000, atk:70, def:45, xp:24000,
-  coins:5200, drop:'yayupi', threat:5, py:'yà yǔ',
+  coins:5200, drop:'yayupi', divine:'yayuzhua', threat:5, py:'yà yǔ',
   form:'其状如牛，赤身、人面、马足，其音如婴儿，是食人（《北次二经》）',
   special:{ name:'革甲', every:0, dmg:0, armor:0.5 }, desc:'常驻厚甲减伤，受击叠层破甲' });
 addMonster({ id:'xiushe', name:'修蛇', boss:true, el:'水', needLvl:70, hp:12000, atk:90, def:25, xp:30000,
-  coins:6500, drop:'xiushedan', threat:5,
+  coins:6500, drop:'xiushedan', divine:'xiushebian', threat:5,
   form:'长蛇，能吞象（传闻形态，原文未详述）',
   special:{ name:'蛇毒', every:6, dmg:0.6, poison:{ dur:8, dmg:12 } }, desc:'攻击附带持续中毒' });
 addMonster({ id:'fenghui', name:'封豨', boss:true, el:'水', needLvl:76, hp:16000, atk:110, def:30, xp:40000,
-  coins:8000, drop:'fenghuiya', threat:5, py:'fēng xī',
+  coins:8000, drop:'fenghuiya', divine:'fenghuifu', threat:5, py:'fēng xī',
   form:'大野猪，皮硬如铁，性悍（传闻形态，原文未详述）',
   special:{ name:'狂暴', every:0, dmg:0, enrage:0.5 }, desc:'半血以下攻击速度翻倍' });
 addMonster({ id:'xingtian', name:'刑天', boss:true, el:'金', needLvl:81, hp:30000, atk:150, def:50, xp:80000,
-  coins:16000, drop:'zaochiya', threat:5,
+  coins:16000, drop:'zaochiya', divine:'ganqi', threat:5,
   form:'与帝争神，帝断其首，葬之常羊之山，乃以乳为目、以脐为口，操干戚以舞（《海外西经》）',
   special:{ name:'舞干戚', every:7, dmg:1.5, pierce:0.35 }, desc:'无首狂舞，重击且穿透' });
 
@@ -2254,7 +2274,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.15.9',
+  version: '1.16.0',
   codename:'五臧 · 续火',
   updated: '2026-10-25',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',

@@ -1013,47 +1013,156 @@ function playerElement(){
   return '金';
 }
 // ---------- 装备淬炼（强化） ----------
-// 装备槽里存的是「那一件」，淬炼等级按物品 id 记（同 id 共享），0–+9。
-// 每级 +6% 基础伤害 / 防御，消耗炭与贝币，级数越高越贵。
-const ENHANCE_MAX = 9, ENHANCE_STEP = 0.06;
+// 装备槽里存的是「那一件」，淬炼等级按物品 id 记（同 id 共享），0–+30。
+// 1–9 级沿用旧增量（基础 6%，至少 +1），10 级起改为每级 3%——这样老存档的
+// +9 装备数值一分不变，30 级封顶时约为基础值的 190%（低阶兵器更高）。
+const ENHANCE_MAX = 30, ENHANCE_STEP = 0.06, ENHANCE_STEP2 = 0.03;   // STEP2：10 级后每级按 +9 值再涨 3%
 function enhanceLevel(itemId){
   const v = (Game.enhance && Game.enhance[itemId]) || 0;
   return Math.max(0, Math.min(ENHANCE_MAX, v | 0));
 }
 function enhanceScaled(base, lv){
   if (!base) return 0;
-  // 每级增量 = 基础的 6%，至少 +1——低阶兵器（伤害 5）也能一级一级看见涨，
-  // 高阶（伤害 60）则按比例走，+9 约 +60%。
   const inc = Math.max(1, Math.round(base * ENHANCE_STEP));
-  return base + inc * lv;
+  if (lv <= 9) return base + inc * lv;          // 1–9 沿用旧增量，老档数值不变
+  // 10 级起按「+9 时的数值」等比续增：每级 +3%，30 级约 +63%（合计 +160%）。
+  // 若按基础值定增量，46 点的兵器到 +30 只涨到 94，每级 +1，强化手感全无。
+  const atNine = base + inc * 9;
+  return Math.round(atNine * (1 + ENHANCE_STEP2 * (lv - 9)));
+}
+// 成功率：1–5 级近乎必成，之后逐段下滑，25 级以上进入「磨」的阶段。
+// 数组下标是「当前等级」，值是从该级升到下一级的成功率。
+const ENHANCE_RATE = [
+  1.00, 0.95, 0.90, 0.85, 0.80,          // 0–4
+  0.72, 0.65, 0.58, 0.50, 0.43,          // 5–9
+  0.38, 0.34, 0.30, 0.26, 0.23,          // 10–14
+  0.20, 0.17, 0.15, 0.13, 0.11,          // 15–19
+  0.095, 0.085, 0.075, 0.065, 0.055,     // 20–24
+  0.048, 0.042, 0.036, 0.031, 0.026,     // 25–29
+];
+const ENHANCE_SAFE = 10;              // 此级以下失败只损材料，不掉级
+function enhanceRate(lv){
+  return ENHANCE_RATE[Math.max(0, Math.min(ENHANCE_MAX - 1, lv | 0))];
 }
 function enhanceCost(itemId){
   const next = enhanceLevel(itemId) + 1;
-  return { next, tan: next + 1, shells: 120 * next };
+  // 材料随等级明显递增：+1 四炭，+30 六十二炭；贝币按 1.7 次方走
+  return { next, tan: 2 + next * 2, shells: Math.round(90 * Math.pow(next, 1.7)) };
 }
-function enhanceItem(itemId){
+function enhanceHasStone(){ return (Game.inventory.zhenwu || 0) > 0; }
+// 单次强化。opts.silent 供「强化至目标等级」批量调用，不逐条弹 toast。
+// 返回 { ok, success, lvBefore, lvAfter, lost, usedStone, reason }
+function enhanceItem(itemId, opts){
+  const silent = !!(opts && opts.silent);
   const it = Items[itemId];
-  if (!it || !it.equip) return false;
+  if (!it || !it.equip) return { ok:false, reason:'不可淬炼' };
   const lv = enhanceLevel(itemId);
-  if (lv >= ENHANCE_MAX){ UI && UI.toast('已至 +9，无可再淬'); return false; }
+  if (lv >= ENHANCE_MAX){
+    if (!silent) UI && UI.toast(`已至 +${ENHANCE_MAX}，无可再淬`);
+    return { ok:false, reason:'已至顶' };
+  }
   const cost = enhanceCost(itemId);
-  if ((Game.inventory.tan || 0) < cost.tan){ UI && UI.toast(`炭不足（需 ${cost.tan}，持有 ${Game.inventory.tan||0}）`); return false; }
-  if (Game.shells < cost.shells){ UI && UI.toast(`贝币不足（需 ${cost.shells}）`); return false; }
+  if ((Game.inventory.tan || 0) < cost.tan){
+    if (!silent) UI && UI.toast(`炭不足（需 ${cost.tan}，持有 ${Game.inventory.tan||0}）`);
+    return { ok:false, reason:'炭不足' };
+  }
+  if (Game.shells < cost.shells){
+    if (!silent) UI && UI.toast(`贝币不足（需 ${cost.shells}）`);
+    return { ok:false, reason:'贝币不足' };
+  }
+  // 镇物：失败亦保原阶。高强段玩家可自行决定用不用，别替他花。
+  const wantStone = !!(opts && opts.stone) && lv >= 1;
+  const usedStone = wantStone && enhanceHasStone();
   Game.inventory.tan -= cost.tan;
   if (Game.inventory.tan <= 0) delete Game.inventory.tan;
   Game.shells -= cost.shells;
   Game.stats.spent = (Game.stats.spent || 0) + cost.shells;
   if (!Game.enhance) Game.enhance = {};
-  Game.enhance[itemId] = lv + 1;
-  log(`🔨 ${it.name} 淬炼至 +${lv+1}`, 'gold', 'trade');
-  UI && UI.toast(`🔨 ${it.name} +${lv+1}`);
+
+  const success = Math.random() < enhanceRate(lv);
+  let lost = false;
+  if (success){
+    Game.enhance[itemId] = lv + 1;
+  } else if (lv >= ENHANCE_SAFE && !usedStone){
+    Game.enhance[itemId] = lv - 1;       // 十级以上失败掉一阶
+    lost = true;
+  }
+  if (usedStone){
+    Game.inventory.zhenwu -= 1;
+    if (Game.inventory.zhenwu <= 0) delete Game.inventory.zhenwu;
+  }
+  const after = enhanceLevel(itemId);
+  if (!silent){
+    if (success){
+      log(`🔨 ${it.name} 淬炼至 +${after}`, 'gold', 'trade');
+      UI && UI.toast(`🔨 ${it.name} +${after}`);
+    } else if (lost){
+      log(`💥 ${it.name} 淬炼失败，跌落至 +${after}`, 'bad', 'trade');
+      UI && UI.toast(`💥 淬炼失败\n${it.name} 跌落至 +${after}`);
+    } else {
+      log(`… ${it.name} 淬炼未成（材料已耗）`, 'sys', 'trade');
+      UI && UI.toast(`… 淬炼未成${usedStone ? '（镇物护住原阶）' : ''}`);
+    }
+  }
   saveGame();
   UI && UI.refreshGear && UI.refreshGear();
   UI && UI.refreshInventory && UI.refreshInventory();
-  return true;
+  return { ok:true, success, lvBefore:lv, lvAfter:after, lost, usedStone, cost };
 }
+// 强化至目标等级：连续单次强化，直到达标 / 材料耗尽 / 触顶。
+// guard 防止「+30 附近反复失败」时无限循环。
+function enhanceToTarget(itemId, target, opts){
+  const cap = Math.max(1, Math.min(ENHANCE_MAX, target | 0));
+  const stone = !!(opts && opts.stone);
+  let tries = 0, ups = 0, downs = 0, stones = 0, tan = 0, shells = 0;
+  while (enhanceLevel(itemId) < cap && tries < 400){
+    const before = enhanceLevel(itemId);
+    const r = enhanceItem(itemId, { silent:true, stone });
+    if (!r.ok) break;
+    tries++;
+    tan += r.cost.tan; shells += r.cost.shells;
+    if (r.success) ups++;
+    else if (r.lost) downs++;
+    if (r.usedStone) stones++;
+    if (enhanceLevel(itemId) === before && !r.success && !r.lost) {
+      // 失败且未掉级（保护期 / 镇物）——继续下一次
+    }
+  }
+  const lv = enhanceLevel(itemId);
+  const done = lv >= cap;
+  const it = Items[itemId] || {};
+  const msg = done
+    ? `🔨 ${it.name} 已至 +${lv}（${tries} 次，成 ${ups} 败 ${downs}${stones ? ` · 镇物 ${stones}` : ''}）`
+    : `… ${it.name} 止于 +${lv}（${tries} 次，成 ${ups} 败 ${downs}${stones ? ` · 镇物 ${stones}` : ''}，材料或已告罄）`;
+  log(msg, done ? 'gold' : 'sys', 'trade');
+  UI && UI.toast(msg);
+  saveGame();
+  UI && UI.refreshGear && UI.refreshGear();
+  UI && UI.refreshInventory && UI.refreshInventory();
+  return { ok:true, done, lv, tries, ups, downs, stones, tan, shells };
+}
+// ---------- 神兵 ----------
+// BOSS 专属兵器：数值高于同级普通装，带一条普通装备没有的特性，且不可锻造。
+// 掉落率压得很低——它是「打得过那个 BOSS」的证明，不是必经之路。
+const DIVINE_EFFECTS = {
+  pierce:{ label:'破甲', text:'无视目标一半防御' },
+  drink: { label:'饮血', text:'命中回复所伤 8%' },
+  swift: { label:'疾风', text:'攻势 +20%' },
+  crit:  { label:'裂甲', text:'暴击率 +12%' },
+};
+const DIVINE_DROP = 0.06;
+function divineOf(){
+  const w = Game.gear && Game.gear.weapon;
+  return (w && w.divine) || null;
+}
+function divineHas(k){ return divineOf() === k; }
+window.DIVINE_EFFECTS = DIVINE_EFFECTS; window.DIVINE_DROP = DIVINE_DROP;
+window.divineOf = divineOf; window.divineHas = divineHas;
+
 window.enhanceItem = enhanceItem; window.enhanceLevel = enhanceLevel; window.enhanceCost = enhanceCost;
-window.enhanceScaled = enhanceScaled;
+window.enhanceScaled = enhanceScaled; window.enhanceRate = enhanceRate;
+window.enhanceToTarget = enhanceToTarget; window.enhanceHasStone = enhanceHasStone;
+window.ENHANCE_MAX = ENHANCE_MAX; window.ENHANCE_SAFE = ENHANCE_SAFE;
 
 function playerWeaponDmg(){
   const style = combatMode();
@@ -1083,6 +1192,12 @@ function playerDamageRange(){
     if (style === 'zhu' && wuxingSheng(playerElement(), beast.el)) dmg *= TUNING.WUXING.SHENG;
   }
   dmg *= dmgMult();
+  // 怪物防御：此前 def 只在界面上写着「防御 45」，战斗里一分不减。
+  // 现在按 35% 折算、最多削去四成——早期硬怪不至于直接劝退，后期厚甲才有实感。
+  if (beast && beast.def){
+    const arm = divineHas('pierce') ? 0.5 : 1;      // 神兵「破甲」：无视一半
+    dmg = Math.max(dmg * 0.6, dmg - beast.def * 0.35 * arm);
+  }
   return { lo: Math.max(1, Math.floor(dmg*0.6)), hi: Math.max(1, Math.floor(dmg*1.4)) };
 }
 function playerAttackInterval(){
@@ -1093,6 +1208,7 @@ function playerAttackInterval(){
   const af = (typeof affixTotals === 'function') ? affixTotals() : affixZero();
   base /= (1 + af.atkSpeed/100);                  // 词条「疾」：攻势
   base /= currentTactic().spd;                    // 战法：疾攻更快、沉稳更慢
+  if (divineHas('swift')) base /= 1.2;            // 神兵「疾风」
   return Math.max(1.2, base);
 }
 function playerEvasion(){
@@ -1191,7 +1307,8 @@ function doPlayerUltimate(c, m){
   let dmg = Math.floor(roll(range.lo, range.hi) * (ULTIMATE_MULT[style] || 2.4));
   if (style === 'zhu' && wuxingSheng(playerElement(), m.el)) dmg = Math.floor(dmg * TUNING.WUXING.SHENG);
   let crit = false;
-  if (af.critRate > 0 && chance(af.critRate/100)){
+  const critRate = af.critRate + (divineHas('crit') ? 12 : 0);
+  if (critRate > 0 && chance(critRate/100)){
     crit = true;
     dmg = Math.floor(dmg * (1.5 + af.critDmg/100));
   }
@@ -1262,9 +1379,10 @@ function doPlayerAttack(c, m){
   c.combo = (c.combo||0) + 1;
   // 势：命中即积，连击时更快（每 5 连额外 +4）
   c.momentum = Math.min(100, (c.momentum||0) + 16 + Math.min(12, Math.floor(c.combo/5)*4));
-  // 吸血：命中回血（词条「饮」）
-  if (af.lifesteal > 0){
-    const heal = Math.max(1, Math.floor(dmg * af.lifesteal / 100));
+  // 吸血：命中回血（词条「饮」；神兵「饮血」另加 8%）
+  const lifesteal = af.lifesteal + (divineHas('drink') ? 8 : 0);
+  if (lifesteal > 0){
+    const heal = Math.max(1, Math.floor(dmg * lifesteal / 100));
     const before = c.playerHp;
     c.playerHp = Math.min(playerMaxHp(), c.playerHp + heal);
     if (c.playerHp > before) UI && UI.floatText(playerEl(), `+${c.playerHp - before}`, '#5ec97a');
@@ -1422,6 +1540,15 @@ function meetKill(c, m){
     giveItem(m.drop, 1, false);
     pushRecentLoot(m.drop, 1);
     UI && UI.log(`🌟 得 ${Items[m.drop].name}`, 'gold', 'combat');
+  }
+  // 神兵：低概率，打得过才谈得上
+  if (isBoss && m.divine && Items[m.divine] && chance(DIVINE_DROP)){
+    giveItem(m.divine, 1, false);
+    pushRecentLoot(m.divine, 1);
+    log(`⚔️ 神兵现世：${Items[m.divine].name}！`, 'gold', 'combat');
+    UI && UI.log(`⚔️ 神兵现世：${Items[m.divine].name}！`, 'gold', 'combat');
+    UI && UI.toast(`⚔️ ${m.name} 遗下神兵\n${Items[m.divine].name}`);
+    if (typeof FX !== 'undefined' && FX.burst) FX.burst((window.innerWidth||300)/2, (window.innerHeight||500)/3, '⚔️', 18);
   }
   Game.combat = null;
   // 结算完就地刷界面：竞技场 + 刚打完那张卡（不重建 191 张目标卡）。

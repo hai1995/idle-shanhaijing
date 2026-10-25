@@ -2023,6 +2023,7 @@ UI.openHuntModal = function(id){
     `<div class="hm-line">${esc(node ? node.name : '')}${drops ? ' · 掉落 ' + esc(drops) : ''}</div>`,
     `<div class="hm-line">五行 ${x.el || '—'}${counterEl ? ` · <b>宜用 ${counterEl} 属</b>（伤害 ×${TUNING.WUXING.KE}）` : ''}</div>`,
     x.special ? `<div class="hm-line hm-spec"><b>${esc(x.special.name)}</b>${x.desc ? ' · ' + esc(x.desc) : ''}</div>` : '',
+    (x.divine && Items[x.divine]) ? `<div class="hm-line hm-divine">遗神兵 <b>${esc(Items[x.divine].name)}</b>（${Math.round((typeof DIVINE_DROP==='number'?DIVINE_DROP:0.06)*100)}% 掉落 · ${esc((DIVINE_EFFECTS[Items[x.divine].divine]||{}).label||'')}）</div>` : '',
     `<div class="hm-line">${th.label}${x.boss ? ' · BOSS' : ''}${x.pair ? ' · 成对（占两槽）' : ''}</div>`,
     `<div class="hm-line">已录 <b>${rec.count}</b> 次（${TUNING.MASTERY.NAMES[rec.tier] || ''}）${decay < 1 ? ` · 连杀递减 ×${decay.toFixed(2)}` : ''}</div>`,
   ].filter(Boolean).join('');
@@ -2031,13 +2032,14 @@ UI.openHuntModal = function(id){
     ${can ? `
     <div class="hm-times">
       <label for="huntTimes">战斗次数</label>
-      <input id="huntTimes" type="number" min="1" max="99" step="1" value="1" inputmode="numeric"
+      <input id="huntTimes" type="number" min="0" max="99" step="1" value="" placeholder="∞" inputmode="numeric"
         oninput="UI.onHuntTimesInput(this)" onchange="UI.clampHuntTimes(this)">
       <span class="hm-chips">
-        ${[1,5,10,99].map(n=>`<button type="button" class="chip-btn" onclick="UI.setHuntTimes(${n})">${n}</button>`).join('')}
+        <button type="button" class="chip-btn on" onclick="UI.setHuntTimes(0)">∞</button>
+        ${[1,5,10,50].map(n=>`<button type="button" class="chip-btn" onclick="UI.setHuntTimes(${n})">${n}</button>`).join('')}
       </span>
     </div>
-    <div class="hint">一场胜后自动接战，直至场次用尽或败北；换一只异兽即重置连杀递减。</div>
+    <div class="hint">留空为无限连战（♾）；填数字则打满即止。一场胜后自动接战，直至场次用尽或败北；换一只异兽即重置连杀递减。</div>
     <div class="modal-btns">
       <button class="btn primary" onclick="UI.startHuntTimes('${id}')">战斗</button>
       ${counterEl?`<button class="btn" onclick="setCombatStyle('zhu');setZhuEl('${counterEl}');UI.startHuntTimes('${id}')">切${counterEl}属并开战</button>`:''}
@@ -2046,10 +2048,13 @@ UI.openHuntModal = function(id){
     <div class="hm-lock">${esc(lockMsg)}</div>
     <div class="modal-btns"><button class="btn" onclick="UI.closeModal()">闭</button></div>`}`);
 };
-// 次数校验：空 / 0 / 负数 / 小数 / 超 99，一律夹到 1–99 的整数
+// 次数校验：留空 / 0 表示「无限连战」（返回 null）；其余夹到 1–99 的整数。
+// 默认就是无限——挂机游戏里「打一场就停」反而是少数意图，不该让人每次手动改。
 UI.clampHuntTimes = function(el){
-  if (!el) return 1;
-  let n = parseInt(el.value, 10);
+  if (!el) return null;
+  const raw = String(el.value == null ? '' : el.value).trim();
+  if (raw === '' || raw === '0' || raw === '∞'){ el.value = ''; return null; }
+  let n = parseInt(raw, 10);
   if (!isFinite(n) || n < 1) n = 1;
   if (n > 99) n = 99;
   el.value = n;
@@ -2062,11 +2067,12 @@ UI.onHuntTimesInput = function(el){
 };
 UI.setHuntTimes = function(n){
   const el = document.getElementById('huntTimes');
-  if (el) el.value = Math.max(1, Math.min(99, n|0));
+  if (!el) return;
+  el.value = (!n || n <= 0) ? '' : Math.max(1, Math.min(99, n|0));
 };
 UI.startHuntTimes = function(id){
   const el = document.getElementById('huntTimes');
-  const n = this.clampHuntTimes(el);
+  const n = this.clampHuntTimes(el);   // null = 无限连战
   this.closeModal();
   startCombat(id, { times:n, focus:true });
 };
@@ -3105,6 +3111,13 @@ function itemSources(id){
     drops.push(m.name);
   }
   if (drops.length) out.push({ kind:'讨伐', where: drops.slice(0, 3).join('、') + (drops.length > 3 ? ` 等 ${drops.length} 种` : '') });
+  // 神兵：只在 BOSS 的 divine 字段上，普通掉落表里没有
+  for (const mb of Object.values(typeof Monsters !== 'undefined' ? Monsters : {})){
+    if (mb.divine !== id) continue;
+    const pct = Math.round((typeof DIVINE_DROP === 'number' ? DIVINE_DROP : 0.06) * 100);
+    out.push({ kind:'神兵', where:`讨伐 ${mb.name}（${pct}% 掉落）` });
+    break;
+  }
   for (const s of (typeof ShopStock !== 'undefined' ? ShopStock : [])){
     if (s.itemId !== id) continue;
     out.push({ kind:'墟市', lvl: s.lvl || 1, where:`${s.cost} 贝 / ${s.qty} 件（需 ${s.lvl || 1} 级）` });
@@ -3138,10 +3151,51 @@ function itemSources(id){
   return out;
 }
 
-function showItemDetail(itemId){
+// 淬炼面板：等级、成功率、材料、失败代价、一键强化。
+// 独立成块是为了「就地刷新」——强一次关一次窗，连点三下要开三次，太笨。
+function enhancePanelHtml(itemId, it){
+  const base = it.dmg || it.def || 0;
+  if (!it.equip || !base) return '';
+  const lv = enhanceLevel(itemId);
+  const max = ENHANCE_MAX;
+  const cur = Math.floor(enhanceScaled(base, lv));
+  const label = it.dmg ? '伤害' : '防御';
+  if (lv >= max){
+    return `<div class="reveal"><b>淬炼</b><span class="enh-max">已至 +${max}（上限）· ${label} ${cur}</span></div>`;
+  }
+  const cost = enhanceCost(itemId);
+  const rate = Math.round(enhanceRate(lv) * 100);
+  const nxt = Math.floor(enhanceScaled(base, lv + 1));
+  const safe = lv < ENHANCE_SAFE;
+  const stones = Game.inventory.zhenwu || 0;
+  const last = (UI._enhLast && UI._enhLast.id === itemId) ? UI._enhLast : null;
+  const cls = rate >= 50 ? 'ok' : rate >= 20 ? 'mid' : 'hard';
+  return `<div class="reveal enh-box">
+    <b>淬炼</b>
+    <div class="enh-hd">
+      <span class="enh-lv">+${lv}<i> / ${max}</i></span>
+      <span class="enh-rate ${cls}">成功率 ${rate}%</span>
+      ${last ? `<span class="enh-log ${last.cls}">${esc(last.text)}</span>` : ''}
+    </div>
+    <div class="enh-val">${label} <b>${cur}</b> → <b>${nxt}</b>
+      <span class="hint">${safe ? `未至 +${ENHANCE_SAFE}，失败只损材料` : `失败跌至 +${Math.max(0, lv - 1)}（镇物可护）`}</span></div>
+    <div class="enh-cost">炭 ×${cost.tan} · ${fmt(cost.shells)} 贝${safe ? '' : `　·　镇物 ×1（有 ${stones}）`}</div>
+    <div class="enh-btns">
+      <button class="btn small primary" onclick="UI.enhanceOne('${itemId}')">强化 +1</button>
+      <span class="enh-to">
+        <input id="enhTarget" type="number" min="${lv + 1}" max="${max}" placeholder="目标等级" inputmode="numeric">
+        <button class="btn small" onclick="UI.enhanceTo('${itemId}')">强化至</button>
+      </span>
+      ${safe ? '' : `<label class="enh-stone"><input type="checkbox" id="enhStone" ${stones ? 'checked' : 'disabled'}> 用镇物</label>`}
+    </div>
+  </div>`;
+}
+
+// 物品详情的内容独立出来：强化 / 重铸执行后就地重绘，不关窗
+UI.itemDetailHtml = function(itemId){
   const it = Items[itemId];
-  if (!it) return;
-  const qty = Game.inventory[itemId]||0;
+  if (!it) return '';
+  const qty = Game.inventory[itemId] || 0;
   const rec = Game.records[itemId];
   const actions = [];
   if (it.equip){
@@ -3152,28 +3206,15 @@ function showItemDetail(itemId){
     actions.push(`<button class="btn ${ok?'primary':''}" ${ok?'':'disabled'} onclick="equipItem('${itemId}');UI.closeModal()">装备${ok?'':'（'+why+'）'}</button>`);
   }
   if (it.heal || it.buff) actions.push(`<button class="btn primary" onclick="useConsumable('${itemId}');UI.closeModal()">${it.heal?'食用':'服用'}</button>`);
-  // 淬炼：装备专属长线投入（+9 上限，每级 +6% 基础伤害 / 防御）
+  if (it.value) actions.push(`<button class="btn" onclick="sellItem('${itemId}',1);UI.closeModal()">出售 1（${sellValue(itemId,1)} 贝）</button>`);
+
   const enhLv = (typeof enhanceLevel === 'function') ? enhanceLevel(itemId) : 0;
-  const enhCost = (typeof enhanceCost === 'function') ? enhanceCost(itemId) : null;
-  if (it.equip && (it.dmg || it.def) && enhCost){
-    const base = it.dmg || it.def;
-    const now = Math.floor(enhanceScaled(base, enhLv));
-    const nx = Math.floor(enhanceScaled(base, enhLv + 1));
-    const enough = (Game.inventory.tan||0) >= enhCost.tan && Game.shells >= enhCost.shells;
-    actions.push(enhLv < 9
-      ? `<button class="btn ${enough?'primary':''}" ${enough?'':'disabled'} onclick="enhanceItem('${itemId}');UI.closeModal();UI.renderPack()">淬炼 +${enhLv+1}（炭×${enhCost.tan} · ${enhCost.shells} 贝）</button>`
-      : `<button class="btn" disabled>已至 +9</button>`);
-  }
-  // 词条：与淬炼并行的第二条养成线——淬炼抬基础值，词条换战斗乘区
   const hasAffix = it.equip && typeof affixSlotOf === 'function' && affixSlotOf(it);
   const afList = hasAffix ? affixOf(itemId) : [];
   const afCost = hasAffix ? affixReforgeCost(itemId) : null;
-  if (hasAffix && afCost){
-    const afOk = (Game.inventory.tan || 0) >= afCost.tan && Game.shells >= afCost.shells;
-    actions.push(`<button class="btn ${afOk ? 'primary' : ''}" ${afOk ? '' : 'disabled'} onclick="reforgeItem('${itemId}');UI.closeModal();UI.renderPack()">重铸词条（炭×${afCost.tan} · ${afCost.shells} 贝）</button>`);
-  }
-  if (it.value) actions.push(`<button class="btn" onclick="sellItem('${itemId}',1);UI.closeModal()">出售 1（${sellValue(itemId,1)} 贝）</button>`);
-  UI.modal(`<h3><span class="mi-ic">${typeof itemIc==='function'?itemIc(itemId,18):it.icon}</span> ${esc(it.name)} <span class="tier">${rarityName(it)}</span></h3>
+  const afOk = afCost ? ((Game.inventory.tan || 0) >= afCost.tan && Game.shells >= afCost.shells) : false;
+
+  return `<h3><span class="mi-ic">${typeof itemIc==='function'?itemIc(itemId,18):it.icon}</span> ${esc(it.name)} <span class="tier">${rarityName(it)}</span></h3>
     <div class="meta">行囊 ${qty} 件${rec?` · 著录 ${rec.count} 次（${TUNING.MASTERY.NAMES[rec.tier]}）`:''}</div>
     ${it.form?`<div class="reveal"><b>形态</b>${esc(it.form)}</div>`:''}
     ${it.effect?`<div class="reveal"><b>效果</b>${esc(it.effect)}</div>`:''}
@@ -3188,12 +3229,62 @@ function showItemDetail(itemId){
       const price = (typeof sellValue === 'function' && it.value) ? `<span class="hint">回收 ${sellValue(itemId, 1)} 贝 / 件</span>` : '';
       return (body || crop) ? `<div class="reveal"><b>用途</b><span class="use-box">${crop}${body}${price}</span></div>` : '';
     })()}
-    ${it.equip&&(it.dmg||it.def)?`<div class="reveal"><b>淬炼</b>+${enhLv} · ${it.dmg?'伤害':'防御'} ${Math.floor(enhanceScaled(it.dmg||it.def, enhLv))} → 下一级 ${Math.floor(enhanceScaled(it.dmg||it.def, enhLv+1))}（炭×${enhCost.tan} · ${enhCost.shells} 贝）</div>`:''}
+    ${it.divine && typeof DIVINE_EFFECTS !== 'undefined' && DIVINE_EFFECTS[it.divine]
+      ? `<div class="reveal"><b>神兵</b><span class="dv-tag">${esc(DIVINE_EFFECTS[it.divine].label)}</span><span class="dv-text">${esc(DIVINE_EFFECTS[it.divine].text)}</span></div>` : ''}
+    ${enhancePanelHtml(itemId, it)}
     ${afList.length?`<div class="reveal"><b>词条</b>${afList.map(x=>`<span class="af-txt"><i>${esc(x.name)}</i>${esc(x.text)}</span>`).join('')}</div>`:''}
+    ${afCost?`<div class="reveal"><b>重铸</b><span class="af-recost">换一组词条（炭×${afCost.tan} · ${afCost.shells} 贝）</span>
+      <button class="btn small ${afOk?'primary':''}" ${afOk?'':'disabled'} onclick="UI.reforgeNow('${itemId}')">重铸</button></div>`:''}
     ${it.buff?`<div class="reveal"><b>服用</b>${esc(it.buff.name)}（${it.buff.dur}s）</div>`:''}
     ${it.heal?`<div class="reveal"><b>食用</b>回血 ${it.heal}</div>`:''}
-    <div class="modal-btns">${actions.join('')}<button class="btn" onclick="UI.closeModal()">闭</button></div>`);
+    <div class="modal-btns">${actions.join('')}<button class="btn" onclick="UI.closeModal()">闭</button></div>`;
+};
+
+function showItemDetail(itemId){
+  if (!Items[itemId]) return;
+  if (UI._detailId !== itemId) UI._enhLast = null;   // 换了一件，上一件的成败记录不该跟着跑
+  UI._detailId = itemId;
+  UI.modal(UI.itemDetailHtml(itemId));
 }
+
+// 就地重绘：保持滚动位置，免得强化一下就被弹回顶部
+UI.refreshItemModal = function(itemId){
+  const box = $('modalBox');
+  const y = box ? box.scrollTop : 0;
+  UI.modal(UI.itemDetailHtml(itemId));
+  const box2 = $('modalBox');
+  if (box2) box2.scrollTop = y;
+};
+
+UI.enhanceOne = function(itemId){
+  const stoneEl = $('enhStone');
+  const stone = !!(stoneEl && stoneEl.checked);
+  const r = enhanceItem(itemId, { stone });
+  if (!r.ok) UI._enhLast = { id:itemId, text: r.reason || '未能强化', cls:'bad' };
+  else if (r.success) UI._enhLast = { id:itemId, text:`成：+${r.lvBefore} → +${r.lvAfter}`, cls:'good' };
+  else if (r.lost) UI._enhLast = { id:itemId, text:`败：跌至 +${r.lvAfter}`, cls:'bad' };
+  else UI._enhLast = { id:itemId, text:`败：${r.usedStone ? '镇物护住原阶' : '仅损材料'}`, cls:'sys' };
+  UI.refreshItemModal(itemId);
+};
+
+UI.enhanceTo = function(itemId){
+  const el = $('enhTarget');
+  const t = parseInt(el && el.value, 10);
+  if (!isFinite(t)){ UI.toast('先填目标等级'); return; }
+  const stoneEl = $('enhStone');
+  const stone = !!(stoneEl && stoneEl.checked);
+  const r = enhanceToTarget(itemId, t, { stone });
+  UI._enhLast = { id:itemId, cls: r.done ? 'good' : 'sys',
+    text: `${r.done ? '已至' : '止于'} +${r.lv}（${r.tries} 次 · 成 ${r.ups} 败 ${r.downs}${r.stones ? ` · 镇物 ${r.stones}` : ''}）` };
+  UI.refreshItemModal(itemId);
+};
+
+UI.reforgeNow = function(itemId){
+  const ok = reforgeItem(itemId);
+  UI._enhLast = { id:itemId, text: ok ? '词条已重铸' : '重铸未成', cls: ok ? 'good' : 'bad' };
+  UI.refreshItemModal(itemId);
+};
+
 window.showItemDetail = showItemDetail;
 
 // ================= 统计 =================

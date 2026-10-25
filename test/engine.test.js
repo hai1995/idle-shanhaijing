@@ -2774,13 +2774,16 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   ST.equipItem('muge');
   ST.Game.combat = { style:'attack' };        // 固定近战口径，免得默认祝术走法术分支
   const dmg0 = G.playerWeaponDmg();
-  assert(ST.enhanceItem('muge') === true, '装备可淬炼');
+  const e0 = ST.enhanceItem('muge');
+  assert(e0 && e0.ok && e0.success, '装备可淬炼（0→1 必成）');
   assert(ST.enhanceLevel('muge') === 1, '淬炼 +1');
   assert(G.playerWeaponDmg() > dmg0, '淬炼提升武器伤害（+6%/级）');
   ST.Game.combat = null;
-  ST.Game.enhance.muge = 9;
+  ST.Game.enhance.muge = 30;
   const tan0 = ST.Game.inventory.tan;
-  assert(ST.enhanceItem('muge') === false && (ST.Game.inventory.tan || 0) === tan0, '已至 +9 不再消耗');
+  const e1 = ST.enhanceItem('muge');
+  assert(e1.ok === false && (ST.Game.inventory.tan || 0) === tan0, '已至 +30 不再消耗');
+  ST.Game.enhance.muge = 9;
   const ser2 = ST.serializeSave();
   assert(ser2 && ser2.enhance && ser2.enhance.muge === 9, '淬炼等级写入存档');
 
@@ -3297,8 +3300,9 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   };
   const val = it => it.dmg || it.def || it.axePower || it.pickPower || it.netPower || 0;
 
+  // 神兵（divine）是「打得过那位 BOSS」的越级强度，不参与同族梯度比较
   const groups = {};
-  all.forEach(it => { (groups[fam(it)] = groups[fam(it)] || []).push(it); });
+  all.filter(it => !it.divine).forEach(it => { (groups[fam(it)] = groups[fam(it)] || []).push(it); });
   for (const [name, list] of Object.entries(groups)){
     if (name === 'charm') continue;                 // 护符按效果分强弱，不比数值
     const rows = list.filter(i => i.lvl).sort((a, b) => a.lvl - b.lvl);
@@ -3325,6 +3329,116 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
     assert(!!rec, id + ' 有配方');
     assert(Array.isArray(rec.cost) && rec.cost.every(([m]) => !!ST.Items[m]), id + ' 的材料都是既有物品');
   }
+}
+
+// ============ 60. 强化：30 级 / 概率 / 镇物 / 连强（v1.16） ============
+{
+  G.resetToDefault();
+  assert(ST.ENHANCE_MAX === 30, '强化上限 +30');
+  assert(ST.ENHANCE_SAFE === 10, '+10 起失败会掉级');
+
+  // 成功率单调不增，且两端合理
+  let prev = 1.01, mono = true;
+  for (let l = 0; l < 30; l++){ const r = ST.enhanceRate(l); if (r > prev + 1e-9) mono = false; prev = r; }
+  assert(mono, '成功率随等级不升');
+  assert(ST.enhanceRate(0) === 1, '0→1 必成');
+  assert(ST.enhanceRate(29) < 0.05, '+29→30 不足 5%');
+
+  // 材料随等级递增
+  ST.Game.enhance = { muge: 0 };
+  const c1 = ST.enhanceCost('muge');
+  ST.Game.enhance.muge = 29;
+  const c30 = ST.enhanceCost('muge');
+  assert(c30.tan > c1.tan && c30.shells > c1.shells, '+30 的材料远多于 +1（' + c1.tan + '→' + c30.tan + ' 炭）');
+
+  // 数值曲线：+9 与旧版一致，+30 明显更强
+  assert(ST.enhanceScaled(60, 0) === 60, '+0 不加工');
+  assert(ST.enhanceScaled(60, 9) === 96, '+9 沿用旧增量（60→96）');
+  assert(ST.enhanceScaled(60, 30) > ST.enhanceScaled(60, 9) * 1.5, '+30 相对 +9 有量级提升（' + ST.enhanceScaled(60, 30) + '）');
+
+  // 失败规则：<10 只损材料
+  const origRandom = Math.random;
+  for (const sid of ST.ALL_SKILL_IDS) ST.Game.skills[sid] = { level: 60, xp: 1e8 };
+  ST.Game.inventory.tan = 5000; ST.Game.shells = 5e6;
+  ST.Game.enhance = { muge: 5 };
+  Math.random = () => 0.999;                       // 必败
+  const f1 = ST.enhanceItem('muge');
+  assert(f1.ok && !f1.success && !f1.lost && ST.enhanceLevel('muge') === 5, '+5 失败不掉级');
+
+  ST.Game.enhance = { muge: 12 };
+  const f2 = ST.enhanceItem('muge');
+  assert(f2.lost && ST.enhanceLevel('muge') === 11, '+12 失败跌至 +11');
+
+  // 镇物：失败亦保原阶，并扣一枚
+  ST.Game.enhance = { muge: 12 };
+  ST.Game.inventory.zhenwu = 2;
+  const f3 = ST.enhanceItem('muge', { stone: true });
+  assert(f3.usedStone && !f3.lost && ST.enhanceLevel('muge') === 12, '镇物护住 +12');
+  assert(ST.Game.inventory.zhenwu === 1, '镇物消耗一枚');
+
+  // 必成时逐级推进
+  Math.random = () => 0;
+  ST.Game.enhance = { muge: 0 };
+  const r4 = ST.enhanceToTarget('muge', 15, {});
+  assert(r4.done && r4.lv === 15, '强化至 +15 达成');
+  Math.random = origRandom;
+
+  // 弹窗不关闭：按钮走 UI.enhanceOne / UI.enhanceTo，执行后就地重绘
+  const uiSrc60 = readText('src/ui.js');
+  assert(uiSrc60.includes("UI.enhanceOne('${itemId}')") && uiSrc60.includes("UI.enhanceTo('${itemId}')"),
+    '详情里的强化按钮走就地刷新，不再 closeModal');
+  assert(uiSrc60.includes('UI.refreshItemModal') && uiSrc60.includes('box2.scrollTop = y'),
+    '重绘后保持滚动位置');
+  assert(uiSrc60.includes("UI.reforgeNow('${itemId}')"), '重铸同样就地刷新');
+  assert(uiSrc60.includes('成功率 ${rate}%') && uiSrc60.includes('use镇物') === false, '面板写明成功率');
+  assert(/\.enh-rate\.hard\{/.test(readText('style.css')), '成功率有低/中/高三档配色');
+}
+
+// ============ 61. 神兵（v1.16） ============
+{
+  G.resetToDefault();
+  const divine = Object.values(ST.Items).filter(i => i.divine);
+  assert(divine.length === 7, '七件神兵（' + divine.map(d => d.name).join('、') + '）');
+  assert(divine.every(d => ST.DIVINE_EFFECTS[d.divine]), '每件都挂已知特性');
+  const kinds = new Set(divine.map(d => d.divine));
+  assert(kinds.size === 4, '四种特性都用上了（破甲/饮血/疾风/裂甲）');
+  assert(divine.every(d => !ST.Recipes.some(r => r.out === d.id)), '神兵不可锻造');
+
+  // BOSS 与神兵一一对应
+  const bossDivine = Object.values(ST.Monsters).filter(m => m.divine);
+  assert(bossDivine.length === 7, '七只 BOSS 各有专属神兵');
+  for (const m of bossDivine){
+    assert(!!ST.Items[m.divine], m.name + ' 的神兵存在（' + m.divine + '）');
+    assert(ST.Items[m.divine].divine, m.name + ' 的神兵带特性');
+  }
+  assert(typeof ST.DIVINE_DROP === 'number' && ST.DIVINE_DROP <= 0.1, '掉落率压低（' + Math.round(ST.DIVINE_DROP*100) + '%）');
+
+  // 特性生效：破甲减半防御项
+  G.resetToDefault();
+  for (const sid of ST.ALL_SKILL_IDS) ST.Game.skills[sid] = { level: 70, xp: 1e8 };
+  ST.Game.gear.weapon = ST.Items.bailianjian;
+  ST.Game.combat = { monsterId: 'yayu' };           // 猰貐 def 45
+  const plain = ST.playerDamageRange();
+  ST.Game.gear.weapon = ST.Items.fenghuifu;         // 神兵·破甲
+  const pierce = ST.playerDamageRange();
+  assert(pierce.hi > plain.hi, '破甲神兵对厚甲目标伤害更高（' + plain.hi + ' → ' + pierce.hi + '）');
+  ST.Game.combat = null;
+
+  // 疾风：攻势更快
+  ST.Game.gear.weapon = ST.Items.dafengyugong;
+  ST.Game.combat = { monsterId: 'yayu', style:'ranged' };
+  const fast = ST.playerAttackInterval();
+  ST.Game.gear.weapon = ST.Items.chijingong;
+  const slow = ST.playerAttackInterval();
+  assert(fast < slow, '疾风神兵攻速更快（' + fast.toFixed(2) + ' < ' + slow.toFixed(2) + '）');
+  ST.Game.combat = null;
+
+  // 掉落接线 + 详情展示
+  const gameSrc61 = readText('src/game.js');
+  assert(gameSrc61.includes('m.divine && Items[m.divine] && chance(DIVINE_DROP)'), '击杀 BOSS 时按概率掉神兵');
+  const uiSrc61 = readText('src/ui.js');
+  assert(uiSrc61.includes('class="dv-tag"') && uiSrc61.includes('hm-line hm-divine'), '详情与讨伐弹窗都标出神兵');
+  assert(ST.itemSources('ganqi').some(x => x.kind === '神兵'), '神兵的来路写着「讨伐 刑天」');
 }
 
 // ============ 47. 物品用途面板（v1.14.3） ============

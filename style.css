@@ -1221,6 +1221,38 @@ svg.bi.mk{ vertical-align:-2px; }
   color:#FCFBF6; background:var(--zhu); border-radius:2px; cursor:help;
 }
 .hm-spec b{ color:var(--zhu); font-family:var(--f-kai); }
+/* 神兵：详情里的特性行、讨伐弹窗的掉落提示 */
+.dv-tag{
+  flex:0 0 auto; font-family:var(--f-kai); font-size:11px; line-height:16px; padding:0 6px;
+  color:#2a1d0d; background:linear-gradient(180deg,#f2d492,#d9a521); border-radius:2px;
+}
+.dv-text{ font-size:12px; color:var(--ink-2); }
+.hm-divine{ color:var(--jin); font-size:11.5px; }
+.hm-divine b{ color:#a8781a; font-family:var(--f-kai); }
+/* 淬炼面板：一栏竖排，等级 / 成功率 / 材料 / 按钮各归各位 */
+.reveal.enh-box{ display:block; }
+.enh-box > b{ display:block; color:var(--qing); font-family:var(--f-kai); font-size:12px;
+  letter-spacing:.1em; margin-bottom:6px; }
+.enh-hd{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.enh-lv{ font-family:var(--f-num); font-size:17px; color:var(--zhu); }
+.enh-lv i{ font-style:normal; font-size:11px; color:var(--ink-4); }
+.enh-rate{ font-family:var(--f-num); font-size:11px; padding:1px 7px; border-radius:2px;
+  border:1px solid var(--rule-2); background:var(--paper-3); color:var(--ink-3); }
+.enh-rate.ok{ color:var(--tai); border-color:rgba(74,124,89,.35); background:rgba(74,124,89,.08); }
+.enh-rate.mid{ color:var(--jin); border-color:rgba(156,118,40,.35); background:rgba(156,118,40,.08); }
+.enh-rate.hard{ color:var(--zhu); border-color:rgba(176,58,43,.35); background:rgba(176,58,43,.08); }
+.enh-log{ margin-left:auto; font-size:10.5px; letter-spacing:0; }
+.enh-log.good{ color:var(--tai); } .enh-log.bad{ color:var(--zhu); } .enh-log.sys{ color:var(--ink-3); }
+.enh-val{ font-size:12.5px; color:var(--ink-2); margin:5px 0 2px; }
+.enh-val b{ font-family:var(--f-num); color:var(--ink); font-size:13.5px; }
+.enh-cost{ font-family:var(--f-num); font-size:11px; color:var(--ink-4); margin-bottom:7px; }
+.enh-btns{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.enh-to{ display:inline-flex; align-items:center; gap:5px; }
+.enh-to input{ width:74px; padding:3px 6px; font-family:var(--f-num); font-size:11.5px;
+  background:var(--paper); border:1px solid var(--rule); border-radius:2px; color:var(--ink); }
+.enh-stone{ display:inline-flex; align-items:center; gap:4px; font-size:11px; color:var(--ink-3); cursor:pointer; }
+.enh-max{ color:var(--jin); font-family:var(--f-num); font-size:11.5px; }
+.af-recost{ font-size:11px; color:var(--ink-4); }
 /* 地气标签：特殊节点的实际影响 */
 .geo-tags{ display:flex; flex-wrap:wrap; gap:5px; margin-top:5px; }
 .geo-tag{
