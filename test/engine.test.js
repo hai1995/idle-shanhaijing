@@ -185,7 +185,9 @@ assert(ST.Game.stats.harvests >= 1, '收获计数');
 
 // ============ 5. 制作闭环 ============
 section('制作闭环');
-G.giveItem('guaimu', 5, false); G.giveItem('shashi', 5, false); G.giveItem('jing', 3, false);
+G.giveItem('guaimu', 5, false); G.giveItem('shashi', 5, false); G.giveItem('gui', 6, false);
+// 石斧 / 石镐要冶铸六级、石镞矢要削羽六级（沙石产在箕尾之山，Lv7 才到得了）
+G.gainXp('yezhu', 60000); G.gainXp('xiaoyu', 60000);
 G.startActivity('craft','burn::tan');
 for (let i=0;i<3;i++) G.performAction(ST.Game.activity);
 assert(ST.totalOf('tan') >= 6, '燔燎得炭 -> '+ST.totalOf('tan'));
@@ -1982,7 +1984,7 @@ section('制作：单件 / 连作 / 紧凑卡片');
   assert(ST.Game.activity === null, '做完一件即停，不进入无限连做');
 
   // 35.2 连作：不设上限，持续做
-  ST.Game.inventory.jing = 50;
+  ST.Game.inventory.gui = 50;
   ST.startActivity('craft', 'craft::sheng');
   assert(ST.Game.activity && ST.Game.activity.remain == null, '「连」不设件数上限');
   G.doRecipeAction(ST.Game.activity);
@@ -1991,7 +1993,7 @@ section('制作：单件 / 连作 / 紧凑卡片');
 
   // 35.3 离线结算尊重限量
   G.resetToDefault();
-  ST.Game.inventory.jing = 100;
+  ST.Game.inventory.gui = 100;
   ST.startActivity('craft', 'craft::sheng', { times: 2 });
   const beforeOut = ST.Game.inventory.sheng || 0;
   G.settleAway(3600);
@@ -3844,6 +3846,71 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   for (const id of ids){
     assert(uiSrc66.includes("case '" + id + "'"), id + ' 在 structureEffectRows 里有收益对比');
   }
+}
+
+// ============ 67. 材料的可达性（v1.18.2） ============
+{
+  G.resetToDefault();
+  const nodeLv = {};
+  ST.WORLD.regions.forEach(r => r.nodes.forEach(n => { nodeLv[n.id] = n.unlockLevel; }));
+
+  // 67.1 物产等级不得高于产地解锁等级太多：到了那座山却采不了，等于这座山是空的
+  const bad = [];
+  for (const it of Object.values(ST.Items)){
+    if (!it.skill || !it.node || it.lvl == null) continue;
+    const nl = nodeLv[it.node];
+    if (nl == null) continue;
+    if (it.lvl > nl + 2) bad.push(`${it.name}(Lv${it.lvl}) 产自 Lv${nl} 之山`);
+  }
+  assert(bad.length === 0, '没有「到了山也采不了」的物产（' + (bad.slice(0,4).join('；') || '无') + '）');
+
+  // 67.2 配方材料的获得等级不得比配方本身晚太多（越级采集允许差 8）
+  const cropIds = new Set(Object.values(ST.Items).filter(i => i.crop).map(i => i.id));
+  const earliest = (id) => {
+    const it = ST.Items[id]; if (!it) return 999;
+    let best = Infinity;
+    if (it.skill && it.lvl) best = Math.min(best, it.lvl);
+    for (const r of ST.Recipes) if (r.out === id) best = Math.min(best, r.lvl || 1);
+    for (const m of Object.values(ST.Monsters)){
+      const loot = (Array.isArray(m.loot) && m.loot.length) ? m.loot : (m.drop ? [[m.drop,1,1]] : []);
+      if (loot.some(x => x[0] === id)) best = Math.min(best, m.needLvl || 1);
+    }
+    for (const s of ST.ShopStock) if (s.itemId === id) best = Math.min(best, s.lvl || 1);
+    return best;
+  };
+  const late = [];
+  for (const r of ST.Recipes){
+    if (r.type === 'rite') continue;                 // 祠礼是「攒材料」的长期目标，不在此列
+    for (const [m] of r.cost){
+      if (cropIds.has(m)) continue;                  // 作物靠种子，种子在墟市
+      const e = earliest(m);
+      if (e !== Infinity && e > (r.lvl || 1) + 8)
+        late.push(`${(ST.Items[r.out]||{}).name || r.out}(Lv${r.lvl}) 需 ${(ST.Items[m]||{}).name || m}(Lv${e})`);
+    }
+  }
+  assert(late.length === 0, '没有「配方等级够了却拿不到料」的配方（' + (late.slice(0,4).join('；') || '无') + '）');
+
+  // 67.3 新手工具能真的做出来
+  const rope = ST.Recipes.find(r => r.out === 'sheng');
+  assert(rope && rope.cost.every(([m]) => (ST.Items[m].lvl || 1) <= 2),
+    '绳用一二级材料搓成（此前要 22 级的荆，新手做不了）');
+  const net = ST.Recipes.find(r => r.out === 'yuwang');
+  assert(net && net.cost.every(([m]) => m === 'sheng' || (ST.Items[m].lvl || 1) <= 5),
+    '渔网只用绳与怪木（此前要荆）');
+  for (const id of ['shifu', 'shikuo', 'shizu', 'shimao']){
+    const r = ST.Recipes.find(x => x.out === id);
+    assert(r && r.lvl >= 6, id + ' 的配方等级与沙石产地对齐（Lv' + (r && r.lvl) + '）');
+  }
+  assert(ST.Items.shashi.lvl <= 7, '沙石等级与箕尾之山一致（Lv' + ST.Items.shashi.lvl + '）');
+
+  // 67.4 芘蠃羹跟着材料走（芘蠃 Lv12，羹不该还写着 39）
+  assert(ST.Items.piluogeng.lvl <= ST.Items.piluo.lvl + 3,
+    '芘蠃羹等级随芘蠃（' + ST.Items.piluogeng.lvl + ' vs ' + ST.Items.piluo.lvl + '）');
+
+  // 67.5 BOSS 材料装：等级已抬到与材料相称（封豨之牙要打 76 级的封豨）
+  const fh = ST.Recipes.find(r => r.out === 'fenghuiyue');
+  assert(fh.lvl >= 74, '封豨钺的配方等级与封豨之牙相称（Lv' + fh.lvl + '）');
+  assert(ST.Items.fenghuiyue.lvl >= 74, '封豨钺本身也不再是 58 级的"过时货"');
 }
 
 // ============ 47. 物品用途面板（v1.14.3） ============

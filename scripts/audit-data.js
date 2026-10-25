@@ -153,6 +153,44 @@ const stats = {
   stats.品阶 = Object.entries(grades).map(([k, v]) => `${v.name}${byGrade[k] || 0}`).join('/');
 }
 
+// 物产等级 vs 产地解锁等级：到了那座山却采不了，这座山的产出就是空的。
+{
+  const nl = {};
+  W.WORLD.regions.forEach(r => r.nodes.forEach(n => { nl[n.id] = n.unlockLevel; }));
+  Object.values(I).forEach(it => {
+    if (!it.skill || !it.node || it.lvl == null) return;
+    const l = nl[it.node];
+    if (l == null) return;
+    if (it.lvl > l + 2) bad('物产', `${it.name} 需 ${it.lvl} 级，产地 ${it.node} 却只 Lv${l}（到了也采不了）`);
+  });
+}
+
+// 配方材料可达性：配方等级够了，材料却要更晚才拿得到，等于这条配方是摆设。
+{
+  const cropIds = new Set(Object.values(I).filter(i => i.crop).map(i => i.id));
+  const earliest = (id) => {
+    const it = I[id]; if (!it) return 999;
+    let best = Infinity;
+    if (it.skill && it.lvl) best = Math.min(best, it.lvl);
+    W.Recipes.forEach(r => { if (r.out === id) best = Math.min(best, r.lvl || 1); });
+    Object.values(W.Monsters).forEach(m => {
+      const loot = (Array.isArray(m.loot) && m.loot.length) ? m.loot : (m.drop ? [[m.drop,1,1]] : []);
+      if (loot.some(x => x[0] === id)) best = Math.min(best, m.needLvl || 1);
+    });
+    (W.ShopStock || []).forEach(x => { if (x.itemId === id) best = Math.min(best, x.lvl || 1); });
+    return best;
+  };
+  W.Recipes.forEach(r => {
+    if (r.type === 'rite') return;
+    r.cost.forEach(([m]) => {
+      if (cropIds.has(m)) return;
+      const e = earliest(m);
+      if (e !== Infinity && e > (r.lvl || 1) + 8)
+        bad('配方', `${(I[r.out]||{}).name || r.out}（Lv${r.lvl}）需 ${(I[m]||{}).name || m}（Lv${e}）——晚太多`);
+    });
+  });
+}
+
 console.log('数据规模：' + Object.entries(stats).map(([k, v]) => `${k} ${v}`).join(' · '));
 if (!problems.length){
   console.log('\n✅ 未发现悬空引用或死链。');

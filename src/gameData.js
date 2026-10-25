@@ -173,11 +173,11 @@ addItem(
   I('gui','桂','wood',    { value:2,  xp:10, lvl:1,  icon:'🌿', skill:'qiaocai', node:'nanshan-1-01', note:'多桂' }),
   I('yan','棪木','wood',  { value:4,  xp:14, lvl:2,  icon:'🪵', skill:'qiaocai', node:'nanshan-1-02', note:'多棪木' }),
   I('guaimu','怪木','wood',{ value:8,  xp:20, lvl:4,  icon:'🪹', skill:'qiaocai', node:'nanshan-1-03', note:'多怪木，不可以上' }),
-  I('zi','梓','wood',     { value:30, xp:60, lvl:20, icon:'🪵', skill:'qiaocai', node:'nanshan-2-14', note:'其上多梓枏' }),
-  I('nan','枏','wood',    { value:30, xp:60, lvl:20, icon:'🪵', skill:'qiaocai', node:'nanshan-2-14', note:'其上多梓枏（楠）' }),
-  I('jing','荆','wood',   { value:26, xp:52, lvl:22, icon:'🌿', skill:'qiaocai', node:'nanshan-2-14', note:'其下多荆杞' }),
-  I('qi','杞','wood',     { value:26, xp:52, lvl:22, icon:'🌿', skill:'qiaocai', node:'nanshan-2-14', note:'其下多荆杞' }),
-  I('mu','木','wood',     { value:50, xp:90, lvl:30, icon:'🌳', skill:'qiaocai', node:'nanshan-3-08', note:'上多木，无草' }),
+  I('zi','梓','wood',     { value:30, xp:32, lvl:13, icon:'🪵', skill:'qiaocai', node:'nanshan-2-14', note:'其上多梓枏' }),
+  I('nan','枏','wood',    { value:30, xp:32, lvl:13, icon:'🪵', skill:'qiaocai', node:'nanshan-2-14', note:'其上多梓枏（楠）' }),
+  I('jing','荆','wood',   { value:30, xp:32, lvl:13, icon:'🌿', skill:'qiaocai', node:'nanshan-2-14', note:'其下多荆杞' }),
+  I('qi','杞','wood',     { value:30, xp:32, lvl:13, icon:'🌿', skill:'qiaocai', node:'nanshan-2-14', note:'其下多荆杞' }),
+  I('mu','木','wood',     { value:42, xp:65, lvl:18, icon:'🌳', skill:'qiaocai', node:'nanshan-3-08', note:'上多木，无草' }),
 );
 
 // ---- 采玉 · 金玉五金 ----
@@ -186,28 +186,28 @@ addItem(
   I('yu','玉','mineral',    { value:8,  xp:14, lvl:1,  icon:'💠', skill:'caiyu', node:'nanshan-1-07', note:'其阳多玉' }),
   I('shuiyu','水玉','mineral',{ value:8, xp:14, lvl:2,  icon:'💧', skill:'caiyu', node:'nanshan-1-02', note:'多水玉' }),
   I('baiyu','白玉','mineral',{ value:10, xp:18, lvl:4,  icon:'⚪', skill:'caiyu', node:'nanshan-1-03', note:'多白玉' }),
-  I('huangjin','黄金','mineral',{ value:20,xp:28,lvl:8,  icon:'🟡', skill:'caiyu', node:'nanshan-1-02', note:'多黄金' }),
-  I('chijin','赤金','mineral',{ value:16, xp:24, lvl:6,  icon:'🔶', skill:'caiyu', node:'nanshan-1-04', note:'其阳多赤金' }),
-  I('baijin','白金','mineral',{ value:18, xp:26, lvl:6,  icon:'⚗️', skill:'caiyu', node:'nanshan-1-04', note:'其阴多白金' }),
-  I('qinghuo','青雘','mineral',{ value:35,xp:58, lvl:15, icon:'🟢', skill:'caiyu', node:'nanshan-1-08', note:'其阴多青雘', py:'huò' }),
-  I('shashi','沙石','mineral',{ value:12, xp:40, lvl:18, icon:'🪨', skill:'caiyu', node:'nanshan-1-09', note:'多沙石' }),
-  I('dansu','丹粟','mineral',{ value:40, xp:70, lvl:20, icon:'🔴', skill:'caiyu', node:'nanshan-2-01', note:'多丹粟', py:'sù' }),
-  I('fushi','砆石','mineral',{ value:45, xp:85, lvl:34, icon:'🪨', skill:'caiyu', node:'nanshan-2-09', note:'其下多砆石', py:'fū' }),
-  I('jinshi','金石','mineral',{ value:60, xp:100,lvl:44, icon:'🪙', skill:'caiyu', node:'nanshan-2-16', note:'多金石' }),
-  I('boshi','博石','mineral',{ value:80, xp:120,lvl:46, icon:'💎', skill:'caiyu', node:'nanshan-2-17', note:'多博石' }),
+  I('huangjin','黄金','mineral',{ value:8,xp:12,lvl:2,  icon:'🟡', skill:'caiyu', node:'nanshan-1-02', note:'多黄金' }),
+  I('chijin','赤金','mineral',{ value:16, xp:20, lvl:3,  icon:'🔶', skill:'caiyu', node:'nanshan-1-04', note:'其阳多赤金' }),
+  I('baijin','白金','mineral',{ value:18, xp:22, lvl:3,  icon:'⚗️', skill:'caiyu', node:'nanshan-1-04', note:'其阴多白金' }),
+  I('qinghuo','青雘','mineral',{ value:11,xp:8, lvl:5, icon:'🟢', skill:'caiyu', node:'nanshan-1-08', note:'其阴多青雘', py:'huò' }),
+  I('shashi','沙石','mineral',{ value:13, xp:8, lvl:6, icon:'🪨', skill:'caiyu', node:'nanshan-1-09', note:'多沙石' }),
+  I('dansu','丹粟','mineral',{ value:13, xp:8, lvl:6, icon:'🔴', skill:'caiyu', node:'nanshan-2-01', note:'多丹粟', py:'sù' }),
+  I('fushi','砆石','mineral',{ value:22, xp:18, lvl:10, icon:'🪨', skill:'caiyu', node:'nanshan-2-09', note:'其下多砆石', py:'fū' }),
+  I('jinshi','金石','mineral',{ value:32, xp:38,lvl:14, icon:'🪙', skill:'caiyu', node:'nanshan-2-16', note:'多金石' }),
+  I('boshi','博石','mineral',{ value:32, xp:38,lvl:14, icon:'💎', skill:'caiyu', node:'nanshan-2-17', note:'多博石' }),
 );
 
 // ---- 渔 · 水族 ----
 addItem(
   I('yupei','育沛','fish',  { value:15, xp:16, lvl:1,  icon:'🐚', skill:'yu', node:'nanshan-1-01', water:'丽麂之水', effect:'佩之无瘕疾', py:'pèi', note:'丽麂之水多育沛' }),
   I('jiyu','鮆鱼','fish',   { value:30, xp:70, lvl:8,  icon:'🐟', skill:'yu', node:'nanshan-2-07', water:'苕水', effect:'可食', py:'jì', note:'苕水多鮆鱼' }),
-  I('piluo','芘蠃','fish',  { value:35, xp:80, lvl:39, icon:'🐌', skill:'yu', node:'nanshan-2-13', water:'洵水', effect:'可食', py:'pí luǒ', note:'洵水多芘蠃' }),
+  I('piluo','芘蠃','fish',  { value:32, xp:28, lvl:12, icon:'🐌', skill:'yu', node:'nanshan-2-13', water:'洵水', effect:'可食', py:'pí luǒ', note:'洵水多芘蠃' }),
 );
 
 // ---- 采药 · 灵草 ----
 addItem(
   I('zhuyu','祝余','herb',  { value:10, xp:12, lvl:1,  icon:'🌱', skill:'caiyao', node:'nanshan-1-01', form:'其状如韭而青华', effect:'食之不饥' }),
-  I('baijiu','白䓘','herb', { value:120,xp:200,lvl:68, icon:'🌳', skill:'caiyao', node:'nanshan-3-11', form:'其状如榖而赤理，其汗如漆，其味如饴', effect:'食者不饥，可以释劳；可以血玉', py:'jiāo' }),
+  I('baijiu','白䓘','herb', { value:90,xp:90,lvl:21, icon:'🌳', skill:'caiyao', node:'nanshan-3-11', form:'其状如榖而赤理，其汗如漆，其味如饴', effect:'食者不饥，可以释劳；可以血玉', py:'jiāo' }),
 );
 
 // ---- 圃艺 · 嘉谷 ----
@@ -725,7 +725,7 @@ addItem(
   I('xisihejia','犀兕合甲','armor',{ equip:true, grade:'fine', slot:'armor', def:15, lvl:44, value:640, icon:'🥋' }),
   I('sangzhegong','桑柘弓','bow',{ equip:true, grade:'fine', weapon:true, ranged:true, dmg:34, lvl:44, value:560, icon:'🏹', el:'木' }),
   I('zaochimao','凿齿矛','weapon',{ equip:true, grade:'rare', weapon:true, dmg:55, lvl:55, value:1600, icon:'🔱', el:'金', rarity:'RARE' }),
-  I('fenghuiyue','封豨钺','weapon',{ equip:true, grade:'rare', weapon:true, dmg:62, lvl:58, value:1900, icon:'🪓', el:'水', rarity:'RARE', py:'fēng xī' }),
+  I('fenghuiyue','封豨钺','weapon',{ equip:true, grade:'precious', weapon:true, dmg:85, lvl:76, value:3200, icon:'🪓', el:'水', rarity:'RARE', py:'fēng xī' }),
 );
 // ---- 弓矢（削羽） ----
 addItem(
@@ -751,7 +751,7 @@ addItem(
   I('zhishengrou','炙狌肉','food',{ value:26, heal:110, lvl:3, icon:'🍖', edible:true, buff:{ name:'善走', kind:'gather', gather:0.20, dur:120 }, effect:'食之善走', py:'shēng' }),
   I('daofan','稻米饭','food', { value:30, heal:130, lvl:5,  icon:'🍚', edible:true }),
   I('kaijiyu','炙鮆鱼','food',{ value:70, heal:220, lvl:30, icon:'🍣', edible:true, py:'jì' }),
-  I('piluogeng','芘蠃羹','food',{ value:90, heal:260, lvl:39, icon:'🍲', edible:true, py:'pí luǒ' }),
+  I('piluogeng','芘蠃羹','food',{ value:52, heal:120, lvl:13, icon:'🍲', edible:true, py:'pí luǒ' }),
   I('zhixipu','炙犀脯','food',{ value:150,heal:400, lvl:52, icon:'🍖', edible:true }),
   I('zhisipu','炙兕脯','food',{ value:200,heal:520, lvl:52, icon:'🍖', edible:true, py:'sì' }),
 );
@@ -764,7 +764,7 @@ addItem(
   I('buweisan','不畏散','potion',{ value:100,lvl:20, icon:'🧪', buff:{ name:'不畏', kind:'def', def:15, dur:240 }, effect:'佩之不畏' }),
   I('bulongsan','不聋散','potion',{ value:130,lvl:25, icon:'🧪', buff:{ name:'不聋', kind:'div', div:0.50, dur:240 }, effect:'佩之不聋' }),
   I('wozhousan','无卧散','potion',{ value:170,lvl:30, icon:'🧪', buff:{ name:'无卧', kind:'offline', offline:0.15, dur:300 }, effect:'食之无卧' }),
-  I('xiushedangao','修蛇胆膏','potion',{ value:600,lvl:60, icon:'🫙', rarity:'RARE', buff:{ name:'蛇膏', kind:'all', dmg:0.30, def:20, dur:300 }, effect:'可以已痔' }),
+  I('xiushedangao','修蛇胆膏','potion',{ value:600,lvl:68, icon:'🫙', rarity:'RARE', buff:{ name:'蛇膏', kind:'all', dmg:0.30, def:20, dur:300 }, effect:'可以已痔' }),
   I('fenghuanggao','凤皇膏','potion',{ value:900,lvl:68, icon:'🫙', rarity:'LEGENDARY', buff:{ name:'凤膏', kind:'all', yield:0.25, dur:600 }, effect:'见则天下安宁' }),
 );
 
@@ -786,9 +786,9 @@ R('cook','zhixipu',1,200,52,[['xirou',2]]);
 R('cook','zhisipu',1,240,52,[['sirou',2]]);
 // 冶铸
 R('smith','muge',1,20,1,[['gui',1],['tan',1]]);
-R('smith','shifu',1,16,1,[['shashi',2],['guaimu',1]]);
-R('smith','shimao',1,40,4,[['shashi',2],['guaimu',1]]);
-R('smith','shikuo',1,16,1,[['shashi',2],['guaimu',1]]);
+R('smith','shifu',1,16,6,[['shashi',2],['guaimu',1]]);
+R('smith','shimao',1,40,7,[['shashi',2],['guaimu',1]]);
+R('smith','shikuo',1,16,6,[['shashi',2],['guaimu',1]]);
 R('smith','jinjian',1,90,10,[['jin',2],['tan',1]]);
 R('smith','jinfu',1,80,10,[['jin',2],['tan',1]]);
 R('smith','jinkuo',1,80,10,[['jin',2],['tan',1]]);
@@ -800,10 +800,10 @@ R('smith','bailianjian',1,460,44,[['baijin',2],['tan',3]]);
 R('craft','xisihejia',1,300,44,[['sipi',3],['jin',2]]);
 R('fletch','sangzhegong',1,320,44,[['zi',2],['sheng',3]]);
 R('smith','zaochimao',1,900,55,[['zaochiya',1],['baijin',2],['tan',3]]);
-R('smith','fenghuiyue',1,1000,58,[['fenghuiya',1],['chijin',3],['tan',4]]);
+R('smith','fenghuiyue',1,2400,76,[['fenghuiya',1],['chijin',3],['tan',4]]);
 // 削羽
 R('fletch','mugong',1,20,1,[['guaimu',1],['sheng',1]]);
-R('fletch','shizu',5,10,1,[['guaimu',1],['shashi',1]]);
+R('fletch','shizu',5,10,6,[['guaimu',1],['shashi',1]]);
 R('fletch','sanggong',1,80,10,[['zi',1],['sheng',2]]);
 R('fletch','jinzu',5,50,10,[['zi',1],['jin',1]]);
 R('fletch','chijingong',1,240,26,[['chijin',2],['sheng',2]]);
@@ -811,13 +811,13 @@ R('fletch','chijinzu',5,160,26,[['chijin',1],['zi',1]]);
 R('fletch','baijinzu',5,260,36,[['baijin',1],['zi',1]]);
 R('fletch','dafenggong',1,1200,58,[['dafengyu',1],['baijin',2],['sheng',3]]);
 // 制器
-R('craft','sheng',2,8,1,[['jing',1]]);
-R('craft','yuwang',1,16,1,[['jing',2],['sheng',1]]);
+R('craft','sheng',2,8,1,[['gui',2]]);
+R('craft','yuwang',1,16,1,[['sheng',2],['guaimu',1]]);
 R('craft','baijianxi',1,20,5,[['jian',2]]);
 R('craft','pijia',1,120,20,[['xipi',1],['sheng',1]]);
 R('craft','sijia',1,240,34,[['sipi',2],['sheng',2]]);
 R('craft','yayujia',1,900,60,[['yayupi',3],['sheng',2],['xiangya',1]]);
-R('craft','siwang',1,80,10,[['sheng',3],['qi',2]]);
+R('craft','siwang',1,80,10,[['sheng',3],['jin',2]]);
 R('craft','luowang',1,200,26,[['sheng',4],['nan',2]]);
 // 琢玉
 R('jade','zhang',1,40,5,[['yu',1]]);
@@ -835,7 +835,7 @@ R('herb','buhuosan',1,110,15,[['guanguanyu',1],['zhuyu',1],['shuiping',1]]);
 R('herb','buweisan',1,150,20,[['boyipi',1],['zhuyu',1],['shuiping',1]]);
 R('herb','bulongsan',1,200,25,[['xuanguijia',1],['zhuyu',1],['shuiping',1]]);
 R('herb','wozhousan',1,260,30,[['yuyu',1],['zhuyu',1],['shuiping',1]]);
-R('herb','xiushedangao',1,900,60,[['xiushedan',1],['zhuyu',2],['shuiping',1]]);
+R('herb','xiushedangao',1,1100,68,[['xiushedan',1],['zhuyu',2],['shuiping',1]]);
 R('herb','fenghuanggao',1,1300,68,[['fenghuangyu',1],['baijiu',1],['zhuyu',2]]);
 // 祭祀（祠礼配方）
 R('rite','rite_ns1',1,400,5,[['zhang',1],['tu',1],['bi',1],['dao',1],['jian',1]]);
@@ -2331,7 +2331,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.18.1',
+  version: '1.18.2',
   codename:'五臧 · 铸火',
   updated: '2026-10-25',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
