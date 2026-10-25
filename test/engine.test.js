@@ -5490,6 +5490,26 @@ section('离线结算与线上同口径');
   if (zero) assert(zero.have === 0 && zero.ok === false, '没有的那种仍标缺料');
 }
 
+// ============ 95. 静态一致性：源码里调用的 UI 方法都真的存在 ============
+// UI 是手写对象字面量，方法名拼错时浏览器只在点到那一下才报
+// 「UI.xxx is not a function」，而且往往伴随一次状态改动（材料已扣、界面没刷）。
+// 这里把源码里所有 `UI.foo(` 抓出来，与运行时 UI 的方法表逐一对照。
+{
+  const uiMethods = new Set(Object.keys(ST.UI));
+  assert(uiMethods.size > 80, 'UI 方法表取到了（' + uiMethods.size + ' 个）');
+  const srcFiles = ['ui.js','game.js','queue.js','interact.js','affix.js','engine.js','save.js'];
+  const missing = [];
+  for (const f of srcFiles){
+    const src = fs.readFileSync(path.join(__dirname, '..', 'src', f), 'utf8');
+    for (const m of src.matchAll(/\bUI\.([A-Za-z_$][\w$]*)\s*\(/g)){
+      const k = m[1];
+      if (!uiMethods.has(k) && !missing.some(x => x.k === k)) missing.push({ k, f });
+    }
+  }
+  assert(missing.length === 0,
+    'UI 方法都存在（越界：' + (missing.map(x => x.k + '@' + x.f).join(', ') || '无') + '）');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
