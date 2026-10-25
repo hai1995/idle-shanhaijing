@@ -109,7 +109,22 @@ function applySave(d){
   const dflt = cloneDefaultGame();
   Game.banking = d.banking || {};
   Game.inventory = d.inventory || {};
-    Game.skills = d.skills || dflt.skills;
+    // 技艺补全：新版本添了技艺、或存档来自更早的版本时，缺的那几门补成 1 级。
+    // 少了这一层，renderSkills 会读 undefined.level 直接抛错（技能页白屏），
+    // 玩家只会看到「读档后技能页打不开」，且每次刷新都一样。
+    {
+      const saved = (d.skills && typeof d.skills === 'object') ? d.skills : {};
+      for (const sid in Skills){
+        const sk = saved[sid];
+        if (!sk || typeof sk !== 'object' || !isFinite(sk.level)){
+          saved[sid] = { level: 1, xp: 0 };
+        } else {
+          sk.level = Math.max(1, Math.min(TUNING.MAX_LEVEL, Math.floor(sk.level)));
+          sk.xp = isFinite(sk.xp) && sk.xp >= 0 ? sk.xp : xpForLevel(sk.level);
+        }
+      }
+      Game.skills = saved;
+    }
     Game.gear = Object.assign({}, dflt.gear, d.gear || {});
     Game.records = d.records || {};
     Game.map = d.map || { 'nanshan-1-01': true };

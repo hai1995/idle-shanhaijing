@@ -5449,6 +5449,32 @@ section('离线结算与线上同口径');
   ST.Game.combat = null;
 }
 
+// ============ 93. 旧档健壮性：缺技艺 / 越界等级 / 缺统计字段 ============
+{
+  G.resetToDefault();
+  ST.Game.skills.qiaocai = { level: 12, xp: ST.xpForLevel(12) + 5 };
+  const sv = ST.serializeSave();
+  delete sv.skills.yu;
+  delete sv.skills.caiyao;
+  sv.skills.qiaocai = { level: 999, xp: 1 };     // 越界等级（手改档 / 旧版上限更低）
+  delete sv.stats.gathers;                        // 缺统计字段（v1 档没有）
+  delete sv.rites;
+  ST.localStorage.setItem('shj_zhulu_save_v1', JSON.stringify(sv));
+  let ok = false;
+  try { ok = ST.loadGame(); } catch(e){ console.error('读档异常', e); }
+  assert(ok, '缺字段的旧档能读入');
+  assert(ST.levelOf('yu') === 1 && ST.levelOf('caiyao') === 1, '缺失的技艺补成 1 级');
+  assert(ST.levelOf('qiaocai') === ST.TUNING.MAX_LEVEL, '越界等级被夹到本卷上限');
+  assert(ST.Game.stats.gathers && typeof ST.Game.stats.gathers === 'object', '缺的统计字段补成空对象');
+  assert(ST.Game.rites && typeof ST.Game.rites === 'object', '缺的祠礼到期表补成空对象');
+  let renderOk = true;
+  try { ST.UI.currentTab = 'skills'; ST.UI.renderSkills(); } catch(e){ renderOk = false; console.error('技能页渲染异常', e); }
+  assert(renderOk, '缺技艺的档也能渲染技能页（不再读 undefined.level）');
+  // 收尾：把测试档清掉，后续用例从默认状态起
+  ST.localStorage.removeItem('shj_zhulu_save_v1');
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
