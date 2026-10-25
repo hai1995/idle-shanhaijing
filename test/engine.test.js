@@ -939,7 +939,8 @@ assert(wa1.indexOf('⚡切') < 0, '已克制时不显示切换按钮');
 assert(wa4.indexOf('相生') >= 0 && wa4.indexOf('×1.15') >= 0, '我生敌时显示相生加成');
 assert(wa5.indexOf('相持') >= 0 && wa5.indexOf('宜用「土」') >= 0, '相持时给出宜用属性');
 // 调用处参数顺序：wuxingAdvice(敌方属性, 我方属性)
-assert(fs.readFileSync(path.join(__dirname,'..','src','ui.js'),'utf8').includes('wuxingAdvice(m.el, playerElement())'), '征伐页按（敌, 我）顺序调用五行提示');
+// 调用处参数顺序：wuxingAdvice(敌方属性, 我方属性)，且敌方取战斗内现属性
+assert(/wuxingAdvice\(\s*\(typeof foeElement[^)]*\)[^,]*foeElement\(m, c\)[^,]*,\s*playerElement\(\)\)/.test(fs.readFileSync(path.join(__dirname,'..','src','ui.js'),'utf8')), '征伐页按（敌, 我）顺序调用五行提示');
 
 // ============ 16.12 战斗预估耗时 ============
 section('战斗预估耗时');
@@ -4211,6 +4212,93 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   const ser44b = ST.serializeSave();
   assert(ser44b.stats.claimed[halfWood.id] === true, '领取记录随存档保存');
   assert(typeof ST.UI.openAchModal === 'function' && uiSrc44.includes('class="ach-bar"'), '图鉴页有成就条与弹窗入口');
+}
+
+// ============ 70. 战斗节奏：怪物与玩家必须同阶成长 ============
+// 这一节守的是一处「界面能跑、测试不报错，但玩家打不动」的坑：
+// 怪血按 L^1.55 长、玩家伤害按线性长，三十级之后同级怪要砍一分钟、玩家十秒就倒，
+// 复讨只是无限重来，一级也升不上去。口径取下限玩家——技能等级等于怪的解锁等级、
+// 同级良品兵器护甲、不强化、不戴护符、无御使无天赋，见 gameData.js beastStat 的注释。
+section('战斗节奏');
+{
+  G.resetToDefault();
+  const gb = ST.GEAR_BASE;
+  const scan = (m) => {
+    G.resetToDefault();            // 逐只回到干净档，避免上一只的五行/词条残留污染
+    const L = m.needLvl || 1;
+    ['yudi','bing','ming','she','zhu'].forEach(s => { ST.Game.skills[s].level = L; ST.Game.skills[s].xp = 0; });
+    ST.Game.gear.weapon = { id:'__t_w', slot:'weapon', dmg: Math.round(gb.melee(L)), lvl:L, grade:'fine' };
+    ST.Game.gear.armor  = { id:'__t_a', slot:'armor',  def: Math.max(1, Math.round(gb.armor(L))), lvl:L, grade:'fine' };
+    ST.Game.gear.charm = null; ST.Game.gear.quiver = null;
+    ST.Game.enhance = {}; ST.Game.buff = null;
+    ST.Game.combat = { monsterId:m.id, style:'attack', playerHp:1e9, monsterHp:m.hp, round:0 };
+    const r = ST.playerDamageRange();
+    const dps = ((r.lo + r.hi) / 2) / ST.playerAttackInterval();
+    const ttk = m.hp / dps;
+    const perHit = Math.max(1, m.atk - ST.totalDefence() * 0.3);
+    const taken = perHit / ST.monsterInterval(m, { monsterHp: m.hp }) * (1 - (ST.playerEvasion() + 0.05));
+    return { ttk, ratio: ST.playerMaxHp() / taken / ttk };
+  };
+  const all = Object.values(ST.Monsters).filter(m => !m.unkillable && m.hp > 0);
+  const mobs = all.filter(m => !m.boss).map(m => ({ m, ...scan(m) }));
+  const bosses = all.filter(m => m.boss).map(m => ({ m, ...scan(m) }));
+  ST.Game.combat = null;
+  assert(mobs.length > 250 && bosses.length === 10, '扫描覆盖 ' + mobs.length + ' 只异兽与 ' + bosses.length + ' 尊 BOSS');
+
+  const slowest = mobs.slice().sort((a, b) => b.ttk - a.ttk)[0];
+  assert(slowest.ttk <= 32, `最慢的普通怪 ${slowest.m.name} 单杀 ${slowest.ttk.toFixed(0)} 秒（上限 32）`);
+  const frail = mobs.slice().sort((a, b) => a.ratio - b.ratio)[0];
+  assert(frail.ratio >= 0.85, `最吃力的普通怪 ${frail.m.name} 能撑到击杀时长的 ${(frail.ratio*100).toFixed(0)}%（下限 85%）`);
+
+  const ttkAll = mobs.map(x => x.ttk).sort((a, b) => a - b);
+  const mid = ttkAll[Math.floor(ttkAll.length / 2)];
+  assert(mid >= 8 && mid <= 22, `普通怪单杀中位 ${mid.toFixed(1)} 秒，落在 8–22 秒的挂机区间`);
+
+  if (process.env.DBG_TTK) console.log('DBG-MON', bosses.map(x => x.m.id + ':' + x.m.el).join(' '), '| 金vs水=' + ST.wuxingMult('金','水'));
+  const slowBoss = bosses.slice().sort((a, b) => b.ttk - a.ttk)[0];
+  assert(slowBoss.ttk <= 70, `最久的一尊 BOSS ${slowBoss.m.name} 单杀 ${slowBoss.ttk.toFixed(0)} 秒（上限 70）`);
+  const frailBoss = bosses.slice().sort((a, b) => a.ratio - b.ratio)[0];
+  assert(frailBoss.ratio >= 0.30, `最险的 BOSS ${frailBoss.m.name} 能撑到击杀时长的 ${(frailBoss.ratio*100).toFixed(0)}%（下限 30%，其余靠进食补）`);
+
+  // BOSS 要值得打：经验至少是同等级异兽的三倍，贝币与神兵另计
+  const lvlXp = (L) => 6 + 4.4 * Math.pow(L, 1.36);
+  const worstBoss = bosses.slice().sort((a, b) => (a.m.xp / lvlXp(a.m.needLvl)) - (b.m.xp / lvlXp(b.m.needLvl)))[0];
+  assert(worstBoss.m.xp >= lvlXp(worstBoss.m.needLvl) * 3,
+    `最薄的 BOSS ${worstBoss.m.name} 经验为同级异兽的 ${(worstBoss.m.xp / lvlXp(worstBoss.m.needLvl)).toFixed(1)} 倍（下限 3）`);
+
+  // 气血同阶：九九时一记 BOSS 重击不该超过血量的五分之一，否则只能靠不停进食硬顶
+  ST.Game.skills.ming.level = ST.TUNING.MAX_LEVEL;
+  assert(ST.playerMaxHp() >= 580, '九九体魄气血 ' + ST.playerMaxHp() + ' 点（≥580）');
+}
+
+// ============ 71. 阴阳嬗变：改战斗内的属性，不改静态表 ============
+// 九婴、帝江会周期性换属。此前是直接写 Monsters[id].el —— 那张表是全局静态数据，
+// 一场架打完，这只怪的属性就永久转了，刷新页面又变回去；玩家也没法照「宜用属性」
+// 提前配兵器，因为不知道下一次遇上它是什么属。现在属性记在战斗上下文 c.el 上。
+section('阴阳嬗变不污染静态表');
+{
+  G.resetToDefault();
+  const m = ST.Monsters.jiuying;
+  const before = m.el;
+  const c = { monsterId:'jiuying', monsterHp:m.hp, playerHp:100, el:m.el };
+  ST.doMonsterSpecial(c, m);
+  assert(m.el === before, '嬗变后静态表属性未变（' + before + '）');
+  assert(c.el === ST.TUNING.ELEMENTS[(ST.TUNING.ELEMENTS.indexOf(before) + 1) % 5], '战斗内属性顺次轮转（' + before + ' → ' + c.el + '）');
+  for (let i = 0; i < 4; i++) ST.doMonsterSpecial(c, m);
+  assert(c.el === before, '转满五格回到原属（五行循环闭合）');
+
+  // 伤害按「战斗内属性」结算：同武器打木属（金克木）当比打火属（火克金）高
+  ST.resetToDefault();
+  ['yudi','bing','ming','she','zhu'].forEach(s => { ST.Game.skills[s].level = 50; ST.Game.skills[s].xp = 0; });
+  ST.Game.gear.weapon = { id:'__e_w', slot:'weapon', dmg:45, lvl:50, grade:'fine' };
+  ST.Game.gear.armor = null; ST.Game.gear.charm = null; ST.Game.enhance = {};
+  ST.Game.combat = { monsterId:'jiuying', style:'attack', playerHp:1e9, monsterHp:m.hp, round:0, el:'木' };
+  const vsWood = ST.playerDamageRange().hi;
+  ST.Game.combat.el = '火';
+  const vsFire = ST.playerDamageRange().hi;
+  ST.Game.combat = null;
+  assert(vsWood > vsFire, `金打木 ${vsWood} > 金打火 ${vsFire}（克制/被克在战斗内生效）`);
+  assert(m.el === '水', '全程静态表仍是原文的水属');
 }
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）

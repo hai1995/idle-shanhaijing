@@ -1064,6 +1064,16 @@ function playerElement(){
   if (style === 'ranged' && Game.gear.quiver) return Game.gear.quiver.el || '金';
   return '金';
 }
+// 敌方「此刻」的属性。九婴（阴阳嬗变）与帝江（混沌嬗变）会在战斗中途换属性，
+// 从前是直接改 Monsters[id].el —— 那张表是静态数据，一改就永久污染：
+// 打完一场，这只怪的元素就一直转下去了，刷新页面又变回原文属性，
+// 两次进战斗的克制关系还不一样，玩家也没法照着「宜用属性」提前配兵器。
+// 现在属性存在战斗上下文的 c.el 上，每场从 m.el 起算，离场即散。
+function foeElement(m, c){
+  if (c && c.el) return c.el;
+  return (m && m.el) || null;
+}
+window.foeElement = foeElement;
 // ---------- 装备淬炼（强化） ----------
 // 装备槽里存的是「那一件」，淬炼等级按物品 id 记（同 id 共享），0–+30。
 // 1–9 级沿用旧增量（基础 6%，至少 +1），10 级起改为每级 3%——这样老存档的
@@ -1284,9 +1294,10 @@ function playerDamageRange(){
   const beast = Game.combat ? Monsters[Game.combat.monsterId] : null;
   if (beast){
     // 词条「引」只放大「克制关系带来的偏离」，不改基线：同属 ×1.00 仍是 ×1.00
-    const m = wuxingMult(playerElement(), beast.el);
+    const fEl = foeElement(beast, Game.combat);
+    const m = wuxingMult(playerElement(), fEl);
     dmg *= (1 + (m - 1) * (1 + af.elBoost/100));
-    if (style === 'zhu' && wuxingSheng(playerElement(), beast.el)) dmg *= TUNING.WUXING.SHENG;
+    if (style === 'zhu' && wuxingSheng(playerElement(), fEl)) dmg *= TUNING.WUXING.SHENG;
   }
   dmg *= dmgMult();
   // 怪物防御：此前 def 只在界面上写着「防御 45」，战斗里一分不减。
@@ -1325,7 +1336,10 @@ function totalDefence(){
 function playerMaxHp(){
   // 御使的 hp 类增益（鯥·无肿疾、犀、象、驭兽）此前只写进了 BEAST_BUFFS 却没人读，
   // 等于白占槽位；此处并入气血，才让「体魄型」御使有实际去处。
-  return Math.floor((20 + levelOf('ming')*4) * (1 + deployedBonuses().hp));
+  // 体魄系数 4 → 7：怪的攻成长改了指数（见 gameData.js beastStat），
+  // 气血若仍按每级 4 点线性涨，后期一记就要掉四分之一血，只能靠不停进食硬顶。
+  // 现在九九（81 级）约 590 点，同级怪一记三四十，能挨十几下——才谈得上「打一场」。
+  return Math.floor((20 + levelOf('ming')*7) * (1 + deployedBonuses().hp));
 }
 // 食物回血：御使「虎蛟·不肿」的 heal 加成同样需要落地
 function healAmount(it){
@@ -1402,7 +1416,7 @@ function doPlayerUltimate(c, m){
   const range = playerDamageRange();
   const af = (typeof affixTotals === 'function') ? affixTotals() : affixZero();
   let dmg = Math.floor(roll(range.lo, range.hi) * (ULTIMATE_MULT[style] || 2.4));
-  if (style === 'zhu' && wuxingSheng(playerElement(), m.el)) dmg = Math.floor(dmg * TUNING.WUXING.SHENG);
+  if (style === 'zhu' && wuxingSheng(playerElement(), foeElement(m, c))) dmg = Math.floor(dmg * TUNING.WUXING.SHENG);
   let crit = false;
   const critRate = af.critRate + (divineHas('crit') ? 12 : 0);
   if (critRate > 0 && chance(critRate/100)){
@@ -1528,9 +1542,10 @@ function doMonsterSpecial(c, m){
   if (!sp) return;
   if (sp.elementShift){
     const els = TUNING.ELEMENTS;
-    m.el = els[(els.indexOf(m.el)+1) % els.length];
-    UI && UI.floatText(monsterEl(), `五行 → ${m.el}`, '#c39bd3');
-    log(`☯️ ${m.name} 阴阳嬗变，化为${m.el}属`, 'bad', 'combat');
+    const cur = foeElement(m, c) || els[0];
+    c.el = els[(els.indexOf(cur)+1) % els.length];
+    UI && UI.floatText(monsterEl(), `五行 → ${c.el}`, '#c39bd3');
+    log(`☯️ ${m.name} 阴阳嬗变，化为${c.el}属`, 'bad', 'combat');
     return;
   }
   if (sp.dodge){
@@ -1723,6 +1738,7 @@ function startCombat(monsterId, opts){
   const times = (opts && opts.times > 0) ? Math.max(1, Math.min(99, Math.floor(opts.times))) : null;
   Game.combat = { monsterId, monsterHp:m.hp, playerHp:playerMaxHp(), timer:0, maxtimer:0, spec:0,
     style, dmgOut:0, dmgIn:0, round:0, flee:0, repeat:times,
+    el: m.el,                       // 敌方现属性（阴阳嬗变会改这一份，不动静态表）
     momentum: Math.max(0, Math.min(100, Math.round((opts && opts.carry) || 0))),
     combo:0, ults:0 };   // 势可承自上一场（残势），连击与绝技次数每场重记
   autoAttack = true;
@@ -1732,6 +1748,7 @@ function startCombat(monsterId, opts){
   return true;
 }
 window.startCombat = startCombat;
+window.doMonsterSpecial = doMonsterSpecial;
 window.ULTIMATE_NAMES = ULTIMATE_NAMES; window.ULTIMATE_MULT = ULTIMATE_MULT;
 window.doPlayerUltimate = doPlayerUltimate;
 window.healAmount = healAmount;

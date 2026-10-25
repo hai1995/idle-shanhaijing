@@ -1869,12 +1869,19 @@ const HUNT_META = {
   '象': { id:'xiang', el:'土', drop:'xiangya', extra:'shougu' },
 };
 
+// 血量 / 攻击 / 经验的成长指数必须与玩家的成长曲线同阶，否则中后期会出现「硬墙」：
+// 玩家伤害只按「兵器 + 技能×1.2」线性走、气血按「20 + 体魄×4」线性走，
+// 而怪血曾是 L^1.55、怪攻是 L^1.15 —— 两条线在 30 级之后彻底岔开，
+// 同级怪要砍 50 秒、玩家 9 秒就被打倒，复讨只是无限重来，一级也升不上去。
+// 现改为：怪血 L^1.26（同级单杀 10–20 秒）、怪攻 L^1.02（同级能挨十数下）、
+// 经验同步降到 L^1.36，使「杀几只升一级」的节奏与原曲线基本持平。
+// 校验见 test/engine.test.js「战斗节奏」一节与 scripts/audit-data.js 的 TTK 扫描。
 function beastStat(L, kind){
-  let hp = 8 + 4*Math.pow(L, 1.55);
-  let atk = 2 + 0.75*Math.pow(L, 1.15);
+  let hp = 10 + 4.6*Math.pow(L, 1.26);
+  let atk = 2 + 0.62*Math.pow(L, 1.02);
   let def = 0.5 + 0.4*Math.pow(L, 1.1);
-  let xp  = 6 + 5*Math.pow(L, 1.55);
-  if (kind === 'man')  { hp *= 1.3; atk *= 1.6; }
+  let xp  = 6 + 4.4*Math.pow(L, 1.36);
+  if (kind === 'man')  { hp *= 1.15; atk *= 1.3; }   // 人形凶兽：厚一成半、凶三成——压得住场面，但不至于必败
   if (kind === 'hunt') { hp *= 0.8; atk *= 0.9; def *= 0.8; xp *= 0.9; }
   return { hp:Math.round(hp), atk:Math.round(atk), def:Math.round(def), xp:Math.round(xp) };
 }
@@ -2005,31 +2012,31 @@ function addMonster(m){ Monsters[m.id] = m; }
 // 出处：《淮南子·本经训》「尧乃使羿诛凿齿于畴华之野，杀九婴于凶水之上，
 // 缴大风于青邱之泽……断修蛇于洞庭，擒封豨于桑林」（公有领域）。
 // 机制各自不同：连啮 / 五行变换 / 疾风 / 皮甲 / 蛇毒 / 狂暴 / 无首。
-addMonster({ id:'zaochi', name:'凿齿', boss:true, el:'金', needLvl:40, hp:6000, atk:60, def:18, xp:8000,
+addMonster({ id:'zaochi', name:'凿齿', boss:true, el:'金', needLvl:40, hp:1800, atk:43, def:18, xp:3600,
   coins:2000, drop:'zaochiya', divine:'zaochiren', threat:5,
   form:'人形兽，齿长三尺，其状如凿（传闻形态，原文未详述）',
   special:{ name:'连啮', every:8, dmg:1.1, pierce:0.2, hits:3 }, desc:'周期性三连快齿' });
-addMonster({ id:'jiuying', name:'九婴', boss:true, el:'水', needLvl:50, hp:9000, atk:75, def:22, xp:14000,
+addMonster({ id:'jiuying', name:'九婴', boss:true, el:'水', needLvl:50, hp:2250, atk:52, def:22, xp:4500,
   coins:3200, drop:'jiuyingfa', divine:'jiuyingren', threat:5,
   form:'九头怪，能喷水吐火（传闻形态，原文未详述）',
   special:{ name:'阴阳嬗变', every:14, dmg:1.2, pierce:0.3, elementShift:true }, desc:'周期性变换五行，克制关系随之改变' });
-addMonster({ id:'dafeng', name:'大风', boss:true, el:'木', needLvl:58, hp:8000, atk:85, def:15, xp:18000,
+addMonster({ id:'dafeng', name:'大风', boss:true, el:'木', needLvl:58, hp:2600, atk:60, def:15, xp:5200,
   coins:4000, drop:'dafengyu', divine:'dafengyugong', threat:5,
   form:'巨鸟，其翼遮天，飞则大风起（传闻形态，原文未详述）',
   special:{ name:'飘风', every:12, dmg:1.3, pierce:0.4, dodge:0.5 }, desc:'周期性大幅闪避，半空难击' });
-addMonster({ id:'yayu', name:'猰貐', boss:true, el:'土', needLvl:64, hp:14000, atk:70, def:45, xp:24000,
+addMonster({ id:'yayu', name:'猰貐', boss:true, el:'土', needLvl:64, hp:2800, atk:66, def:45, xp:5600,
   coins:5200, drop:'yayupi', divine:'yayuzhua', threat:5, py:'yà yǔ',
   form:'其状如牛，赤身、人面、马足，其音如婴儿，是食人（《北次二经》）',
   special:{ name:'革甲', every:0, dmg:0, armor:0.5 }, desc:'常驻厚甲减伤，受击叠层破甲' });
-addMonster({ id:'xiushe', name:'修蛇', boss:true, el:'水', needLvl:70, hp:12000, atk:90, def:25, xp:30000,
+addMonster({ id:'xiushe', name:'修蛇', boss:true, el:'水', needLvl:70, hp:3000, atk:72, def:25, xp:6000,
   coins:6500, drop:'xiushedan', divine:'xiushebian', threat:5,
   form:'长蛇，能吞象（传闻形态，原文未详述）',
   special:{ name:'蛇毒', every:6, dmg:0.6, poison:{ dur:8, dmg:12 } }, desc:'攻击附带持续中毒' });
-addMonster({ id:'fenghui', name:'封豨', boss:true, el:'水', needLvl:76, hp:16000, atk:110, def:30, xp:40000,
+addMonster({ id:'fenghui', name:'封豨', boss:true, el:'水', needLvl:76, hp:3300, atk:77, def:30, xp:6600,
   coins:8000, drop:'fenghuiya', divine:'fenghuifu', threat:5, py:'fēng xī',
   form:'大野猪，皮硬如铁，性悍（传闻形态，原文未详述）',
   special:{ name:'狂暴', every:0, dmg:0, enrage:0.5 }, desc:'半血以下攻击速度翻倍' });
-addMonster({ id:'xingtian', name:'刑天', boss:true, el:'金', needLvl:81, hp:30000, atk:150, def:50, xp:80000,
+addMonster({ id:'xingtian', name:'刑天', boss:true, el:'金', needLvl:81, hp:3800, atk:83, def:50, xp:7600,
   coins:16000, drop:'zaochiya', divine:'ganqi', threat:5,
   form:'与帝争神，帝断其首，葬之常羊之山，乃以乳为目、以脐为口，操干戚以舞（《海外西经》）',
   special:{ name:'舞干戚', every:7, dmg:1.5, pierce:0.35 }, desc:'无首狂舞，重击且穿透' });
@@ -2037,15 +2044,15 @@ addMonster({ id:'xingtian', name:'刑天', boss:true, el:'金', needLvl:81, hp:3
 // ---------- 西山经神级 BOSS（西次三经 = 神话舞台主线） ----------
 // 出处均为《西山经》原文（公有领域）。⚠️ 提示词/文案纪律：只用原文形态要素，
 // 西王母不引用任何当代形象；帝江「浑敦无面目」——不可画面部。
-addMonster({ id:'luwu', name:'陆吾', boss:true, el:'金', needLvl:56, hp:9000, atk:88, def:40, xp:26000,
+addMonster({ id:'luwu', name:'陆吾', boss:true, el:'金', needLvl:56, hp:2500, atk:58, def:40, xp:5000,
   coins:6000, drop:'luwuuwei', threat:5, nodeId:'xishan-3-08',
   form:'虎身而九尾，人面而虎爪；是神也，司天之九部及帝之囿时（昆仑之丘守关者）',
   special:{ name:'九部之讨', every:9, dmg:1.0, pierce:0.25, hits:9 }, desc:'九尾九段连击' });
-addMonster({ id:'xiwangmu', name:'西王母', boss:true, el:'金', needLvl:59, hp:13000, atk:105, def:36, xp:36000,
+addMonster({ id:'xiwangmu', name:'西王母', boss:true, el:'金', needLvl:59, hp:2650, atk:61, def:36, xp:5300,
   coins:9000, drop:'xiwangmusheng', threat:5, nodeId:'xishan-3-11',
   form:'其状如人，豹尾虎齿而善啸，蓬发戴胜，是司天之厉及五残（玉山）',
   special:{ name:'善啸', every:10, dmg:1.2, pierce:0.45, fear:true }, desc:'啸声震慑：短时间内玩家命中降低' });
-addMonster({ id:'dijiang', name:'帝江', boss:true, el:'土', needLvl:61, hp:20000, atk:120, def:30, xp:52000,
+addMonster({ id:'dijiang', name:'帝江', boss:true, el:'土', needLvl:61, hp:2750, atk:63, def:30, xp:5500,
   coins:14000, drop:'dijiangnang', threat:5, nodeId:'xishan-3-18',
   form:'状如黄囊，赤如丹火，六足四翼，浑敦无面目（天山）',
   special:{ name:'混沌嬗变', every:12, dmg:1.1, pierce:0.3, elementShift:true }, desc:'无面目而五行不定，周期性变换属性' });
@@ -2331,8 +2338,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.18.3',
-  codename:'五臧 · 铸火',
+  version: '1.19.0',
+  codename:'五臧 · 衡战',
   updated: '2026-10-25',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',

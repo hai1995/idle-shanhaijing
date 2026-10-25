@@ -191,6 +191,46 @@ const stats = {
   });
 }
 
+// ---------- 战斗节奏：怪血 / 怪攻的成长是否与玩家同阶 ----------
+// 这是最容易悄悄坏掉的一处：调完怪的数值，界面照样能跑，测试也不报错，
+// 但同级怪要砍一分钟、玩家十秒就倒，复讨只是无限重来——玩家会觉得「打不动」。
+// 这里取「技能等级 = 解锁等级、同级良品兵器护甲、不强化、无御使无天赋」的下限玩家，
+// 逐只估算单杀时长（TTK）与能撑多久（survive），越线的都列出来。
+{
+  if (typeof W.resetToDefault === 'function') W.resetToDefault();
+  const gb = W.GEAR_BASE;
+  const setLv = (s, v) => { if (W.Game.skills[s]) { W.Game.skills[s].level = v; W.Game.skills[s].xp = 0; } };
+  const rows = [];
+  for (const m of Object.values(W.Monsters)){
+    if (m.unkillable || !(m.hp > 0)) continue;
+    const L = m.needLvl || 1;
+    ['yudi','bing','ming','she','zhu'].forEach(s => setLv(s, L));
+    W.Game.gear.weapon = { id:'__audit_w', slot:'weapon', dmg: Math.round(gb.melee(L)), lvl:L, grade:'fine' };
+    W.Game.gear.armor  = { id:'__audit_a', slot:'armor',  def: Math.max(1, Math.round(gb.armor(L))), lvl:L, grade:'fine' };
+    W.Game.gear.charm  = null; W.Game.gear.quiver = null;
+    W.Game.enhance = {}; W.Game.buff = null;
+    W.Game.combat = { monsterId:m.id, style:'attack', playerHp:1e9, monsterHp:m.hp, round:0 };
+    const r = W.playerDamageRange();
+    const dps = ((r.lo + r.hi) / 2) / W.playerAttackInterval();
+    const ttk = m.hp / dps;
+    const perHit = Math.max(1, m.atk - W.totalDefence() * 0.3);
+    const takenDps = perHit / W.monsterInterval(m, { monsterHp: m.hp }) * (1 - (W.playerEvasion() + 0.05));
+    rows.push({ m, L, ttk, ratio: W.playerMaxHp() / takenDps / ttk });
+  }
+  W.Game.combat = null;
+  for (const r of rows){
+    const nm = `${r.m.boss ? 'BOSS ' : ''}${r.m.name}（Lv${r.L}）`;
+    if (r.m.boss){
+      if (r.ttk > 70) bad('节奏', `${nm}单杀需 ${r.ttk.toFixed(0)} 秒——超过 70 秒，挂机一场太拖`);
+      if (r.ratio < 0.30) bad('节奏', `${nm}只能撑到击杀时长的 ${(r.ratio*100).toFixed(0)}%，无食物必败`);
+    } else {
+      if (r.ttk > 32) bad('节奏', `${nm}单杀需 ${r.ttk.toFixed(0)} 秒——超过 32 秒的挂机节奏`);
+      if (r.ratio < 0.90) bad('节奏', `${nm}只能撑到击杀时长的 ${(r.ratio*100).toFixed(0)}%，常常打不完就倒`);
+    }
+  }
+  stats['节奏扫描'] = rows.length;
+}
+
 console.log('数据规模：' + Object.entries(stats).map(([k, v]) => `${k} ${v}`).join(' · '));
 if (!problems.length){
   console.log('\n✅ 未发现悬空引用或死链。');

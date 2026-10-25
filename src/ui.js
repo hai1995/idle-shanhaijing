@@ -911,12 +911,14 @@ function combatStatBreakdown(key){
     const mm = dmgMult();
     if (Math.abs(mm - 1) > 0.001) rows.push({ label:'成就 · 御使 · 药', value:`×${mm.toFixed(2)}`, note:'合计伤害增幅' });
     if (beast){
-      const m = wuxingMult(playerElement(), beast.el);
+      const fEl = (typeof foeElement === 'function') ? foeElement(beast, Game.combat) : beast.el;
+      const m = wuxingMult(playerElement(), fEl);
       if (Math.abs(m - 1) > 0.001){
         const boost = af.elBoost ? `（含「引」+${af.elBoost}%）` : '';
-        rows.push({ label:`五行 · ${playerElement()} 克 ${beast.el}`, value:`×${(1 + (m - 1) * (1 + af.elBoost / 100)).toFixed(2)}`, note:m > 1 ? '克制' + boost : '被克' + boost });
+        const verb = m > 1 ? '克' : '见克于';
+        rows.push({ label:`五行 · ${playerElement()} ${verb} ${fEl}`, value:`×${(1 + (m - 1) * (1 + af.elBoost / 100)).toFixed(2)}`, note:m > 1 ? '克制' + boost : '被克' + boost });
       }
-      if (style === 'zhu' && wuxingSheng(playerElement(), beast.el)) rows.push({ label:'祝术 · 相生', value:`×${TUNING.WUXING.SHENG}`, note:'相生目标额外加成' });
+      if (style === 'zhu' && wuxingSheng(playerElement(), fEl)) rows.push({ label:'祝术 · 相生', value:`×${TUNING.WUXING.SHENG}`, note:'相生目标额外加成' });
     }
     const r = playerDamageRange();
     return { title:'攻击 · 构成', total:`${r.lo}–${r.hi}`, rows,
@@ -1865,7 +1867,7 @@ function taofaArenaHtml(){
       <div class="vs">对</div>
       <div class="fighter enemy" id="monsterFighter">
         ${m?`<div class="f-portrait">${(typeof beastIcon==='function')?beastIcon(m):''}</div>
-        <div class="f-name">${esc(m.name)} ${elBadge(m.el)}${m.special?`<span class="m-spec" title="${esc(m.special.name)}${m.desc?`：${esc(m.desc)}`:''}">${esc(m.special.name)}</span>`:''}</div>
+        <div class="f-name">${esc(m.name)} ${elBadge((typeof foeElement === 'function') ? foeElement(m, c) : m.el)}${m.special?`<span class="m-spec" title="${esc(m.special.name)}${m.desc?`：${esc(m.desc)}`:''}">${esc(m.special.name)}</span>`:''}</div>
         <div class="f-hp"><div class="fill enemy" style="width:${Math.max(0,c.monsterHp/m.hp*100)}%"></div></div>
         <div class="f-sub">${fmt(Math.max(0,c.monsterHp))} / ${fmt(m.hp)}</div>`:`<div class="f-name">待机</div>
         <div class="f-hp"><div class="fill enemy" style="width:0%"></div></div>
@@ -1873,7 +1875,7 @@ function taofaArenaHtml(){
       </div>
     </div>
     ${c?momentumRowHtml(c):''}
-    ${c&&m?wuxingAdvice(m.el, playerElement()):''}
+    ${c&&m?wuxingAdvice((typeof foeElement === 'function') ? foeElement(m, c) : m.el, playerElement()):''}
     ${c&&m?combatEstimateHtml(m, c):''}
     ${c?`<div class="combat-stats" id="combatStats">回合 ${c.round||0} · 造成 ${c.dmgOut||0} · 承伤 ${c.dmgIn||0}${Game.stats.winStreak>1?` · 连胜 ${Game.stats.winStreak}`:''}${c.ults?` · 绝技 <b>${c.ults}</b> 次`:''}${c.repeat!=null?` · 本轮余 <b>${c.repeat}</b> 场`:''}</div>`:''}
     <div class="prefs-row">
