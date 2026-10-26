@@ -850,7 +850,11 @@ html.theme-anim, html.theme-anim *{
 
 /* 表单 */
 .form-row{ display:flex; align-items:center; gap:10px; margin-bottom:10px; font-size:13px; }
-.form-row > span:first-child{ flex:0 0 auto; min-width:5.5em; color:var(--ink-3); font-size:12px; }
+.form-row > span:first-child{ flex:0 1 auto; min-width:5.5em; color:var(--ink-3); font-size:12px; }
+/* 设置项的说明文字单独一行：塞进 label 的 <span> 里会把 flex 项撑成 max-content，
+   窄屏直接横向溢出（实测 320px 时溢出 338px，整页能左右拖）。 */
+.set-hint{ margin:-6px 0 10px; overflow-wrap:anywhere; }
+.set-hint code{ font-family:var(--f-num); background:var(--paper-3); padding:0 3px; border-radius:2px; }
 .form-row b{ color:var(--ink); }
 .form-row select,.form-row input[type=number],.form-row input[type=text],.form-row input[type=password]{
   font-family:inherit; font-size:13.5px; padding:6px 9px;

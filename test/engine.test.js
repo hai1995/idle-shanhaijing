@@ -8398,6 +8398,21 @@ section('轮回边界');
   G.resetToDefault();
 }
 
+// ============ 156. 设置页不能横向溢出（2026-10-27 清晨） ============
+// 实测：320px 屏上设置页溢出 338px——整页能左右拖。原因是把一段长说明塞进了
+// label 的 <span>，而那个 span 是 `flex:0 0 auto`，会被撑成 max-content。
+// 说明文字一律另起一行（.set-hint），label 只放名字。
+section('设置页版面');
+{
+  const cSrc156 = readText('src/ui/core.js');
+  const cssSrc156 = readText('style.css');
+  assert(!/<span>[^<]{0,12}<span class="hint"/.test(cSrc156),
+    '设置项的说明不嵌在 label 的 span 里（否则撑成 max-content）');
+  assert(cSrc156.includes('class="hint set-hint"'), '说明文字走独立的 .set-hint 行');
+  assert(cssSrc156.includes('.set-hint{'), '有 .set-hint 样式');
+  assert(/\.set-hint\{[^}]*overflow-wrap:anywhere/.test(cssSrc156), '长串（如 ?probe=1）也能断行');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
