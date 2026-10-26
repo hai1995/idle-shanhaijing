@@ -1014,6 +1014,85 @@ window.pickReachableNode = pickReachableNode;
 window.skillReachableNode = skillReachableNode;
 window.materialReachableNode = materialReachableNode;
 
+// ---------- 道里（里程）判据：舆地图的数据来源（v1.31.51） ----------
+// 每座山系的数据里都躺着《山海经》原文的里程（`legs`，即「又东三百里，曰…」），
+// 但从来没有一行代码读过它——447 座山、75,589 里，纯睡在数据里。
+//
+// ⚠️ 两种格式，必须先统一，否则「同一件事两处定义」的老毛病立刻复发：
+//   ① 南/西/北/东四系：{ 自述里程, 分段之和, 差额, 备注, 路线:[{ id, name, direction, distance, mode, total }] }
+//   ② 中山经十二经：  [{ from:'甘枣之山', to:'历儿之山', direction:'东行', distance:20, mode:'陆行', total:20 }]
+// 前者用 **id** 定位山，后者用 **山名**（from/to）定位。这里一次性抹平，
+// 上层（舆地图、将来的行进系统）只认一个 `regionRoad`，不再各写一遍判断。
+function regionLegs(region){
+  if (!region || !region.legs) return [];
+  const L = region.legs;
+  if (Array.isArray(L)) return L;                       // 格式②
+  if (Array.isArray(L['路线'])) return L['路线'];        // 格式①
+  return [];
+}
+
+// 一条经的行程表：每座山的累计里程（里）。
+// 返回 [{ id, name, dist, lv, hasLegs }]，按原文顺序（即 nodes 顺序）。
+// dist 为「自本经首山起累计里程」；原文未载里程时 dist 为 null（由调用方决定怎么排）。
+function regionRoad(regionId){
+  const region = (WORLD.regions||[]).find(r => r.regionId === regionId);
+  if (!region) return [];
+  const nodes = region.nodes || [];
+  const legs  = regionLegs(region);
+  if (!legs.length){
+    return nodes.map(n => ({ id:n.id, name:n.name, dist:null, lv:n.unlockLevel||1, hasLegs:false }));
+  }
+  // leg 可能带 id（格式①），也可能只带 to 山名（格式②）——两种都认。
+  // 累计口径：distance 是「从上一座山到这一座」的里数，逐段累加。
+  let acc = 0;
+  const byId = {}, byName = {};
+  for (const leg of legs){
+    acc += (typeof leg.distance === 'number' ? leg.distance : 0);
+    const key = leg.id || null;
+    if (key) byId[key] = acc;
+    if (leg.to) byName[leg.to] = acc;
+    // 格式①的末山常只出现在「路线」数组末尾（带 id+name），也已由 byId 覆盖
+    if (!leg.id && leg.name && !leg.to) byName[leg.name] = acc;
+  }
+  return nodes.map(n => {
+    let d = byId[n.id];
+    if (d === undefined) d = byName[n.name];
+    return { id:n.id, name:n.name, dist:(d === undefined ? null : d), lv:n.unlockLevel||1, hasLegs:true };
+  }).map((r, i, arr) => {
+    // 首山兜底：数组式（中山经）只记 from→to，首山不被任何一段指向，
+    // 于是第一座山恒为 null——但「自首山起累计」的定义就是 0，不是缺数据。
+    if (i === 0 && r.dist === null) r.dist = 0;
+    return r;
+  });
+}
+
+// 一条经的里程合计（里）；原文未载则 0。
+function regionRoadLength(regionId){
+  const road = regionRoad(regionId);
+  let max = 0;
+  for (const r of road) if (typeof r.dist === 'number' && r.dist > max) max = r.dist;
+  return max;
+}
+
+// 两座山之间的路程（里）：同经可比，跨经/跨系返回 null。
+// ⚠️ 五座山系各自从首山起算，原文**不载**彼此相通的里程——所以跨系不能瞎猜，
+// 只能如实返回 null，由调用方（将来的行进系统）另定规则。
+function roadBetween(fromId, toId){
+  const a = regionOf(fromId), b = regionOf(toId);
+  if (!a || !b || a.regionId !== b.regionId) return null;
+  const road = regionRoad(a.regionId);
+  const pa = road.find(x => x.id === fromId);
+  const pb = road.find(x => x.id === toId);
+  if (!pa || !pb) return null;
+  if (typeof pa.dist !== 'number' || typeof pb.dist !== 'number') return null;
+  return Math.abs(pb.dist - pa.dist);
+}
+
+window.regionLegs = regionLegs;
+window.regionRoad = regionRoad;
+window.regionRoadLength = regionRoadLength;
+window.roadBetween = roadBetween;
+
 function doGather(itemId){
   const it = Items[itemId];
   if (!it || !it.skill) return;

@@ -626,6 +626,43 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
    舆地
    ========================================================================== */
 .map-wrap{ display:grid; grid-template-columns:186px 232px minmax(0,1fr); gap:14px; align-items:start; }
+.map-wrap.hidden{ display:none; }
+
+/* —— 舆地视图切换：录 / 图（v1.31.51） ——
+   舆地页原先只有一种看法（山系 → 诸山 → 详情），玩家看得到「本经 9 座山」，
+   看不到「本经有多长、走完了几成」。图是同一批数据的另一种看法，故与「录」
+   并列成一个双钮，而不是新开一个页签（页签已 12 个）。 */
+.view-toggle{ display:flex; align-items:center; gap:8px; margin:2px 0 10px; }
+.view-toggle .vt-hint{ font-family:var(--f-kai); font-size:11px; color:var(--ink-4); letter-spacing:.02em; }
+
+/* 道里图：横向可滚（全图同一比例尺，窄屏必须能拖），纵向随内容 */
+.map-panel{ padding:0; overflow:hidden; }
+.mp-head{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; padding:12px 14px 8px; border-bottom:1px solid var(--rule-2); }
+.mp-head > b{ font-family:var(--f-kai); font-size:15px; font-weight:700; color:var(--ink-2); letter-spacing:.04em; }
+.mp-head .mp-sub{ flex:1 1 260px; font-family:var(--f-kai); font-size:10.5px; color:var(--ink-4); line-height:1.5; letter-spacing:.02em; }
+.mp-head .mp-tally{ font-family:var(--f-num); font-size:11.5px; color:var(--ink-3); white-space:nowrap; }
+.mp-head .mp-tally b{ color:var(--zhu-d); font-size:14px; }
+.mp-filters{ display:flex; gap:6px; flex-wrap:wrap; padding:8px 14px 4px; }
+.mp-filters .chip-btn.on{ background:var(--zhu-w); border-color:var(--zhu); color:var(--zhu-d); }
+.mp-scroll{ padding:0 0 8px; }
+/* 图按容器等比缩放：447 座山在一屏里本来就只能看分布，放大反而要横滑、会丢失左端经名。
+   宽屏下亦然——整图可见比「看得清单点」更重要，细节本来由「录」视图承担。 */
+.mp-svg{ display:block; width:100%; height:auto; max-width:100%; }
+.mp-node{ transition:none; }
+.mp-node:hover > circle:not([fill="transparent"]){ stroke-width:1.8; }
+.mp-node.here > circle{ filter:drop-shadow(0 0 2px rgba(176,58,43,.5)); }
+/* 窄屏：图比容器宽，横向滚动是主要交互，故留出右侧一点余量并给滚动条留位 */
+@media (max-width:1000px){
+  .mp-scroll{ padding-bottom:14px; }
+  .mp-scroll::-webkit-scrollbar{ height:5px; }
+  .mp-scroll::-webkit-scrollbar-thumb{ background:rgba(31,29,25,.18); border-radius:3px; }
+}
+
+/* 窄屏：图占满宽度，页头留一点内边距 */
+@media (max-width:1000px){
+  .mp-head{ padding:10px 12px 7px; }
+  .mp-panel{ border-radius:var(--r); }
+}
 
 /* 宽屏「书案」布局：三栏各自成卷，各自滚动，整屏不出现大片空白，
    左侧山系与中间诸山不会把页面拉成一长条 */
