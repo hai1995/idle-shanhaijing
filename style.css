@@ -1563,7 +1563,7 @@ details.bulk-sell .bs-preview, details.bulk-sell .bs-act{ margin-left:11px; marg
 /* 淬炼档徽记：+N 必须一眼看见——同名装备按档分行，靠它区分 */
 .ic-enh{ margin-left:2px; font-family:var(--f-num); font-size:9.5px; font-weight:700;
   color:var(--zhu); background:rgba(176,58,43,.10); border-radius:3px; padding:0 2px; }
-.inv-card.enhanced{ border-left-color:var(--zhu); }
+.inv-card.enhanced, .sell-tile.enhanced{ border-left-color:var(--zhu); }
 .hd-enh{ font-family:var(--f-num); font-size:13px; font-weight:700; color:var(--zhu); }
 
 /* ==========================================================================
