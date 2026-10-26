@@ -7644,6 +7644,117 @@ section('图鉴产地口径');
   G.resetToDefault();
 }
 
+// ============ 143. 舆地层产地判据统一（v1.31.50） ============
+// v1.31.48 收了采集、v1.31.49 收了图鉴，舆地这一层还停在旧口径上：
+//   ① 「已著录 x/y」按主产地算分母 —— 238 座山偏小、136 座原为 0（进度条不出现），
+//      玩家在柢山采到雄黄，柢山仍是 0/0。
+//   ② 「材料来源」只认 it.node —— 18 处指向锁着的山，而同一材料在别山早能采。
+//   ③ 技能卡「产出地」只给第一件物的主产地 —— 「金」产于 42 座山，卡片只写一座。
+// 此节把舆地层接上引擎的产地判据，并钉住「别处采的也算著录」这一语义。
+section('舆地产地口径');
+{
+  const gSrc150 = readText('src/game.js');
+  const wSrc150 = readText('src/ui/world.js');
+  const pSrc150 = readText('src/ui/pack.js');
+
+  // ---- 0. 判据在引擎层，且已导出 ----
+  assert(typeof ST.nodeSourceItems === 'function', '产地候选集是引擎判据（单一来源）');
+  assert(typeof ST.nodeHasItem === 'function', '节点著录分母的判据在引擎层');
+  assert(typeof ST.skillSourceNodes === 'function', '技艺产地候选集在引擎层');
+  assert(typeof ST.materialSourceNodes === 'function', '材料产地候选集在引擎层');
+  assert(typeof ST.pickReachableNode === 'function', '「挑一处能去的」是共用判据');
+  assert(gSrc150.includes('function nodeSourceItems') && gSrc150.includes('window.nodeSourceItems = nodeSourceItems'), '候选集已导出到全局');
+  assert(gSrc150.includes('function pickReachableNode') && gSrc150.includes('window.pickReachableNode = pickReachableNode'), '挑产地判据已导出到全局');
+
+  // ---- 1. 候选集：nodes[] 全集 + 主产地 ----
+  G.resetToDefault();
+  const jin150 = ST.Items.jin;
+  assert(!!jin150, '样本「金」存在');
+  if (jin150){
+    const srcs150 = ST.nodeSourceItems('jin');
+    assert(srcs150.length >= 40, '「金」的产地候选集是全部产地（40+ 处），不是主产地一处');
+    assert(srcs150.indexOf(jin150.node) >= 0, '候选集含主产地');
+  }
+  // 非采集物退回主产地
+  const beastMat150 = Object.values(ST.Items).find(it=>it.skill && !ST.isGatherSkill(it.skill) && it.node);
+  if (beastMat150){
+    const bs150 = ST.nodeSourceItems(beastMat150.id);
+    assert(bs150.length === 1 && bs150[0] === beastMat150.node, '非采集物退回主产地');
+  }
+
+  // ---- 2. 节点著录分母：多产地的山不再算少 ----
+  // 柢山：雄黄的主产地在别处（西 41 级），旧口径下柢山分母为 0，进度条不出现
+  const diShan150 = 'nanshan-1-05';
+  const rpOld150 = (()=>{ let t=0; for (const it of Object.values(ST.Items)) if (it.node === diShan150) t++; return t; })();
+  const rpNew150 = ST.nodeHasItem(diShan150);
+  assert(rpOld150 === 0, '样本：柢山按旧口径（只认主产地）分母为 0');
+  assert(rpNew150.total > 0, '柢山按新口径分母大于 0（雄黄在此亦产）');
+  // 238 座山的分母变大，136 座从 0 变成正数
+  let bigger150 = 0, fromZero150 = 0, checked150 = 0;
+  for (const r of (ST.WORLD.regions||[])) for (const n of (r.nodes||[])){
+    let oldT = 0;
+    for (const it of Object.values(ST.Items)) if (it.node === n.id) oldT++;
+    const newT = ST.nodeHasItem(n.id).total;
+    checked150++;
+    if (newT > oldT) bigger150++;
+    if (oldT === 0 && newT > 0) fromZero150++;
+  }
+  assert(checked150 === 447, '447 座山全部检查过');
+  assert(bigger150 >= 200, `分母变大的山够多（实测 ${bigger150} 座）`);
+  assert(fromZero150 >= 100, `原先分母为 0 的山多数修好了（实测 ${fromZero150} 座）`);
+
+  // ---- 3. done 仍是全局著录数：别处采的也算这一座山的 ----
+  // 语义：「此山录 x/y」= 此山所产之物中，已被著录的种数。著录是全局的，
+  // 于是「金」在 42 座山都能采，在任何一处采到，42 座山的计数都会 +1 —— 这是自洽的。
+  const jinNode150 = ST.nodeSourceItems('jin')[0];
+  ST.Game.records['jin'] = { count: 3, tier: 0 };
+  const rpAfter150 = ST.nodeHasItem(jinNode150);
+  assert(rpAfter150.done > 0, '采到一次即记为已著录');
+  G.resetToDefault();
+
+  // ---- 4. UI 的分母改从引擎取 ----
+  assert(wSrc150.includes('nodeHasItem(nodeId)'), 'nodeRecordProgress 改用引擎分母');
+  assert(!wSrc150.includes('if (it.node === nodeId){ total++;'), '旧的「只认主产地」分母写法已移除');
+
+  // ---- 5. 材料来源：候选集 + 已解锁排前 ----
+  assert(wSrc150.includes('materialSourceNodes') || wSrc150.includes('materialReachableNode'), '材料来源改用引擎候选集');
+  assert(wSrc150.includes('m.ok'), '材料来源带「是否已解锁」标记');
+  // 18 处「指向锁着的山但别的山已解锁」应被消掉：候选集里已解锁的排最前
+  let badMns150 = 0, checkedMns150 = 0;
+  for (const sk of Object.keys(ST.Skills||{})){
+    const rs150 = (ST.Recipes||[]).filter(r=>ST.RECIPE_SKILL && ST.RECIPE_SKILL[r.type]===sk);
+    if (!rs150.length) continue;
+    const mns150 = ST.materialNodesForSkill(sk);
+    for (const m of mns150){
+      checkedMns150++;
+      // 每一项材料的产地列表，第一个必须是「已解锁的」或「门槛最低的」
+      const cands150 = ST.materialSourceNodes(m.itemName ? (Object.values(ST.Items).find(it=>it.name===m.itemName)||{}).id : null);
+      if (!cands150 || !cands150.length) continue;
+      const nd150 = ST.nodeOf(m.nodeId);
+      if (!nd150) continue;
+      const unlocked150 = cands150.some(id=>{ const n=ST.nodeOf(id); return n && ST.nodeUnlocked(n); });
+      if (!unlocked150) continue;
+      // 该材料有已解锁的产地 → 它在列表里的首项必须是已解锁的那一处
+      const firstOfItem150 = mns150.find(x=>x.itemName === m.itemName);
+      if (firstOfItem150 && !firstOfItem150.ok) badMns150++;
+    }
+  }
+  assert(checkedMns150 > 0, '材料来源确有检查样本');
+  assert(badMns150 === 0, `材料来源不再优先指向锁着的山（实测 ${badMns150} 处）`);
+
+  // ---- 6. 技能卡「产出地」不再只给一座山 ----
+  assert(typeof ST.skillSourceNodes === 'function' && ST.skillSourceNodes('caiyu').length > 10, '「采渔」候选产地远多于一座');
+  assert(wSrc150.includes('skillSourceNodes'), '技能卡显示「等 N 山」');
+  assert(pSrc150.includes('skillSourceNodes'), '技能详情弹窗也显示「等 N 山」');
+  assert(ST.skillReachableNode('caiyu') !== null, '「采渔」能挑出一处现在能去的产地');
+
+  // ---- 7. 挑产地的判据只有一处 ----
+  // 图鉴此前自己写了一遍「已解锁优先、其次门槛最低」，本轮改为复用 pickReachableNode
+  assert(gSrc150.includes('return pickReachableNode(codexSourceNodes(e))'), '图鉴复用引擎的挑产地判据，不再各写一遍');
+
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

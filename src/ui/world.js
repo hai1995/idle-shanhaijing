@@ -4,9 +4,15 @@
 
 // ================= 舆地 =================
 // 节点著录进度：统计该节点可著录的物产/异兽中已著录数量
+// ⚠️ v1.31.50：此前只认 it.node（主产地），分母按主产地算 —— 于是 238 座山的
+// 「已著录 x/y」偏小（136 座原为 0，进度条压根不出现），玩家在柢山采到雄黄、
+// 在别的山采到「金」，那些山都不计数。分母改从引擎的 nodeHasItem 取
+// （nodes[] 全集 + 主产地），与采集、图鉴两层的产地口径同源。
 function nodeRecordProgress(nodeId){
-  let total = 0, done = 0;
-  for (const it of Object.values(Items)) if (it.node === nodeId){ total++; if ((Game.records[it.id]||{}).count > 0) done++; }
+  const r = (typeof nodeHasItem === 'function')
+    ? nodeHasItem(nodeId)
+    : (()=>{ let t=0,d=0; for (const it of Object.values(Items)) if (it.node === nodeId){ t++; if ((Game.records[it.id]||{}).count > 0) d++; } return { done:d, total:t }; })();
+  let total = r.total, done = r.done;
   for (const m of Object.values(Monsters)) if (m.nodeId === nodeId){ total++; if ((Game.records[m.id]||{}).count > 0) done++; }
   return { done, total };
 }
@@ -555,16 +561,15 @@ function nodeMythBlock(node){
   return `<div class="myth-block"><b>神话</b>${esc(node.myth.figure?node.myth.figure+'：':'')}${esc(node.myth.content||'')}</div>`;
 }
 // 采集技能 → 产出节点（用于技能页一键前往）
+// ⚠️ v1.31.50：此前只给池里第一件物的**主产地**——「金」明明产于 42 座山，
+// 技能卡却只写「招摇之山」。现在走引擎的 skillSourceNodes（候选集）
+// 与 pickReachableNode（挑一处现在能去的），与采集、图鉴两层同源。
 function nodeForSkill(skillId){
-  const pool = (typeof GATHER_POOLS!=='undefined' && GATHER_POOLS[skillId]) || [];
-  for (const iid of pool){
-    const it = Items[iid];
-    if (it && it.node){
-      for (const r of (WORLD.regions||[])){
-        const n = (r.nodes||[]).find(nn=>nn.id===it.node);
-        if (n) return { nodeId:n.id, regionId:r.regionId };
-      }
-    }
+  const nodeId = (typeof skillReachableNode === 'function') ? skillReachableNode(skillId) : null;
+  if (!nodeId) return null;
+  for (const r of (WORLD.regions||[])){
+    const n = (r.nodes||[]).find(nn=>nn.id===nodeId);
+    if (n) return { nodeId:n.id, regionId:r.regionId };
   }
   return null;
 }
@@ -574,17 +579,23 @@ function materialNodeForSkill(skillId){
   for (const r of recipes){
     for (const c of (r.cost||[])){
       const it = Items[c[0]];
-      if (it && it.node){
-        for (const reg of (WORLD.regions||[])){
-          const n = (reg.nodes||[]).find(nn=>nn.id===it.node);
-          if (n) return { nodeId:n.id, regionId:reg.regionId, itemName:it.name };
-        }
+      if (!it) continue;
+      // 走引擎的 materialReachableNode：候选集含 nodes[] 全集，且优先给已解锁的那处
+      const nid = (typeof materialReachableNode === 'function') ? materialReachableNode(c[0]) : it.node;
+      if (!nid) continue;
+      for (const reg of (WORLD.regions||[])){
+        const n = (reg.nodes||[]).find(nn=>nn.id===nid);
+        if (n) return { nodeId:n.id, regionId:reg.regionId, itemName:it.name };
       }
     }
   }
   return null;
 }
 // 制作技能 → 所有材料来源节点（去重，按节点）
+// ⚠️ v1.31.50：此前每种材料只认 it.node（主产地），于是 18 处「材料来源」按钮
+// 指向锁着的山，而同一材料在别的山早就能采。改为走引擎候选集
+// （materialSourceNodes），并把**已解锁的产地排在前面**——
+// 材料来源是玩家照着采的清单，指着去不了的山等于没有指路。
 function materialNodesForSkill(skillId){
   const out = [];
   const seen = {};
@@ -592,10 +603,26 @@ function materialNodesForSkill(skillId){
   for (const r of recipes){
     for (const c of (r.cost||[])){
       const it = Items[c[0]];
-      if (it && it.node && !seen[it.node]){
+      if (!it) continue;
+      // 该材料的候选产地：nodes[] 全集 + 主产地
+      const cands = (typeof materialSourceNodes === 'function') ? materialSourceNodes(c[0]) : (it.node ? [it.node] : []);
+      if (!cands.length) continue;
+      // 已解锁的排前面；同解锁状态按门槛由低到高
+      const ordered = cands.slice().sort((a, b)=>{
+        const na = nodeOf(a), nb = nodeOf(b);
+        const oa = na && nodeUnlocked(na) ? 0 : 1, ob = nb && nodeUnlocked(nb) ? 0 : 1;
+        if (oa !== ob) return oa - ob;
+        const la = na && typeof na.unlockLevel === 'number' ? na.unlockLevel : 99;
+        const lb = nb && typeof nb.unlockLevel === 'number' ? nb.unlockLevel : 99;
+        return la - lb;
+      });
+      for (const nid of ordered){
+        const key = it.id + '|' + nid;
+        if (seen[key]) continue;
+        seen[key] = true;
         for (const reg of (WORLD.regions||[])){
-          const n = (reg.nodes||[]).find(nn=>nn.id===it.node);
-          if (n){ seen[it.node] = true; out.push({ nodeId:n.id, regionId:reg.regionId, itemName:it.name, nodeName:n.name }); break; }
+          const n = (reg.nodes||[]).find(nn=>nn.id===nid);
+          if (n){ out.push({ nodeId:n.id, regionId:reg.regionId, itemName:it.name, nodeName:n.name, ok:nodeUnlocked(n) }); break; }
         }
       }
     }
@@ -742,7 +769,9 @@ UI.renderSkills = function(){
       const nf = nodeForSkill(id);
       const mns = nf ? null : materialNodesForSkill(id);
       const mst = nf ? null : materialStatusForSkill(id);
-      const matBtns = (mns && mns.length) ? `<div class="mat-src">材料来源：${mns.slice(0,3).map(m=>`<button class="btn-mini skill-go" onclick="UI.selRegion='${m.regionId}';UI.selNode='${m.nodeId}';UI.switchTab('yudi')">${typeof markIcon==='function'?markIcon('pin',13):'📍'} ${esc(m.nodeName||'')}</button>`).join('')}${mns.length>3?`<span class="hint">等 ${mns.length} 处</span>`:''}</div>` : '';
+      // 材料来源：每项材料列出产地，已解锁的排前面；锁着的写明门槛（v1.31.50）
+      const matBtns = (mns && mns.length) ? `<div class="mat-src">材料来源：${mns.slice(0,3).map(m=>`<button class="btn-mini skill-go ${m.ok?'':'lock'}" title="${esc(m.itemName)}·${esc(m.nodeName||'')}${m.ok?'':'（尚未开通）'}"
+        onclick="UI.selRegion='${m.regionId}';UI.selNode='${m.nodeId}';UI.switchTab('yudi')">${typeof markIcon==='function'?markIcon('pin',13):'📍'} ${esc(m.itemName)}·${esc(m.nodeName||'')}</button>`).join('')}${mns.length>3?`<span class="hint">等 ${mns.length} 处</span>`:''}</div>` : '';
       const matInv = (mst && mst.length) ? `<div class="mat-inv">${mst.map(m=>`<span class="${m.ok?'ok':'gap'}">${typeof itemIc==='function'?itemIc(m.id,13):''}${esc(m.name)} ${m.have}/${m.need}${m.ok?(typeof markIcon==='function'?markIcon('check',12):'✓'):(typeof markIcon==='function'?markIcon('warn',12):'✗')}</span>`).join(' · ')}</div>` : '';
       // 方块：图标 + 名 + 阶位，右上角等级，底部一条经验进度；
       // 描述 / 产出地 / 材料来源与持有缺口全在浮层（点按即开）
@@ -759,7 +788,7 @@ UI.renderSkills = function(){
         <span class="sk-bar"><i style="width:${pct.toFixed(1)}%"></i></span>
         <span class="tip-body hidden">
           <div class="sc-desc">${esc(sk.desc||'')}</div>
-          ${nf?`<button class="btn-mini skill-go" onclick="UI.selRegion='${nf.regionId}';UI.selNode='${nf.nodeId}';UI.switchTab('yudi')">${typeof markIcon==='function'?markIcon('pin',13):'📍'} 产出地</button>`:''}
+          ${nf?`<button class="btn-mini skill-go" title="${esc((nodeOf(nf.nodeId)||{}).name||'')}${(typeof skillSourceNodes==='function')&&skillSourceNodes(id).length>1?` 等 ${skillSourceNodes(id).length} 山`:''}" onclick="UI.selRegion='${nf.regionId}';UI.selNode='${nf.nodeId}';UI.switchTab('yudi')">${typeof markIcon==='function'?markIcon('pin',13):'📍'} 产出地</button>${(typeof skillSourceNodes==='function')&&skillSourceNodes(id).length>1?`<span class="hint">${esc((nodeOf(nf.nodeId)||{}).name||'')} 等 ${skillSourceNodes(id).length} 山</span>`:''}`:''}
           ${matBtns}${matInv}
           ${(() => {
             const nx = nextUnlocks(id, 6);

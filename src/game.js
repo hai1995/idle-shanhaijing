@@ -792,7 +792,7 @@ function gatherInterval(skillId){
 //   ① 越级采集：doGather 允许差 8 级内硬采（效率打折），startActivity 却硬门槛拒绝
 //      —— 舆地上明明白白标着「越级 84%」可采，点下去被弹回来。
 //   ② 多产地：150 件物产于多座山（玉 38 处、金 42 处），startActivity 只认 it.node
-//      —— 站在另一座合法产地，点采集却��被传送回「主产地」。
+//      —— 站在另一座合法产地，点采集却会被传送回「主产地」。
 //   ③ 万物山：积石之山「万物无不有焉」，引擎放行任何物，UI 却按 nodes[] 过滤，
 //      —— 玩家看到的是一座「什么也采不到」的山。
 // 现在统一到这两个函数：判据写一处，五个调用点全部引用。
@@ -891,9 +891,102 @@ function codexSourceNodes(e){
 }
 // 在候选产地里挑一处「现在能去的」：已解锁的优先，其次解锁级最低的。
 // 找不到就返回 null（此物暂时无处可去）。
+// v1.31.50：实现改为复用 pickReachableNode（图鉴 / 技能卡 / 材料来源共用同一挑法）。
 function codexReachableNode(e){
+  return pickReachableNode(codexSourceNodes(e));
+}
+// 图鉴里这条未录物「差几级才能去」：
+//   unlocked —— 现在就能去
+//   gap      —— 还差几级（取所有候选产地里最省的那个）
+//   why      —— 人话理由（需舆地 N 级 / 不可上需履险 N 级）
+// 面板要靠它写「需 N 级」——只报最低门槛，不报主产地那个虚高的数。
+function codexReachInfo(e){
   const cands = codexSourceNodes(e);
-  if (!cands.length) return null;
+  if (!cands.length) return { unlocked:false, gap:null, why:'暂无去处' };
+  for (const id of cands){
+    const nd = nodeOf(id);
+    if (nd && nodeUnlocked(nd)) return { unlocked:true, gap:0, why:'' };
+  }
+  // 全锁：报所有候选产地里门槛最低的那一处，不报主产地那个虚高的数。
+  let best = null, bestNd = null;
+  for (const id of cands){
+    const nd = nodeOf(id);
+    if (!nd) continue;
+    const lv = (typeof nd.unlockLevel === 'number') ? nd.unlockLevel : 99;
+    if (best === null || lv < best){ best = lv; bestNd = nd; }
+  }
+  if (best === null) return { unlocked:false, gap:null, why:'暂无去处' };
+  return { unlocked:false, gap:best, why:(typeof nodeLockReason === 'function') ? nodeLockReason(bestNd) : `需 ${best} 级` };
+}
+window.codexSourceNodes = codexSourceNodes;
+window.codexReachableNode = codexReachableNode;
+window.codexReachInfo = codexReachInfo;
+
+// ---------- 舆地层的产地判据（v1.31.50） ----------
+// 前面两轮把「采集」（v1.31.48）与「图鉴」（v1.31.49）的产地口径都收干净了，
+// 但舆地这一层还停在旧口径上——它有两处只认 it.node（主产地），于是：
+//   ① 「已著录 x/y」的分母按主产地算：238 座山的分母偏小（其中 136 座原为 0），
+//      玩家在柢山采到雄黄，柢山的进度条仍是 0/0（进度条压根不出现）。
+//      「金」产于 42 座山，采到一处却只给主产地那一处记数。
+//   ② 「材料来源」按钮按主产地给：18 处指向锁着的山，而同一材料在别的山早就能采。
+// 舆地是玩家待得最久的一页，这一层不收，前两轮的收白做。
+//
+// 本轮把「产地候选集」抽成一个通用判据 nodeSourceItems(itemId)：
+// 采集物认 nodes[] 全集 + 主产地（nodes[] 里常常不含 node，故两个都要）；
+// 非采集物（异兽素材等）退回主产地。舆地两处都改引用它。
+
+// 一件物的产地候选集：采集物认 nodes[] 全集并补上主产地；其余退回 node。
+function nodeSourceItems(itemId){
+  const it = Items[itemId];
+  if (!it) return [];
+  if (isGatherSkill(it.skill)) {
+    const s = gatherSources(it).slice();
+    if (it.node && s.indexOf(it.node) < 0) s.push(it.node);
+    return s;
+  }
+  return it.node ? [it.node] : [];
+}
+
+// 这座山可著录之物（物品侧）：主产地或 nodes[] 任一命中即算。
+// 异兽不在这里——异兽按 nodeId 归属，UI 层单独加。
+function nodeHasItem(nodeId){
+  let total = 0, done = 0;
+  for (const it of Object.values(Items)){
+    if (!it) continue;
+    const srcs = nodeSourceItems(it.id);
+    if (srcs.indexOf(nodeId) < 0) continue;
+    total++;
+    if ((Game.records[it.id]||{}).count > 0) done++;
+  }
+  return { done, total };
+}
+
+// 某项技艺的产地候选集：把该技艺池里所有物的产地合并去重。
+// 用于技能卡的「产出地」——此前只给第一件物的主产地，「金」明明产于 42 座山，
+// 卡片却只写「招摇之山」。
+function skillSourceNodes(skillId){
+  const out = [], seen = {};
+  const pool = (typeof GATHER_POOLS !== 'undefined' && GATHER_POOLS[skillId]) || [];
+  for (const iid of pool){
+    for (const nid of nodeSourceItems(iid)){
+      if (seen[nid]) continue;
+      seen[nid] = 1; out.push(nid);
+    }
+  }
+  return out;
+}
+
+// 某件材料的产地候选集（制作类）：与 nodeSourceItems 同一口径。
+function materialSourceNodes(itemId){
+  return nodeSourceItems(itemId);
+}
+
+// 从候选产地里挑一处「现在能去的」：已解锁的优先，其次解锁级最低的。
+// 抽出来是为了让图鉴（codexReachableNode）、技能卡（skillReachableNode）、
+// 材料来源（materialReachableNode）共用同一套挑法——此前三处各写一遍，
+// 又是一次「同一件事多处定义」的隐患。
+function pickReachableNode(cands){
+  if (!cands || !cands.length) return null;
   let best = null, bestLv = Infinity;
   for (const id of cands){
     const nd = nodeOf(id);
@@ -904,28 +997,22 @@ function codexReachableNode(e){
   }
   return best;
 }
-// 图鉴里这条未录物「差几级才能去」：
-//   unlocked —— 现在就能去
-//   gap      —— 还差几级（取所有候选产地里最省的那个）
-//   why      —— 人话理由（需舆地 N 级 / 不可上需履险 N 级）
-// 面板要靠它写「需 N 级」——只报最低门槛，不报主产地那个虚高的数。
-function codexReachInfo(e){
-  const cands = codexSourceNodes(e);
-  if (!cands.length) return { unlocked:false, gap:null, why:'暂无去处' };
-  let best = null, bestNd = null;
-  for (const id of cands){
-    const nd = nodeOf(id);
-    if (!nd) continue;
-    if (nodeUnlocked(nd)) return { unlocked:true, gap:0, why:'' };
-    const lv = (typeof nd.unlockLevel === 'number') ? nd.unlockLevel : 99;
-    if (best === null || lv < best){ best = lv; bestNd = nd; }
-  }
-  if (best === null) return { unlocked:false, gap:null, why:'暂无去处' };
-  return { unlocked:false, gap:best, why:(typeof nodeLockReason === 'function') ? nodeLockReason(bestNd) : `需 ${best} 级` };
+// 某项技艺「现在能去的」产地。
+function skillReachableNode(skillId){
+  return pickReachableNode(skillSourceNodes(skillId));
 }
-window.codexSourceNodes = codexSourceNodes;
-window.codexReachableNode = codexReachableNode;
-window.codexReachInfo = codexReachInfo;
+// 某件材料「现在能去的」产地。
+function materialReachableNode(itemId){
+  return pickReachableNode(materialSourceNodes(itemId));
+}
+
+window.nodeSourceItems = nodeSourceItems;
+window.nodeHasItem = nodeHasItem;
+window.skillSourceNodes = skillSourceNodes;
+window.materialSourceNodes = materialSourceNodes;
+window.pickReachableNode = pickReachableNode;
+window.skillReachableNode = skillReachableNode;
+window.materialReachableNode = materialReachableNode;
 
 function doGather(itemId){
   const it = Items[itemId];

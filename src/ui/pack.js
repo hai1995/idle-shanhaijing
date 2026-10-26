@@ -824,8 +824,9 @@ function showSkillDetail(id){
     <div class="meta">Lv ${lv}${lv < TUNING.MAX_LEVEL ? ` · 距下一级 ${fmt(need)} 经验` : ' · 已至本卷上限'}</div>
     ${sk.desc?`<div class="reveal"><b>所能</b>${esc(sk.desc)}</div>`:''}
     ${nf?`<div class="reveal"><b>产出地</b><button class="btn-mini skill-go"
-      onclick="UI.selRegion='${nf.regionId}';UI.selNode='${nf.nodeId}';UI.closeModal();UI.switchTab('yudi')">${typeof markIcon==='function'?markIcon('pin',13):'📍'} ${esc((nodeOf(nf.nodeId)||{}).name||'')}</button></div>`:''}
-    ${mns.length?`<div class="reveal"><b>材料来源</b><span class="use-box">${mns.slice(0,5).map(m=>`<button class="btn-mini skill-go"
+      onclick="UI.selRegion='${nf.regionId}';UI.selNode='${nf.nodeId}';UI.closeModal();UI.switchTab('yudi')">${typeof markIcon==='function'?markIcon('pin',13):'📍'} ${esc((nodeOf(nf.nodeId)||{}).name||'')}${(typeof skillSourceNodes==='function')&&skillSourceNodes(id).length>1?` 等 ${skillSourceNodes(id).length} 山`:''}</button></div>`:''}
+    ${mns.length?`<div class="reveal"><b>材料来源</b><span class="use-box">${mns.slice(0,5).map(m=>`<button class="btn-mini skill-go ${m.ok?'':'lock'}"
+      title="${esc(m.itemName)}·${esc(m.nodeName||'')}${m.ok?'':'（尚未开通）'}"
       onclick="UI.selRegion='${m.regionId}';UI.selNode='${m.nodeId}';UI.closeModal();UI.switchTab('yudi')">${esc(m.itemName)}·${esc(m.nodeName||'')}</button>`).join('')}</span></div>`:''}
     ${mst.length?`<div class="reveal"><b>材料存余</b><span class="mat-inv">${mst.map(m=>`<span class="${m.ok?'ok':'gap'}">${esc(m.name)} ${m.have}/${m.need}</span>`).join(' · ')}</span></div>`:''}
     ${nx.length?`<div class="reveal"><b>将至</b>${esc(nextUnlockText(nx))}</div>`:''}
