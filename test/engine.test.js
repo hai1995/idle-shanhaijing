@@ -6746,6 +6746,40 @@ section('配方缺料指路');
   G.resetToDefault();
 }
 
+// ============ 126. 卷二 · 已领赏山系：偶尔多带一件 ============
+section('卷二旧地重游掉落');
+{
+  G.resetToDefault();
+  const src = readText('src/game.js');
+  assert(src.includes('旧地重游：${(Items[pid] || {}).name || pid} 多带一件'), '击杀结算里有「旧地重游多带一件」分支');
+  assert(/m\.band && !isBoss && Array\.isArray\(m\.loot\)/.test(src), '只在卷二非 BOSS 生效');
+
+  // 真跑一次：固定随机让分支必触发，看日志与件数
+  for (const k in ST.Game.skills) ST.Game.skills[k] = { level: 99, xp: ST.xpForLevel(99) };
+  ST.Game.rebirth = { count: 1, at: 1, best: 99 };
+  ST.Prefs.band = true;
+  const beast = Object.values(ST.Monsters).find(m => !m.boss && m.nodeId.indexOf('nanshan-1') === 0);
+  const foe = ST.foeOf(beast);
+  const R = ST.WORLD.regions.find(r => r.regionId === 'nanshan-1');
+  R.nodes.forEach(n => { ST.Game.map[n.id] = true; });
+  ST.claimPilgrim('nanshan-1');            // 领赏（=已领）
+  const pid = foe.loot[0][0];
+  const logs = [];
+  const oldLog = ST.UI.log;
+  ST.UI.log = (msg) => logs.push(String(msg));
+  const oldRandom = Math.random;
+  Math.random = () => 0.01;
+  const q0 = ST.bagQty(pid);
+  ST.meetKill({ playerHp: 100 }, ST.foeOf(beast));
+  Math.random = oldRandom;
+  ST.UI.log = oldLog;
+  assert(ST.bagQty(pid) > q0, '掉落件数增加（' + q0 + ' → ' + ST.bagQty(pid) + '）');
+  assert(logs.some(x => x.includes('旧地重游')), '日志写明旧地重游：' + logs.filter(x => x.includes('旧地重游'))[0]);
+
+  ST.Prefs.band = false;
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

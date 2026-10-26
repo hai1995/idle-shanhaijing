@@ -2326,6 +2326,7 @@ function bumpMobStreak(id){
   Game.mobStreak[id] = (Game.mobStreak[id] || 0) + 1;
 }
 window.mobStreakMult = mobStreakMult; window.bumpMobStreak = bumpMobStreak;
+window.meetKill = meetKill;   // 导出给回归测试：击杀结算的掉落分支要能被单测直接跑到
 function meetKill(c, m){
   const isBoss = !!m.boss;
   Game.stats.kills++;
@@ -2352,6 +2353,18 @@ function meetKill(c, m){
   // 早年缺 `|| []` 兜底导致讨平 BOSS 必抛 TypeError（战斗循环中断），务必保留。
   const tier = (Game.records[m.id]||{}).tier || 0;
   const yieldB = 1 + globalYieldBonus() + deployedBonuses().loot + omenMod('loot') + memberBonus('drop');   // 有兵 / 多狡客：所获 -10%
+  // 卷二 · 已领赏山系：旧地重游不只有经验，偶尔还多带一件（6%）。
+  // 与「旧地重游 +10% 经验」配套——一个是效率，一个是手气。
+  if (m.band && !isBoss && Array.isArray(m.loot) && m.loot.length && chance(0.06)){
+    const claimed = !!(Game.pilgrim && Game.pilgrim[m.regionId]);
+    if (claimed){
+      const pid = m.loot[0][0];
+      giveItem(pid, 1, false);
+      if (typeof pushRecentLoot === 'function') pushRecentLoot(pid, 1);
+      UI && UI.lootFloat && UI.lootFloat(pid, 1);
+      log(`🗺️ 旧地重游：${(Items[pid] || {}).name || pid} 多带一件`, 'gold', 'combat');
+    }
+  }
   for (const [id, base, qty] of (m.loot || [])){
     let p = base * (1 + TUNING.DROP.LVL_COEF*(levelOf('taofa') - m.needLvl)) * (1 + TUNING.DROP.MAS_COEF*tier/4);
     p = clamp(p * yieldB, 0.05, 0.95);
