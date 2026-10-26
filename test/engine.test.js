@@ -6553,6 +6553,50 @@ section('中山七神赐物差异化');
   G.resetToDefault();
 }
 
+// ============ 120. 山系巡礼：41–60 级的目标锚点 ============
+// 这一段只有北山三系与东山首经，原文「有神无祠」，既不能加谒见点也不该硬编神祇。
+// 于是给「走遍一系诸山」一个终点：满额领一次赏。
+section('山系巡礼');
+{
+  G.resetToDefault();
+  const reg = 'beishan-1';
+  const R = ST.WORLD.regions.find(x => x.regionId === reg);
+  assert(!!R && R.nodes.length === 25, '北次一经 25 山（' + (R ? R.nodes.length : '?') + '）');
+
+  const p0 = ST.regionPilgrim(reg);
+  assert(p0.total === 25 && p0.done === 0 && !p0.full && !p0.claimed, '初始 0/25');
+
+  // 未满不能领
+  R.nodes.slice(0, 3).forEach(n => { ST.Game.map[n.id] = true; });
+  assert(ST.regionPilgrim(reg).done === 3, '已涉 3 山');
+  assert(ST.claimPilgrim(reg) === 0, '未满不能领');
+
+  // 满额：领一次，金额按山系等级算
+  R.nodes.forEach(n => { ST.Game.map[n.id] = true; });
+  const s0 = ST.Game.shells;
+  const want = 800 + R.unlockLevel * 80;
+  assert(ST.claimPilgrim(reg) === want, '满额得贝 ' + want);
+  assert(ST.Game.shells - s0 === want, '贝币确实到账');
+  assert(ST.regionPilgrim(reg).claimed === true, '标记已领');
+  assert(ST.claimPilgrim(reg) === 0, '不能重复领');
+
+  // 存档带上 pilgrim，读回来仍是已领
+  const sv = ST.serializeSave();
+  assert(sv.pilgrim && sv.pilgrim[reg] === 1, '存档记下已领');
+  ST.localStorage.setItem('shj_zhulu_save_v1', JSON.stringify(sv));
+  ST.loadGame();
+  assert(ST.regionPilgrim(reg).claimed === true, '读档后仍是已领');
+  ST.localStorage.removeItem('shj_zhulu_save_v1');
+
+  // 41–60 段的四个山系都能成为巡礼目标（都有山、有门槛、可完成）
+  for (const rid of ['beishan-1','beishan-2','beishan-3','dongshan-1']){
+    const p = ST.regionPilgrim(rid);
+    assert(p && p.total > 5, `${rid} 有 ${p ? p.total : 0} 山可巡`);
+  }
+
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

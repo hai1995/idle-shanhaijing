@@ -179,7 +179,15 @@ UI.renderYudi = function(){
       <div class="region-summary">${unlocked ? esc(region.summary||'') : `${typeof markIcon==='function'?markIcon('lock',13):'🔒'} 尚未解锁此山系`}</div>
     </div>
     <div class="panel nodes">
-      <h3>${esc(region.regionName)} · 诸山</h3>
+      ${(()=>{
+        // 巡礼：走遍本系诸山后在此领赏。放在「诸山」标题行，是因为它衡量的正是这一列山。
+        const pg = (typeof regionPilgrim === 'function') ? regionPilgrim(region.regionId) : null;
+        const tag = !pg || !pg.total ? ''
+          : `<span class="pilgrim ${pg.full?'full':''}">巡礼 ${pg.done}/${pg.total}${pg.claimed?' ✓':''}</span>`;
+        const btn = (pg && pg.full && !pg.claimed)
+          ? `<button class="btn small" type="button" onclick="claimPilgrim('${region.regionId}');UI.renderYudi()">领赏</button>` : '';
+        return `<h3>${esc(region.regionName)} · 诸山${tag}${btn}</h3>`;
+      })()}
       ${(()=>{
         const r = (typeof activeRiteOf === 'function') ? activeRiteOf(region.regionId) : null;
         return r ? `<div class="rite-here" title="${esc(r.name)}：此域采获 +${Math.round(r.bonus*100)}%（约合产量 +${typeof riteRealYield==='function'?riteRealYield(r.bonus):Math.round(r.bonus*50)}%），余 ${fmtTime(r.left)}">
@@ -592,7 +600,7 @@ UI.renderSkills = function(){
   </div>
 
   <div class="panel farm-panel">
-    <h3>圃艺 · 田地<span class="farm-lv" id="farmPuyiLv">${farmLevelText()}</span><button class="btn small gear-best" type="button" onclick="UI.plantAll()">一键种植</button></h3>
+    <h3><span class="fp-title">圃艺 · 田地</span><span class="farm-lv" id="farmPuyiLv">${farmLevelText()}</span><button class="btn small gear-best" type="button" onclick="UI.plantAll()">一键种植</button></h3>
     <div class="tile-grid farm-grid">
     ${farmTilesHtml()}
     </div>
@@ -694,11 +702,9 @@ function farmLevelText(){
   const xn = (typeof xpForLevel === 'function') ? xpForLevel(lv + 1) : 0;
   const cur = Math.max(0, (sk.xp || 0) - xc);
   const need = Math.max(0, xn - xc);
-  const pct = need > 0 ? Math.min(100, cur / need * 100) : 100;
-  const left = Math.max(0, need - cur);
-  const nextPlot = (typeof nextPlotLevel === 'function') ? nextPlotLevel() : 0;
-  const tail = nextPlot ? ` · 下一块田 Lv${nextPlot}` : ' · 田已尽垦';
-  return `Lv ${lv} · 经验 ${fmt(cur)}/${fmt(need)}（${pct.toFixed(0)}%，还需 ${fmt(left)}）${tail}`;
+  // 只写「等级 + 分子/分母」：手机上标题行很窄，写全整句会挤成三行竖排，
+  // 反而看不出还差多少（百分比与「下一块田」在 skill tile / 开垦提示里已有）。
+  return `Lv ${lv} · ${fmt(cur)}/${fmt(need)}`;
 }
 
 // 田地方块 HTML（整页渲染与就地补绘共用）

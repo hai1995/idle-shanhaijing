@@ -1221,6 +1221,40 @@ window.riteAutoCount = riteAutoCount; window.activeRiteOf = activeRiteOf;
 window.riteRealYield = riteRealYield;
 window.riteWorth = riteWorth; window.regionGatherVps = regionGatherVps;
 
+// ---------- 山系巡礼（v1.31.24） ----------
+// 41–60 级这一段只有北山三系与东山首经，既没有谒见点（原文里这几系「有神无祠」），
+// 观象也稀——玩家走完新山之后没有可对齐的目标。这里给「走遍一系诸山」一个明确终点：
+// 满额可领一次赏（贝 + 舆地/著录经验），既是目标也是回头补图的理由。
+// 不冒充原文神祇，只记「你把这一系走完了」这件事。
+function regionPilgrim(regionId){
+  const r = (typeof WORLD !== 'undefined' ? WORLD.regions : []).find(x => x.regionId === regionId);
+  if (!r) return null;
+  const total = (r.nodes || []).length;
+  const done = (r.nodes || []).filter(n => (Game.map || {})[n.id]).length;
+  return { regionId, total, done, full: total > 0 && done >= total,
+           claimed: !!(Game.pilgrim && Game.pilgrim[regionId]) };
+}
+function claimPilgrim(regionId){
+  const p = regionPilgrim(regionId);
+  if (!p || !p.total){ return 0; }
+  if (!p.full){ UI && UI.toast(`尚有 ${p.total - p.done} 山未涉`); return 0; }
+  if (p.claimed){ UI && UI.toast('此系已领过'); return 0; }
+  const r = WORLD.regions.find(x => x.regionId === regionId);
+  const lvl = r.unlockLevel || 1;
+  const shells = 800 + lvl * 80;
+  Game.pilgrim = Game.pilgrim || {};
+  Game.pilgrim[regionId] = 1;
+  Game.shells += shells;
+  Game.stats.totalEarned += shells;
+  gainXp('yudi', 300 + lvl * 30);
+  gainXp('zhulu', 120 + lvl * 10);
+  log(`🗺️ 山系巡礼·${r.regionName}：${p.total} 山皆涉，得贝 ${shells}`, 'gold', 'sys');
+  UI && UI.toast(`🗺️ ${r.regionName} 巡礼已成\n${p.total} 山皆涉 · 得贝 ${shells}`);
+  saveGame();
+  return shells;
+}
+window.regionPilgrim = regionPilgrim; window.claimPilgrim = claimPilgrim;
+
 // ---------- 观象 / 观瑞 ----------
 function startObserve(siteId){
   const site = OBSERVE_SITES[siteId];

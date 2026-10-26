@@ -113,6 +113,7 @@ function serializeSave(){
     queue: G.queue || [], queueIdx: G.queueIdx || 0, queueRound: G.queueRound || 0,
     queueRunning: !!G.queueRunning, queueLoop: G.queueLoop !== false, fallback: G.fallback || null,
     mobStreak: G.mobStreak || {}, orders: G.orders || [], ordersAt: G.ordersAt || 0,
+    pilgrim: G.pilgrim || {},
     enhance: G.enhance || {}, enhanceHeat: G.enhanceHeat || {}, affixSalt: G.affixSalt || {},
     // 行囊装备：一件一条，各自带淬炼档（v6）
     packGear: Array.isArray(G.packGear) ? G.packGear.map(g => ({ id: g.id, enh: g.enh | 0 })) : [],

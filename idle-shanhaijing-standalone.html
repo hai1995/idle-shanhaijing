@@ -446,6 +446,20 @@ html.theme-anim, html.theme-anim *{
   letter-spacing:.1em; margin-bottom:12px; line-height:1.4;
   display:flex; align-items:center; gap:8px;
 }
+/* 田地标题：窄屏下「圃艺 · 田地 / Lv 8 · 815/1763 / 一键种植」三段并排，
+   任一段被压就会竖排成一列字——所以标题与数字都 nowrap，按钮靠右且不缩。 */
+.farm-panel h3{ flex-wrap:wrap; row-gap:4px; }
+.farm-panel h3 .fp-title{ white-space:nowrap; flex:0 0 auto; }
+.farm-panel h3 .farm-lv{
+  font-family:var(--f-num); font-size:11.5px; font-weight:400; letter-spacing:0;
+  color:var(--ink-3); white-space:nowrap; flex:0 0 auto;
+}
+.farm-panel h3 .gear-best{ margin-left:auto; flex:0 0 auto; }
+/* 山系巡礼：标题行上的进度；满额转朱色并给按钮 */
+.pilgrim{ font-family:var(--f-num); font-size:11px; font-weight:400; letter-spacing:0;
+  color:var(--ink-4); white-space:nowrap; flex:0 0 auto; }
+.pilgrim.full{ color:var(--zhu); font-weight:700; }
+.nodes h3 .btn.small{ margin-left:auto; flex:0 0 auto; }
 /* 篇名后的细线：向右渐隐，不做短红杠 */
 .panel h3::after{
   content:''; flex:1 1 auto; height:1px; min-width:20px;
@@ -19180,8 +19194,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.23',
-  codename:'昼巡 · 七赐',
+  version: '1.31.24',
+  codename:'昼巡 · 巡礼',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
@@ -19514,6 +19528,7 @@ function serializeSave(){
     queue: G.queue || [], queueIdx: G.queueIdx || 0, queueRound: G.queueRound || 0,
     queueRunning: !!G.queueRunning, queueLoop: G.queueLoop !== false, fallback: G.fallback || null,
     mobStreak: G.mobStreak || {}, orders: G.orders || [], ordersAt: G.ordersAt || 0,
+    pilgrim: G.pilgrim || {},
     enhance: G.enhance || {}, enhanceHeat: G.enhanceHeat || {}, affixSalt: G.affixSalt || {},
     // 行囊装备：一件一条，各自带淬炼档（v6）
     packGear: Array.isArray(G.packGear) ? G.packGear.map(g => ({ id: g.id, enh: g.enh | 0 })) : [],
@@ -20027,6 +20042,7 @@ function cloneDefaultGame(){
   g.mobStreak = {};
   g.enhance = {}; g.enhanceHeat = {};
   g.packGear = [];   // 行囊里的装备实例（每件自带淬炼等级；v1.31.22 起）
+  g.pilgrim = {};    // 山系巡礼：走遍一系诸山后的领赏记录（v1.31.24）
   // 装备槽必须显式清空：cloneDefaultGame 是「深拷贝当前状态再覆盖字段」，
   // 漏了这一项的话，重开新档时身上还穿着上一局那件（连淬炼阶数一起）——
   // 装备改成按件存实例之后，这个漏洞才看得出来。
@@ -20161,6 +20177,7 @@ function applySave(d){
     Game.fallback = (d.fallback && d.fallback.kind && d.fallback.target) ? d.fallback : null;
     // 同目标连续讨伐计数（旧档无此字段，缺省为空）
     Game.mobStreak = (d.mobStreak && typeof d.mobStreak === 'object') ? d.mobStreak : {};
+    Game.pilgrim = (d.pilgrim && typeof d.pilgrim === 'object') ? d.pilgrim : {};
     // 装备淬炼等级（旧档无此字段，缺省为空；非法值剔除）
     // 上限取当前 ENHANCE_MAX——这里曾写死 9，强化上限提到 30 时忘了同步，
     // 结果强到 +20 的装备一刷新就掉回 +9。凡是「另一处定义的常量」，
@@ -21751,6 +21768,40 @@ window.tickAutoRites = tickAutoRites; window.riteAutoOn = riteAutoOn;
 window.riteAutoCount = riteAutoCount; window.activeRiteOf = activeRiteOf;
 window.riteRealYield = riteRealYield;
 window.riteWorth = riteWorth; window.regionGatherVps = regionGatherVps;
+
+// ---------- 山系巡礼（v1.31.24） ----------
+// 41–60 级这一段只有北山三系与东山首经，既没有谒见点（原文里这几系「有神无祠」），
+// 观象也稀——玩家走完新山之后没有可对齐的目标。这里给「走遍一系诸山」一个明确终点：
+// 满额可领一次赏（贝 + 舆地/著录经验），既是目标也是回头补图的理由。
+// 不冒充原文神祇，只记「你把这一系走完了」这件事。
+function regionPilgrim(regionId){
+  const r = (typeof WORLD !== 'undefined' ? WORLD.regions : []).find(x => x.regionId === regionId);
+  if (!r) return null;
+  const total = (r.nodes || []).length;
+  const done = (r.nodes || []).filter(n => (Game.map || {})[n.id]).length;
+  return { regionId, total, done, full: total > 0 && done >= total,
+           claimed: !!(Game.pilgrim && Game.pilgrim[regionId]) };
+}
+function claimPilgrim(regionId){
+  const p = regionPilgrim(regionId);
+  if (!p || !p.total){ return 0; }
+  if (!p.full){ UI && UI.toast(`尚有 ${p.total - p.done} 山未涉`); return 0; }
+  if (p.claimed){ UI && UI.toast('此系已领过'); return 0; }
+  const r = WORLD.regions.find(x => x.regionId === regionId);
+  const lvl = r.unlockLevel || 1;
+  const shells = 800 + lvl * 80;
+  Game.pilgrim = Game.pilgrim || {};
+  Game.pilgrim[regionId] = 1;
+  Game.shells += shells;
+  Game.stats.totalEarned += shells;
+  gainXp('yudi', 300 + lvl * 30);
+  gainXp('zhulu', 120 + lvl * 10);
+  log(`🗺️ 山系巡礼·${r.regionName}：${p.total} 山皆涉，得贝 ${shells}`, 'gold', 'sys');
+  UI && UI.toast(`🗺️ ${r.regionName} 巡礼已成\n${p.total} 山皆涉 · 得贝 ${shells}`);
+  saveGame();
+  return shells;
+}
+window.regionPilgrim = regionPilgrim; window.claimPilgrim = claimPilgrim;
 
 // ---------- 观象 / 观瑞 ----------
 function startObserve(siteId){
@@ -28044,7 +28095,15 @@ UI.renderYudi = function(){
       <div class="region-summary">${unlocked ? esc(region.summary||'') : `${typeof markIcon==='function'?markIcon('lock',13):'🔒'} 尚未解锁此山系`}</div>
     </div>
     <div class="panel nodes">
-      <h3>${esc(region.regionName)} · 诸山</h3>
+      ${(()=>{
+        // 巡礼：走遍本系诸山后在此领赏。放在「诸山」标题行，是因为它衡量的正是这一列山。
+        const pg = (typeof regionPilgrim === 'function') ? regionPilgrim(region.regionId) : null;
+        const tag = !pg || !pg.total ? ''
+          : `<span class="pilgrim ${pg.full?'full':''}">巡礼 ${pg.done}/${pg.total}${pg.claimed?' ✓':''}</span>`;
+        const btn = (pg && pg.full && !pg.claimed)
+          ? `<button class="btn small" type="button" onclick="claimPilgrim('${region.regionId}');UI.renderYudi()">领赏</button>` : '';
+        return `<h3>${esc(region.regionName)} · 诸山${tag}${btn}</h3>`;
+      })()}
       ${(()=>{
         const r = (typeof activeRiteOf === 'function') ? activeRiteOf(region.regionId) : null;
         return r ? `<div class="rite-here" title="${esc(r.name)}：此域采获 +${Math.round(r.bonus*100)}%（约合产量 +${typeof riteRealYield==='function'?riteRealYield(r.bonus):Math.round(r.bonus*50)}%），余 ${fmtTime(r.left)}">
@@ -28457,7 +28516,7 @@ UI.renderSkills = function(){
   </div>
 
   <div class="panel farm-panel">
-    <h3>圃艺 · 田地<span class="farm-lv" id="farmPuyiLv">${farmLevelText()}</span><button class="btn small gear-best" type="button" onclick="UI.plantAll()">一键种植</button></h3>
+    <h3><span class="fp-title">圃艺 · 田地</span><span class="farm-lv" id="farmPuyiLv">${farmLevelText()}</span><button class="btn small gear-best" type="button" onclick="UI.plantAll()">一键种植</button></h3>
     <div class="tile-grid farm-grid">
     ${farmTilesHtml()}
     </div>
@@ -28559,11 +28618,9 @@ function farmLevelText(){
   const xn = (typeof xpForLevel === 'function') ? xpForLevel(lv + 1) : 0;
   const cur = Math.max(0, (sk.xp || 0) - xc);
   const need = Math.max(0, xn - xc);
-  const pct = need > 0 ? Math.min(100, cur / need * 100) : 100;
-  const left = Math.max(0, need - cur);
-  const nextPlot = (typeof nextPlotLevel === 'function') ? nextPlotLevel() : 0;
-  const tail = nextPlot ? ` · 下一块田 Lv${nextPlot}` : ' · 田已尽垦';
-  return `Lv ${lv} · 经验 ${fmt(cur)}/${fmt(need)}（${pct.toFixed(0)}%，还需 ${fmt(left)}）${tail}`;
+  // 只写「等级 + 分子/分母」：手机上标题行很窄，写全整句会挤成三行竖排，
+  // 反而看不出还差多少（百分比与「下一块田」在 skill tile / 开垦提示里已有）。
+  return `Lv ${lv} · ${fmt(cur)}/${fmt(need)}`;
 }
 
 // 田地方块 HTML（整页渲染与就地补绘共用）
