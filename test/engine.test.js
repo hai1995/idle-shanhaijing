@@ -8314,6 +8314,41 @@ section('提示可播报');
   assert(!/id="toasts"[^>]*aria-atomic/.test(hSrc), '不加 aria-atomic（多条同时弹会整块重读）');
 }
 
+// ============ 154. 巡历队列的边界（2026-10-26 夜间） ============
+// 队列是「懒人玩法」的主干：挂一串动作让它自己跑。它最容易在三种情形下出错：
+// 空队列、全是跑不通的条目、以及「已经停了还再点一次停」。
+section('巡历队列边界');
+{
+  G.resetToDefault();
+
+  // ① 空队列也能启动（转成兜底动作，不是「启动了却什么也不做」）
+  ST.Game.queue = [];
+  ST.Game.queueRunning = false;
+  ST.startQueue();
+  assert(ST.Game.queueRunning === true, '空队列也能启动');
+  assert(!ST.Game.activity || ST.Game.activity.kind, '空队列会转入兜底动作');
+
+  // ② 已经停了再停：返回 false，不重复提示
+  assert(ST.pauseQueue() === true, '运行中可暂停');
+  assert(ST.pauseQueue() === false, '已经停了再停返回 false（不重复弹提示）');
+
+  // ③ 跑不通的条目要被清掉，不能卡住整轮
+  const bad = ST.addQueueEntry('gather', '__no_item__', 3);
+  assert(!!bad, '坏条目进得了队列（入口不校验，清理在跑的时候做）');
+  const n = ST.dropBlockedQueue();
+  assert(n >= 1, 'dropBlockedQueue 清掉了跑不通的条目（清了 ' + n + ' 条）');
+  assert(!ST.Game.queue.some(e => e.target === '__no_item__'), '队列里不再有它');
+
+  // ④ 队满拒绝
+  ST.Game.queue = [];
+  for (let i = 0; i < 40; i++) ST.addQueueEntry('gather', 'migu', 1);
+  const beforeLen = ST.Game.queue.length;
+  const extra = ST.addQueueEntry('gather', 'migu', 1);
+  assert(extra === null && ST.Game.queue.length === beforeLen, '队列到上限后不再追加（上限 ' + beforeLen + '）');
+
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
