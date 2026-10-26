@@ -160,7 +160,7 @@ UI.renderYudi = function(){
         <button class="chip-btn ${this.mapMode?'on':''}" type="button" onclick="UI.mapMode=true;UI.renderYudi()">${typeof markIcon==='function'?markIcon('map',13):'🗺'} 图</button>
         ${this.mapMode?'<span class="vt-hint">点山即回录，看其详情与动作</span>':''}
       </div>`
-    + (this.mapMode && typeof mapSvg === 'function' ? `<div class="panel map-panel">${mapSvg()}</div>` : '')
+    + (this.mapMode && typeof mapSvg === 'function' ? `<div class="panel map-panel">${mapSvg(this.mapSeries)}</div>` : '')
     + `<div class="map-wrap${this.mapMode?' hidden':''}">
     <div class="panel regions">
       <h3>山系</h3>

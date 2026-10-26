@@ -19454,7 +19454,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.51',
+  version: '1.31.52',
   codename:'昼巡 · 近况',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -21948,6 +21948,68 @@ window.regionLegs = regionLegs;
 window.regionRoad = regionRoad;
 window.regionRoadLength = regionRoadLength;
 window.roadBetween = roadBetween;
+
+// ---------- 经的形状：把「又东三百里」积成一条径（v1.31.52） ----------
+// 舆图要画成「地图」，就得知道每座山在**这一经内部的相对位置**。
+// 原文没给坐标，但给了方向与里程——逐段积分就得到真实的走向：
+//   南山经诸段全「东」→ 一条横径；北山经诸段全「北」→ 一条竖径；
+//   北次三经先是东北、再东南 → 一条带拐弯的折径（原文确实如此）。
+// 这是**数据本身导出的形状**，不是编的坐标。
+//
+// ⚠️ 边界：原文各经自首山起算，**彼此不通**。所以每条经的形状只在经内有效，
+// 经与经之间没有相对位置——那是排布问题（UI 层按方位分区摆放），不是数据问题。
+// 这里只负责「经内形状」，不负责「经在图上放哪」。
+const SHAPE_DIR = {
+  '东':[1,0], '西':[-1,0], '南':[0,1], '北':[0,-1],
+  '东南':[0.7071,0.7071], '西南':[-0.7071,0.7071],
+  '东北':[0.7071,-0.7071], '西北':[-0.7071,-0.7071],
+};
+function shapeDirOf(d){
+  if (!d) return [1,0];
+  const k = String(d).replace('行','');
+  return SHAPE_DIR[k] || [1,0];
+}
+// 一条经的几何：每座山的 (x, y)，单位为「里」，外加包围盒。
+// hasLegs=false 时按山序等距排布（x=i, y=0），并如实标注「原文未载里程」。
+function regionGeometry(regionId){
+  const region = (WORLD.regions||[]).find(r => r.regionId === regionId);
+  if (!region) return { pts:[], bb:{x0:0,y0:0,w:1,h:1}, hasLegs:false };
+  const nodes = region.nodes || [];
+  const legs = regionLegs(region);
+  if (!legs.length){
+    const pts = nodes.map((n, i) => ({ id:n.id, name:n.name, x:i, y:0, lv:n.unlockLevel||1 }));
+    return { pts, bb:{ x0:0, y0:0, w:Math.max(1, nodes.length-1), h:1 }, hasLegs:false };
+  }
+  let x = 0, y = 0;
+  const byId = {}, byName = {};
+  for (const leg of legs){
+    const d = shapeDirOf(leg.direction);
+    const dist = (typeof leg.distance === 'number') ? leg.distance : 0;
+    if (dist > 0){ x += d[0] * dist; y += d[1] * dist; }
+    let id = leg.id || null;
+    if (!id && leg.to){
+      const hit = nodes.find(n => n.name === leg.to);
+      if (hit) id = hit.id;
+    }
+    if (id) byId[id] = { x, y };
+    if (leg.to) byName[leg.to] = { x, y };
+  }
+  // 按 nodes 顺序取坐标；原文漏记的那座沿用上一点（不插值臆造）
+  let last = { x:0, y:0 };
+  const pts = nodes.map(n => {
+    const p = byId[n.id] || byName[n.name];
+    if (p) last = p;
+    return { id:n.id, name:n.name, x:last.x, y:last.y, lv:n.unlockLevel||1 };
+  });
+  const xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
+  const x0 = Math.min(...xs), y0 = Math.min(...ys);
+  return {
+    pts,
+    bb: { x0, y0, w: Math.max(1, Math.max(...xs)-x0), h: Math.max(1, Math.max(...ys)-y0) },
+    hasLegs: true,
+  };
+}
+window.regionGeometry = regionGeometry;
 
 function doGather(itemId){
   const it = Items[itemId];
@@ -29097,7 +29159,7 @@ UI.renderYudi = function(){
         <button class="chip-btn ${this.mapMode?'on':''}" type="button" onclick="UI.mapMode=true;UI.renderYudi()">${typeof markIcon==='function'?markIcon('map',13):'🗺'} 图</button>
         ${this.mapMode?'<span class="vt-hint">点山即回录，看其详情与动作</span>':''}
       </div>`
-    + (this.mapMode && typeof mapSvg === 'function' ? `<div class="panel map-panel">${mapSvg()}</div>` : '')
+    + (this.mapMode && typeof mapSvg === 'function' ? `<div class="panel map-panel">${mapSvg(this.mapSeries)}</div>` : '')
     + `<div class="map-wrap${this.mapMode?' hidden':''}">
     <div class="panel regions">
       <h3>山系</h3>
@@ -30191,22 +30253,20 @@ function estimateOfflineGains(hours){
 }
 
 // ===== ui/map.js =====
-// ===== ui/map.js — 山海舆图（道里总图，一期：只读 + 点亮 + 点击瞬移） =====
+// ===== ui/map.js — 山海舆图（v1.31.52：真地图版式） =====
 // 由 src/ui.js 拆分体系新增（v1.31.51）。加载顺序见 index.html，须在 core.js 之后。
 //
-// 这一页回答一个此前没有答案的问题：「我在整部山海经的什么位置，还有多少没走完」。
-// 舆地页原先只有山系方块与诸山列表，玩家看得到「本经 9 座山」，看不到「本经有多长、
-// 走完了多少、下一段还有多远」。
+// ⚠️ v1.31.51 曾做成「道里图」（一条经一行、横轴是里程），那是行程表，不是地图。
+// v1.31.52 改回地图：**逐段积分**原文的「又东三百里」，得到每条经真实的走向——
+//   南山经诸段全「东」→ 一条横脉；北山经诸段全「北」→ 一条竖脉；
+//   北次三经先东北后东南 → 一条带拐弯的折脉（原文确实如此）。
+// 形状由引擎的 regionGeometry 给出（数据导出，不是编的坐标）；
+// 本文件只负责「把 26 条经按方位摆到一张图上」。
 //
-// ⚠️ 一期只做「看」，不改玩法：点击仍瞬移，没有路程成本。
-// 里程数据的两处格式差异已在引擎的 regionRoad 里抹平，这里只负责画。
-//
-// 关于版式：原文里程是**路径长度**不是坐标——北山经诸段全是「北」，南山经全是「东」，
-// 若按方位做二维投影，各系会各自竖直/水平，拼不成一张图（试过两版，都失真）。
-// 所以这里用**道里图**：一条经一行，横轴就是真实里程，全图同一比例尺。
-// 好处是「哪条经长、哪条经短、走到几成」一眼可见，且不做任何坐标上的虚构。
+// 关于五系之间的位置：原文各经自首山起算、彼此不通，所以**经与经的相对位置**
+// 是排布出来的（按《山海经》的实际方位：北经在上、南经在下、西经在左、东经在右、
+// 中经居中）。这一点在页头如实写明，不假装是原文给的坐标。
 
-// 五大山系的显示名与色（与舆地页的山系分组一致，色取设计系统中的青 / 墨 / 苔 / 朱）
 const MAP_SERIES = {
   nanshan:  { label:'南山经', color:'#2E5269' },
   xishan:   { label:'西山经', color:'#6B6659' },
@@ -30214,160 +30274,179 @@ const MAP_SERIES = {
   dongshan: { label:'东山经', color:'#566E4C' },
   zhongshan:{ label:'中山经', color:'#B03A2B' },
 };
-// 顺序照原文：南、西、北、东、中（五藏山经的实际篇次）
-const MAP_ORDER = ['nanshan','xishan','beishan','dongshan','zhongshan'];
+const MAP_ORDER = ['beishan','xishan','zhongshan','dongshan','nanshan'];
 
-// 版式常量（虚拟坐标系，靠 viewBox 等比缩放到容器宽）。
-// ⚠️ 单系视图必须用**更窄**的虚拟画布：SVG 按 100% 宽等比缩放，
-// 若仍用 820 宽，缩到 430px 手机屏就是 0.42 倍，10px 字变 4px——等于看不清。
-// 窄画布（420）在同样容器里缩放比接近 0.8，字才有 9–10px 的实际大小。
-const MAP_DIMS_ALL  = { W:820, PADL:30, PADR:76, TOPH:96, ROWH:38, GAPX:20, FS_NAME:10.5, FS_META:9.5,  FS_HEAD:14.5, SHOW_DIST:true };
-const MAP_DIMS_ONE  = { W:430, PADL:14, PADR:64, TOPH:64, ROWH:52, GAPX:14, FS_NAME:12.5, FS_META:10.5, FS_HEAD:15, SHOW_DIST:false };
-// 兼容旧的引用（全图默认值）
-const MAP_W = MAP_DIMS_ALL.W, MAP_PADL = MAP_DIMS_ALL.PADL, MAP_PADR = MAP_DIMS_ALL.PADR,
-      MAP_TOPH = MAP_DIMS_ALL.TOPH, MAP_ROWH = MAP_DIMS_ALL.ROWH, MAP_GAPX = MAP_DIMS_ALL.GAPX;
+// 全图版式：五区按方位摆（虚拟坐标系，靠 viewBox 等比缩放到容器宽）
+const MAP_ALL = {
+  W: 1040, H: 1130,
+  scale: 0.032,                       // 1 里 = 0.032 px（全图统一，故北次三经真的最长）
+  area: {
+    beishan:  { x:56,  y:62,  w:928, h:276, cols:3, rows:1 },
+    xishan:   { x:32,  y:362, w:300, h:452, cols:1, rows:4 },
+    zhongshan:{ x:376, y:362, w:288, h:452, cols:4, rows:3 },
+    dongshan: { x:708, y:362, w:300, h:452, cols:2, rows:2 },
+    nanshan:  { x:56,  y:846, w:928, h:252, cols:1, rows:3 },
+  },
+};
+// 单系版式：只画一个山系，画布收窄、字号放大（窄屏才看得清）
+const MAP_ONE = {
+  xishan:   { W:520, H:300, scale:0.075, cols:1, rows:4 },
+  beishan:  { W:520, H:360, scale:0.034, cols:3, rows:1 },
+  nanshan:  { W:520, H:330, scale:0.062, cols:1, rows:3 },
+  dongshan: { W:520, H:360, scale:0.050, cols:2, rows:2 },
+  zhongshan:{ W:520, H:430, scale:0.150, cols:3, rows:4 },
+};
 
-// 一条经的「行」数据：把引擎的 regionRoad 转成画图要的形状
-function _mapRowOf(region){
-  const road = (typeof regionRoad === 'function') ? regionRoad(region.regionId) : [];
-  if (!road.length) return null;
-  // 原文未载里程的经：按山序等距排布（横轴标注为「未载里程」，不冒充真实里数）
-  const hasReal = road.some(r => typeof r.dist === 'number');
-  let pts;
-  if (hasReal){
-    // 个别山缺里程时，用前一座的累计值补齐（不插值臆造，取「沿用上一点」）
-    let last = 0;
-    pts = road.map(r => {
-      if (typeof r.dist === 'number') last = r.dist;
-      return { id:r.id, name:r.name, d:last, lv:r.lv };
-    });
-  } else {
-    pts = road.map((r, i) => ({ id:r.id, name:r.name, d:i * 300, lv:r.lv }));
-  }
-  const maxD = Math.max(...pts.map(p => p.d), 1);
-  return { regionId:region.regionId, name:region.regionName, pts, maxD, hasReal,
-           claimed: pts.filter(p => (Game.map||{})[p.id]).length, total: pts.length };
+// 每座山的三态：已涉 / 此刻所在 / 未涉（未涉再按是否开通分浓淡）
+function _mapNodeState(nodeId){
+  const visited = !!(Game.map || {})[nodeId];
+  const here = (Game.node === nodeId);
+  const nd = (typeof nodeOf === 'function') ? nodeOf(nodeId) : null;
+  const unlocked = nd ? nodeUnlocked(nd) : false;
+  return { visited, here, unlocked };
 }
 
-// 整张图的数据（按系分组）。抽出来是为了测试能直接断言，不用去解析 SVG 字符串。
-// onlySeries 为 null 时给全图；指定某系时只算该系（比例尺随之放大，细节可读）。
-// 为什么需要它：447 座山挤在 430px 手机屏上，一屏可见但字不可读——
-// 这是物理限制，不是排版能解决的。故给「全图 / 单系」两档，玩家自己选要形态还是要细节。
-function mapLayout(onlySeries){
-  const regions = (typeof WORLD !== 'undefined' && WORLD.regions) || [];
-  const bySeries = {};
-  for (const r of regions){
-    const row = _mapRowOf(r);
-    if (!row) continue;
-    const s = r.regionId.split('-')[0];
-    (bySeries[s] = bySeries[s] || []).push(row);
+// 一条经的摆放：返回几何 + 绘制原点（形状包围盒左上角）
+function _mapPlaceTrack(regionId, box, cols, rows, idx, globalScale){
+  const g = (typeof regionGeometry === 'function') ? regionGeometry(regionId) : null;
+  if (!g || !g.pts.length) return null;
+  const cw = box.w / cols, ch = box.h / rows;
+  const cx = box.x + (idx % cols) * cw + cw / 2;
+  const cy = box.y + 18 + Math.floor(idx / cols) * ((box.h - 18) / rows) + ((box.h - 18) / rows) / 2;
+  // 有里程的经用全局统一比例尺（长短可比）；未载里程的经填满本格（只表顺序，不表里程）
+  let sc = globalScale;
+  let bb = g.bb;
+  if (!g.hasLegs){
+    const span = Math.max(1, g.pts[g.pts.length - 1].x);
+    sc = (cw * 0.78) / span;
+    bb = { x0: 0, y0: 0, w: span, h: 1 };
   }
-  if (onlySeries && bySeries[onlySeries]){
-    const one = { [onlySeries]: bySeries[onlySeries] };
-    const D = MAP_DIMS_ONE;
-    let m1 = 1;
-    for (const row of one[onlySeries]) if (row.maxD > m1) m1 = row.maxD;
-    return { bySeries: one, maxAll: m1, scale: (D.W - D.PADL - D.PADR) / m1, dims: D };
-  }
-  // 全局同一比例尺：最长的一条经占满可用宽度。
-  // 这是「诚实」的关键——不同经的长度差异必须看得见（南次一经 2,700 里 vs 北次三经 12,040 里）。
-  let maxAll = 1;
-  for (const s in bySeries) for (const row of bySeries[s]) if (row.maxD > maxAll) maxAll = row.maxD;
-  const D = MAP_DIMS_ALL;
-  const scale = (D.W - D.PADL - D.PADR) / maxAll;
-  return { bySeries, maxAll, scale, dims: D };
+  return {
+    regionId,
+    name: ((WORLD.regions.find(r => r.regionId === regionId)) || {}).regionName || regionId,
+    pts: g.pts, hasLegs: g.hasLegs, bb, sc,
+    ox: cx - bb.w * sc / 2,
+    oy: cy - bb.h * sc / 2,
+  };
 }
 
-// 舆地图主体（SVG 字符串）
-function mapSvg(){
-  const only = (UI.mapSeries && UI.mapSeries !== 'all') ? UI.mapSeries : null;
-  const { bySeries, maxAll, scale, dims } = mapLayout(only);
-  const W = dims.W, PADL = dims.PADL, PADR = dims.PADR, TOPH = dims.TOPH,
-        ROWH = dims.ROWH, GAPX = dims.GAPX;
-  const FS_NAME = dims.FS_NAME, FS_META = dims.FS_META, FS_HEAD = dims.FS_HEAD;
-  const rows = [];
-  let y = TOPH, H = TOPH;
-  for (const s of MAP_ORDER){ if (bySeries[s]) H += 26 + bySeries[s].length * ROWH + GAPX; }
-  H += 24;
+// 生成整张图（SVG 字符串）。onlySeries 为空时画全图。
+function mapSvg(onlySeries){
+  const only = (onlySeries && onlySeries !== 'all') ? onlySeries : null;
+  const D = only ? (MAP_ONE[only] || MAP_ONE.nanshan) : MAP_ALL;
+  const W = D.W, H = D.H;
+  const scale = D.scale;
+  const areas = only
+    ? { [only]: { x:10, y:46, w:W - 20, h:H - 58, cols:D.cols, rows:D.rows } }
+    : MAP_ALL.area;
 
-  const hereId = Game.node;
+  const body = [];
   let visitedAll = 0, totalAll = 0;
-  for (const s of MAP_ORDER) for (const row of (bySeries[s]||[])){ visitedAll += row.claimed; totalAll += row.total; }
 
+  // 区域底色 + 系名
   for (const s of MAP_ORDER){
-    const g = bySeries[s];
-    if (!g || !g.length) continue;
-    const meta = MAP_SERIES[s] || { label:s, color:'#4C473E' };
-    const c = meta.color;
-    const bandTop = y - 6, bandH = 26 + g.length * ROWH + GAPX - 8;
-    rows.push(`<rect x="0" y="${bandTop}" width="${W}" height="${bandH}" fill="${c}" fill-opacity=".032"/>`);
-    rows.push(`<line x1="0" y1="${bandTop}" x2="${W}" y2="${bandTop}" stroke="${c}" stroke-opacity=".12"/>`);
-    rows.push(`<text x="14" y="${y + 13}" font-size="${FS_HEAD}" font-weight="700" fill="${c}" opacity=".8">${esc(meta.label)}</text>`);
-    y += 26;
-    for (const row of g){
-      const cy = y + ROWH / 2 - 4;
-      const x2 = PADL + row.maxD * scale;
-      // 里程轴：有真实里程画实线，无则虚线（如实标示「未载里程」）
-      rows.push(`<line x1="${PADL}" y1="${cy}" x2="${x2.toFixed(1)}" y2="${cy}" stroke="${c}"
-        stroke-opacity=".16" stroke-width="1"${row.hasReal ? '' : ' stroke-dasharray="2 3"'}/>`);
-      // 经名写在道左端上方：原先放在左侧留白里，窄屏横滑时会被切掉，
-      // 玩家滑到中段就不知道自己在看哪条经。现在它跟着行首走。
-      rows.push(`<text x="${PADL}" y="${cy - 9}" font-size="${FS_NAME}" fill="${c}" opacity=".62">${esc(row.name)}</text>`);
-      for (const p of row.pts){
-        const px = PADL + p.d * scale;
-        const lv = p.lv || 1;
-        const rr = (1.8 + lv / 81 * 1.5).toFixed(1);
-        const isHere = (p.id === hereId);
-        const isVisited = !!(Game.map || {})[p.id];
-        const unlocked = (()=>{ const nd = nodeOf(p.id); return nd ? nodeUnlocked(nd) : false; })();
-        const title = `${p.name}${row.hasReal ? ` · ${Math.round(p.d)} 里` : ''} · 舆地 ${lv} 级${isVisited ? ' · 已涉' : (unlocked ? ' · 可往' : ' · 未开通')}`;
-        // 热区：点多小都要好点中，故叠一枚透明大点（半径 9）
-        let dot;
-        if (isHere){
-          // 此刻所在：朱色实心 + 外环（与全站的「朱＝此刻」一致）
-          dot = `<circle cx="${px.toFixed(1)}" cy="${cy}" r="${(Number(rr)+2.6).toFixed(1)}" fill="none" stroke="var(--zhu,#B03A2B)" stroke-opacity=".55" stroke-width="1.2"/>
-                 <circle cx="${px.toFixed(1)}" cy="${cy}" r="${rr}" fill="var(--zhu,#B03A2B)" fill-opacity=".95"/>`;
-        } else if (isVisited){
-          dot = `<circle cx="${px.toFixed(1)}" cy="${cy}" r="${rr}" fill="${c}" fill-opacity=".85"/>`;
-        } else {
-          dot = `<circle cx="${px.toFixed(1)}" cy="${cy}" r="${rr}" fill="none" stroke="${c}"
-                 stroke-opacity="${(0.28 + lv / 81 * 0.5).toFixed(2)}" stroke-width="1"/>`;
-        }
-        rows.push(`<g class="mp-node${isVisited?' on':''}${isHere?' here':''}" style="cursor:pointer"
-          onclick="UI.mapPick('${p.id}')"><title>${esc(title)}</title>
-          <circle cx="${px.toFixed(1)}" cy="${cy}" r="9" fill="transparent"/>${dot}</g>`);
-      }
-      const metaTxt = dims.SHOW_DIST
-        ? `${row.total} 山${row.hasReal ? ` · ${Math.round(row.maxD)} 里` : ' · 未载里程'}`
-        : `${row.total} 山`;
-      rows.push(`<text x="${(x2 + 10).toFixed(1)}" y="${cy + 4}" font-size="${FS_META}" fill="${c}" opacity=".5">${metaTxt}</text>`);
-      y += ROWH;
-    }
-    y += GAPX;
+    const a = areas[s];
+    if (!a) continue;
+    const c = (MAP_SERIES[s] || {}).color || '#4C473E';
+    body.push(`<rect x="${a.x}" y="${a.y}" width="${a.w}" height="${a.h}" fill="${c}" fill-opacity=".028" stroke="${c}" stroke-opacity=".1" rx="8"/>`);
+    body.push(`<text x="${a.x + 11}" y="${a.y + 17}" font-size="${only?15:13}" font-weight="700" fill="${c}" opacity=".6">${esc((MAP_SERIES[s]||{}).label||s)}</text>`);
   }
 
+  // 逐经摆放并绘制
+  for (const s of MAP_ORDER){
+    const a = areas[s];
+    if (!a) continue;
+    const c = (MAP_SERIES[s] || {}).color || '#4C473E';
+    const list = (WORLD.regions || []).filter(r => r.regionId.split('-')[0] === s);
+    list.forEach((r, i) => {
+      const t = _mapPlaceTrack(r.regionId, a, a.cols, a.rows, i, scale);
+      if (!t) return;
+      const pp = t.pts.map(p => ({
+        id: p.id, name: p.name, lv: p.lv,
+        x: t.ox + (p.x - t.bb.x0) * t.sc,
+        y: t.oy + (p.y - t.bb.y0) * t.sc,
+      }));
+      // 径：有里程画实线、无里程画虚线（如实标示「原文未载此段里程」）
+      const d = pp.map((p, k) => (k ? 'L' : 'M') + p.x.toFixed(1) + ' ' + p.y.toFixed(1)).join(' ');
+      body.push(`<path d="${d}" fill="none" stroke="${c}" stroke-opacity="${t.hasLegs ? .3 : .13}" stroke-width="${only?1.5:1.2}" stroke-linejoin="round" stroke-linecap="round"${t.hasLegs ? '' : ' stroke-dasharray="2 3"'}/>`);
+      // 峰形尺寸按「相邻山最小间距」自适应：47 山挤在 3px 间距时，固定尺寸会糊成一条粗线
+      let minGap = 999;
+      for (let k = 1; k < pp.length; k++){
+        const g2 = Math.hypot(pp[k].x - pp[k-1].x, pp[k].y - pp[k-1].y);
+        if (g2 > 0.01 && g2 < minGap) minGap = g2;
+      }
+      const cap = Math.max(1.8, Math.min(only ? 7.5 : 5.4, minGap * 0.52));
+      for (const p of pp){
+        const st = _mapNodeState(p.id);
+        const lv = p.lv || 1;
+        const sz = Math.min(cap, (only ? 4.6 : 3.2) + lv / 81 * 2.2);
+        const title = `${p.name}${t.hasLegs ? '' : ' · 原文未载此段里程'} · 舆地 ${lv} 级${st.visited ? ' · 已涉' : (st.unlocked ? ' · 可往' : ' · 未开通')}`;
+        const tri = `M${(p.x-sz).toFixed(1)} ${(p.y+sz*0.6).toFixed(1)} L${p.x.toFixed(1)} ${(p.y-sz).toFixed(1)} L${(p.x+sz).toFixed(1)} ${(p.y+sz*0.6).toFixed(1)} Z`;
+        let art;
+        if (st.here){
+          art = `<path d="${tri}" fill="var(--zhu,#B03A2B)" fill-opacity=".95" stroke="var(--zhu,#B03A2B)" stroke-width=".8"/>
+            <circle cx="${p.x.toFixed(1)}" cy="${(p.y+sz*0.1).toFixed(1)}" r="${(sz*1.9).toFixed(1)}" fill="none" stroke="var(--zhu,#B03A2B)" stroke-opacity=".45" stroke-width="1"/>`;
+        } else if (st.visited){
+          art = `<path d="${tri}" fill="${c}" fill-opacity=".88" stroke="${c}" stroke-width=".6"/>`;
+        } else {
+          art = `<path d="${tri}" fill="${c}" fill-opacity="${(0.1 + lv/81*0.3).toFixed(2)}" stroke="${c}" stroke-opacity="${(0.22 + lv/81*0.45).toFixed(2)}" stroke-width=".7"/>`;
+        }
+        body.push(`<g class="mp-node${st.visited?' on':''}${st.here?' here':''}" style="cursor:pointer"
+          onclick="UI.mapPick('${p.id}')"><title>${esc(title)}</title>
+          <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${only?11:9}" fill="transparent"/>${art}</g>`);
+      }
+      // 经名：写在首山上方（跟着形状走，窄屏滑动时不会丢失归属）
+      const f = pp[0];
+      body.push(`<text x="${f.x.toFixed(1)}" y="${(f.y - (only?10:8)).toFixed(1)}" font-size="${only?12:8.5}" fill="${c}" opacity=".55">${esc(t.name)}</text>`);
+      visitedAll += pp.filter(p => (Game.map||{})[p.id]).length;
+      totalAll += pp.length;
+    });
+  }
+
+  const legend = '实心＝已涉 · 朱峰＝此刻所在 · 空心＝未涉';
   return `<div class="mp-head">
-      <b>山海道里图</b>
-      <span class="mp-sub">横为原文里程（同一比例尺：最长一经 ${maxAll} 里 ＝ ${Math.round(W - PADL - PADR)} px）· 实心＝已涉 · 朱点＝此刻所在 · 窄屏可左右滑动</span>
+      <b>山海舆图</b>
+      <span class="mp-sub">以原文「又东三百里」逐段积分成径：北经北上、南经东行、东经南下。五系各自起算、彼此不通，故按方位分区（位置为排布，形状取自原文）· ${legend}</span>
       <span class="mp-tally">已涉 <b>${visitedAll}</b>/${totalAll} 山</span>
     </div>
     <div class="mp-filters">
       ${['all', ...MAP_ORDER].map(k => {
         const on = ((UI.mapSeries || 'all') === k);
-        const label = (k === 'all') ? '全图' : (MAP_SERIES[k] ? MAP_SERIES[k].label : k);
-        const color = (k === 'all') ? '' : (MAP_SERIES[k] ? MAP_SERIES[k].color : '');
-        return `<button class="chip-btn ${on?'on':''}" type="button"${color?` style="--sc:${color}"`:''}
-          onclick="UI.mapSeries='${k}';UI.renderYudi()">${esc(label)}</button>`;
+        const label = (k === 'all') ? '全图' : ((MAP_SERIES[k]||{}).label || k);
+        return `<button class="chip-btn ${on?'on':''}" type="button" onclick="UI.mapSeries='${k}';UI.renderYudi()">${esc(label)}</button>`;
       }).join('')}
     </div>
     <div class="mp-scroll">
       <svg class="mp-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img"
-        aria-label="山海道里图：五系诸经按原文里程排布">
-        <rect width="${MAP_W}" height="${H}" fill="transparent"/>
-        <text x="14" y="40" font-size="11" fill="#4C473E" opacity=".55">诸经依原文次第；原文未载分段里程之经，按山序等距排布并以虚线标示</text>
-        ${rows.join('')}
+        aria-label="山海舆图：五系诸经按原文方位与里程积分成径">
+        <defs><pattern id="mp-grid" width="22" height="22" patternUnits="userSpaceOnUse">
+          <path d="M22 0H0V22" fill="none" stroke="#1F1D19" stroke-opacity=".026"/></pattern></defs>
+        <rect width="${W}" height="${H}" fill="transparent"/>
+        <rect width="${W}" height="${H}" fill="url(#mp-grid)"/>
+        ${body.join('')}
       </svg>
     </div>`;
+}
+
+// 版面数据（供测试断言；也保留 v1.31.51 的返回形状以免旧断言失效）
+function mapLayout(onlySeries){
+  const only = (onlySeries && onlySeries !== 'all') ? onlySeries : null;
+  const areas = only ? { [only]: true } : MAP_ALL.area;
+  const out = {};
+  for (const s of MAP_ORDER){
+    if (!areas[s]) continue;
+    out[s] = (WORLD.regions || []).filter(r => r.regionId.split('-')[0] === s).map(r => {
+      const g = regionGeometry(r.regionId);
+      return { regionId: r.regionId, name: r.regionName, pts: g.pts, hasLegs: g.hasLegs,
+               maxD: Math.max(1, g.bb.w, g.bb.h), total: g.pts.length,
+               claimed: g.pts.filter(p => (Game.map||{})[p.id]).length };
+    });
+  }
+  let maxAll = 1;
+  for (const s in out) for (const row of out[s]) if (row.maxD > maxAll) maxAll = row.maxD;
+  return { bySeries: out, maxAll,
+           scale: only ? (MAP_ONE[only]||MAP_ONE.nanshan).scale : MAP_ALL.scale,
+           dims: only ? MAP_ONE[only] : MAP_ALL };
 }
 
 // 点一座山：选中它并回到「录」（列表）模式，玩家立刻看到该山详情与动作。
@@ -30378,7 +30457,7 @@ UI.mapPick = function(nodeId){
   const reg = (typeof regionOf === 'function') ? regionOf(nodeId) : null;
   if (reg) this.selRegion = reg.regionId;
   this.selNode = nodeId;
-  this.mapMode = false;            // 回到列表：地图是「导航」，不是终点
+  this.mapMode = false;
   this.renderYudi();
   const box = (typeof $ === 'function') ? $('content') : null;
   if (box && box.scrollIntoView) box.scrollIntoView({ block:'start' });
@@ -30386,6 +30465,8 @@ UI.mapPick = function(nodeId){
 
 window.mapLayout = mapLayout;
 window.mapSvg = mapSvg;
+window.MAP_ALL = MAP_ALL;
+window.MAP_ONE = MAP_ONE;
 
 // ===== ui/combat.js =====
 // ===== ui/combat.js — 征伐（异兽列表 / 竞技场 / 战斗估值）与御使（入槽 / 卸下） =====

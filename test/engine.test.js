@@ -7833,13 +7833,18 @@ section('舆地图道里');
   const rLong = rowOf('beishan-3'), rShort = rowOf('nanshan-1');
   assert(!!rLong && !!rShort, '长短两个样本都取到');
   if (rLong && rShort){
-    assert(rLong.maxD === 12040 && rShort.maxD === 2700, '两条经的里程各自正确');
-    assert(rLong.maxD / rShort.maxD > 4, '北次三经比南山首经长 4 倍以上（同比例尺的直接后果）');
+    assert(ST.regionRoadLength('beishan-3') === 12040 && ST.regionRoadLength('nanshan-1') === 2700,
+      '两条经的里程各自正确');
+    // v1.31.52 起，图上画的是**形状**（路径积分后的包围盒），不再是里程轴
+    const gLong = ST.regionGeometry('beishan-3'), gShort = ST.regionGeometry('nanshan-1');
+    assert(gLong.bb.h > 5000, `北次三经是竖脉（包围盒高 ${gLong.bb.h} 里）`);
+    assert(gShort.bb.h <= 1, `南山首经是横脉（包围盒高 ${gShort.bb.h} 里）`);
+    assert(gLong.bb.h / Math.max(1, gShort.bb.h) > 100, '一条竖脉、一条横脉：走向真的不同');
   }
 
   // ---- 7. 未载里程的经如实标注，不伪造形状 ----
   const rNone = rowOf('zhongshan-4');
-  assert(!!rNone && rNone.hasReal === false, '中次四经标为「无真实里程」');
+  assert(!!rNone && rNone.hasLegs === false, '中次四经标为「无真实里程」');
   assert(mSrc151.includes('未载里程'), '图上写明「未载里程」');
   assert(mSrc151.includes('stroke-dasharray'), '无里程经用虚线，与实线可区分');
   // 不许出现「用正弦/伪随机造形状」那种冒充
@@ -7849,7 +7854,7 @@ section('舆地图道里');
   const layOne = ST.mapLayout('nanshan');
   assert(Object.keys(layOne.bySeries).length === 1, '单系只含该系');
   assert(layOne.dims.W < lay.dims.W, '单系画布比全图窄（否则等比缩放后字太小）');
-  assert(layOne.maxAll === 7210, '单系比例尺按该系最长经算');
+  assert(layOne.dims.scale > lay.dims.scale, '单系比例尺比全图大（细节才看得清）');
 
   // ---- 9. SVG 真的画出来了 ----
   G.resetToDefault();
@@ -7858,8 +7863,8 @@ section('舆地图道里');
   const svg = ST.mapSvg();
   assert(typeof svg === 'string' && svg.indexOf('<svg') >= 0, 'mapSvg 产出 SVG');
   assert((svg.match(/class="mp-node/g) || []).length === 447, 'SVG 里 447 个节点');
-  assert(svg.indexOf('山海道里图') >= 0, '有标题');
-  assert(svg.indexOf('已涉') >= 0 && svg.indexOf('朱点＝此刻所在') >= 0, '页头写明图例');
+  assert(svg.indexOf('山海舆图') >= 0, '有标题');
+  assert(svg.indexOf('已涉') >= 0 && svg.indexOf('朱峰＝此刻所在') >= 0, '页头写明图例');
   assert((svg.match(/class="mp-node on here|mp-node on/ ) || []).length > 0, '已涉节点带状态类');
   assert(svg.indexOf('UI.mapPick') >= 0, '节点可点');
 
