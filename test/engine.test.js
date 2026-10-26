@@ -3521,7 +3521,7 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
 
   // 62.1 数值落在所属品阶的容差带内——这是「合理数值」的可验证定义
   const stat = all.filter(i => ST.gearKindOf(i));
-  assert(stat.length === 43, '参与数值校验的装备 43 件（' + stat.length + '）');
+  assert(stat.length === 52, '参与数值校验的装备 52 件（' + stat.length + '）');
   const out = [];
   for (const it of stat){
     const g = ST.GEAR_GRADE[it.grade], r = ST.gearRatio(it);
@@ -6107,6 +6107,46 @@ section('快速挂机');
     assert(!html.includes('gear-minor'), '工具槽有货时不折叠');
   }
   G.resetToDefault();
+}
+
+// ============ 112. 装备不留「二十级无新兵器」 ============
+// 配方等级不超二十级是必要不充分：冶铸 10→26、削羽 10→26、制器 34→44/44→60
+// 曾经「配方有相邻档」却「档里没有可换的兵器」，玩家只能把金剑从 10 级用到 26 级。
+// 这里按「部位」看实际可换装备的等级跨度，把每一段空白钉住（v1.31.16）。
+{
+  const LIMIT = { melee: 12, bow: 14, armor: 14 };
+  const byKind = {};
+  for (const it of Object.values(ST.Items)){
+    const k = ST.gearKindOf(it);
+    if (!k || it.divine) continue;                       // 神兵只从 BOSS 掉，不进曲线
+    (byKind[k] = byKind[k] || []).push(it.lvl || 1);
+  }
+  for (const [k, limit] of Object.entries(LIMIT)){
+    const lvls = [...new Set(byKind[k] || [])].sort((a, b) => a - b);
+    let worst = 0, at = '';
+    for (let i = 1; i < lvls.length; i++){
+      if (lvls[i] - lvls[i - 1] > worst){ worst = lvls[i] - lvls[i - 1]; at = lvls[i - 1] + '→' + lvls[i]; }
+    }
+    assert(worst <= limit, `${k} 相邻可换装备不超 ${limit} 级（最大 ${worst} ${at}）`);
+  }
+  // 四段历史空白，各须有实物落在其中
+  const has = (type, lo, hi) => ST.Recipes.some(r => r.type === type && (r.lvl || 1) > lo && (r.lvl || 1) < hi);
+  assert(has('smith', 10, 26), '冶铸 10–26 之间有新兵器');
+  assert(has('smith', 26, 36), '冶铸 26–36 之间有新兵器');
+  assert(has('fletch', 10, 26), '削羽 10–26 之间有新弓');
+  assert(has('craft', 34, 44) && has('craft', 44, 60), '制器 34–60 之间有新甲');
+  // 补的东西得真做得出来：材料等级不晚于配方，且比上一档强、比下一档弱
+  for (const id of ['chijinmao', 'baijinge', 'tongyue', 'tieyue', 'zigong', 'tonggong', 'zizu', 'xijia', 'zhongxijia']){
+    const it = ST.Items[id];
+    assert(!!it && !!ST.Recipes.find(r => r.out === id), id + ' 有物品也有配方');
+  }
+  const chain = ['jinjian', 'chijinmao', 'baijinge', 'chijinyue', 'tongyue', 'baijinqi', 'bailianjian', 'tieyue'];
+  for (let i = 1; i < chain.length; i++)
+    assert(ST.Items[chain[i]].dmg > ST.Items[chain[i - 1]].dmg && ST.Items[chain[i]].lvl > ST.Items[chain[i - 1]].lvl,
+      `近战一线递增：${ST.Items[chain[i - 1]].name} → ${ST.Items[chain[i]].name}`);
+  for (const [a, b] of [['sijia', 'xijia'], ['xijia', 'xisihejia'], ['xisihejia', 'zhongxijia'], ['zhongxijia', 'yayujia']])
+    assert(ST.Items[b].def > ST.Items[a].def && ST.Items[b].lvl > ST.Items[a].lvl,
+      `甲胄一线递增：${ST.Items[a].name} → ${ST.Items[b].name}`);
 }
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）

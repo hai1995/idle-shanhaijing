@@ -8,7 +8,7 @@
 // ---------- 数值常量表（所有可调参数集中于此） ----------
 const TUNING = {
   // 每技能 81 级，取「九九八十一」之数——这是**本卷（五臧山经）的上限**，不是全局硬顶。
-  // 全书 447 山、315 异兽、50 件装备的等级都排在这 1–81 里，等级再往上就没有内容可接，
+  // 全书 447 山、315 异兽、62 件装备的等级都排在这 1–81 里，等级再往上就没有内容可接，
   // 所以「等级」不设成无限：那只会让数字涨而山不动，反而把「练满」这个终局目标抹掉。
   // 真正该无上限的是**修为**（Game.stats.totalXp，累计经验），它从第一分钟起就在涨，
   // 满级后继续累积，是将来排行榜的主数值。续卷二经时，把此值抬高、
@@ -743,7 +743,12 @@ addItem(
   I('muge','木戈','weapon', { equip:true, grade:'common', weapon:true, dmg:5,  lvl:1,  value:30,  icon:'🔱', el:'木' }),
   I('shimao','石矛','weapon',{ equip:true, grade:'fine', weapon:true, dmg:9,  lvl:4,  value:70,  icon:'🔺', el:'土' }),
   I('jinjian','金剑','weapon',{ equip:true, grade:'fine', weapon:true, dmg:15, lvl:10, value:160, icon:'🗡️', el:'金' }),
+  // 10 → 26 之间原本十六级只有一把金剑可换（v1.31.16 补）：赤金加梓木做矛，白金加梓木做戈。
+  I('chijinmao','赤金矛','weapon',{ equip:true, grade:'fine', weapon:true, dmg:18, lvl:16, value:280, icon:'🔱', el:'金' }),
+  I('baijinge','白金戈','weapon',{ equip:true, grade:'fine', weapon:true, dmg:22, lvl:21, value:360, icon:'⚔️', el:'金' }),
   I('chijinyue','赤金钺','weapon',{ equip:true, grade:'fine', weapon:true, dmg:26, lvl:26, value:400, icon:'🪓', el:'金' }),
+  // 26 → 36 之间补一把铜钺：铜在西山首经（Lv23）即可采，26 级后正接得上。
+  I('tongyue','铜钺','weapon',{ equip:true, grade:'fine', weapon:true, dmg:30, lvl:31, value:560, icon:'🪓', el:'金' }),
   I('baijinqi','白金戚','weapon',{ equip:true, grade:'fine', weapon:true, dmg:38, lvl:36, value:700, icon:'⚔️', el:'金' }),
   // 36 级到 55 级之间原本没有任何新兵器（下一把是凿齿矛，要 BOSS 之牙），
   // 甲胄 34→60、弓 26→58 同样断档近三十级。补一组 44 级过渡装，走寻常材料。
@@ -751,16 +756,22 @@ addItem(
   I('xisihejia','犀兕合甲','armor',{ equip:true, grade:'fine', slot:'armor', def:15, lvl:44, value:640, icon:'🥋' }),
   I('sangzhegong','桑柘弓','bow',{ equip:true, grade:'fine', weapon:true, ranged:true, dmg:34, lvl:44, value:560, icon:'🏹', el:'木' }),
   I('zaochimao','凿齿矛','weapon',{ equip:true, grade:'rare', weapon:true, dmg:55, lvl:55, value:1600, icon:'🔱', el:'金', rarity:'RARE' }),
+  // 55 → 72 之间十七级只有神兵（要打 BOSS）可换（v1.31.16 补）：铁为刃、炭为薪的寻常重器。
+  I('tieyue','铁钺','weapon',{ equip:true, grade:'fine', weapon:true, dmg:58, lvl:62, value:1050, icon:'🪓', el:'金' }),
   I('fenghuiyue','封豨钺','weapon',{ equip:true, grade:'precious', weapon:true, dmg:85, lvl:76, value:3200, icon:'🪓', el:'水', rarity:'RARE', py:'fēng xī' }),
 );
 // ---- 弓矢（削羽） ----
 addItem(
   I('mugong','木弓','bow',  { equip:true, grade:'common', weapon:true, ranged:true, dmg:6,  lvl:1,  value:40,  icon:'🏹', el:'木' }),
   I('sanggong','桑弓','bow',{ equip:true, grade:'fine', weapon:true, ranged:true, dmg:12, lvl:10, value:150, icon:'🏹', el:'木' }),
+  // 削羽 10 → 26 也空着十六级（v1.31.16 补）：梓木（Lv13）做胎、绳为弦；铜弓接在赤金弓之前。
+  I('zigong','梓弓','bow',  { equip:true, grade:'fine', weapon:true, ranged:true, dmg:16, lvl:16, value:260, icon:'🏹', el:'木' }),
   I('chijingong','赤金弓','bow',{ equip:true, grade:'fine', weapon:true, ranged:true, dmg:22, lvl:26, value:420, icon:'🏹', el:'金' }),
+  I('tonggong','铜弓','bow',   { equip:true, grade:'fine', weapon:true, ranged:true, dmg:25, lvl:31, value:520, icon:'🏹', el:'金' }),
   I('dafenggong','大风弓','bow',{ equip:true, grade:'rare', weapon:true, ranged:true, dmg:45, lvl:58, value:1700, icon:'🏹', el:'木', rarity:'RARE' }),
   I('shizu','石镞矢','arrow',{ equip:true, grade:'common', slot:'quiver', dmg:2,  lvl:1,  value:6,  icon:'➶', el:'土' }),
   I('jinzu','金镞矢','arrow',{ equip:true, grade:'fine', slot:'quiver', dmg:4,  lvl:10, value:18, icon:'➶', el:'金' }),
+  I('zizu','梓镞矢','arrow',{ equip:true, grade:'fine', slot:'quiver', dmg:5,  lvl:16, value:22, icon:'➶', el:'木' }),
   I('chijinzu','赤金镞矢','arrow',{ equip:true, grade:'fine', slot:'quiver', dmg:7, lvl:26, value:40, icon:'➶', el:'金' }),
   I('baijinzu','白金镞矢','arrow',{ equip:true, grade:'fine', slot:'quiver', dmg:10, lvl:36, value:80, icon:'➶', el:'金' }),
 );
@@ -768,6 +779,9 @@ addItem(
 addItem(
   I('pijia','皮甲','armor', { equip:true, grade:'common', slot:'armor', def:6,  lvl:20, value:120, icon:'🥋' }),
   I('sijia','兕甲','armor', { equip:true, grade:'fine', slot:'armor', def:11, lvl:34, value:260, icon:'🥋', py:'sì' }),
+  // 34 → 44 与 44 → 60 两段空白（v1.31.16 补）：犀皮、兕皮都是打猎常得，一路叠到重犀甲。
+  I('xijia','犀甲','armor', { equip:true, grade:'fine', slot:'armor', def:13, lvl:39, value:420, icon:'🥋' }),
+  I('zhongxijia','重犀甲','armor', { equip:true, grade:'fine', slot:'armor', def:17, lvl:52, value:760, icon:'🥋' }),
   I('yayujia','猰貐甲','armor',{ equip:true, grade:'rare', slot:'armor', def:22, lvl:60, value:900, icon:'🥋', rarity:'RARE', py:'yà yǔ' }),
 );
 
@@ -822,22 +836,32 @@ R('smith','shikuo',1,16,6,[['shashi',2],['guaimu',1]]);
 R('smith','jinjian',1,90,10,[['jin',2],['tan',1]]);
 R('smith','jinfu',1,80,10,[['jin',2],['tan',1]]);
 R('smith','jinkuo',1,80,10,[['jin',2],['tan',1]]);
+// 10 → 26 的十六级空白（v1.31.16 补）：赤金矛（16）、白金戈（21）
+R('smith','chijinmao',1,120,16,[['chijin',2],['zi',1]]);
+R('smith','baijinge',1,180,21,[['baijin',2],['zi',1]]);
 R('smith','chijinyue',1,220,26,[['chijin',2],['tan',2]]);
 R('smith','chijinfu',1,200,26,[['chijin',2],['tan',2]]);
 R('smith','chijinkuo',1,200,26,[['chijin',2],['tan',2]]);
+// 26 → 36 之间补铜钺（31）：铜在西山首经 Lv23 可采，不早于料、也不晚于需
+R('smith','tongyue',1,300,31,[['tong',2],['tan',2]]);
 R('smith','baijinqi',1,380,36,[['baijin',2],['tan',3]]);
 R('smith','bailianjian',1,460,44,[['baijin',2],['tan',3]]);
 R('craft','xisihejia',1,300,44,[['sipi',3],['jin',2]]);
 R('fletch','sangzhegong',1,320,44,[['zi',2],['sheng',3]]);
 R('smith','zaochimao',1,900,55,[['zaochiya',1],['baijin',2],['tan',3]]);
+R('smith','tieyue',1,620,62,[['tie',2],['tan',3]]);
 R('smith','fenghuiyue',1,2400,76,[['fenghuiya',1],['chijin',3],['tan',4]]);
 // 削羽
 R('fletch','mugong',1,20,1,[['guaimu',1],['sheng',1]]);
 R('fletch','shizu',5,10,6,[['guaimu',1],['shashi',1]]);
 R('fletch','sanggong',1,80,10,[['zi',1],['sheng',2]]);
 R('fletch','jinzu',5,50,10,[['zi',1],['jin',1]]);
+// 10 → 26 的空白（v1.31.16 补）：梓弓（16）、梓镞矢（16）
+R('fletch','zigong',1,110,16,[['zi',2],['sheng',2]]);
+R('fletch','zizu',5,60,16,[['zi',1],['chijin',1]]);
 R('fletch','chijingong',1,240,26,[['chijin',2],['sheng',2]]);
 R('fletch','chijinzu',5,160,26,[['chijin',1],['zi',1]]);
+R('fletch','tonggong',1,290,31,[['tong',2],['zi',2]]);
 R('fletch','baijinzu',5,260,36,[['baijin',1],['zi',1]]);
 R('fletch','dafenggong',1,1200,58,[['dafengyu',1],['baijin',2],['sheng',3]]);
 // 制器
@@ -846,6 +870,9 @@ R('craft','yuwang',1,16,1,[['sheng',2],['guaimu',1]]);
 R('craft','baijianxi',1,20,5,[['jian',2]]);
 R('craft','pijia',1,120,20,[['xipi',1],['sheng',1]]);
 R('craft','sijia',1,240,34,[['sipi',2],['sheng',2]]);
+// 34 → 44 → 60 两段空白（v1.31.16 补）：犀甲（39）、重犀甲（52）
+R('craft','xijia',1,280,39,[['xipi',2],['sheng',2]]);
+R('craft','zhongxijia',1,360,52,[['xipi',3],['sheng',2]]);
 R('craft','yayujia',1,900,60,[['yayupi',3],['sheng',2],['xiangya',1]]);
 R('craft','siwang',1,80,10,[['sheng',3],['jin',2]]);
 R('craft','luowang',1,200,26,[['sheng',4],['nan',2]]);
@@ -2526,9 +2553,9 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.15',
-  codename:'五臧 · 问神',
-  updated: '2026-10-25',
+  version: '1.31.16',
+  codename:'续铸 · 中段',
+  updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
   // 唯一的对外联系方式：关于页显示、可一键复制。不放外链，也不指向任何下载。
