@@ -176,3 +176,31 @@
 3. **数量操作只有一套**：`qtyStep / qtySet` 读 `input.max`，`syncXxx` 只更新预览文字，执行函数（`sellN / buyN / craftN`）自己再 clamp 一次。新增买卖入口照抄这三件套，别另写一套步进逻辑。
 4. **窄屏两行**：一条列表项若塞了「名 + 状态 + 数字 + 按钮」，窄屏必然挤成竖排——把状态类信息收进一个 `.xxx-meta`，窄屏 `order:5; flex-basis:100%` 换行，名字才有地方。
 5. **弹窗开着时背景不滚**：`UI.modal` / `closeModal` 会加/去 `body.no-scroll`，别在别处再动 `overflow`。
+
+## 16. 行动现场（仪表带下方那条画面，v1.31.54 起）
+
+采集、制作、莳植、观象、谒见、征伐各有一幅 74px 高的小画，画在 `#sceneBar` 里。
+它不产生任何数值，只回答一个问题：**此刻在做什么**。
+
+**六种行动一张表**（`ui/scene.js` 的 `SCENE_KINDS`）：
+
+| 行动 | 工具 | 物 | 天象 | 谁在动 |
+|---|---|---|---|---|
+| 采集 | 锄 | 土堆 | — | JS 每帧（举落） |
+| 制作 | 锤 | 砧 | — | JS 每帧（举落，柄更短） |
+| 莳植 | — | 灌木 | — | CSS（风里摆） |
+| 观象 | — | — | 星、月 | CSS（闪） |
+| 谒见 | — | 台阶 | — | 静 |
+| 征伐 | 剑 | 兽 | — | JS 每帧（前冲 + 命中火星） |
+
+加第七种行动：在 `SCENE_KINDS` 加一行，再在 `scenePropArt` / `sceneToolArt` 里
+添一件 art。别再写新的 if 链——那正是 v1.31.66 收掉的东西。
+
+**三条硬约定**：
+
+1. **周期 = 产出周期**。采集用 `activityProgress / currentActionInterval()`，
+   征伐用 `Game.combat.timer / playerAttackInterval()`。错位了就会「先出东西再动一下」。
+2. **每帧只改属性，不重建 DOM**。重建走签名比对（`sceneSig`），换行动才重建一次。
+3. **必须有兜底**。rAF 链可能被环境掐死（iOS 主屏幕最明显）：心跳 + watchdog + CSS 降级三层，
+   见 `ARCHITECTURE.md` 第六节。`stopSceneMotion()` 用代次令牌，只 `cancel` 是停不掉的。
+
