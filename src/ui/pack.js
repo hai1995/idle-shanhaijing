@@ -705,10 +705,25 @@ function showRecipeDetail(key){
     const ok = have >= q;
     return `<span class="${ok?'ok':'gap'}">${typeof itemIc==='function'?itemIc(iid,13):''}${esc((Items[iid]||{}).name||iid)} ${have}/${q}</span>`;
   }).join(' · ');
+  // 特产缺料提示：只说「缺 1 件」没用——玩家不知道这东西要在哪一系、走到什么程度才有。
+  // 把「所属山系 + 巡礼进度 + 怎么再来」一并写出来，配方与巡礼才真正连上。
+  const spHints = (r.cost || []).map(([iid, q]) => {
+    if (totalOf(iid) >= q) return '';
+    if (typeof pilgrimGiftIndex !== 'function') return '';
+    const reg = pilgrimGiftIndex().get(iid);
+    if (!reg) return '';
+    const p = (typeof regionPilgrim === 'function') ? regionPilgrim(reg.regionId) : null;
+    const nm = (Items[iid] || {}).name || iid;
+    if (!p || !p.total) return '';
+    if (p.full){
+      return `<div class="hint sp-hint">${esc(nm)}：<b>${esc(reg.regionName)}</b>已走遍 · 在该系采集有 1% 机会带出</div>`;
+    }
+    return `<div class="hint sp-hint">${esc(nm)}：需走遍 <b>${esc(reg.regionName)}</b>（今 ${p.done}/${p.total} 山，还差 ${p.total - p.done}）· 走遍后领赏得 2 件，此后采集可得</div>`;
+  }).filter(Boolean).join('');
   UI.modal(`<h3><span class="mi-ic">${typeof itemIc==='function'?itemIc(r.out,18):(it.icon||'📦')}</span> ${esc(it.name)}
       ${it.equip?gradeBadge(it):`<span class="tier">${rarityName(it)}</span>`}</h3>
     <div class="meta">每次出 ${per} 件 · ${esc(sk.name)} ${r.lvl} 级 · 经验 ${r.xp || 0}</div>
-    <div class="reveal"><b>材料</b><span class="mat-inv">${rows}</span></div>
+    <div class="reveal"><b>材料</b><span class="mat-inv">${rows}</span>${spHints}</div>
     ${it.note?`<div class="reveal"><b>出处</b>${esc(it.note)}</div>`:''}
     ${it.effect?`<div class="reveal"><b>效果</b>${esc(it.effect)}</div>`:''}
     <div class="reveal trade-block">

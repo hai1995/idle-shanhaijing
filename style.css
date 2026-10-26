@@ -429,6 +429,9 @@ html.theme-anim, html.theme-anim *{
 }
 .farm-panel h3 .gear-best{ margin-left:auto; flex:0 0 auto; }
 /* 山系巡礼：标题行上的进度；满额转朱色并给按钮 */
+/* 配方缺特产时的指路行：比武断的「缺 1 件」多给一条去路 */
+.sp-hint{ margin-top:4px; line-height:1.5; }
+.sp-hint b{ color:var(--zhu-d); }
 .pilgrim{ font-family:var(--f-num); font-size:11px; font-weight:400; letter-spacing:0;
   color:var(--ink-4); white-space:nowrap; flex:0 0 auto; }
 .pilgrim.full{ color:var(--zhu); font-weight:700; }

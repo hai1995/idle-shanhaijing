@@ -6731,6 +6731,21 @@ section('山海图卷与特产再生');
   G.resetToDefault();
 }
 
+// ============ 125. 配方缺特产：告诉玩家缺哪一系、走到哪了 ============
+section('配方缺料指路');
+{
+  const src = readText('src/ui/pack.js');
+  assert(src.includes('sp-hint'), '配方详情有特产指路行');
+  assert(src.includes('需走遍 <b>${esc(reg.regionName)}</b>（今 ${p.done}/${p.total} 山'), '未走遍时写进度与还差几山');
+  assert(src.includes('已走遍 · 在该系采集有 1% 机会带出'), '已走遍时写再生方式');
+
+  // 指路只在该件不足时出现：备齐一项，就少一行
+  G.resetToDefault();
+  const p = ST.regionPilgrim('nanshan-1');
+  assert(p && p.total === 9, '南山首经 9 山（' + (p || {}).total + '）');
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
