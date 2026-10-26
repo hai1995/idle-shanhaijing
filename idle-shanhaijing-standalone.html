@@ -28747,7 +28747,9 @@ function taofaListHtml(){
     if (list.length) groups.push({ title: r.regionName + ' · 异兽', list, locked: !regionUnlocked(r), regionId: r.regionId });
   }
   // 特殊目标组只有几只，直接展开（always），否则玩家看不到「六凶」还藏着一个折叠条
-  groups.push({ title:'祷过之山 · 可猎', list:Object.values(Monsters).filter(x=>x.hunt), always:true });
+  // 可猎三兽本就在南次三经山里，这里再列一次是「按用途」而非「按产地」——
+  // 标题写明另见，免得玩家以为祷过之山与南次三经各有一只犀。
+  groups.push({ title:'祷过之山 · 可猎（另见南次三经）', list:Object.values(Monsters).filter(x=>x.hunt), always:true });
   groups.push({ title:'六凶（后羿所诛）', list:Object.values(Monsters).filter(x=>x.boss&&SIX_BEASTS.includes(x.id)), always:true });
   groups.push({ title:'刑天', list:Object.values(Monsters).filter(x=>x.id==='xingtian'), always:true });
   groups.push({ title:'西山神祇（守关）', list:Object.values(Monsters).filter(x=>x.boss&&['luwu','xiwangmu','dijiang'].includes(x.id)), always:true });
