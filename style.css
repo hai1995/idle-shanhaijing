@@ -2041,7 +2041,11 @@ body.no-scroll{ overflow:hidden; }
   border:1px solid var(--rule-2); border-left:2px solid var(--qing);
   position:relative;
 }
-.hint-banner span{ flex:1; }
+/* 只让正文那一格伸缩。此前是 `.hint-banner span{flex:1}`，把图标和「前往」也
+   拉成了 1:1:1 的三等分——430px 的屏上正文只剩 101px，指引条永远是「先从『舆地』
+   选山，点其中一项…」这种被截断的半个句子（v1.31.59 修）。 */
+.hint-banner > span:not(.mi-ic):not(.goto){ flex:1 1 auto; min-width:0; }
+.hint-banner > .mi-ic{ flex:0 0 auto; }
 .hint-close{
   position:absolute; top:5px; right:5px;
   border:0; background:transparent; color:var(--ink-4); cursor:pointer;
@@ -2233,9 +2237,11 @@ body.no-scroll{ overflow:hidden; }
   #statusbar{ padding:0 12px; gap:10px; }
   /* 指引条：压到最多两行，切换页签时不再把内容挤下去 */
   #guidance{ padding:8px 34px 8px 12px; font-size:11.5px; line-height:1.5; }
-  #guidance span:not(.goto){
+  #guidance > span:not(.goto):not(.mi-ic){
     display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+    min-width:0;
   }
+  #guidance .goto{ flex:0 0 auto; }
   #guidance .goto{ font-size:11px; }
   #tabs .tab-tx{ display:none; }
   body.drawer-open #tabs .tab-tx{ display:inline; white-space:nowrap; }

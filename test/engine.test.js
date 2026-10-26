@@ -1085,7 +1085,7 @@ assert(/body\.drawer-open #tabs\{[^}]*width:min\(228px, 80vw\);[^}]*top:var\(--t
 // 淡朱底活动行叠在深墨上成暗红）——白天模式下尤其明显
 assert(/body\.drawer-open #tabs\{[^}]*background:var\(--paper\);/.test(css), '展开态覆盖为纯纸色（消除渐变残留的伪书脊带）');
 assert(/#guidance\{ padding:8px 34px 8px 12px; font-size:11\.5px; line-height:1\.5; \}/.test(css), '指引条横贯全宽（与吸顶区一致）');
-assert(/#guidance span:not\(\.goto\)\{[\s\S]*?-webkit-line-clamp:2/.test(css), '指引条文本最多两行（切换页签不挤兑内容）');
+assert(/#guidance > span:not\(\.goto\):not\(\.mi-ic\)\{[\s\S]*?-webkit-line-clamp:2/.test(css), '指引条文本最多两行（切换页签不挤兑内容）');
 assert(/#topbar\{ padding:8px 8px 9px 12px; \}/.test(css), '窄屏书脊横贯全宽（印章居左）');
 assert(/#statusbar\{ padding:0 12px; gap:10px; \}/.test(css), '窄屏仪表带横贯全宽');
 assert(/#topbar \.stat\[data-s="录"\] \.meter\{ display:none; \}/.test(css), '窄屏隐藏已录细线，为让位腾出宽度');
@@ -8023,6 +8023,25 @@ section('现场驱动自愈');
 
   // ---- 6. 单帧绘制独立成函数：启动与 watchdog 共用一份 ----
   assert(typeof ST.UI.paintSceneFrame === 'function', '单帧绘制独立成函数');
+}
+
+// ============ 147. 指引条不该是三等价（v1.31.60） ============
+// 430px 的屏上量出来：图标 101px、正文 101px、「前往」101px。
+// 因为 `.hint-banner span{flex:1}` 一视同仁，把三个 span 全拉成等宽；
+// 正文只剩一百来像素，于是每条指引都读成「先从『舆地』选山，点其中一项…」。
+// 规律：**`flex:1` 要写在「该伸缩的那一格」上，不能写给「所有 span」**——
+// 这类选择器越短越像偷懒，代价是版面按元素个数均分。
+section('指引条版面');
+{
+  const cssSrc147 = readText('style.css');
+  assert(!/\.hint-banner\s+span\s*\{[^}]*flex\s*:\s*1\s*;/.test(cssSrc147),
+    '不再给指引条里所有 span 平分宽度');
+  assert(cssSrc147.includes('.hint-banner > span:not(.mi-ic):not(.goto)'),
+    '只有正文那一格伸缩');
+  assert(cssSrc147.includes('.hint-banner > .mi-ic{ flex:0 0 auto; }'),
+    '图标按内容宽（15px），不参与均分');
+  assert(/\.hint-banner > span:not\(\.mi-ic\):not\(\.goto\)\{[^}]*min-width:0/.test(cssSrc147),
+    '正文 min-width:0（否则 flex 项不肯缩，截断失效）');
 }
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
