@@ -8249,6 +8249,43 @@ section('存档迁移链');
   }
 }
 
+// ============ 152. 坏档字段：不存在的作物/装备/订单/行囊物（2026-10-26 夜间） ============
+// 「存档里有表里不存在的东西」是这类游戏最常见的坏档来源（改过名、并过表、
+// 或者干脆是手改的档）。上一节只锁了「行动」这一处，这一节把其余四处补上：
+// 读档必须不抛，且脏引用要被清掉，而不是留在内存里等着某次渲染炸。
+section('坏档字段');
+{
+  const put = (o) => ST.localStorage.setItem('shj_zhulu_save_v1', JSON.stringify(o));
+  const load = (o) => {
+    put(o);
+    try { G.loadGame(); return null; } catch(e){ return e.message; }
+  };
+  const base = { version: ST.SAVE_VERSION, shells: 50 };
+
+  let err = load(Object.assign({}, base, { farms: { a: { seedId: '__no_seed__', remain: 5, grow: 10 } } }));
+  assert(!err, '田里种着不存在的作物：读档不抛（' + err + '）');
+  assert(!ST.Game.farms || !ST.Game.farms.a, '不存在的作物被清掉（否则田永远长不出东西）');
+
+  err = load(Object.assign({}, base, { gear: { weapon: '__no_gear__' } }));
+  assert(!err, '装备槽里是不存在的 id：读档不抛（' + err + '）');
+
+  err = load(Object.assign({}, base, { orders: [{ itemId: '__no_item__', qty: 3 }] }));
+  assert(!err, '求购单里是不存在的物：读档不抛（' + err + '）');
+
+  err = load(Object.assign({}, base, { inventory: { __no_item__: 3, migu: 2 } }));
+  assert(!err, '行囊里是不存在的物：读档不抛（' + err + '）');
+  // 故意**不删**：物品改名/并表后，删掉等于让玩家的东西凭空消失；
+  // 界面按已知物品表过滤，看不见也不炸（实测行囊页无 undefined）。
+  // 所以这里锁的是「留、且不影响别人」，不是「清掉」。
+  assert(ST.Game.inventory['__no_item__'] === 3, '不存在的行囊物保留，不静默删除');
+  assert(ST.Game.inventory.migu === 2, '正常物品不受牵连');
+
+  err = load(Object.assign({}, base, { queue: [{ kind: 'gather', itemId: '__no_item__' }], queueRunning: true }));
+  assert(!err, '队列里是不存在的物：读档不抛（' + err + '）');
+
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
