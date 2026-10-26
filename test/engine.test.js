@@ -5649,6 +5649,15 @@ section('离线结算与线上同口径');
   // 构建脚本不许出现写死的清单（顺序只从 index.html 读）
   const build = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'build-standalone.js'), 'utf8');
   assert(!/src\/ui\/core\.js/.test(build), '构建脚本没有另抄 ui 文件清单');
+  // 架构文档的脚本清单也要跟着走：写过「26 个」而实际 27 个，读文档的人会被带偏。
+  const arch = fs.readFileSync(path.join(__dirname, '..', 'docs', 'ARCHITECTURE.md'), 'utf8');
+  const declared = (arch.match(/按顺序引入\s*(\d+)\s*个/) || [])[1];
+  const realCount = (html.match(/<script src=/g) || []).length;
+  assert(Number(declared) === realCount,
+    'ARCHITECTURE 写的脚本数（' + declared + '）等于 index.html 实际（' + realCount + '）');
+  const listed = [...html.matchAll(/src="(src\/[^"?]+\.js)(?:\?[^"]*)?"/g)].map(m => m[1].replace(/^src\//, ''));
+  const missing = listed.filter(f => !arch.includes('`' + f + '`'));
+  assert(missing.length === 0, 'ARCHITECTURE 的文件表覆盖了全部脚本（缺：' + missing.join(',') + '）');
 }
 
 // ============ 100. 前世遗物：由转数派生，不写存档 ============
