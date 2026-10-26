@@ -16612,6 +16612,7 @@ const TUNING = {
     RAMP: 0.05,       // 带内坡：每升一格（9 级原始等级）再加 5% 三维，带底到带顶约 +40%
                       // 9 级带的等级本身只值 12% 气血，不加坡的话 305 只怪一样厚，走遍全书没差别
     SOFT: 0.08,       // 三周目起每轮三维与奖励再 +8%（软叠，五轮上下到顶）
+    PILGRIM_XP: 1.10, // 旧地重游：已巡礼（诸山皆涉）的山系，卷二经验再 +10%
   },
   TIER_SIZE: 9,             // 每阶 9 级：一九…九九
   TIER_NAMES: ['一九','二九','三九','四九','五九','六九','七九','八九','九九'],
@@ -19232,8 +19233,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.28',
-  codename:'昼巡 · 补正',
+  version: '1.31.29',
+  codename:'昼巡 · 重游',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
@@ -20154,6 +20155,20 @@ function applySave(d){
       Game.skills = saved;
     }
     Game.gear = Object.assign({}, dflt.gear, d.gear || {});
+    // 旧档（v5 及更早）装备槽里只有 id、没有 enh，等级记在共享表 Game.enhance 上。
+    // 那时「装备槽也按 id 取档」，读回来要把它搬到实例上——必须在下面的清理之前做。
+    // ⚠️ 顺序要紧：共享表在 packGear 装配后会被清空（见下），晚一步就取不到了。
+    if (d.enhance && typeof d.enhance === 'object'){
+      for (const slot in Game.gear){
+        const g = Game.gear[slot];
+        if (!g || typeof g !== 'object') continue;
+        if (g.enh == null){
+          const id = g.id || '';
+          const v = parseInt(d.enhance[id], 10);
+          g.enh = isFinite(v) && v > 0 ? Math.min((typeof window !== 'undefined' && window.ENHANCE_MAX) || 30, v) : 0;
+        }
+      }
+    }
     Game.records = d.records || {};
     Game.map = d.map || { 'nanshan-1-01': true };
     Game.observed = d.observed || {};
@@ -20293,6 +20308,13 @@ function applySave(d){
         const n = Math.max(0, Math.floor(Game.inventory[id] || 0));
         for (let i = 0; i < n; i++) push(id, legacy[id] || 0);
         delete Game.inventory[id];       // 装备不再记在 inventory（否则总数会翻倍）
+      }
+      // 旧档那一档已落到实例上，共享表里的值必须清掉：
+      // 否则「最高强化」与旧接口还会读出这些幽灵等级（装备卖光了仍显示 +17）。
+      // 注意要按 packGear 里的 id 清，而不是只清「刚从 inventory 迁出」的那几个——
+      // 迁移链 5→6 已经把装备搬进 packGear 时，inventory 里是空的。
+      if (Game.enhance){
+        for (const g of Game.packGear) delete Game.enhance[g.id];
       }
     }
     // 装备词条重铸次数（旧档无此字段：salt=0 即「初次派生」的词条，与新版一致）
@@ -20857,7 +20879,12 @@ function bandSoft(){ return 1 + TUNING.CYCLE.SOFT * Math.max(0, rebirthCount() -
 const _bandCache = new Map();
 function foeOf(m){
   if (!m || !bandOn() || m.boss) return m;      // 六凶与神祇不套带：它们本是手调的关卡
-  const key = m.id + '@' + rebirthCount();
+  // 旧地重游（v1.31.29）：已巡礼的山系在卷二里再给 10% 经验——
+  // 走遍一系本来只是「完成度」，现在也是卷二里值得回头打的理由。
+  // ⚠️ 巡礼状态必须进缓存键：否则走遍该系的同一帧里，卡片还挂着旧倍率。
+  const pil = (typeof regionPilgrim === 'function') && m.regionId
+    ? !!(regionPilgrim(m.regionId) || {}).full : false;
+  const key = m.id + '@' + rebirthCount() + (pil ? '#P' : '');
   const hit = _bandCache.get(key);
   if (hit) return hit;
   const lv0 = Math.max(1, m.needLvl || 1), bl = bandLevelOf(m), soft = bandSoft();
@@ -20879,9 +20906,10 @@ function foeOf(m){
     hp: Math.round(s1.hp * keep('hp') * soft * ramp),
     atk: Math.round(s1.atk * keep('atk') * soft * ramp),
     def: Math.round(s1.def * keep('def') * soft * ramp),
-    xp: Math.max(1, Math.round(s1.xp * keep('xp') * TUNING.CYCLE.XP * soft)),
+    xp: Math.max(1, Math.round(s1.xp * keep('xp') * TUNING.CYCLE.XP * soft * (pil ? (TUNING.CYCLE.PILGRIM_XP || 1) : 1))),
     loot: (m.loot || []).map(([id, p, q]) => [id, Math.min(0.95, p * TUNING.CYCLE.LOOT), q]),
     band: true,
+    pilgrim: pil,
   });
   _bandCache.set(key, f);
   return f;
@@ -29078,7 +29106,7 @@ function beastCardHtml(x, pick){
       ${x===pick?'<span class="bt-pick">宜讨</span>':''}
       <span class="tip-body hidden">
         ${x.form?`<div class="bc-sub">${esc(x.form)}</div>`:''}
-        ${xb.band ? `<div class="bc-sub band-line">卷二 · 难度带 Lv${xb.bandLv}（本卷 Lv${x.needLvl || 1}）：经验 ×${TUNING.CYCLE.XP}、掉落 ×${TUNING.CYCLE.LOOT}</div>` : ''}
+        ${xb.band ? `<div class="bc-sub band-line">卷二 · 难度带 Lv${xb.bandLv}（本卷 Lv${x.needLvl || 1}）：经验 ×${TUNING.CYCLE.XP}、掉落 ×${TUNING.CYCLE.LOOT}${xb.pilgrim ? `、旧地重游 +${Math.round(((TUNING.CYCLE.PILGRIM_XP || 1) - 1) * 100)}%` : ''}</div>` : ''}
         <div class="bc-sub">气血 ${fmt(xb.hp)} · 攻 ${fmt(xb.atk)} · 防 ${fmt(xb.def)} · 经验 ${fmt(xb.xp)}</div>
         <div class="bc-sub drop-line">${typeof markIcon==='function'?markIcon('pin',13):'📍'} ${esc(node?node.name:'')}${drops?` · 掉落 ${esc(drops)}`:''}</div>
         ${counterEl?`<div class="bc-sub">宜用 ${counterEl} 属（${counterEl}克${x.el}，伤害 ×${TUNING.WUXING.KE}）</div>`:''}

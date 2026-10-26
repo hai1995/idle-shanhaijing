@@ -6461,6 +6461,7 @@ section('行囊装备按件存');
   const migRows = (mig.packGear || []).filter(g => g.id === ITEM);
   assert(migRows.reduce((a, g) => a + (g.n || 1), 0) === 3, '3 件全迁成实例');
   assert(migRows.every(g => g.enh === 7), '旧档共享的 +7 落到每一件上');
+  // 迁移函数只搬数据，清理发生在读档装配（applySave）里——见下方真实读档
 
   // 同档压缩存：50 支箭 + 3 件同名装，写进存档只留档位条数，不逐件写
   ST.packGearAdd('tongzu', 0, 50);
@@ -6468,6 +6469,22 @@ section('行囊装备按件存');
   const arrowRows = sv2.packGear.filter(g => g.id === 'tongzu');
   assert(arrowRows.length === 1 && arrowRows[0].n === 50, '50 支同档箭压成 1 条（n=50）');
   assert(JSON.stringify(sv2.packGear.map(g => g.n)).length < 200, '存档里不逐件写');
+
+  // 读一遍带旧 enhance 的档：装备清了、最高强化归零，不该再读出旧 +17
+  {
+    const sv3 = ST.serializeSave();
+    sv3.version = 5;
+    delete sv3.packGear;
+    sv3.inventory = Object.assign({}, sv3.inventory, { [ITEM]: 1 });
+    sv3.enhance = { [ITEM]: 17 };
+    sv3.gear = { weapon:null, armor:null, charm:null, axe:null, pick:null, net:null, quiver:null };
+    ST.localStorage.setItem('shj_zhulu_save_v1', JSON.stringify(sv3));
+    ST.loadGame();
+    assert(ST.bagQty(ITEM) === 1 && ST.Game.packGear.some(g => g.id === ITEM && g.enh === 17), '旧 +17 落到实例上');
+    assert(!ST.Game.enhance[ITEM], '共享表已清空');
+    ST.sellItem(ITEM, 1, 17);
+    assert(ST.bagQty(ITEM) === 0 && ST.bestEnhance().lv === 0, '卖光后最高强化归零（无幽灵 +17）');
+  }
 
   ST.localStorage.removeItem('shj_zhulu_save_v1');
   G.resetToDefault();
@@ -6626,6 +6643,41 @@ section('巡礼里程碑');
 
   G.resetToDefault();
   assert(ST.pilgrimFullCount() === 0, '重开归零');
+}
+
+// ============ 122. 卷二 × 巡礼：旧地重游 +10% 经验 ============
+section('卷二旧地重游');
+{
+  G.resetToDefault();
+  // 卷二开启条件：九九 + 轮回；这里直接把状态摆好
+  for (const k in ST.Game.skills) ST.Game.skills[k] = { level: 99, xp: ST.xpForLevel(99) };
+  ST.Game.rebirth = { count: 1, at: 1, best: 99 };
+  ST.Prefs.band = true;
+  assert(ST.bandOn(), '卷二已开');
+
+  const beast = Object.values(ST.Monsters).find(m => !m.boss && m.nodeId.indexOf('beishan-1') === 0);
+  assert(!!beast, '取北次一经一只兽');
+
+  ST._bandCache && ST._bandCache.clear();
+  const xp0 = ST.foeOf(beast).xp;
+  assert(!ST.foeOf(beast).pilgrim, '未巡礼时为普通卷二经验');
+
+  // 走遍该系 → 同一只兽的卷二经验应 +10%
+  const R = ST.WORLD.regions.find(r => r.regionId === beast.regionId);
+  R.nodes.forEach(n => { ST.Game.map[n.id] = true; });
+  ST._bandCache && ST._bandCache.clear();
+  const f1 = ST.foeOf(beast);
+  assert(f1.pilgrim === true, '标记旧地重游');
+  assert(f1.xp === Math.max(1, Math.round(xp0 * ST.TUNING.CYCLE.PILGRIM_XP)) ||
+         Math.abs(f1.xp / xp0 - ST.TUNING.CYCLE.PILGRIM_XP) < 0.02,
+    `经验 ×${ST.TUNING.CYCLE.PILGRIM_XP}（${xp0} → ${f1.xp}）`);
+
+  // 缓存键必须区分巡礼状态：否则领赏/走遍后仍拿旧值
+  const src = readText('src/game.js');
+  assert(/const key = m\.id \+ '@' \+ rebirthCount\(\) \+ \(pil \? '#P' : ''\)/.test(src), '巡礼状态进缓存键');
+
+  ST.Prefs.band = false;
+  G.resetToDefault();
 }
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）

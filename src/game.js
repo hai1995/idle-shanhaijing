@@ -246,7 +246,12 @@ function bandSoft(){ return 1 + TUNING.CYCLE.SOFT * Math.max(0, rebirthCount() -
 const _bandCache = new Map();
 function foeOf(m){
   if (!m || !bandOn() || m.boss) return m;      // 六凶与神祇不套带：它们本是手调的关卡
-  const key = m.id + '@' + rebirthCount();
+  // 旧地重游（v1.31.29）：已巡礼的山系在卷二里再给 10% 经验——
+  // 走遍一系本来只是「完成度」，现在也是卷二里值得回头打的理由。
+  // ⚠️ 巡礼状态必须进缓存键：否则走遍该系的同一帧里，卡片还挂着旧倍率。
+  const pil = (typeof regionPilgrim === 'function') && m.regionId
+    ? !!(regionPilgrim(m.regionId) || {}).full : false;
+  const key = m.id + '@' + rebirthCount() + (pil ? '#P' : '');
   const hit = _bandCache.get(key);
   if (hit) return hit;
   const lv0 = Math.max(1, m.needLvl || 1), bl = bandLevelOf(m), soft = bandSoft();
@@ -268,9 +273,10 @@ function foeOf(m){
     hp: Math.round(s1.hp * keep('hp') * soft * ramp),
     atk: Math.round(s1.atk * keep('atk') * soft * ramp),
     def: Math.round(s1.def * keep('def') * soft * ramp),
-    xp: Math.max(1, Math.round(s1.xp * keep('xp') * TUNING.CYCLE.XP * soft)),
+    xp: Math.max(1, Math.round(s1.xp * keep('xp') * TUNING.CYCLE.XP * soft * (pil ? (TUNING.CYCLE.PILGRIM_XP || 1) : 1))),
     loot: (m.loot || []).map(([id, p, q]) => [id, Math.min(0.95, p * TUNING.CYCLE.LOOT), q]),
     band: true,
+    pilgrim: pil,
   });
   _bandCache.set(key, f);
   return f;

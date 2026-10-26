@@ -128,7 +128,7 @@ function beastCardHtml(x, pick){
       ${x===pick?'<span class="bt-pick">宜讨</span>':''}
       <span class="tip-body hidden">
         ${x.form?`<div class="bc-sub">${esc(x.form)}</div>`:''}
-        ${xb.band ? `<div class="bc-sub band-line">卷二 · 难度带 Lv${xb.bandLv}（本卷 Lv${x.needLvl || 1}）：经验 ×${TUNING.CYCLE.XP}、掉落 ×${TUNING.CYCLE.LOOT}</div>` : ''}
+        ${xb.band ? `<div class="bc-sub band-line">卷二 · 难度带 Lv${xb.bandLv}（本卷 Lv${x.needLvl || 1}）：经验 ×${TUNING.CYCLE.XP}、掉落 ×${TUNING.CYCLE.LOOT}${xb.pilgrim ? `、旧地重游 +${Math.round(((TUNING.CYCLE.PILGRIM_XP || 1) - 1) * 100)}%` : ''}</div>` : ''}
         <div class="bc-sub">气血 ${fmt(xb.hp)} · 攻 ${fmt(xb.atk)} · 防 ${fmt(xb.def)} · 经验 ${fmt(xb.xp)}</div>
         <div class="bc-sub drop-line">${typeof markIcon==='function'?markIcon('pin',13):'📍'} ${esc(node?node.name:'')}${drops?` · 掉落 ${esc(drops)}`:''}</div>
         ${counterEl?`<div class="bc-sub">宜用 ${counterEl} 属（${counterEl}克${x.el}，伤害 ×${TUNING.WUXING.KE}）</div>`:''}

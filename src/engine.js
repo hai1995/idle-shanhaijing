@@ -134,6 +134,20 @@ function applySave(d){
       Game.skills = saved;
     }
     Game.gear = Object.assign({}, dflt.gear, d.gear || {});
+    // 旧档（v5 及更早）装备槽里只有 id、没有 enh，等级记在共享表 Game.enhance 上。
+    // 那时「装备槽也按 id 取档」，读回来要把它搬到实例上——必须在下面的清理之前做。
+    // ⚠️ 顺序要紧：共享表在 packGear 装配后会被清空（见下），晚一步就取不到了。
+    if (d.enhance && typeof d.enhance === 'object'){
+      for (const slot in Game.gear){
+        const g = Game.gear[slot];
+        if (!g || typeof g !== 'object') continue;
+        if (g.enh == null){
+          const id = g.id || '';
+          const v = parseInt(d.enhance[id], 10);
+          g.enh = isFinite(v) && v > 0 ? Math.min((typeof window !== 'undefined' && window.ENHANCE_MAX) || 30, v) : 0;
+        }
+      }
+    }
     Game.records = d.records || {};
     Game.map = d.map || { 'nanshan-1-01': true };
     Game.observed = d.observed || {};
@@ -273,6 +287,13 @@ function applySave(d){
         const n = Math.max(0, Math.floor(Game.inventory[id] || 0));
         for (let i = 0; i < n; i++) push(id, legacy[id] || 0);
         delete Game.inventory[id];       // 装备不再记在 inventory（否则总数会翻倍）
+      }
+      // 旧档那一档已落到实例上，共享表里的值必须清掉：
+      // 否则「最高强化」与旧接口还会读出这些幽灵等级（装备卖光了仍显示 +17）。
+      // 注意要按 packGear 里的 id 清，而不是只清「刚从 inventory 迁出」的那几个——
+      // 迁移链 5→6 已经把装备搬进 packGear 时，inventory 里是空的。
+      if (Game.enhance){
+        for (const g of Game.packGear) delete Game.enhance[g.id];
       }
     }
     // 装备词条重铸次数（旧档无此字段：salt=0 即「初次派生」的词条，与新版一致）
