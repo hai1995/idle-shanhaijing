@@ -660,7 +660,8 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
   position:absolute; top:3px; right:3px; width:14px; height:14px; border-radius:2px;
   font-family:var(--f-kai); font-size:9px; line-height:14px; text-align:center; font-weight:700;
 }
-.rg-seal.ready{ background:var(--zhu); color:#fff; }
+.rg-seal.ready{ background:var(--zhu); color:#fff; border:none; padding:0; cursor:pointer; }
+.rg-seal.ready:hover{ filter:brightness(1.08); }
 .rg-seal.done{ background:transparent; color:var(--ink-4); border:1px solid var(--rule); }
 .region-tile.lock{ border-style:dashed; }
 .region-tile.lock .rg-name{ color:var(--ink-3); }
@@ -19233,8 +19234,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.29',
-  codename:'昼巡 · 重游',
+  version: '1.31.30',
+  codename:'昼巡 · 拾遗',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
@@ -28181,7 +28182,10 @@ UI.renderYudi = function(){
               <span class="rg-name">${esc(r.regionName)}</span>
               <span class="rg-sub">${un ? (todo ? `${done}/${r.nodes.length} 山` : '待补录') : `${typeof markIcon==='function'?markIcon('lock',13):'🔒'} ${r.unlockLevel} 级`}</span>
               ${un && todo && done > 0 ? `<span class="rg-bar"><i style="width:${(done/r.nodes.length*100).toFixed(0)}%"></i></span>` : ''}
-              ${seal ? `<span class="rg-seal ${pg.claimed?'done':'ready'}" title="${pg.claimed?'此系巡礼已成':'诸山皆涉，可领赏'}">${seal}</span>` : ''}
+              ${seal ? (pg.claimed
+                ? `<span class="rg-seal done" title="此系巡礼已成">巡</span>`
+                : `<button class="rg-seal ready" type="button" title="诸山皆涉 · 点此领赏"
+                     onclick="event.stopPropagation();claimPilgrim('${r.regionId}');UI.renderYudi()">赏</button>`) : ''}
             </div>`;
           }).join('')}
           </div>
@@ -30823,9 +30827,11 @@ UI.itemDetailHtml = function(itemId){
   // bagAll 是「同名共几件」——两者分开，玩家才知道自己卖的是哪一档。
   const stacks = (it.equip && !gearInst && typeof gearStacks === 'function') ? gearStacks(itemId) : [];
   const bagAll = (typeof bagQty === 'function') ? bagQty(itemId) : (Game.inventory[itemId] || 0);
-  const enhLv = (it.equip && !gearInst)
+  let enhLv = (it.equip && !gearInst)
     ? (UI._detailEnh != null ? UI._detailEnh : (stacks[0] ? stacks[0].enh : 0))
     : 0;
+  // 这一档卖空了（最后一支箭售出后）：回落到还有货的最高档，别把弹窗停在一个空档上
+  if (it.equip && !gearInst && stacks.length && !stacks.some(s => s.enh === enhLv)) enhLv = stacks[0].enh;
   const qty = (it.equip && !gearInst)
     ? ((stacks.find(s => s.enh === enhLv) || {}).qty || 0)
     : bagAll;

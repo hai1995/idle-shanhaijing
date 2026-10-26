@@ -454,9 +454,11 @@ UI.itemDetailHtml = function(itemId){
   // bagAll 是「同名共几件」——两者分开，玩家才知道自己卖的是哪一档。
   const stacks = (it.equip && !gearInst && typeof gearStacks === 'function') ? gearStacks(itemId) : [];
   const bagAll = (typeof bagQty === 'function') ? bagQty(itemId) : (Game.inventory[itemId] || 0);
-  const enhLv = (it.equip && !gearInst)
+  let enhLv = (it.equip && !gearInst)
     ? (UI._detailEnh != null ? UI._detailEnh : (stacks[0] ? stacks[0].enh : 0))
     : 0;
+  // 这一档卖空了（最后一支箭售出后）：回落到还有货的最高档，别把弹窗停在一个空档上
+  if (it.equip && !gearInst && stacks.length && !stacks.some(s => s.enh === enhLv)) enhLv = stacks[0].enh;
   const qty = (it.equip && !gearInst)
     ? ((stacks.find(s => s.enh === enhLv) || {}).qty || 0)
     : bagAll;

@@ -174,7 +174,10 @@ UI.renderYudi = function(){
               <span class="rg-name">${esc(r.regionName)}</span>
               <span class="rg-sub">${un ? (todo ? `${done}/${r.nodes.length} 山` : '待补录') : `${typeof markIcon==='function'?markIcon('lock',13):'🔒'} ${r.unlockLevel} 级`}</span>
               ${un && todo && done > 0 ? `<span class="rg-bar"><i style="width:${(done/r.nodes.length*100).toFixed(0)}%"></i></span>` : ''}
-              ${seal ? `<span class="rg-seal ${pg.claimed?'done':'ready'}" title="${pg.claimed?'此系巡礼已成':'诸山皆涉，可领赏'}">${seal}</span>` : ''}
+              ${seal ? (pg.claimed
+                ? `<span class="rg-seal done" title="此系巡礼已成">巡</span>`
+                : `<button class="rg-seal ready" type="button" title="诸山皆涉 · 点此领赏"
+                     onclick="event.stopPropagation();claimPilgrim('${r.regionId}');UI.renderYudi()">赏</button>`) : ''}
             </div>`;
           }).join('')}
           </div>

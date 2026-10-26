@@ -633,7 +633,8 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
   position:absolute; top:3px; right:3px; width:14px; height:14px; border-radius:2px;
   font-family:var(--f-kai); font-size:9px; line-height:14px; text-align:center; font-weight:700;
 }
-.rg-seal.ready{ background:var(--zhu); color:#fff; }
+.rg-seal.ready{ background:var(--zhu); color:#fff; border:none; padding:0; cursor:pointer; }
+.rg-seal.ready:hover{ filter:brightness(1.08); }
 .rg-seal.done{ background:transparent; color:var(--ink-4); border:1px solid var(--rule); }
 .region-tile.lock{ border-style:dashed; }
 .region-tile.lock .rg-name{ color:var(--ink-3); }
