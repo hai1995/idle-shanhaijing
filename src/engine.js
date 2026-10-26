@@ -85,6 +85,7 @@ function cloneDefaultGame(){
   g.gear = { weapon:null, armor:null, charm:null, axe:null, pick:null, net:null, quiver:null };
   g.orders = []; g.ordersAt = 0;
   g.rebirth = { count:0, at:0, best:0 };      // 转生：新档即零转
+  g.member = { tier:'none', until:0 };         // 会员权益：未登录即未开通（账号系统登录后由账号层写入）
   g.bounties = [];                            // 三签：抽签在首次 tick 时惰性补满
   g.skills = {};
   for (const id of ALL_SKILL_IDS) g.skills[id] = { level:1, xp:0 };
@@ -172,6 +173,11 @@ function applySave(d){
     // 无动画、统计不涨）。战斗是瞬时行为，离线收益另走采集/队列结算。
     Game._droppedCombat = d.combat ? d.combat.monsterId : null;
     Game.combat = null;
+    // 会员权益（旧档无此字段：补未开通，行为与从前完全一致）
+    {
+      const m = (d.member && typeof d.member === 'object') ? d.member : {};
+      Game.member = { tier: typeof m.tier === 'string' ? m.tier : 'none', until: isFinite(m.until) ? m.until : 0 };
+    }
     // 轮回记录（旧档无此字段：补零转，不影响任何既有数值）
     {
       const r = (d.rebirth && typeof d.rebirth === 'object') ? d.rebirth : {};

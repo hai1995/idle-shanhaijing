@@ -275,6 +275,26 @@ function foeOf(m){
   _bandCache.set(key, f);
   return f;
 }
+// ---------- 会员（预留，v1.31.19） ----------
+// 现在没有账号系统，所以这里只有「读一份权益快照 + 一处取加成」两件事：
+//   · 快照在 Game.member（由账号层登录后写入，本地存档只读）；
+//   · 所有加成都走 memberBonus(key)，将来加档位只改 TUNING.MEMBER.TIERS 一处。
+// 两条自制：会员只加时长与产出、**不加战力**（付费不该买到关卡的通过权）；
+// 到期即失效（按 until 现算），不依赖任何在线校验。
+const MEMBER_TIERS = TUNING.MEMBER.TIERS;
+function memberTierId(){
+  const m = Game.member || {};
+  const id = MEMBER_TIERS[m.tier] ? m.tier : TUNING.MEMBER.DEFAULT;
+  if (id === 'none') return 'none';
+  if (m.until && Date.now() > m.until) return 'none';     // 到期即刻失效
+  return id;
+}
+function memberTier(){ return MEMBER_TIERS[memberTierId()] || MEMBER_TIERS.none; }
+function isMember(){ return memberTierId() !== 'none'; }
+function memberBonus(key){
+  const t = memberTier();
+  return (t && isFinite(t[key])) ? t[key] : 0;
+}
 // ---------- 前世遗物 ----------
 // 每转一件，由 rebirth.count 派生——**不新增存档字段**，旧档读进来转数是几就有几件。
 // 加成都很小（xp / yield 各 6%，def 4%，hp 3%），是「这一卷留下了什么」的凭证，不是数值台阶。
@@ -421,6 +441,7 @@ function xpMult(){
   if (Game.buff && Game.buff.def && Game.buff.def.kind === 'xp') m += Game.buff.def.xpBonus || 0;
   m += rebirthGain();                               // 轮回印：越转越快，不封顶
   m += relicSum('xp');                              // 前世遗物：每卷一缕旧学
+  m += memberBonus('xp');                           // 会员：修行经验
   return m;
 }
 function dmgMult(){
@@ -473,6 +494,7 @@ function globalYieldBonus(){
   if (Game.buff && Game.buff.def && Game.buff.def.kind === 'all' && Game.buff.def.yield) b += Game.buff.def.yield;
   b += rebirthYield();               // 轮回印：采获随转数递增
   b += relicSum('yield');            // 前世遗物
+  b += memberBonus('yield');         // 会员：采获
   return b;
 }
 function isWise(){                       // 灌灌「佩之不惑」
@@ -488,7 +510,9 @@ function offlineEff(){
   if (Game.buff && Game.buff.def && Game.buff.def.kind === 'offline') e += Game.buff.def.offline;
   e += deployedBonuses().offline;
   e += omenMod('offline');              // 猾褢「大繇」：离线收益 -25%
-  return clamp(e, 0.1, TUNING.OFFLINE.EFF_MAX);
+  e += memberBonus('offlineEff');       // 会员：离线效率
+  // 会员同时把效率上限抬一档：满级玩家的效率本就贴着 0.85，只加数值等于卖了个空气
+  return clamp(e, 0.1, TUNING.OFFLINE.EFF_MAX + memberBonus('offlineEff'));
 }
 function offlineCapHours(){
   let h = TUNING.OFFLINE.CAP_H;
@@ -496,6 +520,7 @@ function offlineCapHours(){
   if (Game.buildings.tuku) h += 1;      // 土窟：因势窟土，以庇风雨
   if (Game.buildings.shanhaige) h += 3;  // 山海阁：藏山海之图
   h += Object.values(Game.observed||{}).filter(Boolean).length;   // 每处观象 +1h
+  h += memberBonus('offlineH');         // 会员：时长（基线 24h + 档位）
   // 长线成就里的「离线上限 +1h」原先只有文案、没人读——三谷观象做完，
   // 里程碑亮着「已达成」，上限却没动。这里补上。
   (window.Milestones||[]).forEach(ms=>{ if (ms.offlineCap && ms.check()) h += ms.offlineCap / 3600; });
@@ -2172,7 +2197,7 @@ function meetKill(c, m){
   // 战利品（权重公式，见 TUNING.DROP）。⚠️ BOSS 只有单件 drop、无 loot 表，
   // 早年缺 `|| []` 兜底导致讨平 BOSS 必抛 TypeError（战斗循环中断），务必保留。
   const tier = (Game.records[m.id]||{}).tier || 0;
-  const yieldB = 1 + globalYieldBonus() + deployedBonuses().loot + omenMod('loot');   // 有兵 / 多狡客：所获 -10%
+  const yieldB = 1 + globalYieldBonus() + deployedBonuses().loot + omenMod('loot') + memberBonus('drop');   // 有兵 / 多狡客：所获 -10%
   for (const [id, base, qty] of (m.loot || [])){
     let p = base * (1 + TUNING.DROP.LVL_COEF*(levelOf('taofa') - m.needLvl)) * (1 + TUNING.DROP.MAS_COEF*tier/4);
     p = clamp(p * yieldB, 0.05, 0.95);
@@ -2302,6 +2327,7 @@ window.startCombat = startCombat;
 window.doMonsterSpecial = doMonsterSpecial;
 window.ULTIMATE_NAMES = ULTIMATE_NAMES; window.ULTIMATE_MULT = ULTIMATE_MULT;
 window.foeOf = foeOf; window.bandOn = bandOn; window.bandUnlocked = bandUnlocked; window.bandLevelOf = bandLevelOf;
+window.memberTier = memberTier; window.memberTierId = memberTierId; window.isMember = isMember; window.memberBonus = memberBonus;
 window.doPlayerUltimate = doPlayerUltimate;
 window.healAmount = healAmount;
 window.autoEat = autoEat;

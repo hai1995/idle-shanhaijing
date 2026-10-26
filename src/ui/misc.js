@@ -132,7 +132,30 @@ UI.renderStats = function(){
         <span>离线经验 <b data-stat="offlineXp">${fmt(s.offlineXp || 0)}</b></span>
         <span>离线所得 <b data-stat="offlineItems">${fmt(s.offlineItems || 0)}</b> 件</span>
         <span class="off-last">上次离线 <b data-stat="lastOffline">${lastOfflineText()}</b></span>
+      </div>
+      <div class="stat-rows mem-rows">
+        <span>离线上限构成 <b>基础 ${TUNING.OFFLINE.CAP_H}h + 观象/营造 ${offlineCapHours() - TUNING.OFFLINE.CAP_H - memberBonus('offlineH')}h + 会员 ${memberBonus('offlineH')}h</b></span>
       </div></div>
+    ${(()=>{
+      // 会员（预留）：现在没有账号系统，所以这里只列「将来会有什么」，不提供任何购买入口。
+      // 权益表来自 TUNING.MEMBER.TIERS，改数值不用动这段 UI。
+      const cur = memberTier();
+      const rows = Object.values(TUNING.MEMBER.TIERS).filter(t => t.name !== '未开通').map(t => {
+        const on = (t === cur);
+        const bits = [];
+        if (t.offlineH) bits.push(`离线上限 +${t.offlineH}h`);
+        if (t.xp) bits.push(`修为 +${Math.round(t.xp*100)}%`);
+        if (t.yield) bits.push(`采获 +${Math.round(t.yield*100)}%`);
+        if (t.drop) bits.push(`掉落 +${Math.round(t.drop*100)}%`);
+        if (t.offlineEff) bits.push(`离线效率 +${Math.round(t.offlineEff*100)}%`);
+        return `<div class="mem-row${on?' on':''}"><b>${esc(t.name)}</b><span>${bits.join(' · ')}</span></div>`;
+      }).join('');
+      return `<div class="panel stat-panel mem-panel"><h3>会员 · ${esc(cur.name)}</h3>
+        <div class="mem-list">${rows}</div>
+        <p class="hint">会员将由<b>账号系统</b>统一开通与校验（尚未接入，当前恒为未开通）。
+        权益只加离线时长与产出，<b>不加战力</b>——付费不该买到关卡的通过权；到期自动失效。</p>
+      </div>`;
+    })()}
     <div class="panel stat-panel save-panel"><h3>存档</h3>
       <div class="stat-rows">
         <button class="btn" onclick="saveGame();UI.toast('已存档')">手动存档（S）</button>

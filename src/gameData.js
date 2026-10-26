@@ -58,7 +58,22 @@ const TUNING = {
   // 掉落权重：weight = base × (1 + LVL_COEF·(等级−需求)) × (1 + MAS_COEF·著录阶/4)
   DROP: { LVL_COEF: 0.02, MAS_COEF: 0.3, MIN: 0.1, MAX: 5 },
   // 离线结算：offlineGain = onlineRate × eff × min(时长, 上限)
-  OFFLINE: { EFF_BASE: 0.55, EFF_PER: 0.05, EFF_MAX: 0.85, CAP_H: 12 },
+  // 离线：2026-10-26 起基线 12h → 24h。挂机游戏的真实节奏是「上班一天回来」，
+  // 12h 意味着上一天班只结算一半，这条上限此前一直是玩家最先撞到的墙。
+  // 会员（MEMBER）在此之上叠加，见下一节。
+  OFFLINE: { EFF_BASE: 0.55, EFF_PER: 0.05, EFF_MAX: 0.85, CAP_H: 24 },
+  // 会员（预留，v1.31.19）：现在没有账号系统，这里只有一张「权益表」——
+  // 登录后由账号层把 tier / 到期时刻写进存档的 member 字段，所有加成都走 memberBonus()。
+  // ⚠️ 数值是**可调的建议值**，不是已定价的方案；加档位只改这张表，不动业务代码。
+  // ⚠️ 会员只加「时长与产出」，不加战力——付费不该买到关卡的通过权。
+  MEMBER: {
+    DEFAULT: 'none',
+    TIERS: {
+      none: { name:'未开通', offlineH:0,  xp:0,    yield:0,    drop:0,    offlineEff:0 },
+      lite: { name:'山客',   offlineH:12, xp:0.10, yield:0.10, drop:0.05, offlineEff:0.05 },
+      zhu:  { name:'著录使', offlineH:24, xp:0.20, yield:0.20, drop:0.10, offlineEff:0.10 },
+    },
+  },
   // 五行：相克 ×1.35｜被克 ×0.75｜同属 ×1.00｜相生增益 ×1.15
   WUXING: { KE: 1.35, BEIKE: 0.75, TONG: 1.00, SHENG: 1.15 },
   ELEMENTS: ['金','木','水','火','土'],
@@ -2582,8 +2597,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.18',
-  codename:'守关 · 三器',
+  version: '1.31.19',
+  codename:'昼巡 · 会员',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',

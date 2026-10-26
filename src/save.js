@@ -9,7 +9,7 @@
 //
 // 依赖：仅用标准 Web API，不引用本项目其它模块（保证可独立测试）。
 
-const SAVE_VERSION = 4;                       // 当前存档结构版本
+const SAVE_VERSION = 5;                       // 当前存档结构版本（v5：会员权益快照）
 const SAVE_KEY = 'shj_zhulu_save_v1';         // 本地存档键（沿用旧键，旧档直接可读）
 const SAVE_TIME_KEY = SAVE_KEY + '_time';     // 最后写入时间戳（离线结算用）
 const SAVE_META_KEY = 'shj_zhulu_meta_v1';    // 元数据：rev / dirty / savedAt / deviceId
@@ -26,6 +26,12 @@ const SAVE_MIGRATIONS = {
     d.mobStreak = (d.mobStreak && typeof d.mobStreak === 'object') ? d.mobStreak : {};
     d.orders = Array.isArray(d.orders) ? d.orders : [];
     d.ordersAt = isFinite(d.ordersAt) ? d.ordersAt : 0;
+    return d;
+  },
+  // v4 → v5：会员权益快照（现在恒为未开通；账号系统登录后写入 tier / until）
+  4: (d) => {
+    const m = (d.member && typeof d.member === 'object') ? d.member : {};
+    d.member = { tier: typeof m.tier === 'string' ? m.tier : 'none', until: isFinite(m.until) ? m.until : 0 };
     return d;
   },
   // v3 → v4：轮回记录（转生次数 / 时刻 / 历史最高总等级）
@@ -89,6 +95,8 @@ function serializeSave(){
     mobStreak: G.mobStreak || {}, orders: G.orders || [], ordersAt: G.ordersAt || 0,
     enhance: G.enhance || {}, enhanceHeat: G.enhanceHeat || {}, affixSalt: G.affixSalt || {},
     rebirth: G.rebirth || { count:0, at:0, best:0 },
+    // 会员权益快照：由账号层写入，本地只读；未登录时恒为 { tier:'none', until:0 }
+    member: G.member || { tier:'none', until:0 },
     bounties: Array.isArray(G.bounties) ? G.bounties.slice(0, 3) : [],
     // 只记「离山时在打谁」，不记战斗细节：战斗本身不跨会话恢复（见 applySave 注释），
     // 这一项只为离线结算知道该往哪只怪身上算账。

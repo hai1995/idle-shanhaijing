@@ -2400,7 +2400,7 @@ section('云端化存档层');
   const engSrc2 = readText('src/engine.js');
   // 28.1 独立存档模块存在且已接入加载顺序
   assert(!!SM, 'SaveManager 已加载');
-  assert(/const SAVE_VERSION = 4/.test(saveSrc), '存档结构版本号为 4（轮回记录）');
+  assert(/const SAVE_VERSION = 5/.test(saveSrc), '存档结构版本号为 5（会员权益快照）');
   assert(indexOfOf('index.html', 'src/save.js') < indexOfOf('index.html', 'src/engine.js'), 'save.js 在 engine.js 之前加载');
   // 28.2 engine 只做委托，不再直接写 localStorage
   assert(/SaveManager\.save\(\)/.test(engSrc2), 'saveGame 委托 SaveManager.save');
@@ -6239,6 +6239,60 @@ section('快速挂机');
   assert(/band: true/.test(readText('src/engine.js')), 'Prefs.band 进偏好（随存档持久化）');
   G.resetToDefault();
   ST.Prefs.band = true;
+}
+
+// ============ 114. 离线基线与会员（预留） ============
+// 2026-10-26 项目主定：离线基线 12h → 24h；会员权益走「一处权益表 + 一处取加成」，
+// 现在没有账号系统，member 恒为未开通，行为必须与从前完全一致。
+{
+  G.resetToDefault();
+  assert(ST.TUNING.OFFLINE.CAP_H === 24, '离线基线 24 小时（' + ST.TUNING.OFFLINE.CAP_H + '）');
+  assert(ST.offlineCapHours() === 24, '新档离线上限就是 24 小时（' + ST.offlineCapHours() + '）');
+  assert(ST.memberTierId() === 'none' && !ST.isMember(), '未登录即未开通，默认档位为 none');
+  assert(ST.memberBonus('offlineH') === 0 && ST.memberBonus('xp') === 0, '未开通时所有加成为 0');
+
+  // 一档：离线上限与时长的关系
+  const tiers = ST.TUNING.MEMBER.TIERS;
+  ST.Game.member = { tier: 'lite', until: Date.now() + 86400000 };
+  assert(ST.memberTierId() === 'lite' && ST.isMember(), '有账号写入的档位即生效');
+  assert(ST.offlineCapHours() === 24 + tiers.lite.offlineH, '山客：24 + ' + tiers.lite.offlineH + ' = ' + ST.offlineCapHours() + ' 小时');
+  ST.Game.member = { tier: 'zhu', until: Date.now() + 86400000 };
+  assert(ST.offlineCapHours() === 24 + tiers.zhu.offlineH, '著录使：24 + ' + tiers.zhu.offlineH + ' = ' + ST.offlineCapHours() + ' 小时');
+
+  // 加成口径：只加时长与产出，不加战力
+  for (const sid of ST.ALL_SKILL_IDS) ST.Game.skills[sid] = { level: 60, xp: 0 };
+  ST.Game.member = { tier: 'none', until: 0 };
+  const xp0 = ST.xpMult(), yield0 = ST.globalYieldBonus(), eff0 = ST.offlineEff();
+  ST.Game.gear.weapon = ST.Items.bailianjian; ST.Game.combat = { monsterId: 'baiyuan', monsterHp: 10 };
+  const dmg0 = ST.playerDamageRange();
+  ST.Game.member = { tier: 'zhu', until: Date.now() + 86400000 };
+  assert(ST.xpMult() > xp0, '会员加修为（' + xp0.toFixed(2) + ' → ' + ST.xpMult().toFixed(2) + '）');
+  assert(ST.globalYieldBonus() > yield0, '会员加采获（' + yield0.toFixed(2) + ' → ' + ST.globalYieldBonus().toFixed(2) + '）');
+  assert(ST.offlineEff() > eff0, '会员把离线效率的上限也抬一档（' + eff0.toFixed(2) + ' → ' + ST.offlineEff().toFixed(2) + '）');
+  const dmg1 = ST.playerDamageRange();
+  assert(dmg1.lo === dmg0.lo && dmg1.hi === dmg0.hi, '会员不加战力（伤害 ' + dmg0.lo + '-' + dmg0.hi + ' 不变）——付费不买关卡通过权');
+  ST.Game.combat = null;
+
+  // 到期即失效 / 未知档位回落
+  ST.Game.member = { tier: 'zhu', until: Date.now() - 1000 };
+  assert(ST.memberTierId() === 'none' && ST.offlineCapHours() === 24, '到期即刻失效，上限回到 24 小时');
+  ST.Game.member = { tier: '不存在的档位', until: Date.now() + 86400000 };
+  assert(ST.memberTierId() === 'none', '未知档位回落为未开通，不报错也不放行');
+
+  // 存档：v5 白名单 + 迁移
+  ST.Game.member = { tier: 'lite', until: 123 };
+  const snap = ST.serializeSave();
+  assert(snap.version === 5 && snap.member && snap.member.tier === 'lite', '会员快照进存档（v5）');
+  const old = ST.migrateSave({ version: 4, skills: {} });
+  assert(old.version === 5 && old.member && old.member.tier === 'none', 'v4 旧档迁移补出「未开通」');
+
+  // UI：只列权益、不给购买入口
+  const mis = readText('src/ui/misc.js');
+  assert(mis.includes('mem-panel') && mis.includes('TUNING.MEMBER.TIERS'), '统计页会员面板由权益表驱动');
+  assert(!/开通会员|立即购买|充值/.test(mis), '页面不提供购买入口（开通走账号系统）');
+  assert(/基础 \$\{TUNING.OFFLINE.CAP_H\}h/.test(mis), '离线上限写明「基础 24h + 观象/营造 + 会员」三段构成');
+
+  G.resetToDefault();
 }
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
