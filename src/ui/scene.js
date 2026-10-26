@@ -60,21 +60,8 @@ function sceneState(){
 }
 
 // 场景里的小人：一具躬身劳作的水墨人形，面朝右侧的挖掘点。
-// 上一版画成直立举棍，看着像「站着拿根棍子」——人必须**弓着背、锄头落地**才像在干活，
-// 所以背是向右下弯的一道弧，锄柄从手 (30,38) 斜插到地面 (41,66)。
+// 工具**不在**这个 SVG 里——理由见 sceneTool()。
 function sceneWorker(kind){
-  const tool = (kind === 'gather')
-    ? `<g class="sc-tool">
-         <path d="M30 38 L41 66" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>
-         <path d="M36.4 67.6 L46.2 63.7" stroke="currentColor" stroke-width="3.6" stroke-linecap="round"/>
-         <path d="M37.2 67.3 L45.4 64" stroke="#B03A2B" stroke-width="1.6" stroke-linecap="round" opacity=".85"/>
-       </g>`
-    : (kind === 'craft')
-    ? `<g class="sc-tool">
-         <path d="M30 38 L38 48" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>
-         <rect x="34" y="44" width="10" height="7" rx="1.2" fill="currentColor" opacity=".9"/>
-       </g>`
-    : '';
   return `<svg class="sc-worker" viewBox="0 0 60 70" aria-hidden="true">
     <g class="sc-figure">
       <path d="M16 20 Q24 25 26 41 L17 44 Q13 31 16 20 Z" fill="currentColor" opacity=".5"/>
@@ -82,9 +69,30 @@ function sceneWorker(kind){
       <path d="M21 42 L18 56 L17 67" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" fill="none"/>
       <path d="M23 42 L27 56 L29 67" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" fill="none"/>
       <path d="M18 25 Q24 32 30 38" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/>
-      ${tool}
     </g>
   </svg>`;
+}
+
+// 工具单独成一个 SVG，**绕左上角（握点）旋转**。
+// 为什么不在人物 SVG 里当 <g>：<g> 上靠 CSS transform 转动，
+// 在部分移动端内核对不齐，表现就是「人站着、锄头不动」——这正是 v1.31.54 上线后
+// 手机端反馈的现象。改成独立 SVG 根元素 + JS 每帧设 transform 之后，
+// 走的是最普通的一条路径：一个 HTML 元素、一条内联 transform，没有内核会不支持。
+function sceneTool(kind){
+  if (kind === 'gather'){
+    return `<svg class="sc-tool" viewBox="0 0 34 34" aria-hidden="true">
+      <path d="M0 0 L12 29" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M7.9 30.7 L16.2 27.3" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+      <path d="M8.6 30.4 L15.6 27.6" stroke="#B03A2B" stroke-width="1.8" stroke-linecap="round" opacity=".85"/>
+    </svg>`;
+  }
+  if (kind === 'craft'){
+    return `<svg class="sc-tool" viewBox="0 0 34 34" aria-hidden="true">
+      <path d="M0 0 L9 15" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+      <rect x="6" y="11" width="11" height="7.5" rx="1.2" fill="currentColor" opacity=".9"/>
+    </svg>`;
+  }
+  return '';
 }
 
 // 远山：三层折线，最远最淡。宽度随容器拉伸（preserveAspectRatio=none），
@@ -122,7 +130,7 @@ function sceneHtml(s){
         stroke-width="1" vector-effect="non-scaling-stroke"/>
     </svg>
     <div class="sc-stage">
-      <div class="sc-rig">${sceneWorker(s.kind)}</div>
+      <div class="sc-rig">${sceneWorker(s.kind)}${sceneTool(s.kind)}</div>
       <div class="sc-pit"><i></i><i></i><i></i></div>
       <svg class="sc-mound" viewBox="0 0 18 7" aria-hidden="true">
         <path d="M1 6 Q9 0 17 6 Z" fill="currentColor" fill-opacity=".2"/>
@@ -156,12 +164,17 @@ UI.renderScene = function(){
   // 同一件事（挖到几分）在屏幕上下各画一根，是纯冗余。进度改由现场底部那根承担。
   const sb = (typeof document !== 'undefined') ? document.getElementById('statusbar') : null;
   if (sb && sb.classList) sb.classList.toggle('scene-on', !!s);
-  if (!s){ bar.classList.add('hidden'); bar.innerHTML = ''; UI._sceneSig = 'none'; return; }
+  if (!s){
+    bar.classList.add('hidden'); bar.innerHTML = ''; UI._sceneSig = 'none';
+    if (UI.stopSceneMotion) UI.stopSceneMotion();
+    return;
+  }
   bar.classList.remove('hidden');
   const sig = sceneSig(s);
   if (sig !== UI._sceneSig){
     UI._sceneSig = sig;
     bar.innerHTML = sceneHtml(s);
+    if (UI.startSceneMotion) UI.startSceneMotion();     // 重建后重新接管
   }
 };
 
@@ -210,7 +223,66 @@ UI.sceneBeat = function(itemId, qty, opts){
   }
 };
 
+// ---------- 动作驱动：每帧按「引擎自己的进度」算角度 ----------
+// 为什么不用 CSS 关键帧：v1.31.54/55 两版都写了 CSS 动画，桌面正常，
+// 但手机端反馈「完全不动」——`<g>` 上的 CSS transform、以及 animation 简写里的
+// var(--ai)，在部分移动端内核里都不保证生效。与其逐个猜，不如换成最土的办法：
+// **一个 HTML 元素 + 一条内联 transform，每帧由 JS 写**。这条路没有内核会不支持。
+//
+// 附带好处：相位不另建时间基准，直接取引擎的 activityProgress / interval，
+// 于是暂停、变速、换物、离线补算之后，锄头永远落在正确的相位上。
+const SCENE_SWING = [
+  [0, 6], [15, -98], [29, 4], [34, 6], [56, -114], [68, -108], [92, 4], [100, 6],
+];
+const SCENE_RIG = [
+  [0, 0], [15, -2.2], [29, 3.2], [40, .4], [56, -2.6], [68, -2.2], [92, 3.6], [100, 0],
+];
+
+// 分段插值。纯线性的挥动像机械臂，故每段中间加一点缓动。
+function sceneAngleAt(frames, p){
+  const x = Math.max(0, Math.min(100, p * 100));
+  for (let i = 1; i < frames.length; i++){
+    if (x <= frames[i][0]){
+      const a = frames[i-1], b = frames[i];
+      const span = (b[0] - a[0]) || 1;
+      const k = (x - a[0]) / span;
+      const e = k < .5 ? 2*k*k : 1 - Math.pow(-2*k + 2, 2) / 2;
+      return a[1] + (b[1] - a[1]) * e;
+    }
+  }
+  return frames[frames.length-1][1];
+}
+
+UI.stopSceneMotion = function(){
+  if (UI._sceneRaf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(UI._sceneRaf);
+  UI._sceneRaf = 0;
+};
+
+UI.startSceneMotion = function(){
+  if (typeof requestAnimationFrame !== 'function' || typeof document === 'undefined') return;
+  if (UI._sceneRaf) return;                    // 已在跑，不叠加
+  // 动效关掉时保留静帧：画面还在（知道在做什么），只是不动
+  if (typeof Prefs !== 'undefined' && Prefs.fxLevel === 'off') return;
+  const step = ()=>{
+    UI._sceneRaf = requestAnimationFrame(step);
+    const bar = document.getElementById('sceneBar');
+    if (!bar) return;
+    const tool = bar.querySelector('.sc-tool');
+    const rig  = bar.querySelector('.sc-rig');
+    if (!tool && !rig) return;
+    const iv = (typeof currentActionInterval === 'function') ? currentActionInterval() : 1;
+    const prog = (typeof activityProgress === 'number') ? activityProgress : 0;
+    const p = (iv > 0) ? Math.max(0, Math.min(1, prog / iv)) : 0;
+    if (tool) tool.style.transform = 'rotate(' + sceneAngleAt(SCENE_SWING, p).toFixed(2) + 'deg)';
+    if (rig)  rig.style.transform  = 'rotate(' + sceneAngleAt(SCENE_RIG, p).toFixed(2) + 'deg)';
+  };
+  UI._sceneRaf = requestAnimationFrame(step);
+};
+
 if (typeof window !== 'undefined'){
+  window.sceneAngleAt = sceneAngleAt;
+  window.SCENE_SWING = SCENE_SWING;
+  window.SCENE_RIG = SCENE_RIG;
   window.sceneState = sceneState;
   window.sceneHtml = sceneHtml;
   window.sceneSig = sceneSig;

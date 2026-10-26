@@ -326,17 +326,16 @@ html.theme-anim, html.theme-anim *{
   color:inherit;
 }
 /* 52×60 是折中：人占场景高约七成，再大就顶到山线，再小就只剩一个符号。 */
+.sc-rig{ position:relative; width:52px; height:60px; transform-origin:50% 100%; }
 .sc-worker{ display:block; width:52px; height:60px; }
-/* 整体俯仰：包一层 div 做 rotate。这是兼容性最好的一层——
-   SVG 内部元素的 CSS transform 在部分内核对不齐，整个人一起动就不会「定住」。 */
-.sc-rig{ transform-origin:50% 100%; animation:scRig var(--ai) ease-in-out infinite; }
-/* 原点落在脚上：呼吸是「身子轻微起伏」，脚不动 */
-.sc-figure{ transform-origin:24px 68px; animation:scBreath 3.4s ease-in-out infinite; }
-/* 原点在手上：锄头绕握点旋转。transform-box 显式写成 view-box，
-   让 px 原点按 viewBox 坐标解释，而不是元素自身的 bbox。 */
+/* 呼吸：固定 3.4s，与采集间隔无关，作为「人活着」的底噪 */
+.sc-figure{ transform-box:view-box; transform-origin:24px 68px; animation:scBreath 3.4s ease-in-out infinite; }
+/* 工具：独立 SVG，绕左上角（握点）旋转。transform 由 JS 每帧写，不用 CSS 动画——
+   详见 src/ui/scene.js 上方那段注释（手机端 CSS 动画不生效的教训）。 */
 .sc-tool{
-  transform-box:view-box; transform-origin:30px 38px;
-  animation:scSwing var(--ai) ease-in-out infinite;
+  position:absolute; left:26px; top:32px; width:34px; height:34px;
+  overflow:visible; transform-origin:0 0; color:inherit;
+  will-change:transform;
 }
 
 @keyframes scBreath{
@@ -345,40 +344,16 @@ html.theme-anim, html.theme-anim *{
 }
 /* 落下排在周期末尾：引擎在 interval 走满时产出，此刻锄头正好砸到地上——
    因果对齐，玩家看到的是「这一锄挖出来的」，而不是「先出东西再动一下」。 */
-/* 一个采集周期挥两锄：第一锄松土，第二锄出土。
-   原先一个周期只挥一下，两秒多的间隔里几乎静止——玩家会以为动画没跑。
-   两锄把「动」的密度翻倍，而第二锄仍落在周期末尾，与引擎产出的时刻对齐。 */
-@keyframes scSwing{
-  0%  { transform:rotate(6deg); }
-  15% { transform:rotate(-98deg); }   /* 第一锄举起 */
-  29% { transform:rotate(4deg); }     /* 第一锄落下（松土） */
-  34% { transform:rotate(6deg); }
-  56% { transform:rotate(-114deg); }  /* 第二锄举得更高 */
-  68% { transform:rotate(-108deg); }  /* 最高点略停，有「抡」的分量 */
-  92% { transform:rotate(4deg); }     /* 第二锄落下 ← 引擎正好在这一刻产出 */
-  100%{ transform:rotate(6deg); }
-}
-/* 整个人随锄俯仰：举起时略后仰，落下时前俯 */
-@keyframes scRig{
-  0%  { transform:rotate(0deg); }
-  15% { transform:rotate(-2.2deg); }
-  29% { transform:rotate(3.2deg); }
-  40% { transform:rotate(.4deg); }
-  56% { transform:rotate(-2.6deg); }
-  68% { transform:rotate(-2.2deg); }
-  92% { transform:rotate(3.6deg); }
-  100%{ transform:rotate(0deg); }
-}
 /* 土粒：与挥锄同一周期，只在落下那一段可见 */
 .sc-pit{ position:absolute; left:31px; bottom:1px; width:20px; height:8px; }
 .sc-mound{ position:absolute; left:47px; bottom:1px; width:18px; height:7px; color:inherit; }
 .sc-pit i{
   position:absolute; left:5px; bottom:0; width:3px; height:3px; border-radius:50%;
   background:currentColor; opacity:0;
-  animation:scDust var(--ai) ease-out infinite;
+  animation:scDust 2.6s ease-out infinite;
 }
-.sc-pit i:nth-child(2){ left:9px; animation-delay:calc(var(--ai) * -.04); }
-.sc-pit i:nth-child(3){ left:2px; animation-delay:calc(var(--ai) * -.07); }
+.sc-pit i:nth-child(2){ left:9px; animation-delay:-.1s; }
+.sc-pit i:nth-child(3){ left:2px; animation-delay:-.2s; }
 @keyframes scDust{
   0%, 25%{ opacity:0; transform:translate(0,0) scale(.7); }
   30%    { opacity:.34; transform:translate(-1px,-4px) scale(.85); }   /* 第一锄的小土 */

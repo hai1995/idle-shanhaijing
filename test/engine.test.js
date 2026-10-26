@@ -7878,22 +7878,33 @@ section('行动现场');
   const stA145 = ST.sceneState();
   assert(Math.abs(stA145.iv - ST.currentActionInterval()) < 1e-9, '场景间隔取自 currentActionInterval（不另算一套）');
   assert(ST.sceneHtml(stA145).indexOf(`--ai:${stA145.iv.toFixed(2)}s`) >= 0, '间隔写进 CSS 变量 --ai');
-  assert(cssSrc145.includes('animation:scSwing var(--ai)'), '挥锄动画的时长用 --ai');
-  assert(cssSrc145.includes('animation:scDust var(--ai)'), '土粒与挥锄同一周期');
+  // 动作不再用 CSS 关键帧：v1.31.54/55 两版写了 CSS 动画，桌面正常，
+  // 手机端反馈「完全不动」。改由 JS 每帧按引擎进度算角度、写内联 transform。
+  assert(typeof ST.sceneAngleAt === 'function', '角度插值在 JS 里');
+  assert(Array.isArray(ST.SCENE_SWING) && Array.isArray(ST.SCENE_RIG), '两张帧表：工具与身体');
+  assert(!cssSrc145.includes('animation:scSwing'), 'CSS 里不再有挥锄动画（手机端不可靠）');
+  assert(sSrc145.includes("tool.style.transform = 'rotate('"), '每帧写内联 transform');
 
   // 挥落时刻必须落在周期的后段：引擎在 interval 走满时产出，
   // 若锄头在 30% 就落下，玩家看到的是「先出东西、后动一下」。
-  const swing = (cssSrc145.match(/@keyframes scSwing\{[\s\S]*?\n\}/) || [''])[0];
-  assert(swing.length > 0, 'scSwing 帧存在');
-  assert(/9[0-9]%[^}]*rotate\(4deg\)/.test(swing), '落下（rotate 4deg）排在周期 90% 之后');
-  const dust = (cssSrc145.match(/@keyframes scDust\{[\s\S]*?\n\}/) || [''])[0];
-  assert(/93%/.test(dust), '土粒（第二锄那把）与挥落同时机');
-  // 一个周期挥两锄：第一锄松土、第二锄出土。只挥一下的话，两秒多的间隔里近乎静止，
-  // 盯着看的人会以为动画没跑——这正是 v1.31.54 上线的头一个反馈。
-  const swings = (swing.match(/rotate\(4deg\)/g) || []).length;
-  assert(swings >= 2, `一个周期挥两锄（实测 ${swings} 次落下）`);
-  assert(cssSrc145.includes('scRig'), '整个人随锄俯仰（不只锄头动）');
+  const at92 = ST.sceneAngleAt(ST.SCENE_SWING, 0.92);
+  const at15 = ST.sceneAngleAt(ST.SCENE_SWING, 0.15);
+  assert(Math.abs(at92 - 4) < 3, `周期 92% 时锄头在落下位置（实测 ${at92.toFixed(1)}°）`);
+  assert(at15 < -60, `周期 15% 时锄头高举（实测 ${at15.toFixed(1)}°）`);
+  // 一个周期挥两锄：第一锄松土、第二锄出土。只挥一下的话，两秒多的间隔里近乎静止。
+  const lands = ST.SCENE_SWING.filter(f => Math.abs(f[1] - 4) < 1).length;
+  assert(lands >= 2, `一个周期两次落下（实测 ${lands}）`);
+  assert(ST.SCENE_RIG.some(f => Math.abs(f[1]) > 2), '整个人随锄俯仰（不只锄头动）');
   assert(sSrc145.includes('sc-rig'), '俯仰层包在人物外（div 上的 transform 兼容性最好）');
+
+  // 相位取自引擎自己的进度，不另建时间基准——暂停、变速、换物都自动跟上
+  assert(sSrc145.includes('activityProgress / iv') || sSrc145.includes('prog / iv'), '相位取 activityProgress / interval');
+  assert(typeof ST.UI.startSceneMotion === 'function' && typeof ST.UI.stopSceneMotion === 'function', '有启动 / 停止');
+  assert(sSrc145.includes('requestAnimationFrame'), '用 rAF 每帧驱动');
+  // 工具从人物 SVG 里拆出来：<g> 上的 CSS transform 在部分移动端内核里不生效
+  assert(!/sceneWorker[\s\S]*?class="sc-tool"/.test(sSrc145.slice(0, sSrc145.indexOf('function sceneTool'))),
+    '工具不在人物 SVG 内部');
+  assert(/function sceneTool/.test(sSrc145) && sSrc145.includes('<svg class="sc-tool"'), '工具是独立的 SVG 根元素');
 
   // ---- 3. 版式：人、山、地、收成、记账，一个不少 ----
   const html145 = ST.sceneHtml(stA145);
