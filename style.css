@@ -89,6 +89,10 @@
   --ink-60:var(--ink-3);   --ink-30:var(--ink-4);   --ink-12:var(--rule-2);
   --line:var(--rule);      --radius:var(--r);
   --shadow:0 2px 10px rgba(31,29,25,.06);
+  /* 强调色块上的字色。日间那些强调色都是深底（深青 / 苔绿），配白字；
+     夜间同一批 token 被提亮成浅底，白字只剩 2.2:1——夜间最难读的恰恰是
+     「当前选中」的那一颗。所以这个也要跟主题走。 */
+  --on-accent:#fff;
 }
 
 /* ==========================================================================
@@ -122,6 +126,7 @@
   --chrome-tx:  #ECE6D8;
 
   --shadow:0 2px 12px rgba(0,0,0,.45);
+  --on-accent:#14110A;   /* 夜间的强调色是浅底，配近黑字 */
 }
 /* 滚动条与若干浅色 hover/边框在暗底需反相，否则隐没 */
 /* 暗底上的小字：11–12px 用 ink-3 在 #201B14 上只有约 4.8:1，实机截图偏糊。
@@ -753,8 +758,8 @@ html.theme-anim, html.theme-anim *{
 .btn.primary:hover:not(:disabled){ background:var(--zhu-d); border-color:var(--zhu-d); color:#fff; }
 .btn.danger{ background:transparent; color:var(--ink-2); border-color:var(--ink-4); }
 .btn.danger:hover:not(:disabled){ background:var(--ink); border-color:var(--ink); color:var(--paper-2); }
-.btn.on{ background:var(--qing); border-color:var(--qing-d); color:#fff; box-shadow:inset 0 1px 0 rgba(255,255,255,.14); }
-.btn.on:hover:not(:disabled){ background:var(--qing-d); color:#fff; }
+.btn.on{ background:var(--qing); border-color:var(--qing-d); color:var(--on-accent); box-shadow:inset 0 1px 0 rgba(255,255,255,.14); }
+.btn.on:hover:not(:disabled){ background:var(--qing-d); color:var(--on-accent); }
 .btn.small{ padding:4px 10px; font-size:11.5px; }
 .btn.tiny{ padding:2px 7px; font-size:11px; }
 .btn.lock{ opacity:.4; }
@@ -774,7 +779,7 @@ html.theme-anim, html.theme-anim *{
 }
 .chip-btn:hover{ border-color:var(--qing); color:var(--qing-d); background:rgba(255,255,255,.6); }
 .chip-btn.on{
-  background:var(--qing-d); border-color:var(--qing-d); color:#fff; font-weight:600;
+  background:var(--qing-d); border-color:var(--qing-d); color:var(--on-accent); font-weight:600;
 }
 .style-row .chip-btn,.zhu-row .chip-btn{ padding:6px 15px; font-size:12.5px; }
 .filter-row{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
@@ -836,7 +841,7 @@ html.theme-anim, html.theme-anim *{
 .terrain{ font-size:12.5px; color:var(--ink-2); margin-bottom:6px; }
 .haz-text{ color:var(--zhu); }
 .here-tag{
-  font-size:9.5px; letter-spacing:.1em; background:var(--tai); color:#fff;
+  font-size:9.5px; letter-spacing:.1em; background:var(--tai); color:var(--on-accent);
   border-radius:1px; padding:1px 5px; margin-left:6px; vertical-align:1px;
 }
 .meta{ font-size:11.5px; color:var(--ink-3); margin-bottom:8px; letter-spacing:.02em; }

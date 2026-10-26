@@ -1286,7 +1286,8 @@ try {
   arenaHp = renderTargets.content.innerHTML;
 } catch(e){ arenaOk = false; console.error('征伐页渲染异常：' + e.stack); }
 assert(arenaOk && arenaHp.indexOf('f-hp') >= 0, '征伐页渲染双方血条');
-assert(/\.chip-btn\.on\{[^}]*--qing-d/.test(css) && /\.chip-btn\.on\{[^}]*color:#fff/.test(css), '快捷按钮选中态为深底白字（高对比）');
+assert(/\.chip-btn\.on\{[^}]*--qing-d/.test(css) && /\.chip-btn\.on\{[^}]*color:var\(--on-accent\)/.test(css),
+  '快捷按钮选中态用「强调色底 + --on-accent 字」（日间白、夜间近黑，见第 157 节）');
 assert(css.includes('.style-row .chip-btn'), '战斗风格快捷行按钮放大增强可读性');
 {
   const used = new Set(), defined = new Set();
@@ -8411,6 +8412,35 @@ section('设置页版面');
   assert(cSrc156.includes('class="hint set-hint"'), '说明文字走独立的 .set-hint 行');
   assert(cssSrc156.includes('.set-hint{'), '有 .set-hint 样式');
   assert(/\.set-hint\{[^}]*overflow-wrap:anywhere/.test(cssSrc156), '长串（如 ?probe=1）也能断行');
+}
+
+// ============ 157. 夜间的「选中态」要读得清（2026-10-27 清晨） ============
+// 扫全站 13 页的文字对比度，夜间唯一低于 3:1 的居然是**当前选中**的那一颗：
+// 「全部 / 异兽 / 默认」这类 chip 用 `background:var(--qing-d); color:#fff`，
+// 而 --qing-d 在夜间被提亮成浅底（#8FB6CF），白字只剩 2.2:1。
+// 强调色底上的字色也得跟主题走：新增 --on-accent。
+section('夜间选中态对比度');
+{
+  const cssSrc157 = readText('style.css');
+  // 按主题选择器切一刀：前半是日间 token，后半是夜间覆盖。
+  // 不用正则去括号（:root 块里有 data-URI 与长注释，括号匹配不可靠）。
+  const themes = cssSrc157.split('[data-theme="night"]');
+  const dayPart = themes[0], nightPart = themes[1] || '';
+  assert(/--on-accent:\s*#fff/i.test(dayPart), '日间强调色底用白字');
+  assert(/--on-accent:\s*#[0-9A-Fa-f]{6}/.test(nightPart), '夜间另有一套（近黑）');
+  const lum = hex => {
+    const v = hex.replace('#','');
+    const f = n => { n /= 255; return n <= 0.03928 ? n/12.92 : Math.pow((n+0.055)/1.055, 2.4); };
+    return .2126*f(parseInt(v.slice(0,2),16)) + .7152*f(parseInt(v.slice(2,4),16)) + .0722*f(parseInt(v.slice(4,6),16));
+  };
+  // 夜间的 --qing-d（chip.on 的底色）必须与 --on-accent 形成可读对比
+  const qingD = (nightPart.match(/--qing-d:\s*(#[0-9A-Fa-f]{6})/) || [])[1];
+  const onAcc = (nightPart.match(/--on-accent:\s*(#[0-9A-Fa-f]{6})/) || [])[1];
+  assert(qingD && onAcc, '取得到夜间两个颜色');
+  const ratio = (Math.max(lum(qingD), lum(onAcc)) + .05) / (Math.min(lum(qingD), lum(onAcc)) + .05);
+  assert(ratio >= 4.5, '夜间选中态对比度 ≥ 4.5:1（实测 ' + ratio.toFixed(1) + '）');
+  assert(/\.chip-btn\.on\{[^}]*var\(--on-accent\)/.test(cssSrc157), 'chip 选中态用 token，不写死 #fff');
+  assert(/\.btn\.on\{[^}]*var\(--on-accent\)/.test(cssSrc157), '按钮选中态同样');
 }
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
