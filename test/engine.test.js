@@ -8286,6 +8286,18 @@ section('坏档字段');
   G.resetToDefault();
 }
 
+// ============ 153. 提示条要有无障碍播报（2026-10-26 夜间） ============
+// 提示（toast）是纯视觉的：读屏用户完全收不到「材料不足」「已著录」。加 aria-live 即可，
+// 不需要改 DOM 结构——播报由读屏软件自己取。aria-atomic 故意不加：一次弹好几条时，
+// 整块重读比「只读新增那条」吵得多。
+section('提示可播报');
+{
+  const hSrc = readText('index.html');
+  assert(/id="toasts"[^>]*aria-live="polite"/.test(hSrc), '提示容器是 polite 播报区');
+  assert(/id="toasts"[^>]*role="status"/.test(hSrc), '同时给 role=status（旧读屏认这个）');
+  assert(!/id="toasts"[^>]*aria-atomic/.test(hSrc), '不加 aria-atomic（多条同时弹会整块重读）');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
