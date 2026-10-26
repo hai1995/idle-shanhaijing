@@ -20,7 +20,11 @@ function startActivity(kind, arg, opts){
       if (!travelTo(it.node)) return false;
     }
     activityProgress = 0;
-    Game.activity = { kind:'gather', skill:it.skill, itemId:arg, src:'manual' };
+    // times: 采几次后自动停（与「限量制作」「战斗场次」同一套 remain 语义）。
+    // 不传 / null = 一直采——挂机时「采 3 次就停」反而是少数意图。
+    const gTimes = (opts && opts.times > 0) ? Math.floor(opts.times) : null;
+    if (opts && opts.times !== undefined) Prefs.lastGatherTimes = gTimes;
+    Game.activity = { kind:'gather', skill:it.skill, itemId:arg, src:'manual', remain:gTimes, total:gTimes };
   } else if (kind === 'craft'){
     const [type, out] = String(arg).split('::');
     const rec = Recipes.find(r=>r.type===type && r.out===out);

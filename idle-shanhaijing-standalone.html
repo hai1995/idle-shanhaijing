@@ -560,6 +560,10 @@ html.theme-anim, html.theme-anim *{
 }
 .search-box input::placeholder{ color:var(--ink-4); }
 .search-box input::-webkit-search-cancel-button{ -webkit-appearance:none; }
+/* 图鉴的分类 chips 包在 #codexTabs 里：局部刷新只换这一块，检索框才不会被重建
+   （中文输入法的组合态挂在 input 上，重建即断）。display:contents 让这层包装
+   不参与布局——chips 仍是 filter-row 的直接弹性子项，换行与间距都不变。 */
+.codex-tabs{ display:contents; }
 
 /* ==========================================================================
    通用元素
@@ -1415,6 +1419,8 @@ svg.bi.mk{ vertical-align:-2px; }
 /* 统计页「近况」：数值与单位分开排，单位小一号，扫一眼只看到数 */
 .rate-rows b{ font-family:var(--f-num); }
 .rate-rows b i{ font-style:normal; font-size:9.5px; font-weight:400; color:var(--ink-4); margin-left:1px; }
+/* 卡住告警：朱色提醒，但不做成警报条——它多半是「缺料了」这一件小事 */
+.stall-warn{ color:var(--zhu-d); }
 /* 「强化至 +N」的预估行：填了目标才出现 */
 .enh-est{
   margin:4px 0 0; font-family:var(--f-num); font-size:10.5px; line-height:1.5;
@@ -1617,8 +1623,6 @@ svg.bi.mk{ vertical-align:-2px; }
 .trade-tip h3{ color:var(--jin); }
 .trade-tip ul{ margin:6px 0 0; padding-left:20px; }
 .trade-tip li{ margin:4px 0; font-size:12px; line-height:1.7; }
-.price-trend{ display:inline-flex; align-items:center; gap:6px; font-family:var(--f-num); font-size:11px; color:var(--ink-4); }
-.spark{ display:block; }
 
 /* ==========================================================================
    行动（巡历队列）
@@ -19374,7 +19378,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.45',
+  version: '1.31.46',
   codename:'昼巡 · 近况',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -20180,7 +20184,6 @@ const Game = {
   riteAuto: {},          // 续祭开关 { riteId: true }：到期前自动重备祭品
   riteStall: {},         // 续祭待料 { riteId: true }：开关仍开，只等祭品凑齐
   omensPending: [],      // 烽烟：凶兆预告 [{ id, at, soft }]，烽火台建成时才有
-  priceHistory: [],      // 售价走势采样 [{ t, m }]（onSecond 每 60 秒落一点）
   recentLoot: [],        // 最近战利品 [{ itemId, qty }]
   omenImmune: {},        // 征兆免疫 { omenId: true }（鵕鸟/大鹗所赐，或御使駮）
   danmu: { stage:0, done:0 },  // 峚山丹木养成进度
@@ -20225,6 +20228,7 @@ const Prefs = {
   hideHint: false,       // 关闭常驻「下一步建议」指引条（可在设置中重新开启）
   band: true,            // 卷二难度带：九九 + 轮回之后自动生效，可关掉回头打本卷
   recipeSkill: null,     // 制作配方停留的分类；null = 自动（按「能做的最高级配方」定）
+  lastGatherTimes: null, // 上次手动设定的采集次数（null = 一直采）；下次弹出预填
 };
 
 function cloneDefaultGame(){
@@ -20236,7 +20240,7 @@ function cloneDefaultGame(){
   g.inventory = { gui:5, shashi:5, guaimu:3, jing:3, zhuyu:3, tu:5, jiagufan:2, shuiping:2 };
   g.banking = {}; g.farms = {}; g.records = {}; g.map = { 'nanshan-1-01': true };
   g.observed = {}; g.buildings = {}; g.deployed = {}; g.omens = []; g.rites = {}; g.recentLoot = [];
-  g.riteOf = {}; g.riteAuto = {}; g.riteStall = {}; g.priceHistory = []; g.omensPending = [];
+  g.riteOf = {}; g.riteAuto = {}; g.riteStall = {}; g.omensPending = [];
   g.omenImmune = {}; g.danmu = { stage:0, done:0 }; g.grow = {}; g.buff = null;
   g.node = 'nanshan-1-01'; g.activity = null; g.combat = null;
   g.queue = []; g.queueIdx = 0; g.queueRound = 0; g.queueRunning = false; g.queueLoop = true; g.fallback = null;
@@ -23640,25 +23644,44 @@ function rateSummary(winSec){
   };
 }
 window.sampleRate = sampleRate; window.rateSummary = rateSummary;
+// 卡住了吗：有行动，却在几分钟里一点修为都没涨。
+// 挂机最怕「以为在跑，其实早停了」——顶栏一直写着「樵采·桂」，人不在跟前根本发现不了。
+// 判据取修为而不是动作数：performAction 先记 actions 再执行，产地不符这类失败也会 +1，
+// 拿它当「还在动」的证据会漏报。慢动作（灌木一阶一小时）本来就该闲着，先按间隔排掉。
+function rateStall(){
+  const a = Game.activity;
+  if (!a) return null;
+  if (a.kind !== 'gather' && a.kind !== 'craft') return null;
+  if (currentActionInterval() * 3 > 120) return null;
+  const h = Game.rateHistory || [];
+  if (h.length < 8) return null;
+  const end = h[h.length - 1], start = h[Math.max(0, h.length - 9)];
+  const dt = end.t - start.t;
+  if (dt < 240) return null;
+  if (end.xp > start.xp) return null;              // 还在动
+  return { seconds: dt, kind: a.kind, itemId: a.itemId || null };
+}
+window.rateStall = rateStall;
 
 function onSecond(){
   if (Object.keys(Game.farms).length){ farmTick(1); if (UI && UI.patchFarmsProgress) UI.patchFarmsProgress(); }
   if (UI && UI.patchSkillBars) UI.patchSkillBars();      // 技能页经验条秒级跟进（不重建节点）
   if (UI && UI.checkFarmUnlock) UI.checkFarmUnlock();    // 圃艺升级后新田开垦提示
   if (UI && UI.patchQueueProgress) UI.patchQueueProgress();   // 巡历队列：进度/当前标记/轮数秒级兜底
-  // 售价走势采样：倍率随商旅/营造/御使/征兆而变，倍率一变或每满 60 秒留一个点，
-  // 挂机时也有轨迹可看（渲染时只读，不再有采样副作用）
-  if (!Game.priceHistory) Game.priceHistory = [];
-  { const _tm = tradeMult(), _pm = Game.priceHistory[Game.priceHistory.length-1];
-    if (!_pm || Math.abs(_pm.m - _tm) > 1e-3 || Date.now() - _pm.t > 60*1000){
-      Game.priceHistory.push({ t: Date.now(), m: +_tm.toFixed(3) });
-      if (Game.priceHistory.length > 24) Game.priceHistory.shift();
-    } }
   Game.stats.time++;
   sampleRate();             // 效率采样：近 20 分钟的每小时收益（统计页读）
   tickOmens();
   tickAutoRites();          // 续祭：到期前 60 秒自动重备一份祭品
   checkMilestoneToast();
+  // 卡住告警：判据与统计页「近况」同源（rateStall）。只提醒一次，冷却 15 分钟——
+  // 这类提示宁少勿多，真卡住了玩家自己会去看；没卡住而每秒弹一次就成了噪音。
+  if (!Game._stallAt || (Game.stats.time - Game._stallAt) > 900){
+    const st = rateStall();
+    if (st && UI && UI.toast){
+      Game._stallAt = Game.stats.time;
+      UI.toast(`⚠ 几分钟没有进展：${currentActivityLabel()} 可能卡住了（缺料 / 产地不符 / 队列阻塞）`);
+    }
+  }
   bountyTick();             // 三签：每秒比三条计数，代价可忽略
   // 闲置兜底：真正无事可做（无行动/战斗/队列）且偏好开启时，累计够久就自动接上默认行动
   if (!Game.activity && !Game.combat && !Game.queueRunning && Prefs.idleFallback !== false){
@@ -23702,7 +23725,22 @@ function performAction(a){
   const produced = actionOutputId(a);
   const before = produced ? totalOf(produced) : 0;
   switch(a.kind){
-    case 'gather':  doGather(a.itemId); break;
+    case 'gather':
+      doGather(a.itemId);
+      // 限量采集：采满即止（与限量制作同一套 remain 语义）。
+      // 必须确认 Game.activity 仍是这一个 a —— doGather 遇到越级门槛 / 产地不符会把它清掉。
+      if (Game.activity === a && a.remain != null){
+        a.remain--;
+        if (a.remain <= 0){
+          const nm = (Items[a.itemId] || {}).name || '此物';
+          Game.activity = null;
+          UI && UI.toast(`✓ 已采 ${nm} ${a.total || 0} 次`);
+          UI && UI.refreshActivity && UI.refreshActivity();
+        } else {
+          UI && UI.patchActivityCount && UI.patchActivityCount();   // 顶栏「余 N 次」当场少一
+        }
+      }
+      break;
     case 'craft':   doRecipeAction(a); break;
     case 'observe': doObserve(a.siteId); Game.activity = null; break;
     case 'audience': doAudience(a.nodeId, { oracle: a.src === 'manual' });
@@ -23951,7 +23989,9 @@ function settleAway(seconds){
     const gap = it ? ((it.lvl || 1) - levelOf(it.skill)) : 99;
     const overEff = gap <= 0 ? 1 : Math.max(0.35, 1 - gap * 0.08);
     if (it && (allYield || nodes.indexOf(Game.node) >= 0) && gap <= 8){
-      const times = Math.floor(seconds / (gatherInterval(it.skill) * geoGatherMul(Game.node)));
+      // 限量采集离线同样只算这么多下：设了「采 10 次」就去睡觉，回来不该是一整仓。
+      const full = Math.floor(seconds / (gatherInterval(it.skill) * geoGatherMul(Game.node)));
+      const times = a.remain != null ? Math.min(full, a.remain) : full;
       summary.acts.gather = times;
       addXp(it.skill, it.xp * times);
       // 离线采集也算祠礼加成，否则「挂着挖矿」反而是唯一吃不到礼的玩法。
@@ -23964,6 +24004,11 @@ function settleAway(seconds){
       const recs = Math.floor(times * eff * 1.2);
       for (let i=0;i<recs;i++) recordObject(a.itemId, 1);
       summary.records += recs;
+      // 采满即收手，别留一个「余 0 次」的空活动在顶栏
+      if (a.remain != null){
+        a.remain -= times;
+        if (a.remain <= 0) Game.activity = null;
+      }
     }
   } else if (a && a.kind === 'craft'){
     // 每件耗时按 currentActionInterval() 现算：线上制作会吃到毕方「讹火」的 -20%
@@ -26478,7 +26523,11 @@ function startActivity(kind, arg, opts){
       if (!travelTo(it.node)) return false;
     }
     activityProgress = 0;
-    Game.activity = { kind:'gather', skill:it.skill, itemId:arg, src:'manual' };
+    // times: 采几次后自动停（与「限量制作」「战斗场次」同一套 remain 语义）。
+    // 不传 / null = 一直采——挂机时「采 3 次就停」反而是少数意图。
+    const gTimes = (opts && opts.times > 0) ? Math.floor(opts.times) : null;
+    if (opts && opts.times !== undefined) Prefs.lastGatherTimes = gTimes;
+    Game.activity = { kind:'gather', skill:it.skill, itemId:arg, src:'manual', remain:gTimes, total:gTimes };
   } else if (kind === 'craft'){
     const [type, out] = String(arg).split('::');
     const rec = Recipes.find(r=>r.type===type && r.out===out);
@@ -27455,19 +27504,7 @@ const UI = {
   },
   refreshActivity(){
     const t = $('activityText');
-    if (t){
-      const a = Game.activity;
-      let label = '空闲';
-      if (a){
-        label = currentActivityLabel();
-        const node = currentActivityNodeLabel();
-        if (node) label += `（${node}）`;
-        if (a.src === 'fallback') label += '（兜底）';   // 闲置兜底自动接上的行动，标出来
-      } else if (Game.combat){
-        label = `往讨：${(Monsters[Game.combat.monsterId]||{}).name||''}`;
-      }
-      t.textContent = label;
-    }
+    if (t) t.textContent = activityLabelText();
     // 停止按钮：有「可停的行动」就出现——采集/制作等行动如此，往讨亦然
     // （停战结束当前这一场且不再自动接战，见 game.js stopActivity）
     const bs = $('btnStop');
@@ -28448,6 +28485,27 @@ function skillLevelBarHtml(id, name){
   </div>`;
 }
 
+// 顶栏状态条那一行字：闲 / 在采什么 / 在打谁 + 还剩几次。
+// 单独成函数是因为它有两个写入者——整页刷新（refreshActivity）与
+// 限量采集每采一下的就地改写（patchActivityCount），两处口径必须一致。
+function activityLabelText(){
+  const a = Game.activity;
+  if (!a) return Game.combat ? `往讨：${(Monsters[Game.combat.monsterId]||{}).name||''}` : '空闲';
+  let label = currentActivityLabel();
+  const node = currentActivityNodeLabel();
+  if (node) label += `（${node}）`;
+  // 限量采集 / 限量制作：把「还剩几下」摆在顶栏——不必回舆地页再点一次才知道
+  if (a.remain != null && a.remain > 0) label += ` · 余 ${a.remain} ${a.kind === 'gather' ? '次' : '件'}`;
+  if (a.src === 'fallback') label += '（兜底）';   // 闲置兜底自动接上的行动，标出来
+  return label;
+}
+UI.patchActivityCount = function(){
+  const t = $('activityText');
+  if (!t) return;
+  const txt = activityLabelText();
+  if (t.textContent !== txt) t.textContent = txt;
+};
+
 // ===== ui/world.js =====
 // ===== ui/world.js — 舆地（区域 / 节点 / 异迹索引）与技能页（技能卡 / 配方 / 田地 / 三签） =====
 // 由 src/ui.js 拆分而来（v1.31.8）。加载顺序见 index.html：core 必须最先（UI 对象在这里定义），
@@ -28782,12 +28840,109 @@ function gatherButtonsForNode(node){
     if (!nodes.includes(node.id)) continue;
     const g = gatherGate(it);
     const tag = g.gap > 0 ? ` · 越级 ${Math.round(g.eff * 100)}%` : '';
+    // 采集不再是「一点就一直采」：先问次数（v1.31.46）。讨伐早就有 ∞/1/5/10/50，
+    // 采集是同一类动作——「采 20 次就去巡历」以前只能靠盯着一遍遍手动停。
     out.push(`<button class="btn ${g.usable ? (g.gap > 0 ? 'over' : '') : 'lock'}" ${g.usable ? '' : 'disabled'}
-      onclick="startActivity('gather','${it.id}')" title="${esc(it.note||'')}${g.gap > 0 ? '（越级采集：效率 ' + Math.round(g.eff*100) + '%）' : ''}">
+      onclick="UI.openGatherModal('${it.id}')" title="${esc(it.note||'')}${g.gap > 0 ? '（越级采集：效率 ' + Math.round(g.eff*100) + '%）' : ''}">
       ${typeof skillIcon==='function'?skillIcon(it.skill,17):Skills[it.skill].icon} ${esc(it.name)}<i>${Skills[it.skill].name} ${it.lvl}${tag}</i></button>`);
   }
   return out.join('');
 }
+// ---------- 动作次数的统一校验 ----------
+// 讨伐与采集共用：留空 / 0 表示无限（返回 null），其余夹到 1–99 的整数。
+// 一处定义，两处入口——上次「同一个机制写两遍」的教训（生产/离线口径走散）。
+function clampTimesInput(el){
+  if (!el) return null;
+  const raw = String(el.value == null ? '' : el.value).trim();
+  if (raw === '' || raw === '0' || raw === '∞'){ el.value = ''; return null; }
+  let n = parseInt(raw, 10);
+  if (!isFinite(n) || n < 1) n = 1;
+  if (n > 99) n = 99;
+  el.value = n;
+  return n;
+}
+function onTimesInput(el){
+  if (!el) return;
+  const n = parseInt(el.value, 10);
+  if (isFinite(n) && n > 99) el.value = 99;    // 输入过程中只挡上限，不打断两位数
+}
+// 快选 chips 的高亮跟着输入框走：手填 10 之后「∞」不该还是亮的（原先两处都亮着）。
+function syncTimesChips(boxId, n){
+  const box = (typeof document !== 'undefined') ? document.getElementById(boxId) : null;
+  if (!box || !box.querySelectorAll) return;
+  const cur = (isFinite(n) && n > 0) ? Math.min(99, n | 0) : 0;
+  box.querySelectorAll('.chip-btn').forEach(b => {
+    const k = Number(b.dataset && b.dataset.n) || 0;
+    const on = k === cur;
+    if (b.classList.contains('on') !== on) b.classList.toggle('on', on);
+  });
+}
+// 单次采集耗时：口径照抄 currentActionInterval 的采集分支（间隔 × 地理系数）。
+// 不走 estimate，是因为这里要「此刻、这座山、这件物」的实数，给玩家一个决定次数的依据。
+function gatherPerAction(it){
+  if (!it || !it.skill) return 1;
+  const node = it.node || Game.node;
+  return Math.max(0.2, gatherInterval(it.skill) * geoGatherMul(node));
+}
+// 采集次数弹窗：与讨伐弹窗同一套（输入框 + ∞/1/5/10/50 chips + 换算说明）
+UI.openGatherModal = function(itemId){
+  const it = Items[itemId];
+  if (!it || !it.skill) return false;
+  const g = gatherGate(it);
+  if (!g.usable){
+    this.toast(`🔒 需${Skills[it.skill].name} ${it.lvl} 级（至多越级 8 级）`);
+    return false;
+  }
+  this._gatherPer = gatherPerAction(it);
+  const node = nodeOf(it.node || Game.node);
+  const last = (Prefs.lastGatherTimes != null && Prefs.lastGatherTimes > 0) ? Prefs.lastGatherTimes : '';
+  const per = this._gatherPer;
+  this.modal(`<h3><span class="mi-ic">${typeof itemIc==='function'?itemIc(itemId,18):(it.icon||'🪓')}</span> ${esc(it.name)} <span class="tier">${esc(Skills[it.skill].name)} ${it.lvl}</span></h3>
+    <div class="hm-line">${esc(node?node.name:'')}${it.note?' · '+esc(it.note):''}</div>
+    <div class="hm-line">单次约 ${per < 1 ? per.toFixed(1) : Math.round(per)} 秒${g.gap > 0 ? ` · <b class="hm-warn">越级采集，效率 ${Math.round(g.eff*100)}%</b>` : ''}</div>
+    <div class="hm-times">
+      <label for="gatherTimes">采集次数</label>
+      <input id="gatherTimes" type="number" min="0" max="99" step="1" value="${last}" placeholder="∞" inputmode="numeric"
+        oninput="UI.onGatherTimesInput(this)" onchange="UI.clampGatherTimes(this)">
+      <span class="hm-chips" id="gatherChips">
+        <button type="button" class="chip-btn ${last?'':'on'}" data-n="0" onclick="UI.setGatherTimes(0)">∞</button>
+        ${[1,5,10,50].map(n=>`<button type="button" class="chip-btn ${last===n?'on':''}" data-n="${n}" onclick="UI.setGatherTimes(${n})">${n}</button>`).join('')}
+      </span>
+    </div>
+    <div class="hint" id="gatherEta"></div>
+    <div class="modal-btns">
+      <button class="btn primary" onclick="UI.startGatherTimes('${itemId}')">采集</button>
+      <button class="btn" onclick="UI.closeModal()">取消</button>
+    </div>`);
+  this.patchGatherEta();
+  return true;
+};
+UI.clampGatherTimes = function(el){ const n = clampTimesInput(el); syncTimesChips('gatherChips', n); return n; };
+UI.onGatherTimesInput = function(el){ onTimesInput(el); this.patchGatherEta(); };
+UI.setGatherTimes = function(n){
+  const el = (typeof document !== 'undefined') ? document.getElementById('gatherTimes') : null;
+  if (!el) return;
+  el.value = (!n || n <= 0) ? '' : Math.max(1, Math.min(99, n|0));
+  this.patchGatherEta();
+};
+// 换算说明：填了次数就把「要花多久」算出来——次数这个东西，玩家真正要判断的是时间。
+UI.patchGatherEta = function(){
+  const el = (typeof document !== 'undefined') ? document.getElementById('gatherEta') : null;
+  if (!el) return;
+  const inp = document.getElementById('gatherTimes');
+  const n = inp ? parseInt(inp.value, 10) : NaN;
+  const per = this._gatherPer || 1;
+  syncTimesChips('gatherChips', n);
+  el.innerHTML = (isFinite(n) && n > 0)
+    ? `采 <b>${n}</b> 次 · 约 ${fmtTime(Math.max(1, Math.round(per*n)))}后收手`
+    : '留空为一直采（♾），直到手动收手或换行动。填数字则采满即止——要去做别的事时，填个次数就不必盯着。';
+};
+UI.startGatherTimes = function(itemId){
+  const el = (typeof document !== 'undefined') ? document.getElementById('gatherTimes') : null;
+  const n = this.clampGatherTimes(el);   // null = 一直采
+  this.closeModal();
+  startActivity('gather', itemId, { times:n });
+};
 function observeButtonForNode(node){
   const site = Object.values(OBSERVE_SITES).find(s=>s.nodeId === node.id);
   if (!site) return '';
@@ -29863,9 +30018,9 @@ UI.openHuntModal = function(id){
       <label for="huntTimes">战斗次数</label>
       <input id="huntTimes" type="number" min="0" max="99" step="1" value="" placeholder="∞" inputmode="numeric"
         oninput="UI.onHuntTimesInput(this)" onchange="UI.clampHuntTimes(this)">
-      <span class="hm-chips">
-        <button type="button" class="chip-btn on" onclick="UI.setHuntTimes(0)">∞</button>
-        ${[1,5,10,50].map(n=>`<button type="button" class="chip-btn" onclick="UI.setHuntTimes(${n})">${n}</button>`).join('')}
+      <span class="hm-chips" id="huntChips">
+        <button type="button" class="chip-btn on" data-n="0" onclick="UI.setHuntTimes(0)">∞</button>
+        ${[1,5,10,50].map(n=>`<button type="button" class="chip-btn" data-n="${n}" onclick="UI.setHuntTimes(${n})">${n}</button>`).join('')}
       </span>
     </div>
     <div class="hint">留空为无限连战（♾）；填数字则打满即止。一场胜后自动接战，直至场次用尽或败北；换一只异兽即重置连杀递减。</div>
@@ -29879,25 +30034,14 @@ UI.openHuntModal = function(id){
 };
 // 次数校验：留空 / 0 表示「无限连战」（返回 null）；其余夹到 1–99 的整数。
 // 默认就是无限——挂机游戏里「打一场就停」反而是少数意图，不该让人每次手动改。
-UI.clampHuntTimes = function(el){
-  if (!el) return null;
-  const raw = String(el.value == null ? '' : el.value).trim();
-  if (raw === '' || raw === '0' || raw === '∞'){ el.value = ''; return null; }
-  let n = parseInt(raw, 10);
-  if (!isFinite(n) || n < 1) n = 1;
-  if (n > 99) n = 99;
-  el.value = n;
-  return n;
-};
-UI.onHuntTimesInput = function(el){
-  if (!el) return;
-  const n = parseInt(el.value, 10);
-  if (isFinite(n) && n > 99) el.value = 99;    // 输入过程中只挡上限，不打断两位数
-};
+// 校验本体在 world.js 的 clampTimesInput：采集次数用的是同一份口径。
+UI.clampHuntTimes = function(el){ const n = clampTimesInput(el); syncTimesChips('huntChips', n); return n; };
+UI.onHuntTimesInput = function(el){ onTimesInput(el); syncTimesChips('huntChips', parseInt(el.value, 10)); };
 UI.setHuntTimes = function(n){
   const el = document.getElementById('huntTimes');
   if (!el) return;
   el.value = (!n || n <= 0) ? '' : Math.max(1, Math.min(99, n|0));
+  syncTimesChips('huntChips', el.value === '' ? 0 : parseInt(el.value, 10));
 };
 UI.startHuntTimes = function(id){
   const el = document.getElementById('huntTimes');
@@ -30176,13 +30320,15 @@ function codexWhereOf(e){
 }
 window.codexWhereOf = codexWhereOf;
 
-UI.renderCodex = function(keepFocus){
-  const box = $('content');
-  if (!box) return;
+// ---------- 检索派生状态 ----------
+// 图鉴 1121 条，检索要同时算出：本类条目、命中数、各分类命中数、完成度。
+// 整页渲染与「只换列表」的局部刷新必须共用同一份口径，否则两处判断会走散
+// （曾经「本类命中 0」与「分类角标 3」对不上，就是这个原因）。
+function codexView(){
   const tabs = { beast:'异兽', mountain:'山川', thing:'百物', deity:'祠典 · 神祇' };
   const catMap = { beast:'异兽', mountain:'山川', thing:['灵木','金玉','水族','灵草','嘉谷','百物'], deity:['祠典','神祇'] };
   const entries = Object.values(CODEX).filter(e=>{
-    const c = catMap[this.codexTab];
+    const c = catMap[UI.codexTab];
     return Array.isArray(c) ? c.includes(e.cat) : e.cat === c;
   });
   const total = Object.keys(CODEX).length;
@@ -30191,9 +30337,9 @@ UI.renderCodex = function(keepFocus){
   const tabDone = entries.filter(e=>(Game.records[e.id]||{}).count>0).length;
   const tabPct = tabTotal ? Math.round(tabDone/tabTotal*100) : 0;
   // 632 条图鉴靠翻页找一条太慢：给一个名/注音检索框
-  const q = String(this.codexQuery||'').trim().toLowerCase();
+  const q = String(UI.codexQuery||'').trim().toLowerCase();
   // 「仅未录」：收集到后期，满屏已录的卡里找剩下那几条实在费眼
-  const onlyMiss = !!this.codexOnlyMiss;
+  const onlyMiss = !!UI.codexOnlyMiss;
   const matchQ = e => (e.name||'').toLowerCase().includes(q) || String(e.py||'').toLowerCase().includes(q);
   let shown = q ? entries.filter(matchQ) : entries;
   // 搜索只在本类里过滤，于是「搜蛊雕却停在百物页」时一片空白，玩家以为图鉴里没有。
@@ -30210,104 +30356,163 @@ UI.renderCodex = function(keepFocus){
   const achAll = (window.CODEX_ACHIEVEMENTS || []);
   let achClaim = 0, achDone = 0;
   achAll.forEach(a => { const st = codexAchState(a); if (st === 'claimable') achClaim++; else if (st === 'claimed') achDone++; });
-  let html = `<div class="ach-bar">
+  return { tabs, catMap, entries, total, done, tabTotal, tabDone, tabPct, q, onlyMiss, shown, qHit, achAll, achClaim, achDone };
+}
+
+function codexAchBarHtml(v){
+  return `<div class="ach-bar">
     <span class="ach-lb">收集成就</span>
-    <span class="ach-stat">已领 <b>${achDone}</b> / ${achAll.length}</span>
-    ${achClaim ? `<span class="ach-new">可领 ${achClaim}</span>` : '<span class="hint">暂无待领</span>'}
-    <button class="btn small" onclick="UI.openAchModal()">${achClaim ? '领取' : '查看'}</button>
-  </div>
-  <div class="filter-row">
-    ${Object.entries(tabs).map(([k,v])=>{
-      const hit = q ? (qHit[k] || 0) : 0;
-      const badge = (q && hit > 0 && k !== this.codexTab) ? `<i class="q-hit" title="本类命中 ${hit} 条">${hit}</i>` : '';
-      return `<button class="chip-btn ${this.codexTab===k?'on':''}" onclick="UI.codexTab='${k}';UI.renderCodex()">${v}${badge}</button>`;
-    }).join('')}
-    <button class="chip-btn ${onlyMiss?'on':''}" title="只列本类尚未著录的条目"
-      onclick="UI.codexOnlyMiss=!UI.codexOnlyMiss;UI.renderCodex()">仅未录 ${tabTotal-tabDone}</button>
-    <label class="search-box" title="按名称或注音检索">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4 4"/></svg>
-      <input id="codexSearch" type="search" placeholder="检索名 / 注音" value="${esc(this.codexQuery||'')}"
-        oninput="UI.codexQuery=this.value;UI.renderCodex(true)">
-    </label>
-    <span class="hint">本类 ${tabDone}/${tabTotal}${q?` · 命中 ${shown.length}`:''}${onlyMiss?` · 未录 ${shown.length}`:''} · 总录 ${done}/${total}</span>
-  </div>
-  <div class="codex-bar" title="本类已著录 ${tabPct}%"><div class="fill" style="width:${tabPct}%"></div></div>
-  ${(()=>{
-    // 完成度总览：1121 条散在四类里，只看当前类的分母不知道「其余三类还剩多少」，
-    // 每切一次页签才看一眼，等于没有全局概念。四格并排，点哪格进哪类。
-    const rows = Object.entries(catMap).map(([k, c])=>{
-      const list = Object.values(CODEX).filter(e => Array.isArray(c) ? c.includes(e.cat) : e.cat === c);
-      const dn = list.filter(e => ((Game.records || {})[e.id] || {}).count > 0).length;
-      const pc = list.length ? Math.round(dn / list.length * 100) : 0;
-      const miss = list.length - dn;
-      return `<button class="cx-ov ${this.codexTab===k?'on':''}${miss===0?' full':''}" type="button"
-          onclick="UI.codexTab='${k}';UI.renderCodex()"
-          title="${tabs[k]}：已录 ${dn} / ${list.length}${miss ? `，还差 ${miss}` : '，已尽收'}">
-        <span class="cx-ov-t">${tabs[k]}</span>
-        <span class="cx-ov-v">${dn}<i>/${list.length}</i></span>
-        <span class="cx-ov-b"><i style="width:${pc}%"></i></span>
-      </button>`;
-    }).join('');
-    return `<div class="codex-overview">${rows}
-      <span class="cx-ov-sum">总 ${done}/${total}（${total ? Math.round(done/total*100) : 0}%）</span></div>`;
-  })()}
-  <div class="codex-grid">
-    ${shown.length ? shown.map(e=>{
-      const rec = Game.records[e.id]||{count:0,tier:0};
-      const seen = rec.count > 0;
-      // 检索时把命中片段高亮；否则沿用常规 nameTag（含生僻字处理）
-      const nmHtml = q
-        ? `<span class="nm">${hi(e.name,q)}${e.py?`<rt>${hi(e.py,q)}</rt>`:''}</span>`
-        : nameTag(e.name, e.py);
-      if (!seen){
-        // 未著录：只留名字与虚线框，整片图鉴才读得出「哪些还没见过」。
-        // 但筛到「仅未录」时，玩家就是在找这些东西去哪打／去哪采——那时才给一行产地，
-        // 平时仍留白（未知本身是收藏的乐趣）。
-        const where = onlyMiss ? codexWhereOf(e) : '';
-        return `<div class="codex-card unseen" onclick="showCodexDetail('${e.id}')" title="${esc(e.name)} · 未见${where ? ' · ' + esc(where) : ''}">
-          <div class="cc-name">${nmHtml}</div>
-          ${where ? `<div class="cc-where">${esc(where)}</div>` : ''}
-        </div>`;
-      }
-      // 阶位用五个方点表示深浅，避免满屏重复的「未见」二字
-      const dots = [0,1,2,3,4].map(i=>`<i class="${i<=rec.tier ? (i<rec.tier?'full':'on') : ''}"></i>`).join('');
-      // 距下一阶的进度：满阶则明示「得御」，让收集线的前路看得见
-      const nextTh = rec.tier < TUNING.MASTERY.THRESHOLDS.length-1 ? TUNING.MASTERY.THRESHOLDS[rec.tier+1] : 0;
-      const nextTip = nextTh
-        ? ` · 距「${TUNING.MASTERY.NAMES[rec.tier+1]}」还差 ${Math.max(0, nextTh-rec.count)} 次`
-        : ' · 已至「得御」';
-      const countHtml = nextTh
-        ? `${rec.count}<i>/${nextTh}</i>`
-        : `${rec.count}`;
-      // 异兽 / 神祇卡：绘形小像置顶，与讨伐页同一套图标语言
-      const icHtml = (typeof beastIcon === 'function' && (e.cat === '异兽' || e.cat === '神祇'))
-        ? `<div class="cc-ic">${beastIcon(e.id)}</div>` : '';
-      // 系产：这件是某山系的特产（走遍该系才拿得到）。图鉴列表里看不出来，
-      // 玩家只会在详情页偶然发现——一个小印就够，不必再加一行字。
-      const spReg = (typeof pilgrimGiftIndex === 'function') ? pilgrimGiftIndex().get(e.id) : null;
-      const spTag = spReg ? `<span class="cc-sp" title="${esc(spReg.regionName)}特产 · 走遍该系可得">系产</span>` : '';
-      return `<div class="codex-card" onclick="showCodexDetail('${e.id}')" title="${esc(e.name)} · 已著录 ${rec.count} 次${esc(nextTip)}${spReg ? ' · ' + esc(spReg.regionName) + '特产' : ''}">
-        ${icHtml}
-        <div class="cc-name">${nmHtml}${spTag}</div>
-        <div class="tier-dots" aria-hidden="true">${dots}</div>
-        <div class="cc-tier">${TUNING.MASTERY.NAMES[rec.tier]}<span class="cc-count">${countHtml}</span></div>
-      </div>`;
-    }).join('') : `<div class="empty-note">${onlyMiss
-      ? (q ? '未录条目里没有匹配的。' : '本类已尽收——没有未著录的条目了。')
-      : (()=>{
-          // 本类没有、别类有时，直接说清在哪一类——这比让玩家自己看角标更省事
-          const other = Object.entries(qHit || {}).filter(([k, v]) => k !== this.codexTab && v > 0)
-            .map(([k, v]) => `${tabs[k]} ${v} 条`).join('、');
-          return other
-            ? `${esc(this.codexQuery||'')} —— 本类无此条目；${esc(other)}，点上面的分类去看。`
-            : `${esc(this.codexQuery||'')} —— 无此条目。换个字或注音试试，例如「鸟」「yú」。`;
-        })()}</div>`}
+    <span class="ach-stat">已领 <b>${v.achDone}</b> / ${v.achAll.length}</span>
+    ${v.achClaim ? `<span class="ach-new">可领 ${v.achClaim}</span>` : '<span class="hint">暂无待领</span>'}
+    <button class="btn small" onclick="UI.openAchModal()">${v.achClaim ? '领取' : '查看'}</button>
   </div>`;
-  box.innerHTML = html;
-  // 输入时重渲染会丢焦点：把光标放回检索框末尾，保持连续输入
-  if (keepFocus){
-    const el = $('codexSearch');
-    if (el && el.focus){ el.focus(); try { el.setSelectionRange(el.value.length, el.value.length); } catch(e){} }
+}
+// 分类 chips 与「仅未录」：检索时角标会变，所以单独成块（局部刷新时只换这一块）
+function codexTabsInner(v){
+  return Object.entries(v.tabs).map(([k, label])=>{
+    const hit = v.q ? (v.qHit[k] || 0) : 0;
+    const badge = (v.q && hit > 0 && k !== UI.codexTab) ? `<i class="q-hit" title="本类命中 ${hit} 条">${hit}</i>` : '';
+    return `<button class="chip-btn ${UI.codexTab===k?'on':''}" onclick="UI.codexTab='${k}';UI.renderCodex()">${label}${badge}</button>`;
+  }).join('')
+  + `<button class="chip-btn ${v.onlyMiss?'on':''}" title="只列本类尚未著录的条目"
+      onclick="UI.codexOnlyMiss=!UI.codexOnlyMiss;UI.renderCodex()">仅未录 ${v.tabTotal-v.tabDone}</button>`;
+}
+// 检索框。⚠️ 中文输入法：拼音在输入框里是「组合中」的临时文本，
+// 每敲一个字母就重建整个页面（旧实现 oninput → 整页 innerHTML）会把 input 连同
+// 组合态一起销毁，拼音上不了屏，等于中文输不进去。现在输入只换列表，不动这个节点；
+// 组合期间连列表都不换，上屏后再刷。
+// 监听器用 addEventListener 绑（见 bindCodexSearch），不写行内 oncompositionstart：
+// 行内写法要有 IDL 属性 oncompositionstart 才生效，而它并非所有内核都实现
+// （headless Chromium 上 `'oncompositionstart' in window` 就是 false——写了等于没写）。
+function codexSearchHtml(){
+  return `<label class="search-box" title="按名称或注音检索">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4 4"/></svg>
+      <input id="codexSearch" type="search" placeholder="检索名 / 注音" value="${esc(UI.codexQuery||'')}">
+    </label>`;
+}
+// 检索框的三件事：组合开始（拼音在打，别动它）、组合结束（上屏，刷列表）、
+// 普通输入（直接刷列表）。整页渲染后绑一次即可——节点此后不再被重建。
+function bindCodexSearch(){
+  const el = $('codexSearch');
+  if (!el || !el.addEventListener) return;
+  el.addEventListener('compositionstart', () => { UI._codexComposing = true; });
+  el.addEventListener('compositionend', () => {
+    UI._codexComposing = false;
+    UI.onCodexQuery(el);
+  });
+  el.addEventListener('input', ev => UI.onCodexQuery(el, ev));
+  el.addEventListener('keydown', ev => {
+    if (ev.key !== 'Escape') return;
+    el.value = ''; UI.codexQuery = ''; UI.patchCodexList();
+  });
+}
+function codexHintText(v){
+  return `本类 ${v.tabDone}/${v.tabTotal}${v.q?` · 命中 ${v.shown.length}`:''}${v.onlyMiss?` · 未录 ${v.shown.length}`:''} · 总录 ${v.done}/${v.total}`;
+}
+// 完成度总览：1121 条散在四类里，只看当前类的分母不知道「其余三类还剩多少」，
+// 每切一次页签才看一眼，等于没有全局概念。四格并排，点哪格进哪类。
+function codexOverviewHtml(v){
+  const rows = Object.entries(v.catMap).map(([k, c])=>{
+    const list = Object.values(CODEX).filter(e => Array.isArray(c) ? c.includes(e.cat) : e.cat === c);
+    const dn = list.filter(e => ((Game.records || {})[e.id] || {}).count > 0).length;
+    const pc = list.length ? Math.round(dn / list.length * 100) : 0;
+    const miss = list.length - dn;
+    return `<button class="cx-ov ${UI.codexTab===k?'on':''}${miss===0?' full':''}" type="button"
+        onclick="UI.codexTab='${k}';UI.renderCodex()"
+        title="${v.tabs[k]}：已录 ${dn} / ${list.length}${miss ? `，还差 ${miss}` : '，已尽收'}">
+      <span class="cx-ov-t">${v.tabs[k]}</span>
+      <span class="cx-ov-v">${dn}<i>/${list.length}</i></span>
+      <span class="cx-ov-b"><i style="width:${pc}%"></i></span>
+    </button>`;
+  }).join('');
+  return `<div class="codex-overview">${rows}
+    <span class="cx-ov-sum">总 ${v.done}/${v.total}（${v.total ? Math.round(v.done/v.total*100) : 0}%）</span></div>`;
+}
+function codexGridInner(v){
+  const q = v.q;
+  return v.shown.length ? v.shown.map(e=>{
+    const rec = Game.records[e.id]||{count:0,tier:0};
+    const seen = rec.count > 0;
+    // 检索时把命中片段高亮；否则沿用常规 nameTag（含生僻字处理）
+    const nmHtml = q
+      ? `<span class="nm">${hi(e.name,q)}${e.py?`<rt>${hi(e.py,q)}</rt>`:''}</span>`
+      : nameTag(e.name, e.py);
+    if (!seen){
+      // 未著录：只留名字与虚线框，整片图鉴才读得出「哪些还没见过」。
+      // 但筛到「仅未录」时，玩家就是在找这些东西去哪打／去哪采——那时才给一行产地，
+      // 平时仍留白（未知本身是收藏的乐趣）。
+      const where = v.onlyMiss ? codexWhereOf(e) : '';
+      return `<div class="codex-card unseen" onclick="showCodexDetail('${e.id}')" title="${esc(e.name)} · 未见${where ? ' · ' + esc(where) : ''}">
+        <div class="cc-name">${nmHtml}</div>
+        ${where ? `<div class="cc-where">${esc(where)}</div>` : ''}
+      </div>`;
+    }
+    // 阶位用五个方点表示深浅，避免满屏重复的「未见」二字
+    const dots = [0,1,2,3,4].map(i=>`<i class="${i<=rec.tier ? (i<rec.tier?'full':'on') : ''}"></i>`).join('');
+    // 距下一阶的进度：满阶则明示「得御」，让收集线的前路看得见
+    const nextTh = rec.tier < TUNING.MASTERY.THRESHOLDS.length-1 ? TUNING.MASTERY.THRESHOLDS[rec.tier+1] : 0;
+    const nextTip = nextTh
+      ? ` · 距「${TUNING.MASTERY.NAMES[rec.tier+1]}」还差 ${Math.max(0, nextTh-rec.count)} 次`
+      : ' · 已至「得御」';
+    const countHtml = nextTh
+      ? `${rec.count}<i>/${nextTh}</i>`
+      : `${rec.count}`;
+    // 异兽 / 神祇卡：绘形小像置顶，与讨伐页同一套图标语言
+    const icHtml = (typeof beastIcon === 'function' && (e.cat === '异兽' || e.cat === '神祇'))
+      ? `<div class="cc-ic">${beastIcon(e.id)}</div>` : '';
+    // 系产：这件是某山系的特产（走遍该系才拿得到）。图鉴列表里看不出来，
+    // 玩家只会在详情页偶然发现——一个小印就够，不必再加一行字。
+    const spReg = (typeof pilgrimGiftIndex === 'function') ? pilgrimGiftIndex().get(e.id) : null;
+    const spTag = spReg ? `<span class="cc-sp" title="${esc(spReg.regionName)}特产 · 走遍该系可得">系产</span>` : '';
+    return `<div class="codex-card" onclick="showCodexDetail('${e.id}')" title="${esc(e.name)} · 已著录 ${rec.count} 次${esc(nextTip)}${spReg ? ' · ' + esc(spReg.regionName) + '特产' : ''}">
+      ${icHtml}
+      <div class="cc-name">${nmHtml}${spTag}</div>
+      <div class="tier-dots" aria-hidden="true">${dots}</div>
+      <div class="cc-tier">${TUNING.MASTERY.NAMES[rec.tier]}<span class="cc-count">${countHtml}</span></div>
+    </div>`;
+  }).join('') : `<div class="empty-note">${v.onlyMiss
+    ? (q ? '未录条目里没有匹配的。' : '本类已尽收——没有未著录的条目了。')
+    : (()=>{
+        // 本类没有、别类有时，直接说清在哪一类——这比让玩家自己看角标更省事
+        const other = Object.entries(v.qHit || {}).filter(([k, n]) => k !== UI.codexTab && n > 0)
+          .map(([k, n]) => `${v.tabs[k]} ${n} 条`).join('、');
+        return other
+          ? `${esc(UI.codexQuery||'')} —— 本类无此条目；${esc(other)}，点上面的分类去看。`
+          : `${esc(UI.codexQuery||'')} —— 无此条目。换个字或注音试试，例如「鸟」「yú」。`;
+      })()}</div>`;
+}
+
+UI.renderCodex = function(){
+  const box = $('content');
+  if (!box) return;
+  const v = codexView();
+  box.innerHTML = codexAchBarHtml(v)
+    + `<div class="filter-row"><span class="codex-tabs" id="codexTabs">${codexTabsInner(v)}</span>`
+    + codexSearchHtml()
+    + `<span class="hint" id="codexHint">${esc(codexHintText(v))}</span></div>`
+    + `<div class="codex-bar" title="本类已著录 ${v.tabPct}%"><div class="fill" style="width:${v.tabPct}%"></div></div>`
+    + codexOverviewHtml(v)
+    + `<div class="codex-grid" id="codexGrid">${codexGridInner(v)}</div>`;
+  bindCodexSearch();
+};
+// 输入检索词：只换「分类角标 / 列表 / 计数」，检索框本身原地不动（中文输入法才不会断）
+UI.onCodexQuery = function(el, ev){
+  if (!el) return;
+  UI.codexQuery = el.value;
+  if (UI._codexComposing) return;                      // 组合中（拼音未上屏）
+  if (ev && ev.isComposing) return;
+  UI.patchCodexList();
+};
+UI.patchCodexList = function(){
+  const v = codexView();
+  const g = $('codexGrid');
+  if (g) g.innerHTML = codexGridInner(v);
+  const tb = $('codexTabs');
+  if (tb) tb.innerHTML = codexTabsInner(v);
+  const hint = $('codexHint');
+  if (hint){
+    const t = codexHintText(v);
+    if (hint.textContent !== t) hint.textContent = t;
   }
 };
 function showCodexDetail(id){
@@ -30623,14 +30828,8 @@ function currentOmenEffects(){
   OMEN_EFFECT_LABELS.forEach(([k, label]) => { const v = omenMod(k); if (v) out.push({ label, pct: Math.round(v * 100) }); });
   return out;
 }
-// 微型走势曲线（SVG 折线）
-function sparkline(vals, w, h){
-  if (!vals || vals.length < 2) return '<span class="hint">（持续游戏以记录走势）</span>';
-  const min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
-  const span = (max - min) || 1, step = w / (vals.length - 1);
-  const pts = vals.map((v,i)=>`${(i*step).toFixed(1)},${(h - (v-min)/span*h).toFixed(1)}`).join(' ');
-  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="var(--azurite)" stroke-width="2"/></svg>`;
-}
+// （原 sparkline 微型折线随墟市「售价走势」一并撤除，v1.31.46；
+//   等专门的经济系统做起来再重写，那时的图要画的是供需与价差，不只是倍率曲线。）
 
 // ===== ui/trade.js =====
 // ===== ui/trade.js — 墟市（买卖 / 求购订单）与营造（建筑） =====
@@ -30658,7 +30857,7 @@ UI.shopJump = function(catId){
 UI.renderShichan = function(){
   const box = $('content');
   if (!box) return;
-  const sellMult = tradeMult();   // 售价走势由 onSecond 采样，此处只读（渲染无副作用）
+  const sellMult = tradeMult();   // 倍率由商旅等级 / 营造 / 御使 / 征兆算出，此处只读
   // 采购区：分类导航 + 货架。
   // 原先六个分类平铺下去，1280 宽下每档只有两三个方块、右边一大片空白，
   // 整页看着像「几个互不相干的小岛」；加一层货架底板 + 一条分类条，成组之后就顺眼了。
@@ -30826,7 +31025,6 @@ UI.renderShichan = function(){
       <span>贝币 <b data-stat="shells">${fmt(Game.shells)}</b></span>
       <span>商旅等级 <b>${levelOf('shanglv')}</b></span>
       <span>售价加成 <b>×${sellMult.toFixed(2)}</b></span>
-      <span class="price-trend">售价走势 ${sparkline((Game.priceHistory||[]).map(p=>p.m), 90, 22)}</span>
       <span class="filter-row">
         <button class="chip-btn ${this.invSort==='default'?'on':''}" onclick="UI.invSort='default';UI.renderShichan()">默认</button>
         <button class="chip-btn ${this.invSort==='value'?'on':''}" onclick="UI.invSort='value';UI.renderShichan()">价值↓</button>
@@ -32243,6 +32441,12 @@ UI.renderStats = function(){
         ${Game.activity
           ? `<div class="hint">当前：${esc((typeof entryLabel === 'function' ? entryLabel(Game.activity) : '') || '')}</div>`
           : (Game.combat ? '<div class="hint">当前：往讨中</div>' : '<div class="hint">当前空闲——速率会趋近于零</div>')}
+        ${(()=>{
+          // 卡住告警：与顶栏那条 toast 同源（rateStall），这里给的是「几分钟、卡的是什么」。
+          const st = (typeof rateStall === 'function') ? rateStall() : null;
+          if (!st) return '';
+          return `<div class="hint stall-warn">⚠ 近 ${Math.max(1, Math.round(st.seconds / 60))} 分钟修为没有增长，但仍在「${esc(currentActivityLabel())}」——多半卡住了：料不足、产地不符，或队列被阻塞。</div>`;
+        })()}
       </div>`;
     })()}
     <div class="panel stat-panel"><h3>商旅</h3>

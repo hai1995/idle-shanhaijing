@@ -23,7 +23,7 @@ UI.shopJump = function(catId){
 UI.renderShichan = function(){
   const box = $('content');
   if (!box) return;
-  const sellMult = tradeMult();   // 售价走势由 onSecond 采样，此处只读（渲染无副作用）
+  const sellMult = tradeMult();   // 倍率由商旅等级 / 营造 / 御使 / 征兆算出，此处只读
   // 采购区：分类导航 + 货架。
   // 原先六个分类平铺下去，1280 宽下每档只有两三个方块、右边一大片空白，
   // 整页看着像「几个互不相干的小岛」；加一层货架底板 + 一条分类条，成组之后就顺眼了。
@@ -191,7 +191,6 @@ UI.renderShichan = function(){
       <span>贝币 <b data-stat="shells">${fmt(Game.shells)}</b></span>
       <span>商旅等级 <b>${levelOf('shanglv')}</b></span>
       <span>售价加成 <b>×${sellMult.toFixed(2)}</b></span>
-      <span class="price-trend">售价走势 ${sparkline((Game.priceHistory||[]).map(p=>p.m), 90, 22)}</span>
       <span class="filter-row">
         <button class="chip-btn ${this.invSort==='default'?'on':''}" onclick="UI.invSort='default';UI.renderShichan()">默认</button>
         <button class="chip-btn ${this.invSort==='value'?'on':''}" onclick="UI.invSort='value';UI.renderShichan()">价值↓</button>

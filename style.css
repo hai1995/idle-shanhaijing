@@ -533,6 +533,10 @@ html.theme-anim, html.theme-anim *{
 }
 .search-box input::placeholder{ color:var(--ink-4); }
 .search-box input::-webkit-search-cancel-button{ -webkit-appearance:none; }
+/* 图鉴的分类 chips 包在 #codexTabs 里：局部刷新只换这一块，检索框才不会被重建
+   （中文输入法的组合态挂在 input 上，重建即断）。display:contents 让这层包装
+   不参与布局——chips 仍是 filter-row 的直接弹性子项，换行与间距都不变。 */
+.codex-tabs{ display:contents; }
 
 /* ==========================================================================
    通用元素
@@ -1388,6 +1392,8 @@ svg.bi.mk{ vertical-align:-2px; }
 /* 统计页「近况」：数值与单位分开排，单位小一号，扫一眼只看到数 */
 .rate-rows b{ font-family:var(--f-num); }
 .rate-rows b i{ font-style:normal; font-size:9.5px; font-weight:400; color:var(--ink-4); margin-left:1px; }
+/* 卡住告警：朱色提醒，但不做成警报条——它多半是「缺料了」这一件小事 */
+.stall-warn{ color:var(--zhu-d); }
 /* 「强化至 +N」的预估行：填了目标才出现 */
 .enh-est{
   margin:4px 0 0; font-family:var(--f-num); font-size:10.5px; line-height:1.5;
@@ -1590,8 +1596,6 @@ svg.bi.mk{ vertical-align:-2px; }
 .trade-tip h3{ color:var(--jin); }
 .trade-tip ul{ margin:6px 0 0; padding-left:20px; }
 .trade-tip li{ margin:4px 0; font-size:12px; line-height:1.7; }
-.price-trend{ display:inline-flex; align-items:center; gap:6px; font-family:var(--f-num); font-size:11px; color:var(--ink-4); }
-.spark{ display:block; }
 
 /* ==========================================================================
    行动（巡历队列）

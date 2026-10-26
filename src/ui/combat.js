@@ -336,9 +336,9 @@ UI.openHuntModal = function(id){
       <label for="huntTimes">战斗次数</label>
       <input id="huntTimes" type="number" min="0" max="99" step="1" value="" placeholder="∞" inputmode="numeric"
         oninput="UI.onHuntTimesInput(this)" onchange="UI.clampHuntTimes(this)">
-      <span class="hm-chips">
-        <button type="button" class="chip-btn on" onclick="UI.setHuntTimes(0)">∞</button>
-        ${[1,5,10,50].map(n=>`<button type="button" class="chip-btn" onclick="UI.setHuntTimes(${n})">${n}</button>`).join('')}
+      <span class="hm-chips" id="huntChips">
+        <button type="button" class="chip-btn on" data-n="0" onclick="UI.setHuntTimes(0)">∞</button>
+        ${[1,5,10,50].map(n=>`<button type="button" class="chip-btn" data-n="${n}" onclick="UI.setHuntTimes(${n})">${n}</button>`).join('')}
       </span>
     </div>
     <div class="hint">留空为无限连战（♾）；填数字则打满即止。一场胜后自动接战，直至场次用尽或败北；换一只异兽即重置连杀递减。</div>
@@ -352,25 +352,14 @@ UI.openHuntModal = function(id){
 };
 // 次数校验：留空 / 0 表示「无限连战」（返回 null）；其余夹到 1–99 的整数。
 // 默认就是无限——挂机游戏里「打一场就停」反而是少数意图，不该让人每次手动改。
-UI.clampHuntTimes = function(el){
-  if (!el) return null;
-  const raw = String(el.value == null ? '' : el.value).trim();
-  if (raw === '' || raw === '0' || raw === '∞'){ el.value = ''; return null; }
-  let n = parseInt(raw, 10);
-  if (!isFinite(n) || n < 1) n = 1;
-  if (n > 99) n = 99;
-  el.value = n;
-  return n;
-};
-UI.onHuntTimesInput = function(el){
-  if (!el) return;
-  const n = parseInt(el.value, 10);
-  if (isFinite(n) && n > 99) el.value = 99;    // 输入过程中只挡上限，不打断两位数
-};
+// 校验本体在 world.js 的 clampTimesInput：采集次数用的是同一份口径。
+UI.clampHuntTimes = function(el){ const n = clampTimesInput(el); syncTimesChips('huntChips', n); return n; };
+UI.onHuntTimesInput = function(el){ onTimesInput(el); syncTimesChips('huntChips', parseInt(el.value, 10)); };
 UI.setHuntTimes = function(n){
   const el = document.getElementById('huntTimes');
   if (!el) return;
   el.value = (!n || n <= 0) ? '' : Math.max(1, Math.min(99, n|0));
+  syncTimesChips('huntChips', el.value === '' ? 0 : parseInt(el.value, 10));
 };
 UI.startHuntTimes = function(id){
   const el = document.getElementById('huntTimes');

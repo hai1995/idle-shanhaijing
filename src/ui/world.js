@@ -331,12 +331,109 @@ function gatherButtonsForNode(node){
     if (!nodes.includes(node.id)) continue;
     const g = gatherGate(it);
     const tag = g.gap > 0 ? ` · 越级 ${Math.round(g.eff * 100)}%` : '';
+    // 采集不再是「一点就一直采」：先问次数（v1.31.46）。讨伐早就有 ∞/1/5/10/50，
+    // 采集是同一类动作——「采 20 次就去巡历」以前只能靠盯着一遍遍手动停。
     out.push(`<button class="btn ${g.usable ? (g.gap > 0 ? 'over' : '') : 'lock'}" ${g.usable ? '' : 'disabled'}
-      onclick="startActivity('gather','${it.id}')" title="${esc(it.note||'')}${g.gap > 0 ? '（越级采集：效率 ' + Math.round(g.eff*100) + '%）' : ''}">
+      onclick="UI.openGatherModal('${it.id}')" title="${esc(it.note||'')}${g.gap > 0 ? '（越级采集：效率 ' + Math.round(g.eff*100) + '%）' : ''}">
       ${typeof skillIcon==='function'?skillIcon(it.skill,17):Skills[it.skill].icon} ${esc(it.name)}<i>${Skills[it.skill].name} ${it.lvl}${tag}</i></button>`);
   }
   return out.join('');
 }
+// ---------- 动作次数的统一校验 ----------
+// 讨伐与采集共用：留空 / 0 表示无限（返回 null），其余夹到 1–99 的整数。
+// 一处定义，两处入口——上次「同一个机制写两遍」的教训（生产/离线口径走散）。
+function clampTimesInput(el){
+  if (!el) return null;
+  const raw = String(el.value == null ? '' : el.value).trim();
+  if (raw === '' || raw === '0' || raw === '∞'){ el.value = ''; return null; }
+  let n = parseInt(raw, 10);
+  if (!isFinite(n) || n < 1) n = 1;
+  if (n > 99) n = 99;
+  el.value = n;
+  return n;
+}
+function onTimesInput(el){
+  if (!el) return;
+  const n = parseInt(el.value, 10);
+  if (isFinite(n) && n > 99) el.value = 99;    // 输入过程中只挡上限，不打断两位数
+}
+// 快选 chips 的高亮跟着输入框走：手填 10 之后「∞」不该还是亮的（原先两处都亮着）。
+function syncTimesChips(boxId, n){
+  const box = (typeof document !== 'undefined') ? document.getElementById(boxId) : null;
+  if (!box || !box.querySelectorAll) return;
+  const cur = (isFinite(n) && n > 0) ? Math.min(99, n | 0) : 0;
+  box.querySelectorAll('.chip-btn').forEach(b => {
+    const k = Number(b.dataset && b.dataset.n) || 0;
+    const on = k === cur;
+    if (b.classList.contains('on') !== on) b.classList.toggle('on', on);
+  });
+}
+// 单次采集耗时：口径照抄 currentActionInterval 的采集分支（间隔 × 地理系数）。
+// 不走 estimate，是因为这里要「此刻、这座山、这件物」的实数，给玩家一个决定次数的依据。
+function gatherPerAction(it){
+  if (!it || !it.skill) return 1;
+  const node = it.node || Game.node;
+  return Math.max(0.2, gatherInterval(it.skill) * geoGatherMul(node));
+}
+// 采集次数弹窗：与讨伐弹窗同一套（输入框 + ∞/1/5/10/50 chips + 换算说明）
+UI.openGatherModal = function(itemId){
+  const it = Items[itemId];
+  if (!it || !it.skill) return false;
+  const g = gatherGate(it);
+  if (!g.usable){
+    this.toast(`🔒 需${Skills[it.skill].name} ${it.lvl} 级（至多越级 8 级）`);
+    return false;
+  }
+  this._gatherPer = gatherPerAction(it);
+  const node = nodeOf(it.node || Game.node);
+  const last = (Prefs.lastGatherTimes != null && Prefs.lastGatherTimes > 0) ? Prefs.lastGatherTimes : '';
+  const per = this._gatherPer;
+  this.modal(`<h3><span class="mi-ic">${typeof itemIc==='function'?itemIc(itemId,18):(it.icon||'🪓')}</span> ${esc(it.name)} <span class="tier">${esc(Skills[it.skill].name)} ${it.lvl}</span></h3>
+    <div class="hm-line">${esc(node?node.name:'')}${it.note?' · '+esc(it.note):''}</div>
+    <div class="hm-line">单次约 ${per < 1 ? per.toFixed(1) : Math.round(per)} 秒${g.gap > 0 ? ` · <b class="hm-warn">越级采集，效率 ${Math.round(g.eff*100)}%</b>` : ''}</div>
+    <div class="hm-times">
+      <label for="gatherTimes">采集次数</label>
+      <input id="gatherTimes" type="number" min="0" max="99" step="1" value="${last}" placeholder="∞" inputmode="numeric"
+        oninput="UI.onGatherTimesInput(this)" onchange="UI.clampGatherTimes(this)">
+      <span class="hm-chips" id="gatherChips">
+        <button type="button" class="chip-btn ${last?'':'on'}" data-n="0" onclick="UI.setGatherTimes(0)">∞</button>
+        ${[1,5,10,50].map(n=>`<button type="button" class="chip-btn ${last===n?'on':''}" data-n="${n}" onclick="UI.setGatherTimes(${n})">${n}</button>`).join('')}
+      </span>
+    </div>
+    <div class="hint" id="gatherEta"></div>
+    <div class="modal-btns">
+      <button class="btn primary" onclick="UI.startGatherTimes('${itemId}')">采集</button>
+      <button class="btn" onclick="UI.closeModal()">取消</button>
+    </div>`);
+  this.patchGatherEta();
+  return true;
+};
+UI.clampGatherTimes = function(el){ const n = clampTimesInput(el); syncTimesChips('gatherChips', n); return n; };
+UI.onGatherTimesInput = function(el){ onTimesInput(el); this.patchGatherEta(); };
+UI.setGatherTimes = function(n){
+  const el = (typeof document !== 'undefined') ? document.getElementById('gatherTimes') : null;
+  if (!el) return;
+  el.value = (!n || n <= 0) ? '' : Math.max(1, Math.min(99, n|0));
+  this.patchGatherEta();
+};
+// 换算说明：填了次数就把「要花多久」算出来——次数这个东西，玩家真正要判断的是时间。
+UI.patchGatherEta = function(){
+  const el = (typeof document !== 'undefined') ? document.getElementById('gatherEta') : null;
+  if (!el) return;
+  const inp = document.getElementById('gatherTimes');
+  const n = inp ? parseInt(inp.value, 10) : NaN;
+  const per = this._gatherPer || 1;
+  syncTimesChips('gatherChips', n);
+  el.innerHTML = (isFinite(n) && n > 0)
+    ? `采 <b>${n}</b> 次 · 约 ${fmtTime(Math.max(1, Math.round(per*n)))}后收手`
+    : '留空为一直采（♾），直到手动收手或换行动。填数字则采满即止——要去做别的事时，填个次数就不必盯着。';
+};
+UI.startGatherTimes = function(itemId){
+  const el = (typeof document !== 'undefined') ? document.getElementById('gatherTimes') : null;
+  const n = this.clampGatherTimes(el);   // null = 一直采
+  this.closeModal();
+  startActivity('gather', itemId, { times:n });
+};
 function observeButtonForNode(node){
   const site = Object.values(OBSERVE_SITES).find(s=>s.nodeId === node.id);
   if (!site) return '';

@@ -2865,25 +2865,44 @@ function rateSummary(winSec){
   };
 }
 window.sampleRate = sampleRate; window.rateSummary = rateSummary;
+// 卡住了吗：有行动，却在几分钟里一点修为都没涨。
+// 挂机最怕「以为在跑，其实早停了」——顶栏一直写着「樵采·桂」，人不在跟前根本发现不了。
+// 判据取修为而不是动作数：performAction 先记 actions 再执行，产地不符这类失败也会 +1，
+// 拿它当「还在动」的证据会漏报。慢动作（灌木一阶一小时）本来就该闲着，先按间隔排掉。
+function rateStall(){
+  const a = Game.activity;
+  if (!a) return null;
+  if (a.kind !== 'gather' && a.kind !== 'craft') return null;
+  if (currentActionInterval() * 3 > 120) return null;
+  const h = Game.rateHistory || [];
+  if (h.length < 8) return null;
+  const end = h[h.length - 1], start = h[Math.max(0, h.length - 9)];
+  const dt = end.t - start.t;
+  if (dt < 240) return null;
+  if (end.xp > start.xp) return null;              // 还在动
+  return { seconds: dt, kind: a.kind, itemId: a.itemId || null };
+}
+window.rateStall = rateStall;
 
 function onSecond(){
   if (Object.keys(Game.farms).length){ farmTick(1); if (UI && UI.patchFarmsProgress) UI.patchFarmsProgress(); }
   if (UI && UI.patchSkillBars) UI.patchSkillBars();      // 技能页经验条秒级跟进（不重建节点）
   if (UI && UI.checkFarmUnlock) UI.checkFarmUnlock();    // 圃艺升级后新田开垦提示
   if (UI && UI.patchQueueProgress) UI.patchQueueProgress();   // 巡历队列：进度/当前标记/轮数秒级兜底
-  // 售价走势采样：倍率随商旅/营造/御使/征兆而变，倍率一变或每满 60 秒留一个点，
-  // 挂机时也有轨迹可看（渲染时只读，不再有采样副作用）
-  if (!Game.priceHistory) Game.priceHistory = [];
-  { const _tm = tradeMult(), _pm = Game.priceHistory[Game.priceHistory.length-1];
-    if (!_pm || Math.abs(_pm.m - _tm) > 1e-3 || Date.now() - _pm.t > 60*1000){
-      Game.priceHistory.push({ t: Date.now(), m: +_tm.toFixed(3) });
-      if (Game.priceHistory.length > 24) Game.priceHistory.shift();
-    } }
   Game.stats.time++;
   sampleRate();             // 效率采样：近 20 分钟的每小时收益（统计页读）
   tickOmens();
   tickAutoRites();          // 续祭：到期前 60 秒自动重备一份祭品
   checkMilestoneToast();
+  // 卡住告警：判据与统计页「近况」同源（rateStall）。只提醒一次，冷却 15 分钟——
+  // 这类提示宁少勿多，真卡住了玩家自己会去看；没卡住而每秒弹一次就成了噪音。
+  if (!Game._stallAt || (Game.stats.time - Game._stallAt) > 900){
+    const st = rateStall();
+    if (st && UI && UI.toast){
+      Game._stallAt = Game.stats.time;
+      UI.toast(`⚠ 几分钟没有进展：${currentActivityLabel()} 可能卡住了（缺料 / 产地不符 / 队列阻塞）`);
+    }
+  }
   bountyTick();             // 三签：每秒比三条计数，代价可忽略
   // 闲置兜底：真正无事可做（无行动/战斗/队列）且偏好开启时，累计够久就自动接上默认行动
   if (!Game.activity && !Game.combat && !Game.queueRunning && Prefs.idleFallback !== false){
@@ -2927,7 +2946,22 @@ function performAction(a){
   const produced = actionOutputId(a);
   const before = produced ? totalOf(produced) : 0;
   switch(a.kind){
-    case 'gather':  doGather(a.itemId); break;
+    case 'gather':
+      doGather(a.itemId);
+      // 限量采集：采满即止（与限量制作同一套 remain 语义）。
+      // 必须确认 Game.activity 仍是这一个 a —— doGather 遇到越级门槛 / 产地不符会把它清掉。
+      if (Game.activity === a && a.remain != null){
+        a.remain--;
+        if (a.remain <= 0){
+          const nm = (Items[a.itemId] || {}).name || '此物';
+          Game.activity = null;
+          UI && UI.toast(`✓ 已采 ${nm} ${a.total || 0} 次`);
+          UI && UI.refreshActivity && UI.refreshActivity();
+        } else {
+          UI && UI.patchActivityCount && UI.patchActivityCount();   // 顶栏「余 N 次」当场少一
+        }
+      }
+      break;
     case 'craft':   doRecipeAction(a); break;
     case 'observe': doObserve(a.siteId); Game.activity = null; break;
     case 'audience': doAudience(a.nodeId, { oracle: a.src === 'manual' });
@@ -3176,7 +3210,9 @@ function settleAway(seconds){
     const gap = it ? ((it.lvl || 1) - levelOf(it.skill)) : 99;
     const overEff = gap <= 0 ? 1 : Math.max(0.35, 1 - gap * 0.08);
     if (it && (allYield || nodes.indexOf(Game.node) >= 0) && gap <= 8){
-      const times = Math.floor(seconds / (gatherInterval(it.skill) * geoGatherMul(Game.node)));
+      // 限量采集离线同样只算这么多下：设了「采 10 次」就去睡觉，回来不该是一整仓。
+      const full = Math.floor(seconds / (gatherInterval(it.skill) * geoGatherMul(Game.node)));
+      const times = a.remain != null ? Math.min(full, a.remain) : full;
       summary.acts.gather = times;
       addXp(it.skill, it.xp * times);
       // 离线采集也算祠礼加成，否则「挂着挖矿」反而是唯一吃不到礼的玩法。
@@ -3189,6 +3225,11 @@ function settleAway(seconds){
       const recs = Math.floor(times * eff * 1.2);
       for (let i=0;i<recs;i++) recordObject(a.itemId, 1);
       summary.records += recs;
+      // 采满即收手，别留一个「余 0 次」的空活动在顶栏
+      if (a.remain != null){
+        a.remain -= times;
+        if (a.remain <= 0) Game.activity = null;
+      }
     }
   } else if (a && a.kind === 'craft'){
     // 每件耗时按 currentActionInterval() 现算：线上制作会吃到毕方「讹火」的 -20%

@@ -18,7 +18,6 @@ const Game = {
   riteAuto: {},          // 续祭开关 { riteId: true }：到期前自动重备祭品
   riteStall: {},         // 续祭待料 { riteId: true }：开关仍开，只等祭品凑齐
   omensPending: [],      // 烽烟：凶兆预告 [{ id, at, soft }]，烽火台建成时才有
-  priceHistory: [],      // 售价走势采样 [{ t, m }]（onSecond 每 60 秒落一点）
   recentLoot: [],        // 最近战利品 [{ itemId, qty }]
   omenImmune: {},        // 征兆免疫 { omenId: true }（鵕鸟/大鹗所赐，或御使駮）
   danmu: { stage:0, done:0 },  // 峚山丹木养成进度
@@ -63,6 +62,7 @@ const Prefs = {
   hideHint: false,       // 关闭常驻「下一步建议」指引条（可在设置中重新开启）
   band: true,            // 卷二难度带：九九 + 轮回之后自动生效，可关掉回头打本卷
   recipeSkill: null,     // 制作配方停留的分类；null = 自动（按「能做的最高级配方」定）
+  lastGatherTimes: null, // 上次手动设定的采集次数（null = 一直采）；下次弹出预填
 };
 
 function cloneDefaultGame(){
@@ -74,7 +74,7 @@ function cloneDefaultGame(){
   g.inventory = { gui:5, shashi:5, guaimu:3, jing:3, zhuyu:3, tu:5, jiagufan:2, shuiping:2 };
   g.banking = {}; g.farms = {}; g.records = {}; g.map = { 'nanshan-1-01': true };
   g.observed = {}; g.buildings = {}; g.deployed = {}; g.omens = []; g.rites = {}; g.recentLoot = [];
-  g.riteOf = {}; g.riteAuto = {}; g.riteStall = {}; g.priceHistory = []; g.omensPending = [];
+  g.riteOf = {}; g.riteAuto = {}; g.riteStall = {}; g.omensPending = [];
   g.omenImmune = {}; g.danmu = { stage:0, done:0 }; g.grow = {}; g.buff = null;
   g.node = 'nanshan-1-01'; g.activity = null; g.combat = null;
   g.queue = []; g.queueIdx = 0; g.queueRound = 0; g.queueRunning = false; g.queueLoop = true; g.fallback = null;

@@ -129,13 +129,15 @@ function codexWhereOf(e){
 }
 window.codexWhereOf = codexWhereOf;
 
-UI.renderCodex = function(keepFocus){
-  const box = $('content');
-  if (!box) return;
+// ---------- 检索派生状态 ----------
+// 图鉴 1121 条，检索要同时算出：本类条目、命中数、各分类命中数、完成度。
+// 整页渲染与「只换列表」的局部刷新必须共用同一份口径，否则两处判断会走散
+// （曾经「本类命中 0」与「分类角标 3」对不上，就是这个原因）。
+function codexView(){
   const tabs = { beast:'异兽', mountain:'山川', thing:'百物', deity:'祠典 · 神祇' };
   const catMap = { beast:'异兽', mountain:'山川', thing:['灵木','金玉','水族','灵草','嘉谷','百物'], deity:['祠典','神祇'] };
   const entries = Object.values(CODEX).filter(e=>{
-    const c = catMap[this.codexTab];
+    const c = catMap[UI.codexTab];
     return Array.isArray(c) ? c.includes(e.cat) : e.cat === c;
   });
   const total = Object.keys(CODEX).length;
@@ -144,9 +146,9 @@ UI.renderCodex = function(keepFocus){
   const tabDone = entries.filter(e=>(Game.records[e.id]||{}).count>0).length;
   const tabPct = tabTotal ? Math.round(tabDone/tabTotal*100) : 0;
   // 632 条图鉴靠翻页找一条太慢：给一个名/注音检索框
-  const q = String(this.codexQuery||'').trim().toLowerCase();
+  const q = String(UI.codexQuery||'').trim().toLowerCase();
   // 「仅未录」：收集到后期，满屏已录的卡里找剩下那几条实在费眼
-  const onlyMiss = !!this.codexOnlyMiss;
+  const onlyMiss = !!UI.codexOnlyMiss;
   const matchQ = e => (e.name||'').toLowerCase().includes(q) || String(e.py||'').toLowerCase().includes(q);
   let shown = q ? entries.filter(matchQ) : entries;
   // 搜索只在本类里过滤，于是「搜蛊雕却停在百物页」时一片空白，玩家以为图鉴里没有。
@@ -163,104 +165,163 @@ UI.renderCodex = function(keepFocus){
   const achAll = (window.CODEX_ACHIEVEMENTS || []);
   let achClaim = 0, achDone = 0;
   achAll.forEach(a => { const st = codexAchState(a); if (st === 'claimable') achClaim++; else if (st === 'claimed') achDone++; });
-  let html = `<div class="ach-bar">
+  return { tabs, catMap, entries, total, done, tabTotal, tabDone, tabPct, q, onlyMiss, shown, qHit, achAll, achClaim, achDone };
+}
+
+function codexAchBarHtml(v){
+  return `<div class="ach-bar">
     <span class="ach-lb">收集成就</span>
-    <span class="ach-stat">已领 <b>${achDone}</b> / ${achAll.length}</span>
-    ${achClaim ? `<span class="ach-new">可领 ${achClaim}</span>` : '<span class="hint">暂无待领</span>'}
-    <button class="btn small" onclick="UI.openAchModal()">${achClaim ? '领取' : '查看'}</button>
-  </div>
-  <div class="filter-row">
-    ${Object.entries(tabs).map(([k,v])=>{
-      const hit = q ? (qHit[k] || 0) : 0;
-      const badge = (q && hit > 0 && k !== this.codexTab) ? `<i class="q-hit" title="本类命中 ${hit} 条">${hit}</i>` : '';
-      return `<button class="chip-btn ${this.codexTab===k?'on':''}" onclick="UI.codexTab='${k}';UI.renderCodex()">${v}${badge}</button>`;
-    }).join('')}
-    <button class="chip-btn ${onlyMiss?'on':''}" title="只列本类尚未著录的条目"
-      onclick="UI.codexOnlyMiss=!UI.codexOnlyMiss;UI.renderCodex()">仅未录 ${tabTotal-tabDone}</button>
-    <label class="search-box" title="按名称或注音检索">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4 4"/></svg>
-      <input id="codexSearch" type="search" placeholder="检索名 / 注音" value="${esc(this.codexQuery||'')}"
-        oninput="UI.codexQuery=this.value;UI.renderCodex(true)">
-    </label>
-    <span class="hint">本类 ${tabDone}/${tabTotal}${q?` · 命中 ${shown.length}`:''}${onlyMiss?` · 未录 ${shown.length}`:''} · 总录 ${done}/${total}</span>
-  </div>
-  <div class="codex-bar" title="本类已著录 ${tabPct}%"><div class="fill" style="width:${tabPct}%"></div></div>
-  ${(()=>{
-    // 完成度总览：1121 条散在四类里，只看当前类的分母不知道「其余三类还剩多少」，
-    // 每切一次页签才看一眼，等于没有全局概念。四格并排，点哪格进哪类。
-    const rows = Object.entries(catMap).map(([k, c])=>{
-      const list = Object.values(CODEX).filter(e => Array.isArray(c) ? c.includes(e.cat) : e.cat === c);
-      const dn = list.filter(e => ((Game.records || {})[e.id] || {}).count > 0).length;
-      const pc = list.length ? Math.round(dn / list.length * 100) : 0;
-      const miss = list.length - dn;
-      return `<button class="cx-ov ${this.codexTab===k?'on':''}${miss===0?' full':''}" type="button"
-          onclick="UI.codexTab='${k}';UI.renderCodex()"
-          title="${tabs[k]}：已录 ${dn} / ${list.length}${miss ? `，还差 ${miss}` : '，已尽收'}">
-        <span class="cx-ov-t">${tabs[k]}</span>
-        <span class="cx-ov-v">${dn}<i>/${list.length}</i></span>
-        <span class="cx-ov-b"><i style="width:${pc}%"></i></span>
-      </button>`;
-    }).join('');
-    return `<div class="codex-overview">${rows}
-      <span class="cx-ov-sum">总 ${done}/${total}（${total ? Math.round(done/total*100) : 0}%）</span></div>`;
-  })()}
-  <div class="codex-grid">
-    ${shown.length ? shown.map(e=>{
-      const rec = Game.records[e.id]||{count:0,tier:0};
-      const seen = rec.count > 0;
-      // 检索时把命中片段高亮；否则沿用常规 nameTag（含生僻字处理）
-      const nmHtml = q
-        ? `<span class="nm">${hi(e.name,q)}${e.py?`<rt>${hi(e.py,q)}</rt>`:''}</span>`
-        : nameTag(e.name, e.py);
-      if (!seen){
-        // 未著录：只留名字与虚线框，整片图鉴才读得出「哪些还没见过」。
-        // 但筛到「仅未录」时，玩家就是在找这些东西去哪打／去哪采——那时才给一行产地，
-        // 平时仍留白（未知本身是收藏的乐趣）。
-        const where = onlyMiss ? codexWhereOf(e) : '';
-        return `<div class="codex-card unseen" onclick="showCodexDetail('${e.id}')" title="${esc(e.name)} · 未见${where ? ' · ' + esc(where) : ''}">
-          <div class="cc-name">${nmHtml}</div>
-          ${where ? `<div class="cc-where">${esc(where)}</div>` : ''}
-        </div>`;
-      }
-      // 阶位用五个方点表示深浅，避免满屏重复的「未见」二字
-      const dots = [0,1,2,3,4].map(i=>`<i class="${i<=rec.tier ? (i<rec.tier?'full':'on') : ''}"></i>`).join('');
-      // 距下一阶的进度：满阶则明示「得御」，让收集线的前路看得见
-      const nextTh = rec.tier < TUNING.MASTERY.THRESHOLDS.length-1 ? TUNING.MASTERY.THRESHOLDS[rec.tier+1] : 0;
-      const nextTip = nextTh
-        ? ` · 距「${TUNING.MASTERY.NAMES[rec.tier+1]}」还差 ${Math.max(0, nextTh-rec.count)} 次`
-        : ' · 已至「得御」';
-      const countHtml = nextTh
-        ? `${rec.count}<i>/${nextTh}</i>`
-        : `${rec.count}`;
-      // 异兽 / 神祇卡：绘形小像置顶，与讨伐页同一套图标语言
-      const icHtml = (typeof beastIcon === 'function' && (e.cat === '异兽' || e.cat === '神祇'))
-        ? `<div class="cc-ic">${beastIcon(e.id)}</div>` : '';
-      // 系产：这件是某山系的特产（走遍该系才拿得到）。图鉴列表里看不出来，
-      // 玩家只会在详情页偶然发现——一个小印就够，不必再加一行字。
-      const spReg = (typeof pilgrimGiftIndex === 'function') ? pilgrimGiftIndex().get(e.id) : null;
-      const spTag = spReg ? `<span class="cc-sp" title="${esc(spReg.regionName)}特产 · 走遍该系可得">系产</span>` : '';
-      return `<div class="codex-card" onclick="showCodexDetail('${e.id}')" title="${esc(e.name)} · 已著录 ${rec.count} 次${esc(nextTip)}${spReg ? ' · ' + esc(spReg.regionName) + '特产' : ''}">
-        ${icHtml}
-        <div class="cc-name">${nmHtml}${spTag}</div>
-        <div class="tier-dots" aria-hidden="true">${dots}</div>
-        <div class="cc-tier">${TUNING.MASTERY.NAMES[rec.tier]}<span class="cc-count">${countHtml}</span></div>
-      </div>`;
-    }).join('') : `<div class="empty-note">${onlyMiss
-      ? (q ? '未录条目里没有匹配的。' : '本类已尽收——没有未著录的条目了。')
-      : (()=>{
-          // 本类没有、别类有时，直接说清在哪一类——这比让玩家自己看角标更省事
-          const other = Object.entries(qHit || {}).filter(([k, v]) => k !== this.codexTab && v > 0)
-            .map(([k, v]) => `${tabs[k]} ${v} 条`).join('、');
-          return other
-            ? `${esc(this.codexQuery||'')} —— 本类无此条目；${esc(other)}，点上面的分类去看。`
-            : `${esc(this.codexQuery||'')} —— 无此条目。换个字或注音试试，例如「鸟」「yú」。`;
-        })()}</div>`}
+    <span class="ach-stat">已领 <b>${v.achDone}</b> / ${v.achAll.length}</span>
+    ${v.achClaim ? `<span class="ach-new">可领 ${v.achClaim}</span>` : '<span class="hint">暂无待领</span>'}
+    <button class="btn small" onclick="UI.openAchModal()">${v.achClaim ? '领取' : '查看'}</button>
   </div>`;
-  box.innerHTML = html;
-  // 输入时重渲染会丢焦点：把光标放回检索框末尾，保持连续输入
-  if (keepFocus){
-    const el = $('codexSearch');
-    if (el && el.focus){ el.focus(); try { el.setSelectionRange(el.value.length, el.value.length); } catch(e){} }
+}
+// 分类 chips 与「仅未录」：检索时角标会变，所以单独成块（局部刷新时只换这一块）
+function codexTabsInner(v){
+  return Object.entries(v.tabs).map(([k, label])=>{
+    const hit = v.q ? (v.qHit[k] || 0) : 0;
+    const badge = (v.q && hit > 0 && k !== UI.codexTab) ? `<i class="q-hit" title="本类命中 ${hit} 条">${hit}</i>` : '';
+    return `<button class="chip-btn ${UI.codexTab===k?'on':''}" onclick="UI.codexTab='${k}';UI.renderCodex()">${label}${badge}</button>`;
+  }).join('')
+  + `<button class="chip-btn ${v.onlyMiss?'on':''}" title="只列本类尚未著录的条目"
+      onclick="UI.codexOnlyMiss=!UI.codexOnlyMiss;UI.renderCodex()">仅未录 ${v.tabTotal-v.tabDone}</button>`;
+}
+// 检索框。⚠️ 中文输入法：拼音在输入框里是「组合中」的临时文本，
+// 每敲一个字母就重建整个页面（旧实现 oninput → 整页 innerHTML）会把 input 连同
+// 组合态一起销毁，拼音上不了屏，等于中文输不进去。现在输入只换列表，不动这个节点；
+// 组合期间连列表都不换，上屏后再刷。
+// 监听器用 addEventListener 绑（见 bindCodexSearch），不写行内 oncompositionstart：
+// 行内写法要有 IDL 属性 oncompositionstart 才生效，而它并非所有内核都实现
+// （headless Chromium 上 `'oncompositionstart' in window` 就是 false——写了等于没写）。
+function codexSearchHtml(){
+  return `<label class="search-box" title="按名称或注音检索">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4 4"/></svg>
+      <input id="codexSearch" type="search" placeholder="检索名 / 注音" value="${esc(UI.codexQuery||'')}">
+    </label>`;
+}
+// 检索框的三件事：组合开始（拼音在打，别动它）、组合结束（上屏，刷列表）、
+// 普通输入（直接刷列表）。整页渲染后绑一次即可——节点此后不再被重建。
+function bindCodexSearch(){
+  const el = $('codexSearch');
+  if (!el || !el.addEventListener) return;
+  el.addEventListener('compositionstart', () => { UI._codexComposing = true; });
+  el.addEventListener('compositionend', () => {
+    UI._codexComposing = false;
+    UI.onCodexQuery(el);
+  });
+  el.addEventListener('input', ev => UI.onCodexQuery(el, ev));
+  el.addEventListener('keydown', ev => {
+    if (ev.key !== 'Escape') return;
+    el.value = ''; UI.codexQuery = ''; UI.patchCodexList();
+  });
+}
+function codexHintText(v){
+  return `本类 ${v.tabDone}/${v.tabTotal}${v.q?` · 命中 ${v.shown.length}`:''}${v.onlyMiss?` · 未录 ${v.shown.length}`:''} · 总录 ${v.done}/${v.total}`;
+}
+// 完成度总览：1121 条散在四类里，只看当前类的分母不知道「其余三类还剩多少」，
+// 每切一次页签才看一眼，等于没有全局概念。四格并排，点哪格进哪类。
+function codexOverviewHtml(v){
+  const rows = Object.entries(v.catMap).map(([k, c])=>{
+    const list = Object.values(CODEX).filter(e => Array.isArray(c) ? c.includes(e.cat) : e.cat === c);
+    const dn = list.filter(e => ((Game.records || {})[e.id] || {}).count > 0).length;
+    const pc = list.length ? Math.round(dn / list.length * 100) : 0;
+    const miss = list.length - dn;
+    return `<button class="cx-ov ${UI.codexTab===k?'on':''}${miss===0?' full':''}" type="button"
+        onclick="UI.codexTab='${k}';UI.renderCodex()"
+        title="${v.tabs[k]}：已录 ${dn} / ${list.length}${miss ? `，还差 ${miss}` : '，已尽收'}">
+      <span class="cx-ov-t">${v.tabs[k]}</span>
+      <span class="cx-ov-v">${dn}<i>/${list.length}</i></span>
+      <span class="cx-ov-b"><i style="width:${pc}%"></i></span>
+    </button>`;
+  }).join('');
+  return `<div class="codex-overview">${rows}
+    <span class="cx-ov-sum">总 ${v.done}/${v.total}（${v.total ? Math.round(v.done/v.total*100) : 0}%）</span></div>`;
+}
+function codexGridInner(v){
+  const q = v.q;
+  return v.shown.length ? v.shown.map(e=>{
+    const rec = Game.records[e.id]||{count:0,tier:0};
+    const seen = rec.count > 0;
+    // 检索时把命中片段高亮；否则沿用常规 nameTag（含生僻字处理）
+    const nmHtml = q
+      ? `<span class="nm">${hi(e.name,q)}${e.py?`<rt>${hi(e.py,q)}</rt>`:''}</span>`
+      : nameTag(e.name, e.py);
+    if (!seen){
+      // 未著录：只留名字与虚线框，整片图鉴才读得出「哪些还没见过」。
+      // 但筛到「仅未录」时，玩家就是在找这些东西去哪打／去哪采——那时才给一行产地，
+      // 平时仍留白（未知本身是收藏的乐趣）。
+      const where = v.onlyMiss ? codexWhereOf(e) : '';
+      return `<div class="codex-card unseen" onclick="showCodexDetail('${e.id}')" title="${esc(e.name)} · 未见${where ? ' · ' + esc(where) : ''}">
+        <div class="cc-name">${nmHtml}</div>
+        ${where ? `<div class="cc-where">${esc(where)}</div>` : ''}
+      </div>`;
+    }
+    // 阶位用五个方点表示深浅，避免满屏重复的「未见」二字
+    const dots = [0,1,2,3,4].map(i=>`<i class="${i<=rec.tier ? (i<rec.tier?'full':'on') : ''}"></i>`).join('');
+    // 距下一阶的进度：满阶则明示「得御」，让收集线的前路看得见
+    const nextTh = rec.tier < TUNING.MASTERY.THRESHOLDS.length-1 ? TUNING.MASTERY.THRESHOLDS[rec.tier+1] : 0;
+    const nextTip = nextTh
+      ? ` · 距「${TUNING.MASTERY.NAMES[rec.tier+1]}」还差 ${Math.max(0, nextTh-rec.count)} 次`
+      : ' · 已至「得御」';
+    const countHtml = nextTh
+      ? `${rec.count}<i>/${nextTh}</i>`
+      : `${rec.count}`;
+    // 异兽 / 神祇卡：绘形小像置顶，与讨伐页同一套图标语言
+    const icHtml = (typeof beastIcon === 'function' && (e.cat === '异兽' || e.cat === '神祇'))
+      ? `<div class="cc-ic">${beastIcon(e.id)}</div>` : '';
+    // 系产：这件是某山系的特产（走遍该系才拿得到）。图鉴列表里看不出来，
+    // 玩家只会在详情页偶然发现——一个小印就够，不必再加一行字。
+    const spReg = (typeof pilgrimGiftIndex === 'function') ? pilgrimGiftIndex().get(e.id) : null;
+    const spTag = spReg ? `<span class="cc-sp" title="${esc(spReg.regionName)}特产 · 走遍该系可得">系产</span>` : '';
+    return `<div class="codex-card" onclick="showCodexDetail('${e.id}')" title="${esc(e.name)} · 已著录 ${rec.count} 次${esc(nextTip)}${spReg ? ' · ' + esc(spReg.regionName) + '特产' : ''}">
+      ${icHtml}
+      <div class="cc-name">${nmHtml}${spTag}</div>
+      <div class="tier-dots" aria-hidden="true">${dots}</div>
+      <div class="cc-tier">${TUNING.MASTERY.NAMES[rec.tier]}<span class="cc-count">${countHtml}</span></div>
+    </div>`;
+  }).join('') : `<div class="empty-note">${v.onlyMiss
+    ? (q ? '未录条目里没有匹配的。' : '本类已尽收——没有未著录的条目了。')
+    : (()=>{
+        // 本类没有、别类有时，直接说清在哪一类——这比让玩家自己看角标更省事
+        const other = Object.entries(v.qHit || {}).filter(([k, n]) => k !== UI.codexTab && n > 0)
+          .map(([k, n]) => `${v.tabs[k]} ${n} 条`).join('、');
+        return other
+          ? `${esc(UI.codexQuery||'')} —— 本类无此条目；${esc(other)}，点上面的分类去看。`
+          : `${esc(UI.codexQuery||'')} —— 无此条目。换个字或注音试试，例如「鸟」「yú」。`;
+      })()}</div>`;
+}
+
+UI.renderCodex = function(){
+  const box = $('content');
+  if (!box) return;
+  const v = codexView();
+  box.innerHTML = codexAchBarHtml(v)
+    + `<div class="filter-row"><span class="codex-tabs" id="codexTabs">${codexTabsInner(v)}</span>`
+    + codexSearchHtml()
+    + `<span class="hint" id="codexHint">${esc(codexHintText(v))}</span></div>`
+    + `<div class="codex-bar" title="本类已著录 ${v.tabPct}%"><div class="fill" style="width:${v.tabPct}%"></div></div>`
+    + codexOverviewHtml(v)
+    + `<div class="codex-grid" id="codexGrid">${codexGridInner(v)}</div>`;
+  bindCodexSearch();
+};
+// 输入检索词：只换「分类角标 / 列表 / 计数」，检索框本身原地不动（中文输入法才不会断）
+UI.onCodexQuery = function(el, ev){
+  if (!el) return;
+  UI.codexQuery = el.value;
+  if (UI._codexComposing) return;                      // 组合中（拼音未上屏）
+  if (ev && ev.isComposing) return;
+  UI.patchCodexList();
+};
+UI.patchCodexList = function(){
+  const v = codexView();
+  const g = $('codexGrid');
+  if (g) g.innerHTML = codexGridInner(v);
+  const tb = $('codexTabs');
+  if (tb) tb.innerHTML = codexTabsInner(v);
+  const hint = $('codexHint');
+  if (hint){
+    const t = codexHintText(v);
+    if (hint.textContent !== t) hint.textContent = t;
   }
 };
 function showCodexDetail(id){
@@ -576,11 +637,5 @@ function currentOmenEffects(){
   OMEN_EFFECT_LABELS.forEach(([k, label]) => { const v = omenMod(k); if (v) out.push({ label, pct: Math.round(v * 100) }); });
   return out;
 }
-// 微型走势曲线（SVG 折线）
-function sparkline(vals, w, h){
-  if (!vals || vals.length < 2) return '<span class="hint">（持续游戏以记录走势）</span>';
-  const min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
-  const span = (max - min) || 1, step = w / (vals.length - 1);
-  const pts = vals.map((v,i)=>`${(i*step).toFixed(1)},${(h - (v-min)/span*h).toFixed(1)}`).join(' ');
-  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="var(--azurite)" stroke-width="2"/></svg>`;
-}
+// （原 sparkline 微型折线随墟市「售价走势」一并撤除，v1.31.46；
+//   等专门的经济系统做起来再重写，那时的图要画的是供需与价差，不只是倍率曲线。）

@@ -792,8 +792,8 @@ assert(ST.UI.currentTab === 'yudi', '右滑切回上一页签');
 ST.UI.switchTabNeighbor(-1);
 assert(ST.UI.currentTab === 'about', '右滑在首页环绕到末页（叙录）');
 
-// ============ 16.9 征兆数值预览 · 售价走势 ============
-section('征兆数值预览 · 售价走势');
+// ============ 16.9 征兆数值预览 · 墟市头部 ============
+section('征兆数值预览 · 墟市头部');
 // 征兆当前总效应：植入一个全局产出+15%的征兆
 const _om3 = ST.Game.omens;
 let oeOk = true, oeTxt = '';
@@ -804,16 +804,16 @@ try {
 } catch(e){ oeOk = false; console.error('征兆预览异常：'+e.stack); }
 assert(oeOk && oeTxt.indexOf('当前总效应') >= 0 && oeTxt.indexOf('采获') >= 0, '祠祀页显示征兆当前总效应');
 ST.Game.omens = _om3;
-// 售价走势：预设历史两点后应渲染曲线
-const _ph = ST.Game.priceHistory;
-let spOk = true, spTxt = '';
+// 售价走势图已于 v1.31.46 撤除（留给独立经济系统重做）：墟市头部只留倍率数字，
+// 既不渲染曲线、也不再逐秒采样历史点——省掉一个没人读的数组与一次每秒比较。
+let scOk = true, scTxt = '';
 try {
-  ST.Game.priceHistory = [{ t:0, m:1 }, { t:1, m:1.2 }];
   ST.UI.currentTab = 'shichan'; ST.UI.renderShichan();
-  spTxt = renderTargets.content.innerHTML;
-} catch(e){ spOk = false; console.error('售价走势异常：'+e.stack); }
-assert(spOk && spTxt.indexOf('售价走势') >= 0 && spTxt.indexOf('spark') >= 0, '墟市渲染售价走势曲线');
-ST.Game.priceHistory = _ph;
+  scTxt = renderTargets.content.innerHTML;
+} catch(e){ scOk = false; console.error('墟市渲染异常：'+e.stack); }
+assert(scOk && scTxt.indexOf('售价加成') >= 0, '墟市头部保留售价加成');
+assert(scTxt.indexOf('售价走势') < 0 && scTxt.indexOf('class="spark"') < 0, '墟市不再渲染售价走势图');
+assert(ST.Game.priceHistory === undefined, '不再保留 priceHistory 采样数组');
 
 // ============ 16.10 队列预估耗时 ============
 section('队列预估耗时');
@@ -2302,9 +2302,8 @@ section('实时性：状态变化即刻上屏');
   assert(uiSrc.includes("!pop.classList.contains('hidden')") && uiSrc.includes('this.buffPopHtml()'),
     '增益浮层展开时内容跟随刷新（并节流到 1 秒、同内容不重写）');
 
-  // 43.4 售价走势：秒级采样，挂机也有轨迹；渲染只读无副作用
-  assert(gameSrc.includes("Date.now() - _pm.t > 60*1000"), '售价走势按 60 秒间隔采样');
-  assert(!/renderShichan[\s\S]{0,300}priceHistory\.push/.test(uiSrc), '渲染时不再采样（无副作用）');
+  // 43.4 售价走势已撤（v1.31.46）：渲染与采样两条路都不再碰 priceHistory
+  assert(!/priceHistory/.test(gameSrc) && !/priceHistory/.test(uiSrc), '售价走势撤除后无残留引用');
 
   // 43.5 队列：任务达成 / 自然收官即刷新队列页；进行中数值秒级上屏
   const qSrc = readText('src/queue.js');
@@ -3325,7 +3324,7 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   G.resetToDefault();
   const uiSrc58 = uiSrcAll;
   assert(uiSrc58.includes('codexOnlyMiss'), '图鉴有「仅未录」状态');
-  assert(uiSrc58.includes('仅未录 ${tabTotal-tabDone}'), '筛选按钮标出还缺多少条');
+  assert(uiSrc58.includes('仅未录 ${v.tabTotal-v.tabDone}'), '筛选按钮标出还缺多少条');
   assert(uiSrc58.includes("shown = shown.filter(e => !(((Game.records||{})[e.id]||{}).count > 0))"),
     '筛选排除已录条目（与检索叠加，不是二选一）');
   assert(uiSrc58.includes('本类已尽收——没有未著录的条目了。'), '尽收时给正面反馈，而不是「无此条目」');
@@ -7066,7 +7065,7 @@ section('图鉴总览与线索');
   assert(uiSrcCx.includes('codex-overview'), '图鉴有完成度总览');
   assert(uiSrcCx.includes('cx-ov-sum'), '总览末尾写总进度');
   // 总览是「四类各自的 done/total」，不是只报当前类
-  assert(uiSrcCx.includes("const rows = Object.entries(catMap).map"), '总览按 catMap 四类各算一遍');
+  assert(uiSrcCx.includes("const rows = Object.entries(v.catMap).map"), '总览按 catMap 四类各算一遍');
 
   // 产地线索：异兽取所在山，物品取第一处采集点
   const beast = Object.values(ST.Monsters).find(m => !m.boss && m.nodeId);
@@ -7079,7 +7078,7 @@ section('图鉴总览与线索');
   assert(ST.codexWhereOf({ id: 'not_exist', cat: '百物', name: 'X' }) === '', '查不到的条目返回空串');
 
   // 只在「仅未录」时显示：默认留白
-  assert(uiSrcCx.includes('const where = onlyMiss ? codexWhereOf(e)'), '产地只在仅未录时给');
+  assert(uiSrcCx.includes('const where = v.onlyMiss ? codexWhereOf(e)'), '产地只在仅未录时给');
 
   // 四类计数之和应等于图鉴总数（分母不重不漏）
   const catMap = { beast:'异兽', mountain:'山川', thing:['灵木','金玉','水族','灵草','嘉谷','百物'], deity:['祠典','神祇'] };
@@ -7261,6 +7260,121 @@ section('效率采样');
   assert(ST.fmtTime(3660) === '1 小时 1 分', '有零头才写分（' + ST.fmtTime(3660) + '）');
   assert(ST.fmtTime(60) === '1 分', '60 秒 = 1 分（' + ST.fmtTime(60) + '）');
 
+  G.resetToDefault();
+}
+
+// ============ 137. 采集次数（与战斗场次同一套交互，v1.31.46） ============
+section('采集次数');
+{
+  G.resetToDefault();
+  const it = ST.Items.migu;
+  ST.Game.skills.qiaocai.level = Math.max(ST.Game.skills.qiaocai.level || 1, it.lvl);
+  ST.Game.node = 'nanshan-1-01';
+
+  // 引擎：带次数开始，采满即止
+  ST.startActivity('gather', 'migu', { times:3 });
+  const act = ST.Game.activity;
+  assert(act && act.kind === 'gather' && act.remain === 3 && act.total === 3, '带次数开始采集（余 3 次）');
+  assert(ST.Prefs.lastGatherTimes === 3, '记住上次设定的采集次数');
+  const iv = G.gatherInterval('qiaocai') * G.geoGatherMul(ST.Game.node);
+  const secs = Math.ceil(iv * 3) + 2;
+  for (let i = 0; i < secs; i++) G.stepGame(1);
+  assert((ST.Game.stats.gathers.qiaocai || 0) >= 3, '三次都采到了（' + (ST.Game.stats.gathers.qiaocai || 0) + '）');
+  assert(ST.Game.activity === null, '采满 3 次即收手，不留「余 0 次」的空活动');
+
+  // 不传次数 = 一直采（旧行为不变）
+  const g0 = ST.Game.stats.gathers.qiaocai || 0;
+  ST.startActivity('gather', 'migu');
+  assert(ST.Game.activity && ST.Game.activity.remain === null && ST.Game.activity.total === null, '不传次数则一直采（remain = null）');
+  for (let i = 0; i < secs; i++) G.stepGame(1);
+  assert(ST.Game.activity && ST.Game.activity.kind === 'gather', '一直采不会自己停');
+  assert((ST.Game.stats.gathers.qiaocai || 0) > g0, '一直采仍在产出');
+
+  // 离线：同样按次数封顶，用满即收手（不能借离线采一整仓）
+  ST.startActivity('gather', 'migu', { times:2 });
+  const rec = G.settleAway(3600);
+  assert(rec && rec.acts && rec.acts.gather === 2, '离线采集按设定次数封顶（' + (rec && rec.acts && rec.acts.gather) + '）');
+  assert(ST.Game.activity === null, '离线采满即收手');
+
+  // 顶栏写明还剩几次
+  ST.startActivity('gather', 'migu', { times:5 });
+  const lbl = G.activityLabelText();
+  assert(lbl.indexOf('余 5 次') >= 0, '顶栏写明还剩几次（' + lbl + '）');
+  ST.Game.activity = null;
+
+  // 交互：舆地采集按钮改走次数弹窗，且与战斗共用一份校验
+  assert(typeof ST.UI.openGatherModal === 'function' && typeof ST.UI.startGatherTimes === 'function', '舆地采集弹窗入口齐备');
+  const wSrc = readText('src/ui/world.js');
+  assert(wSrc.includes("onclick=\"UI.openGatherModal('${it.id}')\""), '舆地采集按钮改走次数弹窗');
+  assert(wSrc.includes('id="gatherTimes"') && wSrc.includes('UI.clampGatherTimes'), '弹窗内可设采集次数（1–99，留空为 ∞）');
+  assert(wSrc.includes('function clampTimesInput'), '次数校验只有一处定义');
+  assert(wSrc.includes('UI.openGatherModal') && /\[1,5,10,50\]/.test(wSrc), '与战斗同样给出 ∞/1/5/10/50 快选');
+  assert(readText('src/ui/combat.js').includes('clampTimesInput(el)'), '战斗次数改用同一份校验（不再各写一遍）');
+  assert(wSrc.includes('function syncTimesChips') && readText('src/ui/combat.js').includes("syncTimesChips('huntChips'"), '快选 chips 高亮跟随输入（两处弹窗同一个实现）');
+  G.resetToDefault();
+}
+
+// ============ 138. 图鉴检索适配中文输入法（v1.31.46） ============
+section('图鉴检索 · 输入法');
+{
+  G.resetToDefault();
+  const cSrc = readText('src/ui/codex.js');
+  assert(cSrc.includes("addEventListener('compositionstart'"), '记录输入法组合开始');
+  assert(cSrc.includes("addEventListener('compositionend'"), '上屏后才刷新列表');
+  assert(cSrc.includes('if (UI._codexComposing) return;'), '组合期间不刷列表（拼音不会被打断）');
+  assert(cSrc.includes('if (ev && ev.isComposing) return;'), '兼容只带 isComposing 的输入法');
+  assert(!/oncompositionstart=/.test(cSrc), '不用行内 oncompositionstart（部分内核无此 IDL 属性，写了等于没写）');
+  assert(cSrc.includes("addEventListener('input'"), '输入事件只换列表');
+  assert(!cSrc.includes('UI.codexQuery=this.value;UI.renderCodex(true)'), '旧的全页重绘入口已移除');
+  assert(cSrc.includes('UI.patchCodexList') && cSrc.includes('id="codexGrid"'), '提供局部刷新：只换列表与角标');
+  assert(cSrc.includes('bindCodexSearch()'), '整页渲染后绑定检索框监听');
+
+  // 局部刷新不动检索框：整页渲染后，patch 只重写 #codexGrid / #codexTabs / #codexHint
+  ST.UI.codexTab = 'beast'; ST.UI.codexQuery = '';
+  ST.UI.renderCodex();
+  const full = renderTargets.content.innerHTML;
+  assert(full.includes('id="codexSearch"') && full.includes('id="codexGrid"') && full.includes('id="codexTabs"'), '整页渲染三处占位齐备');
+  ST.UI.codexQuery = '鸟';
+  let pOk = true;
+  try { ST.UI.patchCodexList(); } catch(e){ pOk = false; console.error('局部刷新异常：' + e.stack); }
+  assert(pOk, '局部刷新不抛错');
+  assert(ST.UI.codexQuery === '鸟', '检索词跟着输入走');
+  ST.UI.codexQuery = '';
+  G.resetToDefault();
+}
+
+// ============ 139. 卡住告警（v1.31.46） ============
+section('卡住告警');
+{
+  G.resetToDefault();
+  assert(typeof G.rateStall === 'function', '提供卡住判定');
+  ST.Game.rateHistory = [];
+  ST.Game.activity = null;
+  assert(G.rateStall() === null, '没有行动时不报卡住');
+
+  // 有行动、修为九点不动 = 卡住
+  const mk = (xp) => {
+    const h = [];
+    for (let i = 0; i < 9; i++) h.push({ t: i * 30, xp, shells: 0, acts: i * 10, loot: 0 });
+    return h;
+  };
+  ST.Game.activity = { kind:'gather', skill:'qiaocai', itemId:'migu', src:'manual', remain:null, total:null };
+  ST.Game.rateHistory = mk(100);
+  const st = G.rateStall();
+  assert(st && st.seconds >= 240 && st.kind === 'gather', '修为不动 4 分钟即判定卡住（' + (st && st.seconds) + ' 秒）');
+
+  ST.Game.rateHistory = mk(0);
+  ST.Game.rateHistory[8].xp = 500;
+  assert(G.rateStall() === null, '修为在涨就不报（动作数不作数：失败也会 +1）');
+
+  // 慢动作（一阶一小时）本来就该闲着
+  ST.Game.rateHistory = mk(100);
+  ST.Game.activity = { kind:'grow', siteId:Object.keys(ST.GROW_SITES)[0], src:'manual' };
+  assert(G.rateStall() === null, '灌木这类慢动作不算卡住');
+  ST.Game.activity = null;
+
+  assert(readText('src/game.js').includes('const st = rateStall();'), '秒循环里做卡住判定');
+  assert(readText('src/ui/misc.js').includes('stall-warn'), '统计页近况给出卡住告警');
   G.resetToDefault();
 }
 

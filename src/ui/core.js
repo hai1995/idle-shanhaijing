@@ -364,19 +364,7 @@ const UI = {
   },
   refreshActivity(){
     const t = $('activityText');
-    if (t){
-      const a = Game.activity;
-      let label = '空闲';
-      if (a){
-        label = currentActivityLabel();
-        const node = currentActivityNodeLabel();
-        if (node) label += `（${node}）`;
-        if (a.src === 'fallback') label += '（兜底）';   // 闲置兜底自动接上的行动，标出来
-      } else if (Game.combat){
-        label = `往讨：${(Monsters[Game.combat.monsterId]||{}).name||''}`;
-      }
-      t.textContent = label;
-    }
+    if (t) t.textContent = activityLabelText();
     // 停止按钮：有「可停的行动」就出现——采集/制作等行动如此，往讨亦然
     // （停战结束当前这一场且不再自动接战，见 game.js stopActivity）
     const bs = $('btnStop');
@@ -1356,3 +1344,24 @@ function skillLevelBarHtml(id, name){
     <span class="pl-xp">${maxed ? '九九圆满 · 余力化入修为' : `经验 ${fmt(got)} / ${fmt(need)}`}</span>
   </div>`;
 }
+
+// 顶栏状态条那一行字：闲 / 在采什么 / 在打谁 + 还剩几次。
+// 单独成函数是因为它有两个写入者——整页刷新（refreshActivity）与
+// 限量采集每采一下的就地改写（patchActivityCount），两处口径必须一致。
+function activityLabelText(){
+  const a = Game.activity;
+  if (!a) return Game.combat ? `往讨：${(Monsters[Game.combat.monsterId]||{}).name||''}` : '空闲';
+  let label = currentActivityLabel();
+  const node = currentActivityNodeLabel();
+  if (node) label += `（${node}）`;
+  // 限量采集 / 限量制作：把「还剩几下」摆在顶栏——不必回舆地页再点一次才知道
+  if (a.remain != null && a.remain > 0) label += ` · 余 ${a.remain} ${a.kind === 'gather' ? '次' : '件'}`;
+  if (a.src === 'fallback') label += '（兜底）';   // 闲置兜底自动接上的行动，标出来
+  return label;
+}
+UI.patchActivityCount = function(){
+  const t = $('activityText');
+  if (!t) return;
+  const txt = activityLabelText();
+  if (t.textContent !== txt) t.textContent = txt;
+};
