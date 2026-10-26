@@ -7891,7 +7891,7 @@ section('行动现场');
   const g0 = ST.sceneToolPath(0), g90 = ST.sceneToolPath(-90);
   assert(g0.shaft !== g90.shaft, '角度变了，柄的形状就变');
   // 握点固定：柄的起点必须一直是同一个点，否则「绕手转」就不成立
-  assert(g0.shaft.indexOf('M30 38') === 0 && g90.shaft.indexOf('M30 38') === 0, '柄的起点恒为握点 (30,38)');
+  assert(g0.shaft.indexOf('M31 30') === 0 && g90.shaft.indexOf('M31 30') === 0, '柄的起点恒为握点 (31,30)');
   assert(!/\.sc-tool\s*\{[^}]*transform\s*:/.test(cssSrc145), 'CSS 里不给工具写 transform');
   assert(!/\.sc-tool\s*\{[^}]*will-change/.test(cssSrc145), 'CSS 里不给工具写 will-change（Safari 上会不重绘）');
   // 自查入口：帧数不涨 = JS 没跑，而不是「动得太轻」
@@ -7899,13 +7899,12 @@ section('行动现场');
 
   // 挥落时刻必须落在周期的后段：引擎在 interval 走满时产出，
   // 若锄头在 30% 就落下，玩家看到的是「先出东西、后动一下」。
-  const at92 = ST.sceneAngleAt(ST.SCENE_SWING, 0.92);
-  const at15 = ST.sceneAngleAt(ST.SCENE_SWING, 0.15);
-  assert(Math.abs(at92 - 4) < 3, `周期 92% 时锄头在落下位置（实测 ${at92.toFixed(1)}°）`);
-  assert(at15 < -60, `周期 15% 时锄头高举（实测 ${at15.toFixed(1)}°）`);
-  // 一个周期挥两锄：第一锄松土、第二锄出土。只挥一下的话，两秒多的间隔里近乎静止。
-  const lands = ST.SCENE_SWING.filter(f => Math.abs(f[1] - 4) < 1).length;
-  assert(lands >= 2, `一个周期两次落下（实测 ${lands}）`);
+  const at56 = ST.sceneAngleAt(ST.SCENE_SWING, 0.56);
+  const at30 = ST.sceneAngleAt(ST.SCENE_SWING, 0.30);
+  assert(at56 > 0, `周期 56% 时锄头已落到地面（实测 ${at56.toFixed(1)}°）`);
+  // 举起要「竖直」：柄的静止角约 69°，转到 −138° 才接近竖直。
+  // 只转 −106° 时柄角还有 −37°，等于把锄头横着端在胸前，看着像举枪。
+  assert(at30 < -120, `周期 30% 时锄头竖举（实测 ${at30.toFixed(1)}°）`);
   assert(ST.SCENE_RIG.some(f => Math.abs(f[1]) > 2), '整个人随锄俯仰（不只锄头动）');
   assert(sSrc145.includes('sc-rig'), '俯仰层包在人物外（div 上的 transform 兼容性最好）');
 

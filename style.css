@@ -316,18 +316,18 @@ html.theme-anim, html.theme-anim *{
 }
 /* 地面：一条起伏的土坡，不再是平直灰带——平带看着像「站在一块板子上」 */
 .sc-ground{
-  position:absolute; left:0; right:0; bottom:0; height:22px; width:100%;
+  position:absolute; left:0; right:0; bottom:0; height:32px; width:100%;
   color:inherit; display:block;
 }
 
 /* 劳动区：左对齐（宽屏时用百分比，窄屏给固定值兜底），始终踩在地面线上 */
 .sc-stage{
-  position:absolute; left:clamp(14px, 6%, 104px); bottom:18px; width:52px; height:60px;
+  position:absolute; left:clamp(20px, 8%, 124px); bottom:14px; width:54px; height:62px;
   color:inherit;
 }
 /* 52×60 是折中：人占场景高约七成，再大就顶到山线，再小就只剩一个符号。 */
-.sc-rig{ position:relative; width:52px; height:60px; transform-origin:50% 100%; }
-.sc-worker{ display:block; width:52px; height:60px; }
+.sc-rig{ position:relative; width:54px; height:62px; transform-origin:50% 100%; }
+.sc-worker{ display:block; width:54px; height:62px; }
 /* 呼吸：固定 3.4s，与采集间隔无关，作为「人活着」的底噪 */
 .sc-figure{ transform-box:view-box; transform-origin:24px 68px; animation:scBreath 3.4s ease-in-out infinite; }
 /* 工具：人物 SVG 内的 <g>，姿态由 SVG 原生 transform 属性驱动（JS 每帧 setAttribute）。
@@ -343,8 +343,8 @@ html.theme-anim, html.theme-anim *{
 /* 落下排在周期末尾：引擎在 interval 走满时产出，此刻锄头正好砸到地上——
    因果对齐，玩家看到的是「这一锄挖出来的」，而不是「先出东西再动一下」。 */
 /* 土粒：与挥锄同一周期，只在落下那一段可见 */
-.sc-pit{ position:absolute; left:31px; bottom:1px; width:20px; height:8px; }
-.sc-mound{ position:absolute; left:47px; bottom:1px; width:18px; height:7px; color:inherit; }
+.sc-pit{ position:absolute; left:29px; bottom:3px; width:18px; height:8px; }
+.sc-mound{ position:absolute; left:44px; bottom:3px; width:16px; height:6px; color:inherit; }
 .sc-pit i{
   position:absolute; left:5px; bottom:0; width:3px; height:3px; border-radius:50%;
   background:currentColor; opacity:0;
@@ -363,7 +363,7 @@ html.theme-anim, html.theme-anim *{
 }
 
 /* 收成：从土里蹦出来、向右上飘走 */
-.sc-drops{ position:absolute; left:clamp(14px, 6%, 104px); bottom:44px; width:70px; height:64px; pointer-events:none; }
+.sc-drops{ position:absolute; left:clamp(20px, 8%, 124px); bottom:44px; width:70px; height:64px; pointer-events:none; }
 .sc-drop{
   position:absolute; left:26px; bottom:0;
   display:flex; align-items:center; gap:2px;
@@ -449,8 +449,8 @@ html.theme-anim, html.theme-anim *{
 @media (min-width:1000px){
   .sc-wrap{ height:96px; }
   .sc-hills{ height:60px; }
-  .sc-stage{ bottom:20px; width:62px; height:72px; }
-  .sc-worker{ width:62px; height:72px; }
+  .sc-stage{ bottom:16px; width:64px; height:74px; }
+  .sc-worker{ width:64px; height:74px; }
   .sc-pit{ left:37px; }
   .sc-mound{ left:56px; }
   .sc-drops{ bottom:52px; }

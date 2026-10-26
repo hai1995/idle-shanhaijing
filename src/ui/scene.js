@@ -59,16 +59,36 @@ function sceneState(){
   return { kind:'other', ink, place, iv, key:`other:${a.kind}`, verb:'为', name:(typeof currentActivityLabel==='function'?currentActivityLabel():'行动'), note:'' };
 }
 
-// 场景里的小人：一具躬身劳作的水墨人形，面朝右侧的挖掘点。
-// 工具**不在**这个 SVG 里——理由见 sceneTool()。
+// 场景里的小人：一个躬身劳作的水墨剪影，面朝右侧的挖掘点。
+// ⚠️ 这里**不能**用细线条画——52×60 的框实际只显示 40 来像素高，
+// 线条在这个尺寸下必然变成「火柴人」。所以躯干用填充的袍身（有宽度），
+// 四肢用粗线（stroke-width 4，显示约 3.4px，接近真人比例），
+// 头保持小（真人的头约占身高 1/7.5）。
 function sceneWorker(kind){
   return `<svg class="sc-worker" viewBox="0 0 60 70" aria-hidden="true">
     <g class="sc-figure">
-      <path d="M16 20 Q24 25 26 41 L17 44 Q13 31 16 20 Z" fill="currentColor" opacity=".5"/>
-      <path d="M15 13.5 m-5.4 0 a5.4 5.4 0 1 0 10.8 0 a5.4 5.4 0 1 0 -10.8 0" fill="currentColor" opacity=".92"/>
-      <path d="M21 42 L18 56 L17 67" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" fill="none"/>
-      <path d="M23 42 L27 56 L29 67" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" fill="none"/>
-      <path d="M18 25 Q24 32 30 38" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/>
+      <!-- 袍身：四边都带弧的手绘轮廓。
+           直边梯形会像一只「砖头」——真人的侧面有后脑的弧、肩背的外凸、臀的起伏。
+           这几笔弧线就是「像人」与「像柱子」的全部差别。 -->
+      <path d="M17.4 20
+               Q15.2 26 15.2 34
+               Q15.4 41 15.6 47.4
+               L25.6 46.4
+               Q26.4 38 26.4 30
+               Q26.2 22.6 25.4 20
+               Q21.4 18 17.4 20 Z"
+        fill="currentColor" opacity=".93"/>
+      <!-- 腰带：一道朱色，点题 -->
+      <path d="M15.4 34.4 L26.4 33.8" stroke="#B03A2B" stroke-width="1.6" opacity=".5" stroke-linecap="round"/>
+      <!-- 头：前伸。真人的头约占身高 1/7.5，大了就变卡通 -->
+      <circle cx="24" cy="15.4" r="3.3" fill="currentColor"/>
+      <circle cx="23.2" cy="11.4" r="1.4" fill="currentColor" opacity=".8"/>
+      <!-- 腿：两条粗腿，下半截被地面坡挡住 -->
+      <path d="M17.4 46.8 L14.4 60" stroke="currentColor" stroke-width="4.4" stroke-linecap="round"/>
+      <path d="M24 46.6 L26.2 59.4" stroke="currentColor" stroke-width="4.4" stroke-linecap="round"/>
+      <!-- 手臂：从肩到握点 -->
+      <path d="M25 23.6 Q28 27 31 30" stroke="currentColor" stroke-width="4.2"
+        stroke-linecap="round" fill="none"/>
       ${sceneTool(kind)}
     </g>
   </svg>`;
@@ -77,9 +97,9 @@ function sceneWorker(kind){
 // 锄头的几何：握点固定，柄末端绕握点转，刃垂直于柄。
 // **不用 transform 也不改属性旋转，直接算坐标写 path 的 d。**
 // 这是最底层的一条路：`d` 是 SVG 1.1 的核心属性，任何内核都没有理由不支持。
-const SCENE_GRIP = [30, 38];
-const SCENE_STICK = [11, 28];        // 静止时从握点到柄末端的向量
-const SCENE_BLADE = 5.4;             // 刃的半长
+const SCENE_GRIP = [31, 30];
+const SCENE_STICK = [10, 29];         // 静止时从握点到柄末端的向量
+const SCENE_BLADE = 7.4;             // 刃的半长（锄刃宽，短了像锤子）
 
 function sceneToolPath(a){
   const rad = (isFinite(a) ? a : 0) * Math.PI / 180;
@@ -112,9 +132,9 @@ function sceneToolPath(a){
 function sceneTool(kind){
   if (kind === 'gather'){
     return `<g class="sc-tool">
-      <path class="sc-shaft" d="M30 38 L41 66" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>
-      <path class="sc-blade" d="M36.4 67.6 L46.2 63.7" stroke="currentColor" stroke-width="3.6" stroke-linecap="round"/>
-      <path class="sc-mark"  d="M37.2 67.3 L45.4 64" stroke="#B03A2B" stroke-width="1.6" stroke-linecap="round" opacity=".85"/>
+      <path class="sc-shaft" d="M31 30 L41 59" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+      <path class="sc-blade" d="M33.4 62.4 L48.4 56.4" stroke="currentColor" stroke-width="4.6" stroke-linecap="round"/>
+      <path class="sc-mark"  d="M35 61.7 L46.8 57.1" stroke="#B03A2B" stroke-width="1.8" stroke-linecap="round" opacity=".88"/>
     </g>`;
   }
   if (kind === 'craft'){
@@ -130,17 +150,21 @@ function sceneTool(kind){
 // 只作气氛，不表地形——本项目的地形数据是「里程 + 方位」，画不出等高线。
 function sceneHills(){
   // viewBox 取 700×64（比例约 10.9）：手机 430×42 与宽屏 1080×52 都在附近，
-  // 拉伸或压缩都在一成上下。此前用 400×64（比例 6.25），宽屏要横向拉 2.7 倍，
-  // 山形被压成一条几乎笔直的波纹。
+  // 拉伸或压缩都在一成上下。
+  // 除了轮廓线，另加一层极淡的**填充**山影——只有线条时像「心电图」，
+  // 有了淡淡的面才像山。
   return `<svg class="sc-hills" viewBox="0 0 700 64" preserveAspectRatio="none" aria-hidden="true">
-    <path d="M-6 54 C 60 54, 84 14, 152 14 C 214 14, 236 46, 300 46
-             C 352 46, 380 24, 434 28 C 486 32, 520 50, 572 48 C 618 46, 648 52, 706 50"
-      fill="none" stroke="currentColor" stroke-opacity=".22" stroke-width="1.4" vector-effect="non-scaling-stroke"/>
-    <path d="M-6 62 C 74 62, 104 38, 168 38 C 226 38, 254 58, 316 58
-             C 370 58, 400 44, 452 46 C 504 48, 540 60, 590 58 C 634 56, 664 60, 706 58"
-      fill="none" stroke="currentColor" stroke-opacity=".13" stroke-width="1.1" vector-effect="non-scaling-stroke"/>
-    <g stroke="currentColor" stroke-opacity=".24" stroke-width="1" fill="none" stroke-linecap="round">
-      <path d="M344 20 q5 -4 10.4 0 M359 16 q4.2 -3.6 8.6 0"/>
+    <path d="M-6 62 C 40 62, 58 30, 104 24 C 140 19, 152 40, 176 48
+             C 200 56, 224 46, 248 34 C 276 20, 300 20, 330 30
+             C 366 42, 386 54, 420 56 C 470 58, 520 50, 560 52 C 620 55, 660 58, 706 56
+             L706 64 L-6 64 Z"
+      fill="currentColor" fill-opacity=".055"/>
+    <path d="M-6 62 C 40 62, 58 30, 104 24 C 140 19, 152 40, 176 48
+             C 200 56, 224 46, 248 34 C 276 20, 300 20, 330 30
+             C 366 42, 386 54, 420 56 C 470 58, 520 50, 560 52 C 620 55, 660 58, 706 56"
+      fill="none" stroke="currentColor" stroke-opacity=".2" stroke-width="1.3" vector-effect="non-scaling-stroke"/>
+    <g stroke="currentColor" stroke-opacity=".22" stroke-width="1" fill="none" stroke-linecap="round">
+      <path d="M352 18 q5 -4 10.4 0 M367 14 q4.2 -3.6 8.6 0"/>
     </g>
   </svg>`;
 }
@@ -155,11 +179,6 @@ function sceneHtml(s){
   return `<div class="sc-wrap${anim}" data-kind="${s.kind}" style="--ai:${s.iv.toFixed(2)}s;color:${s.ink}">
     <div class="sc-sky"></div>
     ${sceneHills()}
-    <svg class="sc-ground" viewBox="0 0 700 26" preserveAspectRatio="none" aria-hidden="true">
-      <path d="M0 9 Q 150 4 300 8 T 700 6 L700 26 L0 26 Z" fill="currentColor" fill-opacity=".11"/>
-      <path d="M0 9 Q 150 4 300 8 T 700 6" fill="none" stroke="currentColor" stroke-opacity=".3"
-        stroke-width="1" vector-effect="non-scaling-stroke"/>
-    </svg>
     <div class="sc-stage">
       <div class="sc-rig">${sceneWorker(s.kind, s.kind)}</div>
       <div class="sc-pit"><i></i><i></i><i></i></div>
@@ -167,6 +186,13 @@ function sceneHtml(s){
         <path d="M1 6 Q9 0 17 6 Z" fill="currentColor" fill-opacity=".2"/>
       </svg>
     </div>
+    <!-- 地面放在人物之后：前坡把小腿挡住，「站在坡后」比「站在一块板上」自然 -->
+    <svg class="sc-ground" viewBox="0 0 700 32" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M0 6 Q 150 1 300 5 T 700 3 L700 32 L0 32 Z" fill="currentColor" fill-opacity=".075"/>
+      <path d="M0 15 Q 110 10 250 14 T 700 12 L700 32 L0 32 Z" fill="currentColor" fill-opacity=".08"/>
+      <path d="M0 15 Q 110 10 250 14 T 700 12" fill="none" stroke="currentColor" stroke-opacity=".2"
+        stroke-width="1" vector-effect="non-scaling-stroke"/>
+    </svg>
     <div class="sc-drops"></div>
     <div class="sc-hud">
       ${counted
@@ -263,11 +289,17 @@ UI.sceneBeat = function(itemId, qty, opts){
 //
 // 附带好处：相位不另建时间基准，直接取引擎的 activityProgress / interval，
 // 于是暂停、变速、换物、离线补算之后，锄头永远落在正确的相位上。
+// 一锄一周期。v1.31.55 曾在一个周期里塞两锄，看上去像抽搐——
+// 3 秒的周期里挥两次，等于每 1.5 秒砸一下，比真人的动作快一倍。
+// 现在：抬 0.65s、停 0.26s、落 0.5s，其余时间静止（呼吸与飞鸟仍在动）。
+// 举起时要「竖起来」。柄的静止角是 69°（指向右下），
+// 只转到 −106° 时柄角还有 −37°，等于把锄头横着端在胸前——看着像举枪。
+// 转到 −138°，柄角 −69°，锄头几乎竖直，才像「抡起来要砸下去」。
 const SCENE_SWING = [
-  [0, 6], [15, -98], [29, 4], [34, 6], [56, -114], [68, -108], [92, 4], [100, 6],
+  [0, 6], [7, 3], [26, -132], [35, -138], [56, 9], [62, 3], [72, 6], [100, 6],
 ];
 const SCENE_RIG = [
-  [0, 0], [15, -2.2], [29, 3.2], [40, .4], [56, -2.6], [68, -2.2], [92, 3.6], [100, 0],
+  [0, 0], [7, .6], [26, -3.4], [35, -3.6], [56, 4], [62, 1.4], [72, .3], [100, 0],
 ];
 
 // 分段插值。纯线性的挥动像机械臂，故每段中间加一点缓动。
