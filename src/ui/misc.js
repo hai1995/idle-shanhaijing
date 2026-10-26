@@ -135,6 +135,13 @@ UI.renderStats = function(){
       </div>
       <div class="stat-rows mem-rows">
         <span>离线上限构成 <b>基础 ${TUNING.OFFLINE.CAP_H}h + 观象/营造 ${offlineCapHours() - TUNING.OFFLINE.CAP_H - memberBonus('offlineH')}h + 会员 ${memberBonus('offlineH')}h</b></span>
+        <span>观象加成 <b>${observedObserveCount()}/${Object.values(OBSERVE_SITES).filter(s=>s.kind==='观象').length} 处 · 离线效率 +${Math.round(observeEffBonus()*100)}%</b>${(()=>{
+          // 下一档还差几处：只写当前值，玩家不知道"再走两座山有什么好处"
+          const steps = (TUNING.OBSERVE && TUNING.OBSERVE.EFF_STEPS) || [];
+          const n = observedObserveCount();
+          const next = steps.find(s => n < s.n);
+          return next ? ` <i class="hint">再观 ${next.n - n} 处 → +${Math.round(next.v*100)}%</i>` : '';
+        })()}</span>
       </div></div>
     ${(()=>{
       // 会员（预留）：现在没有账号系统，所以这里只列「将来会有什么」，不提供任何购买入口。

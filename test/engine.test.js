@@ -114,7 +114,7 @@ assert(bosses.map(b=>b.id).join(',').includes('xiwangmu'), '西王母在列');
 assert(bosses.map(b=>b.id).join(',').includes('dijiang'), '帝江在列');
 assert(Object.keys(ST.CODEX).length >= 90, '图鉴条目 -> ' + Object.keys(ST.CODEX).length);
 assert(Object.keys(ST.OMENS).length === 8 + 15 + 4 + 15 + 3, '征兆 8 + 15 + 北山 4 + 东山 15 + 中山 3 = 45 条 -> ' + Object.keys(ST.OMENS).length);
-assert(Object.keys(ST.OBSERVE_SITES).length === 9, '观象/观瑞 5 + 东山 4 = 9 处');
+assert(Object.keys(ST.OBSERVE_SITES).length === 13, '观象/观瑞 13 处（南山 5 + 东山 4 + 西山 2 + 北山 1 + 中山 1）');
 assert(Object.keys(ST.RITES).length === 3 + 6 + 1 + 3 + 3 + 12, '祠礼 3 + 6 + 常祭 + 北山 3 + 东山 3 + 中山 12 = 28 套 -> ' + Object.keys(ST.RITES).length);
 // 交互补充：切属性即开战 / 营造详情弹窗 / 行装页战斗数值条
 {
@@ -516,7 +516,7 @@ const capRec = G.settleAway(999999);
 assert(capRec.seconds === ST.offlineCapHours()*3600, '离线受时长上限约束');
 assert(G.settleAway(10) === null, '过短空档不结算');
 // 离线效率低于在线且有上限
-assert(ST.offlineEff() <= ST.TUNING.OFFLINE.EFF_MAX && ST.offlineEff() >= 0.1, '离线效率在 [0.1, 0.85]');
+assert(ST.offlineEff() <= ST.TUNING.OFFLINE.EFF_MAX + ST.observeEffBonus() && ST.offlineEff() >= 0.1, '离线效率在 [0.1, 0.85+观象]');
 // 田地离线生长
 ST.Game.farms = { p1: { seedId:'seed_tu', remain:5, grow:10 } };
 G.farmCatchUp(3600);
@@ -1325,7 +1325,7 @@ const interactSrc = readText('src/interact.js');
 assert(uiSrc.includes('const pick = (()=>{') && uiSrc.includes('if (x.boss) continue;'), '征伐页计算「宜讨」候选（排除 BOSS 与未解锁）');
 assert(uiSrc.includes('levelOf(\'taofa\') < (x.needLvl||1)) continue;'), '宜讨候选需讨伐等级达标');
 assert(uiSrc.includes('if (!best || (x.xp||0) > (best.xp||0)) best = x;'), '宜讨取经验效率最高者');
-assert(uiSrc.includes('[pick, ...g.list.filter(x=>x!==pick)]'), '宜讨项在分组内置顶');
+assert(uiSrc.includes('orderForGroup(g.list, pick)') && uiSrc.includes('list.indexOf(pick) < 0'), '宜讨在本组内置顶，不在本组则不插入（v1.31.21 修「蛊雕遍地」）');
 assert(uiSrc.includes('class="bc-pick"') && uiSrc.includes('>宜讨</span>'), '宜讨项带朱色「宜讨」标记');
 assert(uiSrc.includes("markIcon('check',13):'✔'} 宜讨</span>"), '宜讨与「✔ 推荐」兼具时合并为一枚标签（不并排）');
 assert(/\.bc-pick\{/.test(css) && /\.beast-card\.pick\{ border-color:var\(--zhu\); \}/.test(css), '宜讨有样式（朱色小印 + 卡面朱边）');
@@ -6326,6 +6326,77 @@ section('快速挂机');
   assert(mis.includes('mem-panel') && mis.includes('TUNING.MEMBER.TIERS'), '统计页会员面板由权益表驱动');
   assert(!/开通会员|立即购买|充值/.test(mis), '页面不提供购买入口（开通走账号系统）');
   assert(/基础 \$\{TUNING.OFFLINE.CAP_H\}h/.test(mis), '离线上限写明「基础 24h + 观象/营造 + 会员」三段构成');
+
+  G.resetToDefault();
+}
+
+// ============ 115. 宜讨不得跨组复制（蛊雕「遍地都是」） ============
+// 征伐页每组原本无条件把「宜讨」插到队首：pick 若不属于该组，也会被插进去。
+// 展开二十四个山系就看见二十多张同一只兽（产地都写着同一座山），
+// 玩家自然以为这只兽遍布全书——蛊雕「好几座山都有」就是这么来的。
+section('宜讨不跨组复制');
+{
+  const src = readText('src/ui/combat.js');
+  assert(!/\[pick, \.\.\.g\.list\.filter/.test(src), '不再无条件把宜讨插进每一组');
+  assert((src.match(/orderForGroup\(g\.list, pick\)/g) || []).length === 2, '两处渲染（首屏 / 展开）都走同一排序函数');
+
+  // 抽函数原文进沙箱实测：不属本组 → 原样返回；属本组 → 置顶且不重复
+  const fn = src.match(/function orderForGroup\(list, pick\)\{[\s\S]*?\n\}/);
+  assert(!!fn, 'orderForGroup 可被单独抽出（纯函数、无副作用）');
+  vm.runInContext(fn[0] + '\nwindow.__orderForGroup = orderForGroup;', G);
+  const ofg = ST.__orderForGroup;
+  const A = { id:'a' }, B = { id:'b' }, C = { id:'c' };
+  const list = [B, C];
+  const foreign = ofg(list, A);
+  assert(foreign.length === 2 && foreign[0] === B && foreign[1] === C, '宜讨不在本组时原样返回（不再插入外来卡）');
+  const own = ofg([A, B, C], B);
+  assert(own[0] === B && own.length === 3 && own.filter(x=>x.id==='b').length === 1, '宜讨在本组时置顶且不重复');
+
+  // 数据面：蛊雕只有一处产地
+  const gd = Object.values(ST.Monsters).filter(m => (m.faunaName || m.name) === '蛊雕');
+  assert(gd.length === 1 && gd[0].nodeId === 'nanshan-2-16', '蛊雕只在鹿吴之山（' + (gd[0] || {}).nodeId + '）');
+
+  G.resetToDefault();
+}
+
+// ============ 116. 观象扩点：五章皆有可观，且给离线效率 ============
+// 24h 基线之后，观象「+1h」已不是刚需；扩点若只是多给几小时，等于没人去。
+// 这一版把它接到离线效率上：看得越多，结算越实（阶梯，不逐处叠加）。
+section('观象扩点与效率阶梯');
+{
+  const obs = Object.entries(ST.OBSERVE_SITES).filter(([, s]) => s.kind === '观象');
+  assert(obs.length === 11, '观象 11 处（' + obs.length + '）');
+  const chapters = new Set(obs.map(([, s]) => String(s.nodeId).split('-')[0]));
+  assert(chapters.size === 5, '五章皆有观象点（' + [...chapters].join('/') + '）');
+  // 新点必须是真山、且不与谒见点重合（同山两个一次性按钮会互相顶掉）
+  for (const [id, s] of obs){
+    const n = ST.nodeOf(s.nodeId);
+    assert(!!n, `观象点 ${id} 指向存在的山（${s.nodeId}）`);
+    assert(!ST.AUDIENCE_SITES[s.nodeId], `观象点 ${id} 不与谒见点同山`);
+    assert(n.unlockLevel >= 1 && n.unlockLevel <= 81, `观象点 ${id} 等级在册（${n.unlockLevel}）`);
+  }
+
+  // 阶梯：取最大的 n ≤ 已完成数；观瑞不计入
+  G.resetToDefault();
+  assert(ST.observeEffBonus() === 0, '未观象时无效率加成');
+  const obIds = obs.map(([id]) => id);
+  const setN = k => { ST.Game.observed = {}; obIds.slice(0, k).forEach(id => { ST.Game.observed[id] = true; }); };
+  setN(5);  assert(ST.observeEffBonus() === 0, '5 处：未到第一阶');
+  setN(6);  assert(ST.observeEffBonus() === 0.02, '6 处：+2%');
+  setN(9);  assert(ST.observeEffBonus() === 0.03, '9 处：+3%（不叠加成 5%）');
+  setN(11); assert(ST.observeEffBonus() === 0.05, '11 处：+5%');
+  assert(ST.observedObserveCount() === 11, '观象计数只数观象（' + ST.observedObserveCount() + '）');
+  ST.Game.observed.danxue = true;   // 观瑞
+  assert(ST.observedObserveCount() === 11, '观瑞不计入观象计数');
+
+  // 5% 必须真落到效率上（而不是被 0.85 的原生上限吃掉）
+  setN(0);
+  const eff0 = ST.offlineEff();
+  setN(11);
+  const eff1 = ST.offlineEff();
+  assert(Math.abs(eff1 - eff0 - 0.05) < 1e-9, '观象 5% 全额落到离线效率（' + eff0.toFixed(2) + ' → ' + eff1.toFixed(2) + '）');
+  const gsrc = readText('src/game.js');
+  assert(/TUNING\.OFFLINE\.EFF_MAX \+ memberBonus\('offlineEff'\) \+ observeEffBonus\(\)/.test(gsrc), '效率上限随观象一并抬高（否则满级玩家这 5% 是空气）');
 
   G.resetToDefault();
 }

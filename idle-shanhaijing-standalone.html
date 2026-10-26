@@ -16591,6 +16591,9 @@ const TUNING = {
   // 12h 意味着上一天班只结算一半，这条上限此前一直是玩家最先撞到的墙。
   // 会员（MEMBER）在此之上叠加，见下一节。
   OFFLINE: { EFF_BASE: 0.55, EFF_PER: 0.05, EFF_MAX: 0.85, CAP_H: 24 },
+  // 观象（v1.31.21）：24h 基线之后，观象不再是「延长离线」的刚需，
+  // 于是给它第二个用处——看得越多，离线结算越实。阶梯取「最大的 n ≤ 已完成数」。
+  OBSERVE: { EFF_STEPS: [{ n:6, v:0.02 }, { n:9, v:0.03 }, { n:11, v:0.05 }] },
   // 会员（预留，v1.31.19）：现在没有账号系统，这里只有一张「权益表」——
   // 登录后由账号层把 tier / 到期时刻写进存档的 member 字段，所有加成都走 memberBonus()。
   // ⚠️ 数值是**可调的建议值**，不是已定价的方案；加档位只改这张表，不动业务代码。
@@ -17875,6 +17878,12 @@ const OBSERVE_SITES = {
   qiuwu:    { nodeId:'nanshan-2-17', kind:'观象', name:'日次',   desc:'处于东海，望丘山，其光载出载入，是惟日次', gain:'离线上限 +1 小时' },
   yugu:     { nodeId:'nanshan-3-05', kind:'观象', name:'凯风',   desc:'其南有谷，曰育遗，多怪鸟，凯风自是出',     gain:'离线上限 +1 小时' },
   zhonggu:  { nodeId:'nanshan-3-10', kind:'观象', name:'条风',   desc:'其南有谷焉，曰中谷，条风自是出',           gain:'离线上限 +1 小时' },
+  // 西山两处（v1.31.21）：原文方位的密度不比东山低，此前一处未接。
+  chongwu:  { nodeId:'xishan-3-01', kind:'观象', name:'崇吾四望', desc:'西望帝之搏兽之丘，北望冢遂，南望䍃之泽，东望𧕯渊——一经之中四向俱全者仅此山', gain:'离线上限 +1 小时' },
+  buzhou:   { nodeId:'xishan-3-03', kind:'观象', name:'不周河源', desc:'北望诸𣲗之山，临彼岳崇之山，东望泑泽，河水所潜也，其原浑浑泡泡', gain:'离线上限 +1 小时' },
+  // 北山、中山各一处：五章皆有可观，观象不再是南山/东山的地方性玩法。
+  jingshan: { nodeId:'beishan-3-10', kind:'观象', name:'盐贩之泽', desc:'景山：南望盐贩之泽，北望少泽，其上多草藷藇', gain:'离线上限 +1 小时' },
+  aoan:     { nodeId:'zhongshan-3-01', kind:'观象', name:'河林',    desc:'敖岸之山：北望河林，其状如蒨如举', gain:'离线上限 +1 小时' },
   // reward：初见得瑞羽一件。此前写死在 doObserve 里的一张临时表上，
   // 物品「凤皇羽」的出处因此查不出来，现在归到数据里。
   danxue:   { nodeId:'nanshan-3-03', kind:'观瑞', name:'凤皇',   desc:'丹穴之山有鸟焉，五采而文，见则天下安宁',   gain:'触发「天下安宁」吉兆', reward:'fenghuangyu' },
@@ -19141,8 +19150,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.20',
-  codename:'昼巡 · 神赐',
+  version: '1.31.21',
+  codename:'昼巡 · 观象',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
@@ -20902,9 +20911,24 @@ function offlineEff(){
   if (Game.buff && Game.buff.def && Game.buff.def.kind === 'offline') e += Game.buff.def.offline;
   e += deployedBonuses().offline;
   e += omenMod('offline');              // 猾褢「大繇」：离线收益 -25%
+  e += observeEffBonus();               // 观象：看得越多，离线结算越实
   e += memberBonus('offlineEff');       // 会员：离线效率
-  // 会员同时把效率上限抬一档：满级玩家的效率本就贴着 0.85，只加数值等于卖了个空气
-  return clamp(e, 0.1, TUNING.OFFLINE.EFF_MAX + memberBonus('offlineEff'));
+  // 会员与观象同时把效率上限抬一档：满级玩家的效率本就贴着 0.85，
+  // 只加数值等于卖了/送了个空气。
+  return clamp(e, 0.1, TUNING.OFFLINE.EFF_MAX + memberBonus('offlineEff') + observeEffBonus());
+}
+// 观象完成数（观瑞另算——瑞羽给的是吉兆，不该算进"看了多少处山川"）
+function observedObserveCount(){
+  const obs = Game.observed || {};
+  return Object.keys(obs).filter(k => obs[k] && OBSERVE_SITES[k] && OBSERVE_SITES[k].kind === '观象').length;
+}
+// 观象的第二个用处：24h 基线之后，它不再负责"延长离线"，改负责"离线结算得多实"。
+// 阶梯取「最大的 n ≤ 已完成数」，所以只是加一档、不是逐处叠加。
+function observeEffBonus(){
+  const n = observedObserveCount();
+  let v = 0;
+  for (const s of (TUNING.OBSERVE ? TUNING.OBSERVE.EFF_STEPS : [])) if (n >= s.n) v = s.v;
+  return v;
 }
 function offlineCapHours(){
   let h = TUNING.OFFLINE.CAP_H;
@@ -20934,6 +20958,7 @@ window.jisiBonus = jisiBonus;
 window.gatherSpeedMult = gatherSpeedMult; window.farmSpeedMult = farmSpeedMult;
 window.divMult = divMult; window.tradeMult = tradeMult; window.globalYieldBonus = globalYieldBonus;
 window.isWise = isWise; window.offlineEff = offlineEff; window.offlineCapHours = offlineCapHours;
+window.observeEffBonus = observeEffBonus; window.observedObserveCount = observedObserveCount;
 window.maxSkillLevel = maxSkillLevel; window.deployedBonuses = deployedBonuses;
 
 // ---------- 征兆系统 ----------
@@ -21782,7 +21807,7 @@ function doGrow(siteId){
 window.startGrow = startGrow; window.doGrow = doGrow;
 
 // ---------- 异迹总览（观象 / 谒见 / 灌木） ----------
-// 这三类「一次性地点」散落在 447 座山里：观象 9 处、谒见 20 处、灌木 3 处，
+// 这三类「一次性地点」散落在 447 座山里：观象 13 处、谒见 20 处、灌木 3 处，
 // 每处的按钮只在该山的详情里出现。统计页写着「观象处 3/9」，玩家却没有任何办法
 // 知道自己差的那 6 处在哪——只能一座一座山点开看。这里给一份统一的清单：
 // 三类合成一张表，标出「已得 / 未得 / 未解锁（差几级）」，舆地页据此出索引。
@@ -27729,7 +27754,7 @@ UI.gotoHetero = function(){
   if (el && el.scrollIntoView) el.scrollIntoView({ block:'center', behavior:'smooth' });
 };
 
-// 异迹索引：观象 9 处、谒见 20 处、灌木 3 处散在 447 座山里，
+// 异迹索引：观象 13 处、谒见 20 处、灌木 3 处散在 447 座山里，
 // 每处的按钮只在该山的详情里出现。统计页写着「观象处 3/9」，玩家却没有办法
 // 知道差的那 6 处在哪——只能一座一座山点开看。这里一张表列全：
 // 点一行即选中那座山（看它周围有什么），右侧「往」直接动身。
@@ -28705,6 +28730,16 @@ function beastCardHtml(x, pick){
       </span>
     </div>`;
 }
+// 组内排序：宜讨置顶——**仅当它本来就在这一组里**。
+// 早先无条件写成 [pick, ...list]，于是「宜讨」那只被插进了每一个山系组的头部：
+// 展开二十四个山系，就看见二十多张同一只兽的卡（产地还都写着同一座山），
+// 玩家会以为这只兽遍布全书（蛊雕「好几座山都有」即由此而来）。
+function orderForGroup(list, pick){
+  if (!pick || list.indexOf(pick) < 0) return list;
+  return [pick, ...list.filter(x=>x!==pick)];
+}
+window.orderForGroup = orderForGroup;
+
 function taofaListHtml(){
   const groups = [];
   for (const r of WORLD.regions){
@@ -28755,7 +28790,7 @@ function taofaListHtml(){
       list += g.locked
         ? `<details class="fold grp" open><summary>${esc(g.title)} · ${g.list.length} 种（山系未解锁）</summary>`
         : `<h4>${g.title}</h4>`;
-      const ordered = pick ? [pick, ...g.list.filter(x=>x!==pick)] : g.list;
+      const ordered = orderForGroup(g.list, pick);
       list += `<div class="beast-grid">${ordered.map(x=>beastCardHtml(x, pick)).join('')}</div>`;
       if (g.locked) list += `</details>`;
     } else {
@@ -28780,7 +28815,7 @@ UI.loadBeastGroup = function(det){
   const g = (this._beastGroups || [])[+det.getAttribute('data-g')];
   if (!g) return;
   const pick = this._beastPick;
-  const ordered = pick ? [pick, ...g.list.filter(x=>x!==pick)] : g.list;
+  const ordered = orderForGroup(g.list, pick);
   box.innerHTML = ordered.map(x=>beastCardHtml(x, pick)).join('');
   box.setAttribute('data-loaded', '1');
 };
@@ -30883,6 +30918,13 @@ UI.renderStats = function(){
       </div>
       <div class="stat-rows mem-rows">
         <span>离线上限构成 <b>基础 ${TUNING.OFFLINE.CAP_H}h + 观象/营造 ${offlineCapHours() - TUNING.OFFLINE.CAP_H - memberBonus('offlineH')}h + 会员 ${memberBonus('offlineH')}h</b></span>
+        <span>观象加成 <b>${observedObserveCount()}/${Object.values(OBSERVE_SITES).filter(s=>s.kind==='观象').length} 处 · 离线效率 +${Math.round(observeEffBonus()*100)}%</b>${(()=>{
+          // 下一档还差几处：只写当前值，玩家不知道"再走两座山有什么好处"
+          const steps = (TUNING.OBSERVE && TUNING.OBSERVE.EFF_STEPS) || [];
+          const n = observedObserveCount();
+          const next = steps.find(s => n < s.n);
+          return next ? ` <i class="hint">再观 ${next.n - n} 处 → +${Math.round(next.v*100)}%</i>` : '';
+        })()}</span>
       </div></div>
     ${(()=>{
       // 会员（预留）：现在没有账号系统，所以这里只列「将来会有什么」，不提供任何购买入口。

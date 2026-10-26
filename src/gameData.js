@@ -62,6 +62,9 @@ const TUNING = {
   // 12h 意味着上一天班只结算一半，这条上限此前一直是玩家最先撞到的墙。
   // 会员（MEMBER）在此之上叠加，见下一节。
   OFFLINE: { EFF_BASE: 0.55, EFF_PER: 0.05, EFF_MAX: 0.85, CAP_H: 24 },
+  // 观象（v1.31.21）：24h 基线之后，观象不再是「延长离线」的刚需，
+  // 于是给它第二个用处——看得越多，离线结算越实。阶梯取「最大的 n ≤ 已完成数」。
+  OBSERVE: { EFF_STEPS: [{ n:6, v:0.02 }, { n:9, v:0.03 }, { n:11, v:0.05 }] },
   // 会员（预留，v1.31.19）：现在没有账号系统，这里只有一张「权益表」——
   // 登录后由账号层把 tier / 到期时刻写进存档的 member 字段，所有加成都走 memberBonus()。
   // ⚠️ 数值是**可调的建议值**，不是已定价的方案；加档位只改这张表，不动业务代码。
@@ -1346,6 +1349,12 @@ const OBSERVE_SITES = {
   qiuwu:    { nodeId:'nanshan-2-17', kind:'观象', name:'日次',   desc:'处于东海，望丘山，其光载出载入，是惟日次', gain:'离线上限 +1 小时' },
   yugu:     { nodeId:'nanshan-3-05', kind:'观象', name:'凯风',   desc:'其南有谷，曰育遗，多怪鸟，凯风自是出',     gain:'离线上限 +1 小时' },
   zhonggu:  { nodeId:'nanshan-3-10', kind:'观象', name:'条风',   desc:'其南有谷焉，曰中谷，条风自是出',           gain:'离线上限 +1 小时' },
+  // 西山两处（v1.31.21）：原文方位的密度不比东山低，此前一处未接。
+  chongwu:  { nodeId:'xishan-3-01', kind:'观象', name:'崇吾四望', desc:'西望帝之搏兽之丘，北望冢遂，南望䍃之泽，东望𧕯渊——一经之中四向俱全者仅此山', gain:'离线上限 +1 小时' },
+  buzhou:   { nodeId:'xishan-3-03', kind:'观象', name:'不周河源', desc:'北望诸𣲗之山，临彼岳崇之山，东望泑泽，河水所潜也，其原浑浑泡泡', gain:'离线上限 +1 小时' },
+  // 北山、中山各一处：五章皆有可观，观象不再是南山/东山的地方性玩法。
+  jingshan: { nodeId:'beishan-3-10', kind:'观象', name:'盐贩之泽', desc:'景山：南望盐贩之泽，北望少泽，其上多草藷藇', gain:'离线上限 +1 小时' },
+  aoan:     { nodeId:'zhongshan-3-01', kind:'观象', name:'河林',    desc:'敖岸之山：北望河林，其状如蒨如举', gain:'离线上限 +1 小时' },
   // reward：初见得瑞羽一件。此前写死在 doObserve 里的一张临时表上，
   // 物品「凤皇羽」的出处因此查不出来，现在归到数据里。
   danxue:   { nodeId:'nanshan-3-03', kind:'观瑞', name:'凤皇',   desc:'丹穴之山有鸟焉，五采而文，见则天下安宁',   gain:'触发「天下安宁」吉兆', reward:'fenghuangyu' },
@@ -2612,8 +2621,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.20',
-  codename:'昼巡 · 神赐',
+  version: '1.31.21',
+  codename:'昼巡 · 观象',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',

@@ -137,6 +137,16 @@ function beastCardHtml(x, pick){
       </span>
     </div>`;
 }
+// 组内排序：宜讨置顶——**仅当它本来就在这一组里**。
+// 早先无条件写成 [pick, ...list]，于是「宜讨」那只被插进了每一个山系组的头部：
+// 展开二十四个山系，就看见二十多张同一只兽的卡（产地还都写着同一座山），
+// 玩家会以为这只兽遍布全书（蛊雕「好几座山都有」即由此而来）。
+function orderForGroup(list, pick){
+  if (!pick || list.indexOf(pick) < 0) return list;
+  return [pick, ...list.filter(x=>x!==pick)];
+}
+window.orderForGroup = orderForGroup;
+
 function taofaListHtml(){
   const groups = [];
   for (const r of WORLD.regions){
@@ -187,7 +197,7 @@ function taofaListHtml(){
       list += g.locked
         ? `<details class="fold grp" open><summary>${esc(g.title)} · ${g.list.length} 种（山系未解锁）</summary>`
         : `<h4>${g.title}</h4>`;
-      const ordered = pick ? [pick, ...g.list.filter(x=>x!==pick)] : g.list;
+      const ordered = orderForGroup(g.list, pick);
       list += `<div class="beast-grid">${ordered.map(x=>beastCardHtml(x, pick)).join('')}</div>`;
       if (g.locked) list += `</details>`;
     } else {
@@ -212,7 +222,7 @@ UI.loadBeastGroup = function(det){
   const g = (this._beastGroups || [])[+det.getAttribute('data-g')];
   if (!g) return;
   const pick = this._beastPick;
-  const ordered = pick ? [pick, ...g.list.filter(x=>x!==pick)] : g.list;
+  const ordered = orderForGroup(g.list, pick);
   box.innerHTML = ordered.map(x=>beastCardHtml(x, pick)).join('');
   box.setAttribute('data-loaded', '1');
 };

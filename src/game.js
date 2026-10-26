@@ -513,9 +513,24 @@ function offlineEff(){
   if (Game.buff && Game.buff.def && Game.buff.def.kind === 'offline') e += Game.buff.def.offline;
   e += deployedBonuses().offline;
   e += omenMod('offline');              // 猾褢「大繇」：离线收益 -25%
+  e += observeEffBonus();               // 观象：看得越多，离线结算越实
   e += memberBonus('offlineEff');       // 会员：离线效率
-  // 会员同时把效率上限抬一档：满级玩家的效率本就贴着 0.85，只加数值等于卖了个空气
-  return clamp(e, 0.1, TUNING.OFFLINE.EFF_MAX + memberBonus('offlineEff'));
+  // 会员与观象同时把效率上限抬一档：满级玩家的效率本就贴着 0.85，
+  // 只加数值等于卖了/送了个空气。
+  return clamp(e, 0.1, TUNING.OFFLINE.EFF_MAX + memberBonus('offlineEff') + observeEffBonus());
+}
+// 观象完成数（观瑞另算——瑞羽给的是吉兆，不该算进"看了多少处山川"）
+function observedObserveCount(){
+  const obs = Game.observed || {};
+  return Object.keys(obs).filter(k => obs[k] && OBSERVE_SITES[k] && OBSERVE_SITES[k].kind === '观象').length;
+}
+// 观象的第二个用处：24h 基线之后，它不再负责"延长离线"，改负责"离线结算得多实"。
+// 阶梯取「最大的 n ≤ 已完成数」，所以只是加一档、不是逐处叠加。
+function observeEffBonus(){
+  const n = observedObserveCount();
+  let v = 0;
+  for (const s of (TUNING.OBSERVE ? TUNING.OBSERVE.EFF_STEPS : [])) if (n >= s.n) v = s.v;
+  return v;
 }
 function offlineCapHours(){
   let h = TUNING.OFFLINE.CAP_H;
@@ -545,6 +560,7 @@ window.jisiBonus = jisiBonus;
 window.gatherSpeedMult = gatherSpeedMult; window.farmSpeedMult = farmSpeedMult;
 window.divMult = divMult; window.tradeMult = tradeMult; window.globalYieldBonus = globalYieldBonus;
 window.isWise = isWise; window.offlineEff = offlineEff; window.offlineCapHours = offlineCapHours;
+window.observeEffBonus = observeEffBonus; window.observedObserveCount = observedObserveCount;
 window.maxSkillLevel = maxSkillLevel; window.deployedBonuses = deployedBonuses;
 
 // ---------- 征兆系统 ----------
@@ -1393,7 +1409,7 @@ function doGrow(siteId){
 window.startGrow = startGrow; window.doGrow = doGrow;
 
 // ---------- 异迹总览（观象 / 谒见 / 灌木） ----------
-// 这三类「一次性地点」散落在 447 座山里：观象 9 处、谒见 20 处、灌木 3 处，
+// 这三类「一次性地点」散落在 447 座山里：观象 13 处、谒见 20 处、灌木 3 处，
 // 每处的按钮只在该山的详情里出现。统计页写着「观象处 3/9」，玩家却没有任何办法
 // 知道自己差的那 6 处在哪——只能一座一座山点开看。这里给一份统一的清单：
 // 三类合成一张表，标出「已得 / 未得 / 未解锁（差几级）」，舆地页据此出索引。
