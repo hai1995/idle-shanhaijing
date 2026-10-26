@@ -172,7 +172,19 @@ function startEntryActivity(e, src){
   if (def.mode === 'gather'){
     const it = Items[e.target];
     if (!it) return false;
-    if (it.node !== Game.node){ if (!travelTo(it.node)) return false; }
+    // 与手动采集同一套判据（v1.31.48）：已在任一合法产地就地采，不必传送回主产地。
+    // 「就地」要求当前山开着的（异常状态下站在未解锁山上白采就是漏洞）。
+    const here = nodeOf(Game.node);
+    const hereOk = here ? nodeUnlocked(here) : false;
+    const canHere = hereOk && (typeof gatherAllowedAt === 'function') ? gatherAllowedAt(it, Game.node) : (it.node === Game.node);
+    if (!canHere){
+      const dest = (typeof gatherReachableNode === 'function') ? gatherReachableNode(it) : it.node;
+      if (!dest){
+        UI && UI.toast(`🔒 ${it.name}暂无已开通的产地（先开通相应山川）`);
+        return false;
+      }
+      if (!travelTo(dest)) return false;
+    }
     activityProgress = 0;
     Game.activity = { kind:'gather', skill:def.skill, itemId:e.target, src: src||'queue' };
   } else if (def.mode === 'recipe'){

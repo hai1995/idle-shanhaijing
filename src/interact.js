@@ -11,13 +11,31 @@ function startActivity(kind, arg, opts){
   if (kind === 'gather'){
     const it = Items[arg];
     if (!it || !it.skill){ return false; }
-    if (levelOf(it.skill) < it.lvl){
-      log(`🔒 ${it.name} 需${Skills[it.skill].name} ${it.lvl} 级`, 'bad');
-      UI && UI.toast(`🔒 需${Skills[it.skill].name} ${it.lvl} 级`);
+    // 能不能采：与 doGather / 舆地按钮 / 离线结算共用 gatherAllowed（v1.31.48）。
+    // 此前这里是一道硬门槛（等级不足直接拒），而引擎 doGather 允许差 8 级内硬采
+    // —— 舆地上标着「越级 84%」可采，点下去却被弹回来。两处口径必须一致。
+    const gate = (typeof gatherAllowed === 'function') ? gatherAllowed(it)
+              : { ok: levelOf(it.skill) >= it.lvl, eff:1, why:`需${Skills[it.skill].name} ${it.lvl} 级` };
+    if (!gate.ok){
+      log(`🔒 ${it.name} ${gate.why}`, 'bad');
+      UI && UI.toast(`🔒 ${gate.why}`);
       return false;
     }
-    if (it.node !== Game.node){
-      if (!travelTo(it.node)) return false;
+    // 已在产地就不动：多产地的物（如玉 38 处、金 42 处）产于许多山上，
+    // 站在任一合法产地都该就地采，不必被传送回「主产地」。
+    // ⚠️ 但「就地」的前提是这座山开着的 —— 站在未解锁的山上（存档回拨等异常状态）
+    // 白采就是漏洞，所以这里要求当前山确实可站。
+    const here = nodeOf(Game.node);
+    const hereOk = here ? nodeUnlocked(here) : false;
+    const canHere = hereOk && (typeof gatherAllowedAt === 'function') ? gatherAllowedAt(it, Game.node) : false;
+    if (!canHere){
+      // 去一处**已解锁**的产地：主产地可能锁着或绕远，优先挑走得通的。
+      const dest = (typeof gatherReachableNode === 'function') ? gatherReachableNode(it) : it.node;
+      if (!dest){
+        UI && UI.toast(`🔒 ${it.name}暂无已开通的产地（先开通相应山川）`);
+        return false;
+      }
+      if (!travelTo(dest)) return false;
     }
     activityProgress = 0;
     // times: 采几次后自动停（与「限量制作」「战斗场次」同一套 remain 语义）。

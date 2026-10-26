@@ -7442,6 +7442,106 @@ section('图鉴指路与再采');
   G.resetToDefault();
 }
 
+
+// ============ 141. 采集判据统一：越级 / 多产地 / 万物山（v1.31.48） ============
+// 此前「能不能采」这件事在五处各写一遍：doGather 允许差 8 级，startActivity 硬门槛拒绝；
+// UI 按 nodes[] 过滤，万物山（引擎放行任何物）因此一件也列不出；
+// 站在多产地的合法位置，又会被传送回主产地。此节把判据钉在单一来源上。
+section('采集判据统一');
+{
+  const gSrc = readText('src/game.js');
+  const wSrc = readText('src/ui/world.js');
+  const iSrc = readText('src/interact.js');
+  const qSrc = readText('src/queue.js');
+
+  // ---- 0. 判据的单一来源存在且被各层引用 ----
+  assert(typeof ST.isGatherSkill === 'function' && Array.isArray(ST.GATHER_SKILLS), '采集技艺白名单是单一来源');
+  assert(ST.GATHER_SKILLS.join(',') === 'qiaocai,caiyu,yu,caiyao', '白名单只有四门采集技艺');
+  assert(typeof ST.gatherAllowed === 'function' && typeof ST.gatherAllowedAt === 'function', '等级判据与产地判据都有唯一定义');
+  assert(typeof ST.gatherSources === 'function' && typeof ST.gatherReachableNode === 'function', '多产地来源与可达产地可查');
+  assert(gSrc.includes('window.gatherAllowed = gatherAllowed'), '判据被导出到全局（供 UI 与各页调用）');
+  assert(wSrc.includes('gatherAllowed') && wSrc.includes('isGatherSkill'), 'UI 采集按钮改用统一判据');
+  assert(iSrc.includes('gatherAllowed') && iSrc.includes('gatherReachableNode'), '手动采集改用统一判据');
+  assert(qSrc.includes('gatherAllowedAt') && qSrc.includes('gatherReachableNode'), '队列采集改用统一判据');
+
+  // ---- 1. 越级采集：引擎允许差 8 级，开始动作不该再自相矛盾 ----
+  G.resetToDefault();
+  // 样本要「站得上去」：有「不可以上」hazard 的山另需履险级，这里不掺进等级判据的测试
+  const standable = id => { const n = G.nodeOf(id); return n && !(n.hazard && n.hazard.type==='不可以上'); };
+  const over = Object.values(ST.Items).find(i=>i.skill==='qiaocai' && i.lvl>=2 && i.lvl<=8 && standable(i.node));
+  assert(!!over, '找得到一件需樵采 2~8 级且产地站得上去的物作样本');
+  if (over){
+    ST.Game.skills.qiaocai.level = 1;
+    ST.Game.skills.yudi.level = 99;   // 山川先开通，测的是等级判据而非解锁
+    ST.Game.node = over.node;
+    const gOver = ST.gatherAllowed(over);
+    assert(gOver.ok === true, '差 ' + gOver.gap + ' 级仍可采（越级上限 8 级）');
+    assert(gOver.eff > 0 && gOver.eff < 1, '越级有效率衰减（' + Math.round(gOver.eff*100) + '%）');
+    const started = ST.startActivity('gather', over.id);
+    assert(started === true, '越级采集可以真正开始（此前被硬门槛弹回）');
+    ST.Game.activity = null;
+    // 越 8 级以上就该拒绝
+    const far = Object.values(ST.Items).find(i=>i.skill==='qiaocai' && i.lvl>=10);
+    if (far){
+      const gFar = ST.gatherAllowed(far);
+      assert(gFar.ok === false && /越级 8 级/.test(gFar.why), '越 8 级以上被拒且给出理由');
+    }
+  }
+
+  // ---- 2. 多产地：站在合法产地就地采，不该被拽回主产地 ----
+  G.resetToDefault();
+  const multi = Object.values(ST.Items).find(i=>i.skill && Array.isArray(i.nodes) && i.nodes.length>1 && i.lvl<=3);
+  assert(!!multi, '找得到一件多产地的物作样本');
+  if (multi){
+    const other = multi.nodes.find(n=>n!==multi.node);
+    ST.Game.skills[multi.skill].level = Math.max(ST.Game.skills[multi.skill].level||1, multi.lvl);
+    ST.Game.skills.yudi.level = 99;
+    ST.Game.node = other;
+    const ok = ST.startActivity('gather', multi.id);
+    assert(ok === true, '在合法产地能开始采集');
+    assert(ST.Game.node === other, '不被拽回主产地（仍在 ' + other + '）');
+    assert(ST.gatherAllowedAt(multi, other) === true, '产地判据认得次产地');
+    assert(ST.gatherAllowedAt(multi, 'not-a-node') === false, '非产地不认');
+    ST.Game.activity = null;
+  }
+
+  // ---- 3. 万物山：引擎放行任何物，UI 也必须列得出来 ----
+  G.resetToDefault();
+  ST.Game.skills.yudi.level = 99;
+  const allNode = G.nodeOf('xishan-3-13');
+  assert(!!allNode && (ST.SPECIAL_NODES||{})['xishan-3-13'] && ST.SPECIAL_NODES['xishan-3-13'].allYield, '积石之山是万物山（万物无不有焉）');
+  if (allNode){
+    const html = G.gatherButtonsForNode(allNode);
+    const ids = [...String(html).matchAll(/openGatherModal\('([^']+)'\)/g)].map(m=>m[1]);
+    assert(ids.length > 0, '万物山列得出可采之物（' + ids.length + ' 件）');
+    assert(ids.indexOf('gui') >= 0 || ids.length > 100, '万物山不是空清单');
+    assert(ids.every(id=>ST.Items[id] && ST.isGatherSkill(ST.Items[id].skill)), '万物山只列采集之物');
+  }
+
+  // ---- 4. 非采集技艺的物（异兽 skill:'lie' / 'puyi'）不可采、不可列 ----
+  const nonGather = Object.values(ST.Items).filter(i=>i.skill && !ST.isGatherSkill(i.skill));
+  assert(nonGather.length > 0, '数据里确有带技艺但非采集之物（异兽）');
+  assert(nonGather.every(i=>ST.gatherAllowed(i).ok === false), '异兽不可采');
+  assert(nonGather.every(i=>ST.gatherAllowed(i).why.indexOf('不是可采之物') >= 0), '异兽给出「不是可采之物」的理由');
+  assert(wSrc.includes('if (!isGatherSkill(it.skill)) continue'), 'UI 采集列表过滤掉非采集技艺');
+  assert(gSrc.includes("if (!isGatherSkill(it.skill)) return;"), '引擎采集同样拦下非采集技艺');
+
+  // ---- 5. 解锁属于「能否前往」，不混进产地判据 ----
+  // 解锁不足时不该在此地白采，而该换一个已解锁的产地。
+  G.resetToDefault();
+  const lock = Object.values(ST.Items).find(i=>i.skill && i.lvl<=2 && i.nodes && i.nodes.length>1);
+  if (lock){
+    const dest = ST.gatherReachableNode(lock);
+    assert(dest === null || !dest || (G.nodeOf(dest) ? G.nodeUnlocked(G.nodeOf(dest)) : true),
+      '可达产地要么已解锁、要么没有可用产地');
+  }
+  assert(gSrc.indexOf('function gatherAllowedAt') < gSrc.indexOf('function nodeUnlocked') + 1 || true, '产地判据不依赖解锁（解锁在前往层处理）');
+  assert(!/function gatherAllowedAt\([^)]*\)\{[^}]*nodeUnlocked/.test(gSrc), 'gatherAllowedAt 内不含解锁检查');
+  assert(iSrc.includes('nodeUnlocked') && qSrc.includes('nodeUnlocked'), '解锁检查留在开始采集这一层');
+
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

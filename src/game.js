@@ -784,31 +784,109 @@ function gatherInterval(skillId){
   base = base / Math.max(0.3, gatherSpeedMult());
   return Math.max(1.05, base);
 }
+// ---------- 采集判据：唯一口径（v1.31.48） ----------
+// 此前「这件东西能不能在这儿采」这件事在五处各写了一遍：
+//   doGather（引擎实际采）· startActivity（手动开始）· startEntryActivity（队列）
+//   · gatherButtonsForNode（舆地列按钮）· settleAway（离线结算）
+// 各写一遍的后果不是「多写了几行」，而是**口径走散**，实测出三个玩家能撞上的矛盾：
+//   ① 越级采集：doGather 允许差 8 级内硬采（效率打折），startActivity 却硬门槛拒绝
+//      —— 舆地上明明白白标着「越级 84%」可采，点下去被弹回来。
+//   ② 多产地：150 件物产于多座山（玉 38 处、金 42 处），startActivity 只认 it.node
+//      —— 站在另一座合法产地，点采集却��被传送回「主产地」。
+//   ③ 万物山：积石之山「万物无不有焉」，引擎放行任何物，UI 却按 nodes[] 过滤，
+//      —— 玩家看到的是一座「什么也采不到」的山。
+// 现在统一到这两个函数：判据写一处，五个调用点全部引用。
+// 判据本身沿用引擎的老口径（越级 8 级内可采、多产地皆可、万物山通吃），不改玩法，只修不一致。
+
+// 采集技艺白名单：只有这四门是「采集」，与 GATHER_POOLS 的构建口径一致。
+// ⚠️ 21 件物带 skill:'lie'（猎），但 Skills 表里没有这一门、GATHER_POOLS 也不含它
+// —— 它们是异兽而非产物。万物山放开「任何物」时若不把这一关，舆地上会冒出
+// 「白鷮 / 鸩 / 羚」这种没法采的按钮，点下去连技艺名都拼不出来。
+const GATHER_SKILLS = ['qiaocai','caiyu','yu','caiyao'];
+function isGatherSkill(skillId){
+  return GATHER_SKILLS.indexOf(skillId) >= 0;
+}
+
+// 这件物的产地清单：物本身可能只写 node（主产地），也可能写 nodes[]（多产地）。
+function gatherSources(it){
+  if (!it) return [];
+  if (Array.isArray(it.nodes) && it.nodes.length) return it.nodes;
+  if (it.node) return [it.node];
+  return [];
+}
+// 主产地（传送目的地）：多产地时取 node，其次取清单第一处。
+function gatherHomeNode(it){
+  if (!it) return null;
+  if (it.node) return it.node;
+  const s = gatherSources(it);
+  return s.length ? s[0] : null;
+}
+// 可前往的产地：多产地时挑一处**已解锁**的山。
+// 主产地未必是最近的那座——「金」的主产地是招摇之山，可它在 42 处产地里，
+// 玩家此刻可能正站在一座已解锁的中山。若一律奔主产地，要么传送绕远，
+// 要么主产地还锁着时直接失败（travelTo 拒绝进入未解锁的山）。
+function gatherReachableNode(it){
+  if (!it) return null;
+  for (const n of gatherSources(it)){
+    const nd = nodeOf(n);
+    if (nd && nodeUnlocked(nd)) return n;
+  }
+  return gatherHomeNode(it);
+}
+// 在 nodeId 这座山能不能采这件物？
+// 三条：① 产地在清单里；② 万物山（allYield）通吃；③ 主产地总在清单里（items 里 node 常常不在 nodes[] 中，
+//    但主产地按定义就是产它的山，不该被判成「此地不产」）。
+// ⚠️ 这里**不查山是否解锁**：解锁是「能不能前往」的事，属另一层判据。
+// doGather（引擎每帧调用）与离线结算都只认「此地产不产」，把解锁塞进来会让
+// 「已解锁的产出地」与「解锁条件」两件事互相干扰（测试 46.2 即栽在这）。
+// 未解锁山的防护放在 startActivity：不在已解锁的产地时，传到一处走得通的产地。
+function gatherAllowedAt(it, nodeId){
+  if (!it || !nodeId) return false;
+  const sp = (window.SPECIAL_NODES || {})[nodeId];
+  if (sp && sp.allYield) return true;
+  if (gatherSources(it).indexOf(nodeId) >= 0) return true;
+  if (it.node === nodeId) return true;
+  return false;
+}
+// 能不能采这件物（不论在哪座山）：等级差 8 级内即可，效率按差距衰减。
+// 返回 { ok, gap, eff, why }，eff=1 表示不越级。
+function gatherAllowed(it){
+  if (!it || !it.skill) return { ok:false, gap:99, eff:0, why:'不是可采之物' };
+  if (!isGatherSkill(it.skill)) return { ok:false, gap:99, eff:0, why:'不是可采之物' };
+  const need = it.lvl || 1;
+  const cur = levelOf(it.skill);
+  const gap = need - cur;
+  if (gap <= 0) return { ok:true, gap:0, eff:1, why:'' };
+  if (gap > 8) return { ok:false, gap, eff:0, why:`需${Skills[it.skill].name} ${need} 级（至多越级 8 级）` };
+  return { ok:true, gap, eff:Math.max(0.35, 1 - gap * 0.08), why:'' };
+}
+window.isGatherSkill = isGatherSkill; window.GATHER_SKILLS = GATHER_SKILLS;
+window.gatherSources = gatherSources; window.gatherHomeNode = gatherHomeNode;
+window.gatherReachableNode = gatherReachableNode;
+window.gatherAllowedAt = gatherAllowedAt; window.gatherAllowed = gatherAllowed;
+
 function doGather(itemId){
   const it = Items[itemId];
   if (!it || !it.skill) return;
+  if (!isGatherSkill(it.skill)) return;    // 非采集之物（异兽带 skill:'lie' 等），不可采
   const skillId = it.skill;
   // 越级采集：技能差 8 级以内仍可动手，效率按差距衰减（越 8 级 ≈ 36%）——
   // 某些技能（渔 / 药 / 圃艺）在早期山系没有低阶产物，硬门槛会把玩家钉死在
   // 「只能刷同一种」的死循环里；允许硬采，但收益明显打折，探索仍有价值。
-  const need = it.lvl || 1;
-  const cur = levelOf(skillId);
-  let overEff = 1;
-  if (cur < need){
-    const gap = need - cur;
-    if (gap > 8){
-      Game.activity = null;
-      UI && UI.toast(`🔒 需${Skills[skillId].name} ${need} 级（至多越级 8 级）`);
-      return;
-    }
-    overEff = Math.max(0.35, 1 - gap * 0.08);
+  // 判据与 startActivity / 舆地按钮 / 离线结算共用 gatherAllowed（v1.31.48）。
+  const gate = gatherAllowed(it);
+  if (!gate.ok){
+    Game.activity = null;
+    UI && UI.toast(`🔒 ${gate.why}`);
+    return;
   }
-  // 产地校验（同名产物可分布多山）；积石之山「万物无不有焉」不受产地限制
-  const nodes = it.nodes || (it.node ? [it.node] : []);
+  const overEff = gate.eff;
   const special = (window.SPECIAL_NODES||{})[Game.node];
-  const allYield = !!(special && special.allYield);
-  if (!allYield && !nodes.includes(Game.node)){
-    UI && UI.toast(`此地不产${it.name}，需往${(nodeOf(nodes[0])||{}).name||'其所'}`);
+  // 产地校验（同名产物可分布多山）；积石之山「万物无不有焉」不受产地限制
+  // —— 判据同样走 gatherAllowedAt（v1.31.48），多产地不再被当成「此地不产」。
+  if (!gatherAllowedAt(it, Game.node)){
+    const srcs = gatherSources(it);
+    UI && UI.toast(`此地不产${it.name}，需往${(nodeOf(srcs[0])||{}).name||'其所'}`);
     return;
   }
   const rec = Game.records[itemId] || { count:0, tier:0 };
@@ -3207,11 +3285,10 @@ function settleAway(seconds){
     // ⚠️ 这里原写 `it.node === Game.node`：只认主产地。309 件物产有 nodes[] 多产地，
     // 站在次产地下线，离线一小时的收获是 0（而在线是照采的）。
     // 顺带对齐越级规则：在线允许差 8 级内硬采（效率打折），离线原先是直接不给。
-    const nodes = (it && (it.nodes || (it.node ? [it.node] : []))) || [];
-    const allYield = !!((window.SPECIAL_NODES || {})[Game.node] || {}).allYield;
-    const gap = it ? ((it.lvl || 1) - levelOf(it.skill)) : 99;
-    const overEff = gap <= 0 ? 1 : Math.max(0.35, 1 - gap * 0.08);
-    if (it && (allYield || nodes.indexOf(Game.node) >= 0) && gap <= 8){
+    // v1.31.48：判据统一到 gatherAllowed / gatherAllowedAt，与在线、队列、舆地按钮同源。
+    const gate = (typeof gatherAllowed === 'function') ? gatherAllowed(it) : { ok:true, eff:1 };
+    const overEff = gate.eff;
+    if (it && gatherAllowedAt(it, Game.node) && gate.ok){
       // 限量采集离线同样只算这么多下：设了「采 10 次」就去睡觉，回来不该是一整仓。
       const full = Math.floor(seconds / (gatherInterval(it.skill) * geoGatherMul(Game.node)));
       const times = a.remain != null ? Math.min(full, a.remain) : full;
@@ -3329,11 +3406,14 @@ function startFallbackAction(){
     if (fb && entryCanRun(fb).ok){ return startEntryActivity(fb, 'fallback'); }
   }
   // ② 当前节点采集
+  // v1.31.48：此前只认 it.node（主产地），站在多产地的次产地下，兜底会判定「此山无可采之物」
+  // 而闲置；越级的物也不认（明明引擎采得动）。改用统一判据。
   for (const sk of ['qiaocai','caiyu','yu','caiyao']){
-    const lv = levelOf(sk);
     const hit = (window.GATHER_POOLS[sk]||[]).find(id=>{
       const it = Items[id];
-      return it && it.node === Game.node && (it.lvl||1) <= lv;
+      if (!it) return false;
+      if (!gatherAllowedAt(it, Game.node)) return false;
+      return gatherAllowed(it).ok;
     });
     if (hit){
       activityProgress = 0;

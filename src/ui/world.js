@@ -306,8 +306,8 @@ UI.renderYudi = function(){
 function nodeHasUsableAction(node){
   for (const it of Object.values(Items)){
     if (!it.skill) continue;
-    const nodes = it.nodes || (it.node ? [it.node] : []);
-    if (nodes.includes(node.id) && gatherGate(it).usable) return true;
+    if (!isGatherSkill(it.skill)) continue;
+    if (gatherAllowedAt(it, node.id) && gatherGate(it).usable) return true;
   }
   if (Object.values(OBSERVE_SITES).some(s=>s.nodeId === node.id)) return true;
   if (typeof AUDIENCE_SITES !== 'undefined' && AUDIENCE_SITES[node.id]) return true;
@@ -317,25 +317,29 @@ function nodeHasUsableAction(node){
 }
 // 采集可用性：与 game.js 的 doGather 同口径——差 8 级内可「越级」，效率按差距折减。
 // 早期山系并非每个手艺都有低阶产物（渔在南山只有育沛），硬门槛会把路堵死。
+// v1.31.48：判据改从 game.js 的 gatherAllowed 取，本地只留一层壳——
+// 此前这里自己重算了一遍 gap/eff，与引擎各算各的，早晚会走散。
 function gatherGate(it){
-  const need = it.lvl || 1;
-  const cur = levelOf(it.skill);
-  const gap = need - cur;
-  return { need, cur, gap, usable: gap <= 8, eff: gap <= 0 ? 1 : Math.max(0.35, 1 - gap * 0.08) };
+  const g = (typeof gatherAllowed === 'function') ? gatherAllowed(it) : null;
+  if (!g) return { need: it.lvl||1, cur: levelOf(it.skill), gap:0, usable:true, eff:1 };
+  return { need: it.lvl||1, cur: levelOf(it.skill), gap: g.gap, usable: g.ok, eff: g.eff };
 }
 
 function gatherButtonsForNode(node){
   const out = [];
+  // 万物山（积石之山「万物无不有焉」）：引擎放行任何物，UI 也该列得出来。
+  // 此前按 nodes[] 过滤，结果这座山在舆地上「什么也采不到」——原文的例外被 UI 抹平了。
+  const allYield = !!(window.SPECIAL_NODES && (window.SPECIAL_NODES[node.id]||{}).allYield);
   for (const it of Object.values(Items)){
     if (!it.skill) continue;
-    const nodes = it.nodes || (it.node ? [it.node] : []);
-    if (!nodes.includes(node.id)) continue;
+    if (!isGatherSkill(it.skill)) continue;   // 异兽等带 skill 但并非采集之物
+    if (!gatherAllowedAt(it, node.id)) continue;
     const g = gatherGate(it);
     const tag = g.gap > 0 ? ` · 越级 ${Math.round(g.eff * 100)}%` : '';
     // 采集不再是「一点就一直采」：先问次数（v1.31.46）。讨伐早就有 ∞/1/5/10/50，
     // 采集是同一类动作——「采 20 次就去巡历」以前只能靠盯着一遍遍手动停。
     out.push(`<button class="btn ${g.usable ? (g.gap > 0 ? 'over' : '') : 'lock'}" ${g.usable ? '' : 'disabled'}
-      onclick="UI.openGatherModal('${it.id}')" title="${esc(it.note||'')}${g.gap > 0 ? '（越级采集：效率 ' + Math.round(g.eff*100) + '%）' : ''}">
+      onclick="UI.openGatherModal('${it.id}')" title="${esc(it.note||'')}${g.gap > 0 ? '（越级采集：效率 ' + Math.round(g.eff*100) + '%）' : ''}${allYield ? '（此山万物无不有焉）' : ''}">
       ${typeof skillIcon==='function'?skillIcon(it.skill,17):Skills[it.skill].icon} ${esc(it.name)}<i>${Skills[it.skill].name} ${it.lvl}${tag}</i></button>`);
   }
   return out.join('');
@@ -371,9 +375,10 @@ function syncTimesChips(boxId, n){
 }
 // 单次采集耗时：口径照抄 currentActionInterval 的采集分支（间隔 × 地理系数）。
 // 不走 estimate，是因为这里要「此刻、这座山、这件物」的实数，给玩家一个决定次数的依据。
+// 地理系数按「当前所在的山」算（v1.31.48）：多产地的物就地采时，用主产地的系数就是错的。
 function gatherPerAction(it){
   if (!it || !it.skill) return 1;
-  const node = it.node || Game.node;
+  const node = Game.node;
   return Math.max(0.2, gatherInterval(it.skill) * geoGatherMul(node));
 }
 // 采集次数弹窗：与讨伐弹窗同一套（输入框 + ∞/1/5/10/50 chips + 换算说明）
@@ -386,11 +391,15 @@ UI.openGatherModal = function(itemId){
     return false;
   }
   this._gatherPer = gatherPerAction(it);
-  const node = nodeOf(it.node || Game.node);
+  // 产地显示「当前所在的山」而非物的主产地：多产地的物（玉 38 处）站在哪座山就在哪采，
+  // 弹窗却写主产地名，玩家会以为自己要去别处。
+  const node = nodeOf(Game.node) || nodeOf(gatherHomeNode(it));
   const last = (Prefs.lastGatherTimes != null && Prefs.lastGatherTimes > 0) ? Prefs.lastGatherTimes : '';
   const per = this._gatherPer;
+  // 多产地时补一句「此处亦产」，让玩家知道就地采是常态
+  const multi = gatherSources(it).length > 1;
   this.modal(`<h3><span class="mi-ic">${typeof itemIc==='function'?itemIc(itemId,18):(it.icon||'🪓')}</span> ${esc(it.name)} <span class="tier">${esc(Skills[it.skill].name)} ${it.lvl}</span></h3>
-    <div class="hm-line">${esc(node?node.name:'')}${it.note?' · '+esc(it.note):''}</div>
+    <div class="hm-line">${esc(node?node.name:'')}${it.note?' · '+esc(it.note):''}${multi ? ' · <span class="hm-warn">此地亦产</span>' : ''}</div>
     <div class="hm-line">单次约 ${per < 1 ? per.toFixed(1) : Math.round(per)} 秒${g.gap > 0 ? ` · <b class="hm-warn">越级采集，效率 ${Math.round(g.eff*100)}%</b>` : ''}</div>
     <div class="hm-times">
       <label for="gatherTimes">采集次数</label>
@@ -1187,10 +1196,13 @@ function estimateOfflineGains(hours){
   let xp = 0; const items = {};
   if (a && a.kind === 'gather'){
     const it = Items[a.itemId];
-    if (it && it.node === Game.node && levelOf(it.skill) >= it.lvl){
+    // v1.31.48：产地与等级判据与引擎同源（多产地、越级都认），
+    // 否则这一行给出的离线预估会与真实结算对不上。
+    if (it && gatherAllowedAt(it, Game.node) && gatherAllowed(it).ok){
+      const gate = gatherAllowed(it);
       const times = Math.floor(sec / 1);               // 采集基础间隔 ≈1s
-      xp += Math.round(it.xp * times * eff);
-      const q = Math.floor(times * 1.4 * eff);
+      xp += Math.round(it.xp * times * eff * gate.eff);
+      const q = Math.floor(times * 1.4 * eff * gate.eff);
       if (q > 0) items[a.itemId] = q;
     }
   } else if (a && a.kind === 'craft'){

@@ -19392,7 +19392,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.47',
+  version: '1.31.48',
   codename:'昼巡 · 近况',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -21578,31 +21578,109 @@ function gatherInterval(skillId){
   base = base / Math.max(0.3, gatherSpeedMult());
   return Math.max(1.05, base);
 }
+// ---------- 采集判据：唯一口径（v1.31.48） ----------
+// 此前「这件东西能不能在这儿采」这件事在五处各写了一遍：
+//   doGather（引擎实际采）· startActivity（手动开始）· startEntryActivity（队列）
+//   · gatherButtonsForNode（舆地列按钮）· settleAway（离线结算）
+// 各写一遍的后果不是「多写了几行」，而是**口径走散**，实测出三个玩家能撞上的矛盾：
+//   ① 越级采集：doGather 允许差 8 级内硬采（效率打折），startActivity 却硬门槛拒绝
+//      —— 舆地上明明白白标着「越级 84%」可采，点下去被弹回来。
+//   ② 多产地：150 件物产于多座山（玉 38 处、金 42 处），startActivity 只认 it.node
+//      —— 站在另一座合法产地，点采集却��被传送回「主产地」。
+//   ③ 万物山：积石之山「万物无不有焉」，引擎放行任何物，UI 却按 nodes[] 过滤，
+//      —— 玩家看到的是一座「什么也采不到」的山。
+// 现在统一到这两个函数：判据写一处，五个调用点全部引用。
+// 判据本身沿用引擎的老口径（越级 8 级内可采、多产地皆可、万物山通吃），不改玩法，只修不一致。
+
+// 采集技艺白名单：只有这四门是「采集」，与 GATHER_POOLS 的构建口径一致。
+// ⚠️ 21 件物带 skill:'lie'（猎），但 Skills 表里没有这一门、GATHER_POOLS 也不含它
+// —— 它们是异兽而非产物。万物山放开「任何物」时若不把这一关，舆地上会冒出
+// 「白鷮 / 鸩 / 羚」这种没法采的按钮，点下去连技艺名都拼不出来。
+const GATHER_SKILLS = ['qiaocai','caiyu','yu','caiyao'];
+function isGatherSkill(skillId){
+  return GATHER_SKILLS.indexOf(skillId) >= 0;
+}
+
+// 这件物的产地清单：物本身可能只写 node（主产地），也可能写 nodes[]（多产地）。
+function gatherSources(it){
+  if (!it) return [];
+  if (Array.isArray(it.nodes) && it.nodes.length) return it.nodes;
+  if (it.node) return [it.node];
+  return [];
+}
+// 主产地（传送目的地）：多产地时取 node，其次取清单第一处。
+function gatherHomeNode(it){
+  if (!it) return null;
+  if (it.node) return it.node;
+  const s = gatherSources(it);
+  return s.length ? s[0] : null;
+}
+// 可前往的产地：多产地时挑一处**已解锁**的山。
+// 主产地未必是最近的那座——「金」的主产地是招摇之山，可它在 42 处产地里，
+// 玩家此刻可能正站在一座已解锁的中山。若一律奔主产地，要么传送绕远，
+// 要么主产地还锁着时直接失败（travelTo 拒绝进入未解锁的山）。
+function gatherReachableNode(it){
+  if (!it) return null;
+  for (const n of gatherSources(it)){
+    const nd = nodeOf(n);
+    if (nd && nodeUnlocked(nd)) return n;
+  }
+  return gatherHomeNode(it);
+}
+// 在 nodeId 这座山能不能采这件物？
+// 三条：① 产地在清单里；② 万物山（allYield）通吃；③ 主产地总在清单里（items 里 node 常常不在 nodes[] 中，
+//    但主产地按定义就是产它的山，不该被判成「此地不产」）。
+// ⚠️ 这里**不查山是否解锁**：解锁是「能不能前往」的事，属另一层判据。
+// doGather（引擎每帧调用）与离线结算都只认「此地产不产」，把解锁塞进来会让
+// 「已解锁的产出地」与「解锁条件」两件事互相干扰（测试 46.2 即栽在这）。
+// 未解锁山的防护放在 startActivity：不在已解锁的产地时，传到一处走得通的产地。
+function gatherAllowedAt(it, nodeId){
+  if (!it || !nodeId) return false;
+  const sp = (window.SPECIAL_NODES || {})[nodeId];
+  if (sp && sp.allYield) return true;
+  if (gatherSources(it).indexOf(nodeId) >= 0) return true;
+  if (it.node === nodeId) return true;
+  return false;
+}
+// 能不能采这件物（不论在哪座山）：等级差 8 级内即可，效率按差距衰减。
+// 返回 { ok, gap, eff, why }，eff=1 表示不越级。
+function gatherAllowed(it){
+  if (!it || !it.skill) return { ok:false, gap:99, eff:0, why:'不是可采之物' };
+  if (!isGatherSkill(it.skill)) return { ok:false, gap:99, eff:0, why:'不是可采之物' };
+  const need = it.lvl || 1;
+  const cur = levelOf(it.skill);
+  const gap = need - cur;
+  if (gap <= 0) return { ok:true, gap:0, eff:1, why:'' };
+  if (gap > 8) return { ok:false, gap, eff:0, why:`需${Skills[it.skill].name} ${need} 级（至多越级 8 级）` };
+  return { ok:true, gap, eff:Math.max(0.35, 1 - gap * 0.08), why:'' };
+}
+window.isGatherSkill = isGatherSkill; window.GATHER_SKILLS = GATHER_SKILLS;
+window.gatherSources = gatherSources; window.gatherHomeNode = gatherHomeNode;
+window.gatherReachableNode = gatherReachableNode;
+window.gatherAllowedAt = gatherAllowedAt; window.gatherAllowed = gatherAllowed;
+
 function doGather(itemId){
   const it = Items[itemId];
   if (!it || !it.skill) return;
+  if (!isGatherSkill(it.skill)) return;    // 非采集之物（异兽带 skill:'lie' 等），不可采
   const skillId = it.skill;
   // 越级采集：技能差 8 级以内仍可动手，效率按差距衰减（越 8 级 ≈ 36%）——
   // 某些技能（渔 / 药 / 圃艺）在早期山系没有低阶产物，硬门槛会把玩家钉死在
   // 「只能刷同一种」的死循环里；允许硬采，但收益明显打折，探索仍有价值。
-  const need = it.lvl || 1;
-  const cur = levelOf(skillId);
-  let overEff = 1;
-  if (cur < need){
-    const gap = need - cur;
-    if (gap > 8){
-      Game.activity = null;
-      UI && UI.toast(`🔒 需${Skills[skillId].name} ${need} 级（至多越级 8 级）`);
-      return;
-    }
-    overEff = Math.max(0.35, 1 - gap * 0.08);
+  // 判据与 startActivity / 舆地按钮 / 离线结算共用 gatherAllowed（v1.31.48）。
+  const gate = gatherAllowed(it);
+  if (!gate.ok){
+    Game.activity = null;
+    UI && UI.toast(`🔒 ${gate.why}`);
+    return;
   }
-  // 产地校验（同名产物可分布多山）；积石之山「万物无不有焉」不受产地限制
-  const nodes = it.nodes || (it.node ? [it.node] : []);
+  const overEff = gate.eff;
   const special = (window.SPECIAL_NODES||{})[Game.node];
-  const allYield = !!(special && special.allYield);
-  if (!allYield && !nodes.includes(Game.node)){
-    UI && UI.toast(`此地不产${it.name}，需往${(nodeOf(nodes[0])||{}).name||'其所'}`);
+  // 产地校验（同名产物可分布多山）；积石之山「万物无不有焉」不受产地限制
+  // —— 判据同样走 gatherAllowedAt（v1.31.48），多产地不再被当成「此地不产」。
+  if (!gatherAllowedAt(it, Game.node)){
+    const srcs = gatherSources(it);
+    UI && UI.toast(`此地不产${it.name}，需往${(nodeOf(srcs[0])||{}).name||'其所'}`);
     return;
   }
   const rec = Game.records[itemId] || { count:0, tier:0 };
@@ -24001,11 +24079,10 @@ function settleAway(seconds){
     // ⚠️ 这里原写 `it.node === Game.node`：只认主产地。309 件物产有 nodes[] 多产地，
     // 站在次产地下线，离线一小时的收获是 0（而在线是照采的）。
     // 顺带对齐越级规则：在线允许差 8 级内硬采（效率打折），离线原先是直接不给。
-    const nodes = (it && (it.nodes || (it.node ? [it.node] : []))) || [];
-    const allYield = !!((window.SPECIAL_NODES || {})[Game.node] || {}).allYield;
-    const gap = it ? ((it.lvl || 1) - levelOf(it.skill)) : 99;
-    const overEff = gap <= 0 ? 1 : Math.max(0.35, 1 - gap * 0.08);
-    if (it && (allYield || nodes.indexOf(Game.node) >= 0) && gap <= 8){
+    // v1.31.48：判据统一到 gatherAllowed / gatherAllowedAt，与在线、队列、舆地按钮同源。
+    const gate = (typeof gatherAllowed === 'function') ? gatherAllowed(it) : { ok:true, eff:1 };
+    const overEff = gate.eff;
+    if (it && gatherAllowedAt(it, Game.node) && gate.ok){
       // 限量采集离线同样只算这么多下：设了「采 10 次」就去睡觉，回来不该是一整仓。
       const full = Math.floor(seconds / (gatherInterval(it.skill) * geoGatherMul(Game.node)));
       const times = a.remain != null ? Math.min(full, a.remain) : full;
@@ -24123,11 +24200,14 @@ function startFallbackAction(){
     if (fb && entryCanRun(fb).ok){ return startEntryActivity(fb, 'fallback'); }
   }
   // ② 当前节点采集
+  // v1.31.48：此前只认 it.node（主产地），站在多产地的次产地下，兜底会判定「此山无可采之物」
+  // 而闲置；越级的物也不认（明明引擎采得动）。改用统一判据。
   for (const sk of ['qiaocai','caiyu','yu','caiyao']){
-    const lv = levelOf(sk);
     const hit = (window.GATHER_POOLS[sk]||[]).find(id=>{
       const it = Items[id];
-      return it && it.node === Game.node && (it.lvl||1) <= lv;
+      if (!it) return false;
+      if (!gatherAllowedAt(it, Game.node)) return false;
+      return gatherAllowed(it).ok;
     });
     if (hit){
       activityProgress = 0;
@@ -24314,7 +24394,19 @@ function startEntryActivity(e, src){
   if (def.mode === 'gather'){
     const it = Items[e.target];
     if (!it) return false;
-    if (it.node !== Game.node){ if (!travelTo(it.node)) return false; }
+    // 与手动采集同一套判据（v1.31.48）：已在任一合法产地就地采，不必传送回主产地。
+    // 「就地」要求当前山开着的（异常状态下站在未解锁山上白采就是漏洞）。
+    const here = nodeOf(Game.node);
+    const hereOk = here ? nodeUnlocked(here) : false;
+    const canHere = hereOk && (typeof gatherAllowedAt === 'function') ? gatherAllowedAt(it, Game.node) : (it.node === Game.node);
+    if (!canHere){
+      const dest = (typeof gatherReachableNode === 'function') ? gatherReachableNode(it) : it.node;
+      if (!dest){
+        UI && UI.toast(`🔒 ${it.name}暂无已开通的产地（先开通相应山川）`);
+        return false;
+      }
+      if (!travelTo(dest)) return false;
+    }
     activityProgress = 0;
     Game.activity = { kind:'gather', skill:def.skill, itemId:e.target, src: src||'queue' };
   } else if (def.mode === 'recipe'){
@@ -26531,13 +26623,31 @@ function startActivity(kind, arg, opts){
   if (kind === 'gather'){
     const it = Items[arg];
     if (!it || !it.skill){ return false; }
-    if (levelOf(it.skill) < it.lvl){
-      log(`🔒 ${it.name} 需${Skills[it.skill].name} ${it.lvl} 级`, 'bad');
-      UI && UI.toast(`🔒 需${Skills[it.skill].name} ${it.lvl} 级`);
+    // 能不能采：与 doGather / 舆地按钮 / 离线结算共用 gatherAllowed（v1.31.48）。
+    // 此前这里是一道硬门槛（等级不足直接拒），而引擎 doGather 允许差 8 级内硬采
+    // —— 舆地上标着「越级 84%」可采，点下去却被弹回来。两处口径必须一致。
+    const gate = (typeof gatherAllowed === 'function') ? gatherAllowed(it)
+              : { ok: levelOf(it.skill) >= it.lvl, eff:1, why:`需${Skills[it.skill].name} ${it.lvl} 级` };
+    if (!gate.ok){
+      log(`🔒 ${it.name} ${gate.why}`, 'bad');
+      UI && UI.toast(`🔒 ${gate.why}`);
       return false;
     }
-    if (it.node !== Game.node){
-      if (!travelTo(it.node)) return false;
+    // 已在产地就不动：多产地的物（如玉 38 处、金 42 处）产于许多山上，
+    // 站在任一合法产地都该就地采，不必被传送回「主产地」。
+    // ⚠️ 但「就地」的前提是这座山开着的 —— 站在未解锁的山上（存档回拨等异常状态）
+    // 白采就是漏洞，所以这里要求当前山确实可站。
+    const here = nodeOf(Game.node);
+    const hereOk = here ? nodeUnlocked(here) : false;
+    const canHere = hereOk && (typeof gatherAllowedAt === 'function') ? gatherAllowedAt(it, Game.node) : false;
+    if (!canHere){
+      // 去一处**已解锁**的产地：主产地可能锁着或绕远，优先挑走得通的。
+      const dest = (typeof gatherReachableNode === 'function') ? gatherReachableNode(it) : it.node;
+      if (!dest){
+        UI && UI.toast(`🔒 ${it.name}暂无已开通的产地（先开通相应山川）`);
+        return false;
+      }
+      if (!travelTo(dest)) return false;
     }
     activityProgress = 0;
     // times: 采几次后自动停（与「限量制作」「战斗场次」同一套 remain 语义）。
@@ -28834,8 +28944,8 @@ UI.renderYudi = function(){
 function nodeHasUsableAction(node){
   for (const it of Object.values(Items)){
     if (!it.skill) continue;
-    const nodes = it.nodes || (it.node ? [it.node] : []);
-    if (nodes.includes(node.id) && gatherGate(it).usable) return true;
+    if (!isGatherSkill(it.skill)) continue;
+    if (gatherAllowedAt(it, node.id) && gatherGate(it).usable) return true;
   }
   if (Object.values(OBSERVE_SITES).some(s=>s.nodeId === node.id)) return true;
   if (typeof AUDIENCE_SITES !== 'undefined' && AUDIENCE_SITES[node.id]) return true;
@@ -28845,25 +28955,29 @@ function nodeHasUsableAction(node){
 }
 // 采集可用性：与 game.js 的 doGather 同口径——差 8 级内可「越级」，效率按差距折减。
 // 早期山系并非每个手艺都有低阶产物（渔在南山只有育沛），硬门槛会把路堵死。
+// v1.31.48：判据改从 game.js 的 gatherAllowed 取，本地只留一层壳——
+// 此前这里自己重算了一遍 gap/eff，与引擎各算各的，早晚会走散。
 function gatherGate(it){
-  const need = it.lvl || 1;
-  const cur = levelOf(it.skill);
-  const gap = need - cur;
-  return { need, cur, gap, usable: gap <= 8, eff: gap <= 0 ? 1 : Math.max(0.35, 1 - gap * 0.08) };
+  const g = (typeof gatherAllowed === 'function') ? gatherAllowed(it) : null;
+  if (!g) return { need: it.lvl||1, cur: levelOf(it.skill), gap:0, usable:true, eff:1 };
+  return { need: it.lvl||1, cur: levelOf(it.skill), gap: g.gap, usable: g.ok, eff: g.eff };
 }
 
 function gatherButtonsForNode(node){
   const out = [];
+  // 万物山（积石之山「万物无不有焉」）：引擎放行任何物，UI 也该列得出来。
+  // 此前按 nodes[] 过滤，结果这座山在舆地上「什么也采不到」——原文的例外被 UI 抹平了。
+  const allYield = !!(window.SPECIAL_NODES && (window.SPECIAL_NODES[node.id]||{}).allYield);
   for (const it of Object.values(Items)){
     if (!it.skill) continue;
-    const nodes = it.nodes || (it.node ? [it.node] : []);
-    if (!nodes.includes(node.id)) continue;
+    if (!isGatherSkill(it.skill)) continue;   // 异兽等带 skill 但并非采集之物
+    if (!gatherAllowedAt(it, node.id)) continue;
     const g = gatherGate(it);
     const tag = g.gap > 0 ? ` · 越级 ${Math.round(g.eff * 100)}%` : '';
     // 采集不再是「一点就一直采」：先问次数（v1.31.46）。讨伐早就有 ∞/1/5/10/50，
     // 采集是同一类动作——「采 20 次就去巡历」以前只能靠盯着一遍遍手动停。
     out.push(`<button class="btn ${g.usable ? (g.gap > 0 ? 'over' : '') : 'lock'}" ${g.usable ? '' : 'disabled'}
-      onclick="UI.openGatherModal('${it.id}')" title="${esc(it.note||'')}${g.gap > 0 ? '（越级采集：效率 ' + Math.round(g.eff*100) + '%）' : ''}">
+      onclick="UI.openGatherModal('${it.id}')" title="${esc(it.note||'')}${g.gap > 0 ? '（越级采集：效率 ' + Math.round(g.eff*100) + '%）' : ''}${allYield ? '（此山万物无不有焉）' : ''}">
       ${typeof skillIcon==='function'?skillIcon(it.skill,17):Skills[it.skill].icon} ${esc(it.name)}<i>${Skills[it.skill].name} ${it.lvl}${tag}</i></button>`);
   }
   return out.join('');
@@ -28899,9 +29013,10 @@ function syncTimesChips(boxId, n){
 }
 // 单次采集耗时：口径照抄 currentActionInterval 的采集分支（间隔 × 地理系数）。
 // 不走 estimate，是因为这里要「此刻、这座山、这件物」的实数，给玩家一个决定次数的依据。
+// 地理系数按「当前所在的山」算（v1.31.48）：多产地的物就地采时，用主产地的系数就是错的。
 function gatherPerAction(it){
   if (!it || !it.skill) return 1;
-  const node = it.node || Game.node;
+  const node = Game.node;
   return Math.max(0.2, gatherInterval(it.skill) * geoGatherMul(node));
 }
 // 采集次数弹窗：与讨伐弹窗同一套（输入框 + ∞/1/5/10/50 chips + 换算说明）
@@ -28914,11 +29029,15 @@ UI.openGatherModal = function(itemId){
     return false;
   }
   this._gatherPer = gatherPerAction(it);
-  const node = nodeOf(it.node || Game.node);
+  // 产地显示「当前所在的山」而非物的主产地：多产地的物（玉 38 处）站在哪座山就在哪采，
+  // 弹窗却写主产地名，玩家会以为自己要去别处。
+  const node = nodeOf(Game.node) || nodeOf(gatherHomeNode(it));
   const last = (Prefs.lastGatherTimes != null && Prefs.lastGatherTimes > 0) ? Prefs.lastGatherTimes : '';
   const per = this._gatherPer;
+  // 多产地时补一句「此处亦产」，让玩家知道就地采是常态
+  const multi = gatherSources(it).length > 1;
   this.modal(`<h3><span class="mi-ic">${typeof itemIc==='function'?itemIc(itemId,18):(it.icon||'🪓')}</span> ${esc(it.name)} <span class="tier">${esc(Skills[it.skill].name)} ${it.lvl}</span></h3>
-    <div class="hm-line">${esc(node?node.name:'')}${it.note?' · '+esc(it.note):''}</div>
+    <div class="hm-line">${esc(node?node.name:'')}${it.note?' · '+esc(it.note):''}${multi ? ' · <span class="hm-warn">此地亦产</span>' : ''}</div>
     <div class="hm-line">单次约 ${per < 1 ? per.toFixed(1) : Math.round(per)} 秒${g.gap > 0 ? ` · <b class="hm-warn">越级采集，效率 ${Math.round(g.eff*100)}%</b>` : ''}</div>
     <div class="hm-times">
       <label for="gatherTimes">采集次数</label>
@@ -29715,10 +29834,13 @@ function estimateOfflineGains(hours){
   let xp = 0; const items = {};
   if (a && a.kind === 'gather'){
     const it = Items[a.itemId];
-    if (it && it.node === Game.node && levelOf(it.skill) >= it.lvl){
+    // v1.31.48：产地与等级判据与引擎同源（多产地、越级都认），
+    // 否则这一行给出的离线预估会与真实结算对不上。
+    if (it && gatherAllowedAt(it, Game.node) && gatherAllowed(it).ok){
+      const gate = gatherAllowed(it);
       const times = Math.floor(sec / 1);               // 采集基础间隔 ≈1s
-      xp += Math.round(it.xp * times * eff);
-      const q = Math.floor(times * 1.4 * eff);
+      xp += Math.round(it.xp * times * eff * gate.eff);
+      const q = Math.floor(times * 1.4 * eff * gate.eff);
       if (q > 0) items[a.itemId] = q;
     }
   } else if (a && a.kind === 'craft'){
