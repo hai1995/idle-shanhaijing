@@ -8065,6 +8065,7 @@ section('现场驱动自愈');
   ST.UI._sceneLast = 0;
   ST.UI.startSceneMotion();
   assert(!ST.UI._sceneRaf && rafCalls === 0, '减动效时不起 rAF（保留静帧）');
+
   ST.matchMedia = (q) => ({ matches: false });
   assert(ST.sceneReduceMotion() === false, '减动效关掉后判据为假');
   ST.UI.startSceneMotion();
@@ -8072,6 +8073,21 @@ section('现场驱动自愈');
   ST.UI.stopSceneMotion();
   G.requestAnimationFrame = savedRaf; ST.matchMedia = savedMM;
   ST.UI._sceneSig = 'none';
+  // ---- 8. 停得掉：cancel 拦不住「正在执行的那一帧」，得靠代次 ----
+  // 实测过：stopSceneMotion 之后锄头还在后台每帧跑（帧数一直在涨），
+  // 因为那一帧末尾又排了下一帧。照片比对时还因此看到「同一场景两次抓图不同」。
+  const savedCb = G.requestAnimationFrame;
+  const cbs = [];
+  G.requestAnimationFrame = (fn) => { cbs.push(fn); return cbs.length; };
+  G.cancelAnimationFrame = () => {};
+  ST.matchMedia = (q) => ({ matches: false });
+  ST.UI._sceneLast = 0; ST.UI._sceneSig = 't|gen';
+  ST.UI.startSceneMotion();
+  const inFlight = cbs.pop();
+  assert(typeof inFlight === 'function', '拿到在途的那一帧');
+  ST.UI.stopSceneMotion();
+  inFlight();                                   // 模拟「取消时它已经在执行」
+  assert(cbs.length === 0, '停掉之后，在途的那一帧不会续链');
 }
 
 // ============ 147. 指引条不该是三等价（v1.31.60） ============
@@ -8152,8 +8168,8 @@ section('夜间与战阵');
   // ---- 6. 征伐用「前冲」，不是「举落」 ----
   assert(Array.isArray(ST.SCENE_LUNGE) && ST.SCENE_LUNGE.some(f => f[1] > 5),
     '前冲帧表有实际位移');
-  assert(sSrc148.includes("UI._sceneKind === 'fight'") && sSrc148.includes('paintFight'),
-    '单帧绘制对征伐分路');
+  assert(sSrc148.includes('paintFight') && sSrc148.includes("sceneRecipe(UI._sceneKind).driver === 'lunge'"),
+    '单帧绘制按注册表的 driver 分路（征伐走前冲）');
   assert(sSrc148.includes('SCENE_LUNGE, p'), '前冲用自己那张帧表');
 
   // ---- 7. 锤与锄共用时间轴、只换尺寸 ----

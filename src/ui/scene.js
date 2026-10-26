@@ -169,6 +169,24 @@ function sceneToolPath(a, kind){
   };
 }
 
+// ---------- 行动 → 现场 ----------
+// 六种行动此前是四条各自独立的 if 链（工具 / 物 / 天象 / 每帧驱动），
+// 加第七种要改四处，且容易只改一处。收成一张表：加行动只加一行。
+//   tool   手里的工具（art 名，空 = 空手）
+//   prop   地上的物（art 名，空 = 只有地面）
+//   sky    天象（art 名，空 = 不画）
+//   driver 谁在动：swing 举落 / lunge 前冲 / idle 交给 CSS
+const SCENE_KINDS = {
+  gather:   { tool:'hoe',    prop:'mound', driver:'swing' },
+  craft:    { tool:'hammer', prop:'anvil', driver:'swing' },
+  grow:     { tool:'',       prop:'shrub', driver:'idle'  },
+  observe:  { tool:'',       prop:'',      sky:'stars', driver:'idle' },
+  audience: { tool:'',       prop:'steps', driver:'idle'  },
+  fight:    { tool:'sword',  prop:'',      driver:'lunge' },   // 兽单独画，见 sceneHtml
+  other:    { tool:'',       prop:'',      driver:'idle'  },
+};
+function sceneRecipe(kind){ return SCENE_KINDS[kind] || SCENE_KINDS.other; }
+
 // 工具：人物 SVG 内部的一个 <g>，**每帧改 SVG 原生 transform 属性**。
 // 三次失败的经验：
 //   v1.31.54 `<g>` + CSS transform  → Safari 不动
@@ -177,8 +195,12 @@ function sceneToolPath(a, kind){
 // 属性和 `rotate(角度 cx cy)` 是 SVG 1.1 就有的东西，二十年来没有内核不支持。
 // 所以这里既不写 style.transform，也不用 transform-origin——
 // 旋转中心直接写进属性里：rotate(a 30 38)，坐标就是人物 viewBox 的坐标系。
-function sceneTool(kind){
-  if (kind === 'gather'){
+// 三个薄包装：对外仍按「行动名」调用（sceneProps('gather')），
+// 内部经注册表换成 art 名。这样测试与外部导出都不用改。
+function sceneTool(kind){ return sceneToolArt(sceneRecipe(kind).tool); }
+
+function sceneToolArt(name){
+  if (name === 'hoe'){
     return `<g class="sc-tool">
       <path class="sc-shaft" d="M31 30 L41 59" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
       <path class="sc-blade" d="M33.4 62.4 L48.4 56.4" stroke="currentColor" stroke-width="4.6" stroke-linecap="round"/>
@@ -186,7 +208,7 @@ function sceneTool(kind){
     </g>`;
   }
   // 锤：与锄同一套几何（柄 + 头），只是柄短、头方。这样「举—落」的节奏不用另写一份。
-  if (kind === 'craft'){
+  if (name === 'hammer'){
     return `<g class="sc-tool">
       <path class="sc-shaft" d="M31 30 L35 47" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
       <path class="sc-blade" d="M31.6 48 L38.6 44.4" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
@@ -194,7 +216,7 @@ function sceneTool(kind){
     </g>`;
   }
   // 剑：贴着手的短柄 + 长刃 + 红缨。剑不挥，靠整个人前冲（见 paintFight）。
-  if (kind === 'fight'){
+  if (name === 'sword'){
     return `<g class="sc-tool">
       <path d="M31 30 L54 39" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>
       <path d="M42 34.4 L55 39.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity=".55"/>
@@ -224,23 +246,25 @@ function sceneFoe(){
 }
 
 // 地面上的「物」：每种行动一件，和锄头一样只用线条与淡墨块。
-function sceneProps(kind){
-  if (kind === 'gather'){
+function sceneProps(kind){ return scenePropArt(sceneRecipe(kind).prop); }
+
+function scenePropArt(name){
+  if (name === 'mound'){
     return `<div class="sc-pit"><i></i><i></i><i></i></div>
       <svg class="sc-mound" viewBox="0 0 18 7" aria-hidden="true">
         <path d="M1 6 Q9 0 17 6 Z" fill="currentColor" fill-opacity=".2"/>
       </svg>`;
   }
   // 砧：一块上宽下窄的石
-  if (kind === 'craft'){
+  if (name === 'anvil'){
     return `<svg class="sc-anvil" viewBox="0 0 24 13" aria-hidden="true">
       <path d="M2.4 6.2 L21.6 6.2 L18.4 11.6 L5.6 11.6 Z" fill="currentColor" fill-opacity=".24"/>
       <path d="M1 3 L23 3 L21.4 6.2 L2.6 6.2 Z" fill="currentColor" fill-opacity=".3"/>
       <path d="M1.6 3 L22.4 3" stroke="currentColor" stroke-opacity=".42" stroke-width="1.1"/>
     </svg>`;
   }
-  // 苗：三株，风一来一起摆（CSS 驱动，不占 JS 帧）
-  if (kind === 'grow'){
+  // 灌木：一丛墨块，风一来轻轻摆（CSS 驱动，不占 JS 帧）
+  if (name === 'shrub'){
     return `<svg class="sc-sprout" viewBox="0 0 30 26" aria-hidden="true">
       <!-- 一丛灌木：一个不规则的墨块 + 几点叶。28px 宽里，块面比线条容易认出「这是植物」 -->
       <path d="M4 17 Q1.6 8.6 9 6.4 Q11.6 1.4 18 3.2 Q25 2 26.4 9 Q29.4 14 23.8 17.2
@@ -252,8 +276,8 @@ function sceneProps(kind){
       </g>
     </svg>`;
   }
-  // 门阙：两柱一枋，谒见所立之处
-  if (kind === 'audience'){
+  // 谒见：三级台阶（「谨候阶下」字面就是台阶）
+  if (name === 'steps'){
     return `<svg class="sc-gate" viewBox="0 0 34 30" aria-hidden="true">
       <!-- 三级台阶，自下而上收窄。30px 的宽里，台阶比门阙好认得多 -->
       <g fill="currentColor" opacity=".3">
@@ -271,8 +295,10 @@ function sceneProps(kind){
 }
 
 // 天象：观象时抬头看的东西，铺满整条现场（不放在 stage 里）
-function sceneSky(kind){
-  if (kind !== 'observe') return '';
+function sceneSky(kind){ const k = sceneRecipe(kind).sky; return k ? sceneSkyArt(k) : ''; }
+
+function sceneSkyArt(name){
+  if (name !== 'stars') return '';
   return `<svg class="sc-stars" viewBox="0 0 405 60" preserveAspectRatio="none" aria-hidden="true">
     <path d="M0 0 L405 0 L405 22 Q330 30 250 24 Q160 17 90 26 Q40 31 0 25 Z"
       fill="currentColor" fill-opacity=".05"/>
@@ -321,7 +347,8 @@ function sceneHtml(s){
   // 只有采集与制作会「一件一件出东西」；观象、谒见、莳植没有计数可言，
   // 硬摆一个永远是 0 的大数字，比不摆更让人困惑。
   const counted = (s.kind === 'gather' || s.kind === 'craft');
-  const fight = (s.kind === 'fight');
+  const rec = sceneRecipe(s.kind);
+  const fight = (rec.driver === 'lunge');
   const hud = fight
     ? `<b class="sc-label">${esc(s.foe.name)}</b><span>气血 ${s.foe.hp} / ${s.foe.max}</span>`
     : (counted
@@ -507,7 +534,14 @@ UI._sceneLast = 0;      // 上一帧的时间戳：心跳停了没有，就看�
 UI._sceneMiss = 0;      // 连续几次「心跳停了」
 UI._sceneCss  = false;  // 是否已降级给 CSS 关键帧
 
+UI._sceneGen = 0;      // 代次：停一次 +1，在途的那一帧据此作废
+
 UI.stopSceneMotion = function(){
+  // 只 cancel 是不够的：如果这一帧正在执行，cancel 拦不住它，
+  // 而它末尾又会排下一帧——链照旧活着，只是 `_sceneRaf` 已经清零、
+  // 谁也管不着它了（关掉现场后仍在后台每帧跑，是实测到的）。
+  // 所以停的时候把代次 +1：在途的帧看到代次变了就自行退出。
+  UI._sceneGen++;
   if (UI._sceneRaf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(UI._sceneRaf);
   UI._sceneRaf = 0;
 };
@@ -534,10 +568,13 @@ UI.startSceneMotion = function(){
   // 一旦某一帧被丢掉，这个现场就永久定住——iOS「添加到主屏幕」正是这么定住的。
   if (UI._sceneRaf && sceneNow() - UI._sceneLast < 1200) return;
   UI.stopSceneMotion();
+  const gen = UI._sceneGen;
   const step = ()=>{
+    if (gen !== UI._sceneGen) return;                 // 已被停掉 / 换了一代
     try {
       UI.paintSceneFrame();
     } finally {
+      if (gen !== UI._sceneGen) return;               // 画的过程中被停掉，不再续链
       // 切后台时主动收链。iOS 独立模式挂起页面时，已排队的回调会被丢掉；
       // 若自调度写在函数开头，丢掉一次就再也接不上。
       // 现在改成「画完再排」，并且后台不排——回来由 visibilitychange 重开。
@@ -583,7 +620,7 @@ UI.paintSceneFrame = function(){
   if (!bar) return;
   const rig = bar.querySelector('.sc-rig');
   // 征伐走另一套：不挥工具，整个人前冲；命中一刻迸火。
-  if (UI._sceneKind === 'fight'){ paintFight(bar, rig); return; }
+  if (sceneRecipe(UI._sceneKind).driver === 'lunge'){ paintFight(bar, rig); return; }
   if (!bar.querySelector('.sc-shaft') && !rig) return;
   const iv = (typeof currentActionInterval === 'function') ? currentActionInterval() : 1;
   const T = (iv > 0) ? iv * 1000 : 2600;
@@ -673,6 +710,8 @@ if (typeof window !== 'undefined'){
   window.sceneNight = sceneNight;
   window.sceneReduceMotion = sceneReduceMotion;
   window.sceneProps = sceneProps;
+  window.SCENE_KINDS = SCENE_KINDS;
+  window.sceneRecipe = sceneRecipe;
   window.sceneFoe = sceneFoe;
   window.sceneSky = sceneSky;
   window.SCENE_SWING = SCENE_SWING;
