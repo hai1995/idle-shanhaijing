@@ -5658,6 +5658,20 @@ section('离线结算与线上同口径');
   const listed = [...html.matchAll(/src="(src\/[^"?]+\.js)(?:\?[^"]*)?"/g)].map(m => m[1].replace(/^src\//, ''));
   const missing = listed.filter(f => !arch.includes('`' + f + '`'));
   assert(missing.length === 0, 'ARCHITECTURE 的文件表覆盖了全部脚本（缺：' + missing.join(',') + '）');
+
+  // ---- 资源缓存串：页面上每个本地资源都必须带 ?v=<当前版本> ----
+  // GitHub Pages 对 html/js/css 一律 `Cache-Control: max-age=600`，改完十分钟内
+  // 用户拿到的还是旧文件；主屏幕里的独立实例更顽固（可能一直不刷新）。
+  // 发版时改了代码却漏改这一串，症状是「本地好了、手机上没好」——
+  // 之前为了这个症状白查了三轮，最后发现是缓存。
+  const pkgVer = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8')).version;
+  const assets = [...html.matchAll(/(?:src|href)="((?:src\/|style\.css)[^"]*)"/g)].map(m => m[1]);
+  assert(assets.length >= 28, '页面上取到了本地资源清单（' + assets.length + ' 个）');
+  const noVer = assets.filter(u => !u.includes('?v='));
+  assert(noVer.length === 0, '每个本地资源都带 ?v=（漏：' + noVer.slice(0,3).join(',') + '）');
+  const wrongVer = assets.filter(u => !u.endsWith('?v=' + pkgVer));
+  assert(wrongVer.length === 0,
+    '?v= 与 package.json 版本一致（应为 ' + pkgVer + '，错：' + wrongVer.slice(0,3).join(',') + '）');
 }
 
 // ============ 100. 前世遗物：由转数派生，不写存档 ============
