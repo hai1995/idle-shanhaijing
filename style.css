@@ -1222,7 +1222,13 @@ svg.bi.mk{ vertical-align:-2px; }
 .codex-card:hover{ border-color:var(--zhu); background:var(--paper-3); }
 /* 未见：保留可读的名字，只以虚线框与淡墨区分——不把名字压到看不清 */
 .codex-card.unseen{ background:transparent; border-style:dashed; }
-.codex-card.unseen .cc-name{ color:var(--ink-3); font-weight:400; }
+.codex-card.unseen /* 图鉴「系产」小印：朱底细字，与「已录/阶位」不抢眼但看得出来 */
+.cc-sp{
+  display:inline-block; margin-left:3px; padding:0 2px; border-radius:2px;
+  font-family:var(--f-kai); font-size:8.5px; line-height:1.5; letter-spacing:0;
+  color:var(--zhu-d); background:rgba(176,58,43,.10); vertical-align:1px;
+}
+.cc-name{ color:var(--ink-3); font-weight:400; }
 .codex-card.unseen:hover{ background:var(--paper-3); }
 .codex-card.unseen:hover .cc-name{ color:var(--zhu); font-weight:700; }
 .cc-name{ font-family:var(--f-kai); font-size:13px; font-weight:700; letter-spacing:.04em; }

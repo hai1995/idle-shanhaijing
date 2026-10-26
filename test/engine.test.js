@@ -6780,6 +6780,21 @@ section('卷二旧地重游掉落');
   G.resetToDefault();
 }
 
+// ============ 127. 图鉴「系产」标记 ============
+section('图鉴系产标记');
+{
+  const src = readText('src/ui/codex.js');
+  assert(src.includes('cc-sp'), '图鉴卡有系产小印');
+  assert(src.includes('pilgrimGiftIndex().get(e.id)'), '系产判定走反查表（不逐件扫 26 系）');
+
+  G.resetToDefault();
+  const idx = ST.pilgrimGiftIndex();
+  assert(idx && typeof idx.get === 'function' && idx.size >= 20, '反查表覆盖 ' + (idx && idx.size) + ' 件特产');
+  const reg = idx.get('migu');
+  assert(reg && reg.regionId === 'nanshan-1', '迷榖反查到南次一经（现 ' + (reg || {}).regionId + '）');
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

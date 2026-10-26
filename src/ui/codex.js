@@ -180,9 +180,13 @@ UI.renderCodex = function(keepFocus){
       // 异兽 / 神祇卡：绘形小像置顶，与讨伐页同一套图标语言
       const icHtml = (typeof beastIcon === 'function' && (e.cat === '异兽' || e.cat === '神祇'))
         ? `<div class="cc-ic">${beastIcon(e.id)}</div>` : '';
-      return `<div class="codex-card" onclick="showCodexDetail('${e.id}')" title="${esc(e.name)} · 已著录 ${rec.count} 次${esc(nextTip)}">
+      // 系产：这件是某山系的特产（走遍该系才拿得到）。图鉴列表里看不出来，
+      // 玩家只会在详情页偶然发现——一个小印就够，不必再加一行字。
+      const spReg = (typeof pilgrimGiftIndex === 'function') ? pilgrimGiftIndex().get(e.id) : null;
+      const spTag = spReg ? `<span class="cc-sp" title="${esc(spReg.regionName)}特产 · 走遍该系可得">系产</span>` : '';
+      return `<div class="codex-card" onclick="showCodexDetail('${e.id}')" title="${esc(e.name)} · 已著录 ${rec.count} 次${esc(nextTip)}${spReg ? ' · ' + esc(spReg.regionName) + '特产' : ''}">
         ${icHtml}
-        <div class="cc-name">${nmHtml}</div>
+        <div class="cc-name">${nmHtml}${spTag}</div>
         <div class="tier-dots" aria-hidden="true">${dots}</div>
         <div class="cc-tier">${TUNING.MASTERY.NAMES[rec.tier]}<span class="cc-count">${countHtml}</span></div>
       </div>`;

@@ -1249,7 +1249,13 @@ svg.bi.mk{ vertical-align:-2px; }
 .codex-card:hover{ border-color:var(--zhu); background:var(--paper-3); }
 /* 未见：保留可读的名字，只以虚线框与淡墨区分——不把名字压到看不清 */
 .codex-card.unseen{ background:transparent; border-style:dashed; }
-.codex-card.unseen .cc-name{ color:var(--ink-3); font-weight:400; }
+.codex-card.unseen /* 图鉴「系产」小印：朱底细字，与「已录/阶位」不抢眼但看得出来 */
+.cc-sp{
+  display:inline-block; margin-left:3px; padding:0 2px; border-radius:2px;
+  font-family:var(--f-kai); font-size:8.5px; line-height:1.5; letter-spacing:0;
+  color:var(--zhu-d); background:rgba(176,58,43,.10); vertical-align:1px;
+}
+.cc-name{ color:var(--ink-3); font-weight:400; }
 .codex-card.unseen:hover{ background:var(--paper-3); }
 .codex-card.unseen:hover .cc-name{ color:var(--zhu); font-weight:700; }
 .cc-name{ font-family:var(--f-kai); font-size:13px; font-weight:700; letter-spacing:.04em; }
@@ -19247,8 +19253,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.35',
-  codename:'昼巡 · 排布',
+  version: '1.31.36',
+  codename:'昼巡 · 系产',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
@@ -29756,9 +29762,13 @@ UI.renderCodex = function(keepFocus){
       // 异兽 / 神祇卡：绘形小像置顶，与讨伐页同一套图标语言
       const icHtml = (typeof beastIcon === 'function' && (e.cat === '异兽' || e.cat === '神祇'))
         ? `<div class="cc-ic">${beastIcon(e.id)}</div>` : '';
-      return `<div class="codex-card" onclick="showCodexDetail('${e.id}')" title="${esc(e.name)} · 已著录 ${rec.count} 次${esc(nextTip)}">
+      // 系产：这件是某山系的特产（走遍该系才拿得到）。图鉴列表里看不出来，
+      // 玩家只会在详情页偶然发现——一个小印就够，不必再加一行字。
+      const spReg = (typeof pilgrimGiftIndex === 'function') ? pilgrimGiftIndex().get(e.id) : null;
+      const spTag = spReg ? `<span class="cc-sp" title="${esc(spReg.regionName)}特产 · 走遍该系可得">系产</span>` : '';
+      return `<div class="codex-card" onclick="showCodexDetail('${e.id}')" title="${esc(e.name)} · 已著录 ${rec.count} 次${esc(nextTip)}${spReg ? ' · ' + esc(spReg.regionName) + '特产' : ''}">
         ${icHtml}
-        <div class="cc-name">${nmHtml}</div>
+        <div class="cc-name">${nmHtml}${spTag}</div>
         <div class="tier-dots" aria-hidden="true">${dots}</div>
         <div class="cc-tier">${TUNING.MASTERY.NAMES[rec.tier]}<span class="cc-count">${countHtml}</span></div>
       </div>`;
