@@ -1300,12 +1300,21 @@ function doAudience(nodeId, opts){
       const me = clean(d.name);
       const hit = Object.keys(OMENS).find(k => OMENS[k].node === nodeId && clean(OMENS[k].beast).indexOf(me) === 0);
       if (hit) activateOmen(hit);
-      // 神赐：首次谒见得其遗物一件（如刚山神「神𩲜之足」——神祇不讨伐，唯谒见可得）
-      if (d.gift && Items[d.gift]){
-        giveItem(d.gift, 1, false);
-        pushRecentLoot(d.gift, 1);
-        log(`🎁 得 ${Items[d.gift].name} —— ${d.name}所赐`, 'gold', 'skill');
-        UI && UI.lootFloat(d.gift, 1);
+      // 神赐：首次谒见得其遗物（如刚山神「神𩲜之足」——神祇不讨伐，唯谒见可得）。
+      // v1.31.23：一件神可赐多物（祭品 + 神赐小物），同 id 出现两次即两件。
+      {
+        const list = Array.isArray(d.gifts) ? d.gifts.slice() : (d.gift ? [d.gift] : []);
+        const tally = new Map();
+        for (const id of list){ if (Items[id]) tally.set(id, (tally.get(id) || 0) + 1); }
+        for (const [id, qty] of tally){
+          giveItem(id, qty, false);
+          pushRecentLoot(id, qty);
+          UI && UI.lootFloat(id, qty);
+        }
+        if (tally.size){
+          const txt = [...tally].map(([id, q]) => `${Items[id].name}×${q}`).join('、');
+          log(`🎁 得 ${txt} —— ${d.name}所赐`, 'gold', 'skill');
+        }
       }
     }
   }
@@ -1466,9 +1475,14 @@ function heteroSites(){
     const total = (s.deities || []).length;
     let got = 0;
     for (const d of (s.deities || [])) if (((Game.records || {})[d.id] || {}).count > 0) got++;
-    // 赐物写进索引：「初谒赐 吉玉」比「初谒得赐」有用——玩家能判断这一趟值不值
-    const gifts = [...new Set((s.deities || []).map(d => d.gift).filter(Boolean))]
-      .map(g => (Items[g] || {}).name || g);
+    // 赐物写进索引：「初谒赐 吉玉」比「初谒得赐」有用——玩家能判断这一趟值不值。
+    // v1.31.23：一件神可赐多物，索引按「名×数量」合并（重复项计件）。
+    const gTally = new Map();
+    for (const d of (s.deities || [])){
+      const list = Array.isArray(d.gifts) ? d.gifts : (d.gift ? [d.gift] : []);
+      for (const g of list) if (g) gTally.set(g, (gTally.get(g) || 0) + 1);
+    }
+    const gifts = [...gTally].map(([g, n]) => ((Items[g] || {}).name || g) + (n > 1 ? '×' + n : ''));
     const allDone = total > 0 && got >= total;
     put({ kind: '谒见', id: nodeId, name: s.name, nodeId,
       done: allDone, prog: { got, total },

@@ -6503,6 +6503,56 @@ section('精卫填海分段奖励');
   G.resetToDefault();
 }
 
+// ============ 119. 中山七神：祭品之外各有一件「神赐小物」 ============
+// 前三位（泰逢/耕父/帝之二女）给专属护符，其余七位若只给祭品，谒见之间仍无区别。
+// 这一版给七神各配一件小物，且**祭品排在第一位**——礼单闭环（谒见→得料→行祭）不动。
+section('中山七神赐物差异化');
+{
+  const DEITY_CHARM = { zs_taifeng:'zs_taifeng_huang', zs_gengfu:'zs_fengshan_light', zs_ernv:'zs_ernv_pei' };
+  const sites = Object.entries(ST.AUDIENCE_SITES).filter(([k]) => k.indexOf('zhongshan-') === 0);
+  assert(sites.length === 10, '中山谒见点 10 处（' + sites.length + '）');
+
+  const rows = [];
+  for (const [, s] of sites){
+    for (const d of s.deities){
+      if (DEITY_CHARM[d.id]) continue;                 // 三神护符另算
+      const gifts = Array.isArray(d.gifts) ? d.gifts : (d.gift ? [d.gift] : []);
+      assert(gifts.length >= 2, `${d.name} 赐物至少两件（${gifts.join('+')}）`);
+      assert(gifts.every(g => !!ST.Items[g]), `${d.name} 的赐物都存在`);
+      assert(!!ST.Items[gifts[0]], `${d.name} 第一件仍是祭品（${gifts[0]}）`);
+      rows.push(`${d.name}:${gifts.join('+')}`);
+    }
+  }
+  // 七位之间不能有完全相同的组合；也至少要有一件别人没有的「小物」
+  const combos = rows.map(r => r.split(':')[1]);
+  assert(new Set(combos).size === combos.length, '七神赐物组合互不相同：' + rows.join(' | '));
+
+  // 实发：初谒两件都进背包，再谒不再发
+  G.resetToDefault();
+  const nid = 'zhongshan-6-01';                        // 平逢之山 · 骄虫（吉玉 + 蜂蜜）
+  const god = ST.AUDIENCE_SITES[nid].deities[0];
+  const gifts = god.gifts;
+  assert(gifts.length === 2 && gifts[0] === 'jiyu2' && gifts[1] === 'honey', '骄虫赐吉玉 + 蜂蜜（' + gifts.join('+') + '）');
+  const h0 = ST.bagQty('honey');
+  ST.doAudience(nid);
+  assert(ST.bagQty('honey') - h0 === 1, '初谒得蜂蜜 ×1');
+  assert((ST.Game.inventory.jiyu2 || 0) === 1, '同时得吉玉 ×1');
+  ST.doAudience(nid);
+  assert(ST.bagQty('honey') - h0 === 1, '再谒不再赐');
+
+  // 索引写明件数：雄鸡 ×2 这类重复项要显示数量
+  const row = ST.heteroSites().find(x => x.kind === '谒见' && x.name.indexOf('涉') >= 0);
+  assert(!row || row.gain.indexOf('雄鸡×2') >= 0 || row.gain.indexOf('初谒赐') >= 0, '索引写明赐物与件数：' + (row || {}).gain);
+
+  // 小物各有用途：蜂蜜/飘风符/启闭符是消耗品，瑶碧/蛇蜕是材料
+  assert(ST.Items.honey.buff && ST.Items.honey.buff.kind === 'gather', '蜂蜜：限时采集增益');
+  assert(ST.Items.piaofengfu.buff && ST.Items.piaofengfu.buff.dmg > 0, '飘风符：限时增伤');
+  assert(ST.Items.qibifu.buff && ST.Items.qibifu.buff.offline > 0, '启闭符：离线效率');
+  assert(!ST.Items.yaobi.equip && !ST.Items.shetui.equip, '瑶碧 / 蛇蜕是材料，不占装备位');
+
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

@@ -842,6 +842,17 @@ addItem(
   I('wozhousan','无卧散','potion',{ value:170,lvl:30, icon:'🧪', buff:{ name:'无卧', kind:'offline', offline:0.15, dur:300 }, effect:'食之无卧' }),
   I('xiushedangao','修蛇胆膏','potion',{ value:600,lvl:68, icon:'🫙', rarity:'RARE', buff:{ name:'蛇膏', kind:'all', dmg:0.30, def:20, dur:300 }, effect:'可以已痔' }),
   I('fenghuanggao','凤皇膏','potion',{ value:900,lvl:68, icon:'🫙', rarity:'LEGENDARY', buff:{ name:'凤膏', kind:'all', yield:0.25, dur:600 }, effect:'见则天下安宁' }),
+  // 中山七神赐物（v1.31.23）：前三位给了专属护符，其余七位若只给祭品，
+  // 谒见之间还是没有区别。这里给每神配一件「神赐小物」——都不改战力上限，
+  // 只把「这一位神管什么」写成能用的东西。
+  I('yaobi','瑶碧','mineral',{ value:130, lvl:70, icon:'💎', note:'瑶碧之玉，佩之蠲忿——青要之山其阳多玉', py:'yáo bì' }),
+  I('honey','蜂蜜','potion',{ value:90, lvl:70, icon:'🍯', rarity:'RARE',
+    buff:{ name:'蜜甘', kind:'gather', gather:0.20, dur:240 }, effect:'平逢之山实惟蜂蜜之庐' }),
+  I('piaofengfu','飘风符','potion',{ value:220, lvl:71, icon:'🌬️', rarity:'RARE',
+    buff:{ name:'飘风', kind:'all', dmg:0.15, dur:300 }, effect:'计蒙出入必有飘风暴雨' }),
+  I('qibifu','启闭符','potion',{ value:240, lvl:73, icon:'🚪', rarity:'RARE',
+    buff:{ name:'启闭', kind:'all', def:12, offline:0.10, dur:300 }, effect:'熊山之穴夏启而冬闭，冬启乃必有兵' }),
+  I('shetui','蛇蜕','material',{ value:75, lvl:72, icon:'🐍', note:'夫夫之山神操两蛇——蜕可入药', py:'shé tuì' }),
 );
 
 // ---------- 配方 ----------
@@ -1592,17 +1603,17 @@ const FAUNA_META = {
   // 七十三级往后唯一的动作毫无回报；西山诸神却各赐鸟羽。现在补齐，
   // 且赐的正是**本系祠礼要用的那件祭品**（雄鸡 / 吉玉 / 珪 / 藻圭 / 牝豚 / 稌米 / 玉 / 羊牲）：
   // 「谒见本系山神 → 得行祭之料」于是成了一条闭环，而不是两份互不相干的表。
-  '武罗':     { id:'zs_wuluo',   el:'木', deity:true, py:'wǔ luó',  gift:'yu',          note:'青要之山神——人面豹文，小要而白齿，穿耳以鐻，其鸣如鸣玉。其山「其阳多玉」' },
+  '武罗':     { id:'zs_wuluo',   el:'木', deity:true, py:'wǔ luó',  gift:['yu','yaobi'], note:'青要之山神——人面豹文，小要而白齿，穿耳以鐻，其鸣如鸣玉。其山「其阳多玉」' },
   // 特例三神：赐物不是祭品，而是一件专属护符（唯一来源 = 初谒，不可合成）——
   // 十位全给祭品虽然闭环，但谒见之间毫无差异；这三位各留一件「神赐异宝」。
   '泰逢':     { id:'zs_taifeng', el:'火', deity:true, py:'tài féng',gift:'zs_taifeng_huang', note:'和山之神——其状如人而虎尾，好居于萯山之阳，出入有光。祠用一牡羊' },
-  '骄虫':     { id:'zs_jiaochong', el:'火', deity:true, py:'jiāo chóng', gift:'jiyu2',  note:'平逢之山神——其状如人而二首，是为螫虫，实惟蜂蜜之庐。其祠用吉玉' },
-  '𬠷围':     { id:'zs_weiu',    el:'木', deity:true, py:'tuó wéi', gift:'zs_zaogui',   note:'骄山神——其状如人面，羊角虎爪，恒游于雎漳之渊，出入有光。其祠用藻圭' },
-  '计蒙':     { id:'zs_jimeng',  el:'水', deity:true, py:'jì méng', gift:'tu',          note:'光山神——其状人身而龙首，恒游于漳渊，出入必有飘风暴雨。其祠糈用稌' },
-  '涉𬠷':     { id:'zs_shetuo',  el:'土', deity:true, py:'shè tuó', gift:'xiongji',     note:'岐山神——其状人身而方面，三足。其祠用一雄鸡' },
-  '神人':     { id:'zs_shenren', el:'金', deity:true, py:'shén rén',gift:'jiyu2',        note:'熊山之穴——恒出入神人，夏启而冬闭，冬启乃必有兵。其祠用吉玉' },
+  '骄虫':     { id:'zs_jiaochong', el:'火', deity:true, py:'jiāo chóng', gift:['jiyu2','honey'], note:'平逢之山神——其状如人而二首，是为螫虫，实惟蜂蜜之庐。其祠用吉玉' },
+  '𬠷围':     { id:'zs_weiu',    el:'木', deity:true, py:'tuó wéi', gift:['zs_zaogui','zs_zaogui'], note:'骄山神——其状如人面，羊角虎爪，恒游于雎漳之渊，出入有光。其祠用藻圭' },
+  '计蒙':     { id:'zs_jimeng',  el:'水', deity:true, py:'jì méng', gift:['tu','piaofengfu'], note:'光山神——其状人身而龙首，恒游于漳渊，出入必有飘风暴雨。其祠糈用稌' },
+  '涉𬠷':     { id:'zs_shetuo',  el:'土', deity:true, py:'shè tuó', gift:['xiongji','xiongji'], note:'岐山神——其状人身而方面，三足。其祠用一雄鸡' },
+  '神人':     { id:'zs_shenren', el:'金', deity:true, py:'shén rén',gift:['jiyu2','qibifu'], note:'熊山之穴——恒出入神人，夏启而冬闭，冬启乃必有兵。其祠用吉玉' },
   '耕父':     { id:'zs_gengfu',  el:'水', deity:true, py:'gēng fù', gift:'zs_fengshan_light', note:'丰山神——常游清泠之渊，出入有光，见则其国为败。其祠用珪' },
-  '于儿':     { id:'zs_yuer',    el:'水', deity:true, py:'yú ér',   gift:'zs_mutun',    note:'夫夫之山神——其状人身而身操两蛇，常游于江渊，出入有光。其祠用牝豚' },
+  '于儿':     { id:'zs_yuer',    el:'水', deity:true, py:'yú ér',   gift:['zs_mutun','shetui'], note:'夫夫之山神——其状人身而身操两蛇，常游于江渊，出入有光。其祠用牝豚' },
   '帝之二女': { id:'zs_ernv',    el:'水', deity:true, py:'dì zhī èr nǚ', gift:'zs_ernv_pei',     note:'洞庭之山——帝之二女居之，常游于江渊，出入必以飘风暴雨。其祠糈用稌' },
   '鸓':     { id:'lei',      el:'木', drop:'niaoyu', py:'lěi' },
   '白蛇':   { id:'baishe',   el:'水', drop:'baishepi', extra:[['zs_baishe_r',0.4,1]], note:'蛇而色白——其胆入药（中次十二经柴桑之山多白蛇）' },
@@ -2263,10 +2274,16 @@ const AUDIENCE_SITES = {};
         nodeId: node.id, kind:'谒见',
         name: deities.map(d=>d.name).join('・'),
         desc: node.source ? node.source.slice(0, 80) + '…' : '',
-        deities: deities.map(d=>({ name:d.name, id:FAUNA_META[d.name].id, form:d.form||null, duty:d.duty||null, note:FAUNA_META[d.name].note||null,
+        deities: deities.map(d=>{
           // 神赐：首次谒见得其一物（如神𩲜之足）。gift 是本作给的「初谒之赐」，
           // drop 是旧写法（西山诸神借讨伐掉落字段当赐物），两者都认。
-          gift: FAUNA_META[d.name].gift || FAUNA_META[d.name].drop || null })),
+          // v1.31.23：gift 可为数组（祭品 + 神赐小物），同 id 写两遍即两件。
+          const raw = FAUNA_META[d.name].gift || FAUNA_META[d.name].drop || null;
+          const gifts = raw ? (Array.isArray(raw) ? raw.slice() : [raw]) : [];
+          return { name:d.name, id:FAUNA_META[d.name].id, form:d.form||null, duty:d.duty||null, note:FAUNA_META[d.name].note||null,
+            gift: gifts[0] || null,     // 旧读法只认一件：保留第一件（必是本系祭品）
+            gifts };
+        }),
       };
     }
   }
@@ -2629,8 +2646,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.22',
-  codename:'昼巡 · 分档',
+  version: '1.31.23',
+  codename:'昼巡 · 七赐',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',

@@ -361,7 +361,8 @@ function itemSources(id){
   }
   // 谒见：神祇不讨伐，其「遗物」唯谒见可得（如刚山神的神𩲜之足）
   for (const site of Object.values(typeof AUDIENCE_SITES !== 'undefined' ? AUDIENCE_SITES : {})){
-    const d = (site.deities || []).find(x => x.gift === id);
+    // v1.31.23：一神可赐多物，按 gifts 找（旧档/旧数据只有 gift 的也认）
+    const d = (site.deities || []).find(x => (Array.isArray(x.gifts) && x.gifts.indexOf(id) >= 0) || x.gift === id);
     if (!d) continue;
     out.push({ kind:'谒见', where:`${d.name}（初谒得赐）` });
     break;

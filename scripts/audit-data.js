@@ -240,7 +240,9 @@ for (const [name, map] of [['观象', W.OBSERVE_SITES], ['养成', W.GROW_SITES]
   for (const [nodeId, s] of Object.entries(W.AUDIENCE_SITES || {})){
     const gifts = (s.deities || []).map(d => d.gift).filter(Boolean);
     if (!gifts.length) bad('谒见', `${s.name}（${nodeId}）诸神皆无初谒之赐——谒见一趟只得一条图鉴`);
-    gifts.forEach(g => { if (!I[g]) bad('谒见', `${s.name} 的赐物不存在 ${g}`); });
+    // v1.31.23：一神可赐多物，逐件查（原先只查 gift 的第一件）
+    const allGifts = (s.deities || []).flatMap(d => Array.isArray(d.gifts) ? d.gifts : (d.gift ? [d.gift] : []));
+    allGifts.forEach(g => { if (!I[g]) bad('谒见', `${s.name} 的赐物不存在 ${g}`); });
   }
   // 中山诸神赐的是「本系祠礼要用的那件祭品」：谒见 → 得料 → 行祭，一条闭环。
   // 改礼单时若忘了同步赐物，这条会报——免得又变成两份互不相干的表。
