@@ -1041,13 +1041,13 @@ function combatStatBreakdown(key){
   }
 
   if (key === 'atk'){
-    const wBase = w ? enhanceScaled(w.dmg || 0, enhanceLevel(w.id || w)) : 0;
+    const wBase = w ? enhanceScaled(w.dmg || 0, enhanceLevel(w)) : 0;
     const qDmg = (style === 'ranged' && q) ? (q.dmg || 0) : 0;
     const skillDmg = statLv * 1.2;
     const rows = [];
     rows.push({ label: w ? `兵器 · ${w.name}` : '徒手',
       value: w ? fmt(Math.round(wBase)) : '0',
-      note: w ? (enhanceLevel(w.id || w) ? `含淬炼 +${enhanceLevel(w.id || w)}（${w.dmg} 基础）` : `未淬炼（${w.dmg} 基础）`) : '无兵器' });
+      note: w ? (enhanceLevel(w) ? `含淬炼 +${enhanceLevel(w)}（${w.dmg} 基础）` : `未淬炼（${w.dmg} 基础）`) : '无兵器' });
     if (qDmg) rows.push({ label:`副手 · ${q.name}`, value:'+' + Math.round(qDmg), note:'射术另计' });
     rows.push({ label:`${styleName} · ${statLv} 级`, value:'+' + skillDmg.toFixed(0), note:'每级 +1.2' });
     const tacA = currentTactic();
@@ -1071,10 +1071,10 @@ function combatStatBreakdown(key){
   }
 
   if (key === 'def'){
-    const aBase = a ? enhanceScaled(a.def || 0, enhanceLevel(a.id || a)) : 0;
+    const aBase = a ? enhanceScaled(a.def || 0, enhanceLevel(a)) : 0;
     const rows = [];
     rows.push({ label: a ? `甲胄 · ${a.name}` : '无甲', value: a ? Math.round(aBase).toString() : '0',
-      note: a ? (enhanceLevel(a.id || a) ? `含淬炼 +${enhanceLevel(a.id || a)}` : `未淬炼（${a.def} 基础）`) : '赤身应战' });
+      note: a ? (enhanceLevel(a) ? `含淬炼 +${enhanceLevel(a)}` : `未淬炼（${a.def} 基础）`) : '赤身应战' });
     rows.push({ label:`明 · ${ming} 级`, value:'+' + (ming * 0.2).toFixed(1), note:'每级 +0.2' });
     const buffDef = (Game.buff && Game.buff.def && (Game.buff.def.def || 0)) || 0;
     const gearDef = db.def + ((ch && ch.defBonus) || 0) + buffDef;
@@ -1207,7 +1207,8 @@ function nextStepHtml(tab){
   const out = [];
   if (tab === 'skills'){
     const empty = [];
-    for (let i = 0; i < TUNING.FARM_PLOTS; i++) if (!Game.farms['p'+i]) empty.push(i);
+    const _plots = (typeof farmPlots === 'function') ? farmPlots() : (TUNING.FARM_PLOTS || 6);
+    for (let i = 0; i < _plots; i++) if (!Game.farms['p'+i]) empty.push(i);
     if (empty.length){
       const lv = levelOf('puyi');
       const hasSeed = Object.values(Items).some(s=>s.crop && (s.lvl||1)<=lv && (Game.inventory[s.id]||0)>0);

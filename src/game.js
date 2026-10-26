@@ -795,6 +795,23 @@ window.codexAchState = codexAchState; window.codexAchRewardText = codexAchReward
 window.claimCodexAch = claimCodexAch; window.claimAllCodexAch = claimAllCodexAch;
 
 // ---------- 圃艺 ----------
+// 田地块数：随圃艺等级长。原先写死 6 块，练到 81 级还是 6 块——
+// 圃艺是唯一「越练越没用」的技艺，练满了也只能同时种六样。
+function farmPlots(){
+  const base = TUNING.FARM_PLOTS || 6;
+  const max = TUNING.FARM_MAX || base;
+  const per = TUNING.FARM_PER || 12;
+  return Math.min(max, base + Math.floor(levelOf('puyi') / per));
+}
+// 下一块田要多少级；已满则 0
+function nextPlotLevel(){
+  const n = farmPlots();
+  const max = TUNING.FARM_MAX || TUNING.FARM_PLOTS || 6;
+  if (n >= max) return 0;
+  return (n - (TUNING.FARM_PLOTS || 6) + 1) * (TUNING.FARM_PER || 12);
+}
+window.farmPlots = farmPlots; window.nextPlotLevel = nextPlotLevel;
+
 function farmTick(elapsed){
   const grew = [];
   const speed = farmSpeedMult();
@@ -1504,9 +1521,21 @@ window.foeElement = foeElement;
 // 1–9 级沿用旧增量（基础 6%，至少 +1），10 级起改为每级 3%——这样老存档的
 // +9 装备数值一分不变，30 级封顶时约为基础值的 190%（低阶兵器更高）。
 const ENHANCE_MAX = 30, ENHANCE_STEP = 0.06, ENHANCE_STEP2 = 0.03;   // STEP2：10 级后每级按 +9 值再涨 3%
-function enhanceLevel(itemId){
-  const v = (Game.enhance && Game.enhance[itemId]) || 0;
+// ---------- 强化目标的两种形态（v1.31.13） ----------
+// 参数可以是 itemId 字符串（行囊里那一类），也可以是装备槽里的**实例对象**。
+// 原先一律按 itemId 记，于是「身上 +10 的金剑」和「行囊里另一把金剑」共用同一档——
+// 强化行囊那把，身上那把也跟着涨。现在实例自带 enh 字段，两者互不影响。
+function enhTargetId(t){ return (t && typeof t === 'object') ? (t.id || '') : t; }
+function enhanceLevel(t){
+  if (t && typeof t === 'object') return Math.max(0, Math.min(ENHANCE_MAX, t.enh | 0));
+  const v = (Game.enhance && Game.enhance[t]) || 0;
   return Math.max(0, Math.min(ENHANCE_MAX, v | 0));
+}
+function setEnhanceLevel(t, v){
+  v = Math.max(0, Math.min(ENHANCE_MAX, v | 0));
+  if (t && typeof t === 'object'){ t.enh = v; return; }
+  if (!Game.enhance) Game.enhance = {};
+  Game.enhance[t] = v;
 }
 function enhanceScaled(base, lv){
   if (!base) return 0;
@@ -1537,10 +1566,10 @@ function enhanceHeatOf(itemId){
   return Math.max(0, Math.min(ENHANCE_HEAT.MAX, v | 0));
 }
 // 实际成功率 = 该级基础 + 火候。封顶 95%，不做到「必成」——必成就不叫赌了。
-function enhanceRateFor(itemId){
-  const base = enhanceRate(enhanceLevel(itemId));
+function enhanceRateFor(target){
+  const base = enhanceRate(enhanceLevel(target));
   if (base >= 1) return 1;                    // 0→1 本就必成，别被 95% 的封顶拉下来
-  const hot = enhanceHeatOf(itemId) * ENHANCE_HEAT.STEP;
+  const hot = enhanceHeatOf(enhTargetId(target)) * ENHANCE_HEAT.STEP;
   const forge = (Game.buildings && Game.buildings.cuihuolu) ? 0.06 : 0;   // 淬火炉
   return Math.min(0.95, base + hot + forge);
 }
@@ -1554,26 +1583,27 @@ function enhanceCapOf(it){
 function enhanceRate(lv){
   return ENHANCE_RATE[Math.max(0, Math.min(ENHANCE_MAX - 1, lv | 0))];
 }
-function enhanceCost(itemId){
-  const next = enhanceLevel(itemId) + 1;
+function enhanceCost(target){
+  const next = enhanceLevel(target) + 1;
   // 材料随等级明显递增：+1 四炭，+30 六十二炭；贝币按 1.7 次方走
   return { next, tan: 2 + next * 2, shells: Math.round(90 * Math.pow(next, 1.7)) };
 }
 function enhanceHasStone(){ return (Game.inventory.zhenwu || 0) > 0; }
 // 单次强化。opts.silent 供「强化至目标等级」批量调用，不逐条弹 toast。
 // 返回 { ok, success, lvBefore, lvAfter, lost, usedStone, reason }
-function enhanceItem(itemId, opts){
+function enhanceItem(target, opts){
   const silent = !!(opts && opts.silent);
+  const itemId = enhTargetId(target);
   const it = Items[itemId];
   if (!it || !it.equip) return { ok:false, reason:'不可淬炼' };
   if (!it.dmg && !it.def) return { ok:false, reason:'此物无伤无守，淬之无益' };   // 护符 / 箭袋之外的空槽
   const cap = enhanceCapOf(it);
-  const lv = enhanceLevel(itemId);
+  const lv = enhanceLevel(target);
   if (lv >= cap){
     if (!silent) UI && UI.toast(`已至 +${cap}（${gearGrade(it).name}品上限），无可再淬`);
     return { ok:false, reason:'已至顶' };
   }
-  const cost = enhanceCost(itemId);
+  const cost = enhanceCost(target);
   if ((Game.inventory.tan || 0) < cost.tan){
     if (!silent) UI && UI.toast(`炭不足（需 ${cost.tan}，持有 ${Game.inventory.tan||0}）`);
     return { ok:false, reason:'炭不足' };
@@ -1591,16 +1621,16 @@ function enhanceItem(itemId, opts){
   Game.stats.spent = (Game.stats.spent || 0) + cost.shells;
   if (!Game.enhance) Game.enhance = {};
 
-  const success = Math.random() < enhanceRateFor(itemId);
+  const success = Math.random() < enhanceRateFor(target);
   let lost = false, wiped = false;
   if (success){
-    Game.enhance[itemId] = lv + 1;
+    setEnhanceLevel(target, lv + 1);
     // 成了也留着火候：炉子是同一座炉，烧过就是烧过。
     // 若让「成功」消耗火候，则每次归零后重爬 0→9 的九次成功会把它吃干，
     // 火候永远攒不起来——那样「一败俱毁」就成了死局（实测 +15 都摸不到）。
   } else if (lv >= ENHANCE_SAFE && !usedStone){
     // 十级以上一败俱毁：这一炉的阶数全归零。镇物可保，否则从头再来。
-    Game.enhance[itemId] = 0;
+    setEnhanceLevel(target, 0);
     lost = true; wiped = true;
   }
   // 火候只在「真烧毁了」时攒——安全区里的失败不掉级，不该白送火候
@@ -1612,7 +1642,7 @@ function enhanceItem(itemId, opts){
     Game.inventory.zhenwu -= 1;
     if (Game.inventory.zhenwu <= 0) delete Game.inventory.zhenwu;
   }
-  const after = enhanceLevel(itemId);
+  const after = enhanceLevel(target);
   if (!silent){
     if (success){
       log(`🔨 ${it.name} 淬炼至 +${after}`, 'gold', 'trade');
@@ -1632,18 +1662,19 @@ function enhanceItem(itemId, opts){
   UI && UI.refreshGear && UI.refreshGear();
   UI && UI.refreshInventory && UI.refreshInventory();
   return { ok:true, success, lvBefore:lv, lvAfter:after, lost, wiped, usedStone, cost,
-           heat: enhanceHeatOf(itemId), rate: enhanceRateFor(itemId) };
+           heat: enhanceHeatOf(itemId), rate: enhanceRateFor(target) };
 }
 // 强化至目标等级：连续单次强化，直到达标 / 材料耗尽 / 触顶。
 // guard 防止「+30 附近反复失败」时无限循环。
-function enhanceToTarget(itemId, target, opts){
+function enhanceToTarget(which, target, opts){
+  const itemId = enhTargetId(which);
   const itemCap = enhanceCapOf(Items[itemId]);
   const cap = Math.max(1, Math.min(itemCap, target | 0));
   const stone = !!(opts && opts.stone);
   let tries = 0, ups = 0, downs = 0, stones = 0, tan = 0, shells = 0, wiped = false;
-  while (enhanceLevel(itemId) < cap && tries < 400){
-    const before = enhanceLevel(itemId);
-    const r = enhanceItem(itemId, { silent:true, stone });
+  while (enhanceLevel(which) < cap && tries < 400){
+    const before = enhanceLevel(which);
+    const r = enhanceItem(which, { silent:true, stone });
     if (!r.ok) break;
     tries++;
     tan += r.cost.tan; shells += r.cost.shells;
@@ -1652,11 +1683,11 @@ function enhanceToTarget(itemId, target, opts){
     if (r.usedStone) stones++;
     // 一败俱毁就别再自动往下烧了：让玩家自己决定是继续还是收手
     if (r.wiped){ wiped = true; break; }
-    if (enhanceLevel(itemId) === before && !r.success && !r.lost) {
+    if (enhanceLevel(which) === before && !r.success && !r.lost) {
       // 失败且未掉级（保护期 / 镇物）——继续下一次
     }
   }
-  const lv = enhanceLevel(itemId);
+  const lv = enhanceLevel(which);
   const done = lv >= cap;
   const it = Items[itemId] || {};
   const msg = done
@@ -1705,7 +1736,7 @@ function playerWeaponDmg(){
   }
   let dmg = 0;
   const w = Game.gear.weapon;
-  if (w) dmg += (typeof enhanceScaled === 'function') ? enhanceScaled(w.dmg, enhanceLevel(w.id || w)) : (w.dmg||0);
+  if (w) dmg += (typeof enhanceScaled === 'function') ? enhanceScaled(w.dmg, enhanceLevel(w)) : (w.dmg||0);
   if (style === 'ranged' && Game.gear.quiver) dmg += Game.gear.quiver.dmg||0;
   return dmg;
 }
@@ -2461,6 +2492,7 @@ let idleSeconds = 0;            // 持续闲置秒数（兜底行动计时）
 function onSecond(){
   if (Object.keys(Game.farms).length){ farmTick(1); if (UI && UI.patchFarmsProgress) UI.patchFarmsProgress(); }
   if (UI && UI.patchSkillBars) UI.patchSkillBars();      // 技能页经验条秒级跟进（不重建节点）
+  if (UI && UI.checkFarmUnlock) UI.checkFarmUnlock();    // 圃艺升级后新田开垦提示
   if (UI && UI.patchQueueProgress) UI.patchQueueProgress();   // 巡历队列：进度/当前标记/轮数秒级兜底
   // 售价走势采样：倍率随商旅/营造/御使/征兆而变，倍率一变或每满 60 秒留一个点，
   // 挂机时也有轨迹可看（渲染时只读，不再有采样副作用）

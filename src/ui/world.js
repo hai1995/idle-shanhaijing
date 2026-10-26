@@ -678,7 +678,19 @@ UI.confirmRebirth = function(){
 
 // 田地方块 HTML（整页渲染与就地补绘共用）
 function farmTilesHtml(){
-  return Array.from({length:TUNING.FARM_PLOTS}, (_,i)=>{
+  const plots = (typeof farmPlots === 'function') ? farmPlots() : (TUNING.FARM_PLOTS || 6);
+  const maxPlots = TUNING.FARM_MAX || plots;
+  const nextLv = (typeof nextPlotLevel === 'function') ? nextPlotLevel() : 0;
+  const locked = Array.from({ length: Math.max(0, maxPlots - plots) }, (_, i) => {
+    // 待垦：只露一块，写清「几级可垦」，免得玩家以为田就这么多
+    if (i > 0) return '';
+    return `<div class="tile farm-tile locked" title="圃艺 ${nextLv} 级可开垦">
+      <span class="tile-ic">🔒</span>
+      <span class="tile-nm">待垦</span>
+      <span class="tile-tag">${nextLv} 级</span>
+    </div>`;
+  }).join('');
+  return Array.from({length:plots}, (_,i)=>{
     const slot = 'p'+i;
     const f = Game.farms[slot];
     if (f){
@@ -704,7 +716,7 @@ function farmTilesHtml(){
       <span class="tile-nm">择种</span>
       <span class="tile-tag">田 ${i+1}</span>
     </div>`;
-  }).join('');
+  }).join('') + locked;
 }
 
 // 择种浮层：方卡点按后列出行囊可用嘉种；未持有 / 未达等级的置灰并说明原因
@@ -712,20 +724,45 @@ UI.seedMenu = function(slot){
   const lv = levelOf('puyi');
   const seeds = Object.values(Items).filter(s=>s.crop).sort((a,b)=>(a.lvl||1)-(b.lvl||1));
   if (!seeds.length){ this.toast('此地无嘉种可植'); return; }
+  const emptyN = (typeof farmPlots === 'function' ? farmPlots() : (TUNING.FARM_PLOTS||6))
+    - Object.keys(Game.farms).length;
   const rows = seeds.map(s=>{
     const have = Game.inventory[s.id]||0;
     const lvOk = lv >= (s.lvl||1);
     const ok = have > 0 && lvOk;
-    return `<button type="button" class="seed-row ${ok?'':'lock'}" ${ok?`onclick="UI.pickSeed('${slot}','${s.id}')"`:'disabled'}>
-      <span class="sr-ic">${typeof itemIc==='function'?itemIc(s.id,16):(s.icon||'🌱')}</span>
-      <span class="sr-nm">${esc(s.name)}</span>
-      <span class="sr-meta">${lvOk?`持有 <b>${have}</b>`:`需圃艺 ${s.lvl} 级`}</span>
-    </button>`;
+    // 「全种」：把所有空田都种上这一种。原来只能一格格点择种，
+    // 手里四十枚稌籽要种六块田，得开关六次弹窗。
+    const bulkN = Math.min(have, Math.max(0, emptyN));
+    return `<div class="seed-row-wrap">
+      <button type="button" class="seed-row ${ok?'':'lock'}" ${ok?`onclick="UI.pickSeed('${slot}','${s.id}')"`:'disabled'}>
+        <span class="sr-ic">${typeof itemIc==='function'?itemIc(s.id,16):(s.icon||'🌱')}</span>
+        <span class="sr-nm">${esc(s.name)}</span>
+        <span class="sr-meta">${lvOk?`持有 <b>${have}</b>`:`需圃艺 ${s.lvl} 级`}</span>
+      </button>
+      ${ok && bulkN >= 2 ? `<button type="button" class="btn tiny seed-all" title="把 ${bulkN} 块空田都种上${esc(s.name)}"
+        onclick="UI.plantAllOf('${s.id}')">全种</button>` : ''}
+    </div>`;
   }).join('');
   this.modal(`<h3>择种 · 田 ${parseInt(slot.slice(1))+1}</h3>
-    <p class="hint">点选即植入此田，消耗一枚种子；成熟自动收获，偶尔回赠种子。</p>
+    <p class="hint">点选即植入此田，消耗一枚种子；右侧「全种」把所有空田（${Math.max(0, emptyN)} 块）都种上它。</p>
     <div class="seed-list">${rows}</div>
     <div class="modal-btns"><button class="btn ghost" onclick="UI.closeModal()">再想想</button></div>`);
+};
+// 全种：所有空田依次种同一种种子，直到种子告罄或田满
+UI.plantAllOf = function(seedId){
+  const seed = Items[seedId];
+  if (!seed || !seed.crop) return;
+  if (levelOf('puyi') < (seed.lvl||1)){ this.toast(`需圃艺 ${seed.lvl} 级`); return; }
+  const plots = (typeof farmPlots === 'function') ? farmPlots() : (TUNING.FARM_PLOTS || 6);
+  let n = 0;
+  for (let i = 0; i < plots; i++){
+    if ((Game.inventory[seedId]||0) <= 0) break;
+    if (Game.farms['p'+i]) continue;
+    if (plantSeed('p'+i, seedId, true)) n++;
+  }
+  this.closeModal();
+  this.renderSkills();
+  this.toast(n ? `🌱 ${seed.name} 种下 ${n} 田` : '没有空田，或种子已用尽');
 };
 UI.pickSeed = function(slot, id){
   if (plantSeed(slot, id)){ this.closeModal(); this.renderSkills(); }
@@ -734,7 +771,8 @@ UI.pickSeed = function(slot, id){
 // 单田仍可点按择种（换种、指定某田）；这里只负责「懒得一格格点」的日常。
 UI.plantAll = function(){
   const empty = [];
-  for (let i = 0; i < TUNING.FARM_PLOTS; i++) if (!Game.farms['p'+i]) empty.push('p'+i);
+  const _plots = (typeof farmPlots === 'function') ? farmPlots() : (TUNING.FARM_PLOTS || 6);
+  for (let i = 0; i < _plots; i++) if (!Game.farms['p'+i]) empty.push('p'+i);
   if (!empty.length){ this.toast('田已种满'); return; }
   const lv = levelOf('puyi');
   const pool = Object.values(Items)
@@ -753,6 +791,23 @@ UI.plantAll = function(){
   const eta = isFinite(soon) ? `（最早约 ${fmtTime(soon / Math.max(0.1, farmSpeedMult()))} 后熟）` : '';
   this.toast(n ? `🌱 一键植 ${n} 田${eta}` : '未能植入');
 };
+// 圃艺升级后新田开垦：只在「块数真的变了」时提示一次
+UI.checkFarmUnlock = function(){
+  if (typeof farmPlots !== 'function') return;
+  const now = farmPlots();
+  const seen = Game.stats.farmPlotsSeen;
+  if (seen === undefined || seen === null){
+    Game.stats.farmPlotsSeen = now;      // 首次不提示，避免读档就弹
+    return;
+  }
+  if (now > seen){
+    Game.stats.farmPlotsSeen = now;
+    this.toast(`🌾 圃艺精进，新开垦 ${now - seen} 块田（共 ${now} 块）`);
+    if (typeof log === 'function') log(`🌾 圃艺精进，新垦 ${now - seen} 块田`, 'gold', 'skill');
+    if (this.currentTab === 'skills') this.patchFarms();
+  }
+};
+
 // 田地就地补绘：收获 / 植入后卡片还显示着旧状态，切页才变是不合理的
 UI.patchFarms = function(){
   if (this.currentTab !== 'skills') return;

@@ -170,7 +170,7 @@ UI.renderPack = function(){
       ${slots.map(slot=>{
         const g = Game.gear[slot];
         return `<div class="tile gear-tile ${g?'':'empty'} ${g?rarityClass(g):''}"
-             ${g?`title="${esc(g.name)} · ${esc(gearSubText(g))}" onclick="showItemDetail('${g.id}')"`:`title="${GearSlotLabels[slot]}·空"`}>
+             ${g?`title="${esc(g.name)} · ${esc(gearSubText(g))}" onclick="showItemDetail('${g.id}','${slot}')"`:`title="${GearSlotLabels[slot]}·空"`}>
           <span class="gt-label">${GearSlotLabels[slot]}</span>
           ${g?`<span class="tile-ic bi-ic">${typeof itemIc==='function'?itemIc(g.id||g):g.icon}</span>
                <span class="tile-nm">${esc(g.name)}</span>
@@ -253,7 +253,7 @@ function gearSubText(g){
     const cap = (typeof enhanceCapOf === 'function') ? enhanceCapOf(g) : 0;
     parts.push(`${gr.name}品${cap ? ` · 上限 +${cap}` : ''}`);
   }
-  const lv = (typeof enhanceLevel === 'function') ? enhanceLevel(g.id || g) : 0;
+  const lv = (typeof enhanceLevel === 'function') ? enhanceLevel(g) : 0;
   const sc = v => Math.floor((typeof enhanceScaled === 'function') ? enhanceScaled(v, lv) : v);
   if (g.dmg) parts.push(`伤害 ${sc(g.dmg)}${lv?`（+${lv}）`:''}`);
   if (g.def) parts.push(`防御 ${sc(g.def)}${lv?`（+${lv}）`:''}`);
@@ -360,23 +360,26 @@ function itemSources(id){
 
 // 淬炼面板：等级、成功率、材料、失败代价、一键强化。
 // 独立成块是为了「就地刷新」——强一次关一次窗，连点三下要开三次，太笨。
-function enhancePanelHtml(itemId, it){
+// target 可以是行囊里的 itemId，也可以是装备槽里的实例（v1.31.13）——
+// 两件同名装备各有各的淬炼等级，详情页展示与操作的都是「你正在看的这一件」。
+function enhancePanelHtml(target, it){
   const base = it.dmg || it.def || 0;
   if (!it.equip || !base) return '';
-  const lv = enhanceLevel(itemId);
+  const itemId = (typeof enhTargetId === 'function') ? enhTargetId(target) : target;
+  const lv = enhanceLevel(target);
   const max = (typeof enhanceCapOf === 'function' && typeof gearGrade === 'function')
     ? enhanceCapOf(it) : ENHANCE_MAX;
   const cur = Math.floor(enhanceScaled(base, lv));
   const label = it.dmg ? '伤害' : '防御';
-  const heat = (typeof enhanceHeatOf === 'function') ? enhanceHeatOf(itemId) : 0;
+  const heat = (typeof enhanceHeatOf === 'function') ? enhanceHeatOf(itemId) : 0;   // 火候按「这一炉」记，同 id 共享
   const heatMax = (typeof ENHANCE_HEAT !== 'undefined') ? ENHANCE_HEAT.MAX : 12;
   const heatStep = (typeof ENHANCE_HEAT !== 'undefined') ? ENHANCE_HEAT.STEP : 0.08;
   if (lv >= max){
     return `<div class="reveal"><b>淬炼</b><span class="enh-max">已至 +${max}（上限）· ${label} ${cur}</span></div>`;
   }
-  const cost = enhanceCost(itemId);
+  const cost = enhanceCost(target);
   const baseRate = enhanceRate(lv);
-  const rate = Math.round((typeof enhanceRateFor === 'function' ? enhanceRateFor(itemId) : baseRate) * 100);
+  const rate = Math.round((typeof enhanceRateFor === 'function' ? enhanceRateFor(target) : baseRate) * 100);
   const nxt = Math.floor(enhanceScaled(base, lv + 1));
   const safe = lv < ENHANCE_SAFE;
   const stones = Game.inventory.zhenwu || 0;
@@ -405,10 +408,10 @@ function enhancePanelHtml(itemId, it){
     </div>
     <div class="enh-cost">炭 ×${cost.tan} · ${fmt(cost.shells)} 贝${safe ? '' : `　·　镇物 ×1（有 ${stones}）`}</div>
     <div class="enh-btns">
-      <button class="btn small primary" onclick="UI.enhanceOne('${itemId}')">强化 +1</button>
+      <button class="btn small primary" onclick="UI.enhanceOne()">强化 +1</button>
       <span class="enh-to">
         <input id="enhTarget" type="number" min="${lv + 1}" max="${max}" placeholder="目标等级" inputmode="numeric">
-        <button class="btn small" onclick="UI.enhanceTo('${itemId}')">强化至</button>
+        <button class="btn small" onclick="UI.enhanceTo()">强化至</button>
       </span>
       ${safe ? '' : `<label class="enh-stone"><input type="checkbox" id="enhStone" ${stones ? 'checked' : 'disabled'}> 用镇物</label>`}
     </div>
@@ -419,10 +422,17 @@ function enhancePanelHtml(itemId, it){
 UI.itemDetailHtml = function(itemId){
   const it = Items[itemId];
   if (!it) return '';
+  // 从装备槽点进来时，UI._detailGear 记着是哪个槽——那时「强化」作用于身上这一件，
+  // 而不是行囊里同名的另一件。
+  const gearInst = (UI._detailGear && Game.gear[UI._detailGear]
+    && (Game.gear[UI._detailGear].id || Game.gear[UI._detailGear]) === itemId) ? Game.gear[UI._detailGear] : null;
+  UI._enhTarget = gearInst || itemId;
   const qty = Game.inventory[itemId] || 0;
   const rec = Game.records[itemId];
   const actions = [];
-  if (it.equip){
+  if (it.equip && gearInst){
+    actions.push(`<button class="btn" onclick="unequip('${UI._detailGear}',false);UI.closeModal();UI.renderPack()">卸下</button>`);
+  } else if (it.equip){
     const lvOk = (it.lvl||1) <= relevantLevel(it);
     const recOk = (typeof reqRecordOk !== 'function') || reqRecordOk(it);
     const ok = lvOk && recOk;
@@ -465,7 +475,7 @@ UI.itemDetailHtml = function(itemId){
     })()}
     ${it.divine && typeof DIVINE_EFFECTS !== 'undefined' && DIVINE_EFFECTS[it.divine]
       ? `<div class="reveal"><b>神兵</b><span class="dv-tag">${esc(DIVINE_EFFECTS[it.divine].label)}</span><span class="dv-text">${esc(DIVINE_EFFECTS[it.divine].text)}</span></div>` : ''}
-    ${enhancePanelHtml(itemId, it)}
+    ${enhancePanelHtml(UI._enhTarget || itemId, it)}
     ${afList.length?`<div class="reveal"><b>词条</b>${afList.map(x=>`<span class="af-txt"><i>${esc(x.name)}</i>${esc(x.text)}</span>`).join('')}</div>`:''}
     ${afCost?`<div class="reveal"><b>重铸</b><span class="af-recost">换一组词条（炭×${afCost.tan} · ${afCost.shells} 贝）</span>
       <button class="btn small ${afOk?'primary':''}" ${afOk?'':'disabled'} onclick="UI.reforgeNow('${itemId}')">重铸</button></div>`:''}
@@ -486,10 +496,12 @@ UI.itemDetailHtml = function(itemId){
     <div class="modal-btns">${actions.join('')}<button class="btn" onclick="UI.closeModal()">闭</button></div>`;
 };
 
-function showItemDetail(itemId){
+function showItemDetail(itemId, gearSlot){
   if (!Items[itemId]) return;
-  if (UI._detailId !== itemId) UI._enhLast = null;   // 换了一件，上一件的成败记录不该跟着跑
+  if (UI._detailId !== itemId || UI._detailGear !== (gearSlot || null)) UI._enhLast = null;
   UI._detailId = itemId;
+  // gearSlot 非空 = 从装备槽点进来，强化作用于身上那件实例；否则作用于行囊那一类
+  UI._detailGear = gearSlot || null;
   UI.modal(UI.itemDetailHtml(itemId));
 }
 
@@ -713,13 +725,17 @@ UI._revealEnh = function(itemId, r){
   }
 };
 
-UI.enhanceOne = function(itemId){
+UI.enhanceOne = function(target){
   if (UI._enhBusy) return;
+  // 不传参时用「当前详情正在看的那一件」：装备槽里看就是实例，行囊里看就是 itemId
+  target = target || UI._enhTarget || UI._detailId;
+  const itemId = (typeof enhTargetId === 'function') ? enhTargetId(target) : target;
+  if (!itemId) return;
   const stoneEl = $('enhStone');
   const stone = !!(stoneEl && stoneEl.checked);
   const it = Items[itemId];
   // 先落库：料照扣、成败已定，但先扣着不揭晓——那一秒半的锤声就是悬念。
-  const r = enhanceItem(itemId, { stone });
+  const r = enhanceItem(target, { stone });
   if (!r.ok){
     UI._enhLast = { id:itemId, text: r.reason || '未能强化', cls:'bad' };
     UI.refreshItemModal(itemId);
@@ -742,8 +758,11 @@ UI.enhanceOne = function(itemId){
   }, 1250);
 };
 
-UI.enhanceTo = function(itemId){
+UI.enhanceTo = function(target){
   if (UI._enhBusy) return;
+  target = target || UI._enhTarget || UI._detailId;
+  const itemId = (typeof enhTargetId === 'function') ? enhTargetId(target) : target;
+  if (!itemId) return;
   const el = $('enhTarget');
   const t = parseInt(el && el.value, 10);
   if (!isFinite(t)){ UI.toast('先填目标等级'); return; }
@@ -753,7 +772,7 @@ UI.enhanceTo = function(itemId){
   const played = (typeof UI.forgeShow === 'function') && UI.forgeShow(it, { heavy:true });
   if (played){ UI._enhBusy = true; UI._lockEnhPanel(); }
   const run = ()=>{
-    const r = enhanceToTarget(itemId, t, { stone, noToast: true });
+    const r = enhanceToTarget(target, t, { stone, noToast: true });
     UI._enhLast = { id:itemId, cls: r.done ? 'good' : (r.wiped ? 'bad' : 'sys'),
       text: `${r.done ? '已至' : (r.wiped ? '尽毁于' : '止于')} +${r.lv}（${r.tries} 次 · 成 ${r.ups} 败 ${r.downs}${r.stones ? ` · 镇物 ${r.stones}` : ''}）` };
     UI.toast(r.done ? `🔨 已至 +${r.lv}` : (r.wiped ? `💥 阶数尽毁，止于 +${r.lv}` : `… 止于 +${r.lv}`));

@@ -274,7 +274,14 @@ function applySave(d){
       // 否则每次调平衡，老档里的那件还是旧数字；更糟的是后来新增的字段
       // （品阶 grade、神兵特性 divine）在旧快照里根本没有，读出来是 undefined：
       // 神兵不带特性、珍品显示成良品、强化上限也对不上。
-      Game.gear[slot] = Object.assign({}, Items[gid], { id: gid });
+      // 保留实例上的强化等级。旧档（v<5）把等级记在 Game.enhance[gid] 里、由所有同名共享，
+      // 读档时搬到实例上并从那张表里删掉——这样「身上那把」带着自己的等级，行囊另起一档。
+      let enh = Math.max(0, (typeof g === 'object' && g.enh) | 0);
+      if (!enh && Game.enhance && Game.enhance[gid]){
+        enh = Math.max(0, Game.enhance[gid] | 0);
+        delete Game.enhance[gid];
+      }
+      Game.gear[slot] = Object.assign({}, Items[gid], { id: gid, enh });
     }
     if (lostGear.length && typeof log === 'function')
       log(`⚠️ 存档中的装备已不在物产表（${lostGear.join('、')}），暂按原数值保留——请另换一件`, 'bad', 'sys');

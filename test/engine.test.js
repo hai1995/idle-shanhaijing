@@ -2825,9 +2825,10 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   ST.equipItem('muge');
   ST.Game.combat = { style:'attack' };        // 固定近战口径，免得默认祝术走法术分支
   const dmg0 = G.playerWeaponDmg();
-  const e0 = ST.enhanceItem('muge');
+  // v1.31.13 起：身上那件是独立实例，强化作用于实例（Game.gear.weapon），不是 itemId
+  const e0 = ST.enhanceItem(ST.Game.gear.weapon);
   assert(e0 && e0.ok && e0.success, '装备可淬炼（0→1 必成）');
-  assert(ST.enhanceLevel('muge') === 1, '淬炼 +1');
+  assert(ST.enhanceLevel(ST.Game.gear.weapon) === 1, '淬炼 +1');
   assert(G.playerWeaponDmg() > dmg0, '淬炼提升武器伤害（+6%/级）');
   ST.Game.combat = null;
   ST.Game.enhance.muge = 30;
@@ -3448,10 +3449,14 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   assert(r4.done && r4.lv === 15, '强化至 +15 达成');
   Math.random = origRandom;
 
-  // 弹窗不关闭：按钮走 UI.enhanceOne / UI.enhanceTo，执行后就地重绘
+  // 弹窗不关闭：按钮走 UI.enhanceOne / UI.enhanceTo，执行后就地重绘。
+  // v1.31.13 起不再传 itemId——目标由 UI._enhTarget 决定（可能是装备槽里的实例），
+  // 这样「身上那件」与「行囊同名的那件」各有各的等级。
   const uiSrc60 = uiSrcAll;
-  assert(uiSrc60.includes("UI.enhanceOne('${itemId}')") && uiSrc60.includes("UI.enhanceTo('${itemId}')"),
+  assert(uiSrc60.includes('onclick="UI.enhanceOne()"') && uiSrc60.includes('onclick="UI.enhanceTo()"'),
     '详情里的强化按钮走就地刷新，不再 closeModal');
+  assert(uiSrc60.includes('target = target || UI._enhTarget || UI._detailId'),
+    '强化目标缺省取当前详情正在看的那一件');
   assert(uiSrc60.includes('UI.refreshItemModal') && uiSrc60.includes('box2.scrollTop = y'),
     '重绘后保持滚动位置');
   assert(uiSrc60.includes("UI.reforgeNow('${itemId}')"), '重铸同样就地刷新');
@@ -3602,8 +3607,8 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   // 存档里的装备是对象快照。旧快照没有后来新增的字段（品阶、神兵特性），
   // 数值也是当时那一版——不重建的话，调平衡对老玩家不生效，
   // 神兵读出来不带特性，珍品显示成良品。
-  assert(engSrc63.includes('Game.gear[slot] = Object.assign({}, Items[gid], { id: gid })'),
-    '读档时按 Items 重建装备（而非沿用旧快照）');
+  assert(/Game\.gear\[slot\] = Object\.assign\(\{\}, Items\[gid\], \{ id: gid, enh \}\)/.test(engSrc63),
+    '读档时按 Items 重建装备（而非沿用旧快照），并保留实例的强化等级');
 
   // 63.0 强化等级不被读档削掉。engine 里曾写死 Math.min(9, v)——
   // 上限提到 30 时忘了同步，强到 +20 的装备一刷新就掉回 +9。
@@ -5806,6 +5811,183 @@ section('离线结算与线上同口径');
   try { ST.autoEat(c); } catch(e){ ok = false; }
   assert(ok, '行囊空时 autoEat 不抛错');
   G.resetToDefault();
+}
+
+// ============ 105. 装备实例：身上与行囊的同名之物互不影响 ============
+// 原先强化等级按 itemId 记，于是「身上 +10 的金剑」与「行囊里另一把金剑」共用一档：
+// 强化行囊那把，身上那把也跟着涨。现在装备槽里存的是**实例**，自带 enh 字段。
+section('装备实例独立');
+{
+  G.resetToDefault();
+  const ITEM = 'muge';                       // 木戈：1 级可装备
+  ST.Game.inventory.tan = 999; ST.Game.shells = 99999;
+  ST.Game.inventory[ITEM] = 2;               // 行囊里两把
+  ST.equipItem(ITEM);                        // 穿一把（行囊剩 1）
+  const onBody = ST.Game.gear.weapon;
+  assert(!!onBody && onBody.id === ITEM, '身上穿的是木戈');
+
+  // 身上这件强到 +10
+  Math.random = () => 0.01;                  // 必成
+  for (let i = 0; i < 10; i++) ST.enhanceItem(onBody);
+  assert(ST.enhanceLevel(onBody) === 10, '身上这件 +10（现 ' + ST.enhanceLevel(onBody) + '）');
+
+  // 行囊那件从 0 起算，与身上无关
+  assert(ST.enhanceLevel(ITEM) === 0, '行囊那件仍是 +0（现 ' + ST.enhanceLevel(ITEM) + '）');
+
+  // 强化行囊那件一次：身上不该动
+  ST.enhanceItem(ITEM);
+  assert(ST.enhanceLevel(ITEM) === 1, '行囊那件 +1');
+  assert(ST.enhanceLevel(onBody) === 10, '身上那件仍是 +10（不受影响）');
+
+  // 换装：把另一把穿上，两把的等级各自跟着自己走
+  ST.equipItem(ITEM);
+  const newBody = ST.Game.gear.weapon;
+  assert(newBody !== onBody, '换了另一件实例');
+  assert(ST.enhanceLevel(newBody) === 1, '新穿上的是行囊那件的 +1（现 ' + ST.enhanceLevel(newBody) + '）');
+  // 换下来的那把回到行囊，等级写回行囊那一档（+10）
+  assert(ST.enhanceLevel(ITEM) === 10, '卸下的 +10 写回行囊一档（现 ' + ST.enhanceLevel(ITEM) + '）');
+
+  // 存档只记一个数字，读回来仍然是实例上的
+  const sv = ST.serializeSave();
+  assert(sv.gear && sv.gear.weapon && sv.gear.weapon.enh === 1, '存档里装备实例带 enh');
+  ST.localStorage.setItem('shj_zhulu_save_v1', JSON.stringify(sv));
+  ST.loadGame();
+  assert(ST.enhanceLevel(ST.Game.gear.weapon) === 1, '读档后身上那件仍是 +1');
+
+  // 旧档迁移：只有 Game.enhance[id]、实例上没有 enh 的档，等级要搬到实例上
+  {
+    const sv2 = ST.serializeSave();
+    delete sv2.gear.weapon.enh;
+    sv2.enhance = { [ITEM]: 17 };
+    ST.localStorage.setItem('shj_zhulu_save_v1', JSON.stringify(sv2));
+    ST.loadGame();
+    assert(ST.enhanceLevel(ST.Game.gear.weapon) === 17,
+      '旧档（按 id 记）的 +17 搬到实例上（现 ' + ST.enhanceLevel(ST.Game.gear.weapon) + '）');
+  }
+  ST.localStorage.removeItem('shj_zhulu_save_v1');
+  G.resetToDefault();
+}
+
+// 105.2 一键最优装必须算上淬炼：
+// 身上一把淬到上限的木戈，比行囊里一把 +0 的石矛（9）强，
+// 但按基础值比较（5 < 9）会把木戈换掉——玩家辛苦淬的阶数就这么没了。
+{
+  G.resetToDefault();
+  for (const k in ST.Skills) ST.Game.skills[k] = { level: 15, xp: ST.xpForLevel(15) + 1 };
+  ST.Game.inventory = { muge: 1, shimao: 1, tan: 999 }; ST.Game.shells = 99999;
+  ST.equipItem('muge');
+  const onBody = ST.Game.gear.weapon;
+  Math.random = () => 0.01;
+  const cap = ST.enhanceCapOf(ST.Items.muge);
+  for (let i = 0; i < cap; i++) ST.enhanceItem(onBody);
+  assert(ST.enhanceLevel(onBody) === cap, '木戈淬到本阶上限 +' + cap);
+  const boosted = ST.gearPower(onBody);
+  const sm = ST.gearPower(ST.Items.shimao);
+  assert(boosted > sm, `+${cap} 木戈（${boosted}）强于 +0 石矛（${sm}）`);
+  ST.equipBest();
+  assert(ST.Game.gear.weapon && ST.Game.gear.weapon.id === 'muge',
+    '一键最优装没有把淬炼过的木戈换成石矛（现 ' + (ST.Game.gear.weapon || {}).id + '）');
+  G.resetToDefault();
+}
+
+// ============ 106. 田地：随圃艺开垦、种子「全种」 ============
+// 原先写死 6 块，练到 81 级还是 6 块——圃艺是唯一「越练越没变化」的技艺。
+section('田地与圃艺');
+{
+  const setLv = (L) => { for (const k in ST.Skills) ST.Game.skills[k] = { level:L, xp:ST.xpForLevel(L) + 1 }; };
+
+  G.resetToDefault();
+  setLv(1);
+  assert(ST.farmPlots() === ST.TUNING.FARM_PLOTS, '1 级时是初始块数（' + ST.farmPlots() + '）');
+  assert(ST.nextPlotLevel() === 12, '下一块田要 12 级（现 ' + ST.nextPlotLevel() + '）');
+
+  setLv(12);
+  assert(ST.farmPlots() === ST.TUNING.FARM_PLOTS + 1, '12 级开垦一块（' + ST.farmPlots() + '）');
+  setLv(24);
+  assert(ST.farmPlots() === ST.TUNING.FARM_PLOTS + 2, '24 级再开一块（' + ST.farmPlots() + '）');
+  setLv(36);
+  assert(ST.farmPlots() === ST.TUNING.FARM_MAX, '36 级到顶（' + ST.farmPlots() + '）');
+  setLv(81);
+  assert(ST.farmPlots() === ST.TUNING.FARM_MAX, '81 级仍是上限，不会无限开（' + ST.farmPlots() + '）');
+  assert(ST.nextPlotLevel() === 0, '满额后没有「下一块」');
+
+  // 全种：把空田都种上同一种
+  G.resetToDefault();
+  setLv(40);
+  ST.Game.inventory = { seed_tu: 20 };
+  ST.Game.farms = {};
+  const n0 = ST.farmPlots();
+  let planted = 0;
+  for (let i = 0; i < n0; i++){ if (ST.plantSeed('p'+i, 'seed_tu', true)) planted++; }
+  assert(planted === n0, `种满 ${planted}/${n0} 块田`);
+  assert(ST.totalOf('seed_tu') === 20 - n0, '种子按块数扣（剩 ' + ST.totalOf('seed_tu') + '）');
+
+  // 种子的等级门槛仍生效：低级圃艺种不了高级种
+  G.resetToDefault();
+  setLv(1);
+  ST.Game.inventory = { seed_ji: 5 };      // 稷籽：66 级
+  ST.Game.farms = {};
+  assert(!ST.plantSeed('p0', 'seed_ji', true), '圃艺不够时种不下高级种子');
+  G.resetToDefault();
+}
+
+// ============ 107. 快速挂机：按当前等级现算、四类行动都排到 ============
+section('快速挂机');
+{
+  G.resetToDefault();
+  for (const k in ST.Skills) ST.Game.skills[k] = { level: 45, xp: ST.xpForLevel(45) + 1 };
+  ST.Game.map = {};
+  for (const r of ST.WORLD.regions) for (const n of r.nodes)
+    if ((n.unlockLevel || 1) <= 45) ST.Game.map[n.id] = true;
+  ST.Game.inventory = { zi: 50, guaimu: 50, tan: 99 };
+  ST.Game.queue = []; ST.Game.queueIdx = 0;
+  const n = ST.quickIdlePreset();
+  assert(n > 0 && ST.Game.queue.length === n, '排了 ' + n + ' 项');
+  const kinds = [...new Set(ST.Game.queue.map(e => e.kind))];
+  assert(kinds.length >= 3, '至少三类行动（' + kinds.join('·') + '）');
+  assert(kinds.includes('qiaocai') && kinds.includes('caiyu') && kinds.includes('yu') && kinds.includes('caiyao'),
+    '四条采集线都在（' + kinds.join('·') + '）');
+  // 采集目标必须「技能够得着」——旧实现按等级升序排，会挑一堆 1 级山头的草
+  const bad = ST.Game.queue.filter(e => {
+    const def = ST.ActionKinds[e.kind];
+    if (!def || def.mode !== 'gather') return false;
+    const it = ST.Items[e.target];
+    return !it || (it.lvl || 1) > ST.levelOf(def.skill);
+  });
+  assert(bad.length === 0, '采集目标都在技能等级之内（越界：' + bad.map(e => e.target).join(',') + '）');
+  // 每个技能挑的是「能采到的最高等级」
+  for (const kind of ['qiaocai','caiyu','yu','caiyao']){
+    const mine = ST.Game.queue.filter(e => e.kind === kind);
+    if (!mine.length) continue;
+    const lv = ST.levelOf(ST.ActionKinds[kind].skill);
+    const best = Math.max(...ST.actionTargets(kind)
+      .filter(t => (t.lvl || 1) <= lv && (() => { const nd = ST.nodeOf(t.node); return nd && ST.nodeUnlocked(nd); })())
+      .map(t => t.lvl || 1));
+    const got = Math.max(...mine.map(e => (ST.Items[e.target] || {}).lvl || 1));
+    assert(got === best, `${ST.ActionKinds[kind].label} 取到最高级 ${got}（该技能能采到 ${best}）`);
+  }
+  ST.Game.queue = []; ST.Game.queueRunning = false;
+  G.resetToDefault();
+}
+
+// ============ 108. 配方等级不留大断层 ============
+// 合药原先 30 → 66 之间一个方子都没有：技能升到 35 就会发现「药草越采越多，能配的药一个没有」。
+{
+  const byType = {};
+  for (const r of ST.Recipes){ if (r.type === 'rite') continue; (byType[r.type] = byType[r.type] || []).push(r); }
+  const bad = [];
+  for (const [t, rs] of Object.entries(byType)){
+    const lvls = [...new Set(rs.map(r => r.lvl || 1))].sort((a, b) => a - b);
+    for (let i = 1; i < lvls.length; i++){
+      if (lvls[i] - lvls[i - 1] > 20) bad.push(`${t}: ${lvls[i - 1]}→${lvls[i]}`);
+    }
+  }
+  assert(bad.length === 0, '每个配方类别相邻档位不超 20 级（断层：' + (bad.join('；') || '无') + '）');
+  // 合药与琢玉的中段必须有货（这两条是玩家反馈「升不上去」的地方）
+  const herbMid = ST.Recipes.filter(r => r.type === 'herb' && (r.lvl || 1) > 30 && (r.lvl || 1) < 66);
+  assert(herbMid.length >= 3, '合药 30–66 之间有 ' + herbMid.length + ' 个方子');
+  const jadeMid = ST.Recipes.filter(r => r.type === 'jade' && (r.lvl || 1) > 32 && (r.lvl || 1) < 68);
+  assert(jadeMid.length >= 2, '琢玉 32–68 之间有 ' + jadeMid.length + ' 个方子');
 }
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）

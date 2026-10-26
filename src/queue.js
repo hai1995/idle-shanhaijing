@@ -281,28 +281,83 @@ function setFallback(kind, target, qty){
 }
 // 一键快速挂机：按当前可达成（节点已解锁）的采集目标排好巡历队列并启动
 function quickIdlePreset(){
-  const cands = [];
+  // 「快速挂机」要排一份**按当前等级现算**的均衡队列。
+  // 旧实现把四种采集的所有目标按等级升序取前十个——排在最前的是 1 级山头的草，
+  // 全程收益极低，而且永远只有采集，制作 / 讨伐一条不排。
+  // 现在按四件事挑：
+  //   1. 四条采集线各取「技能够得着的最高级」目标（等级越高，单次产出越值钱）
+  //   2. 一场讨伐：能打赢的最高级异兽
+  //   3. 一条制作：材料够、等级够的最高级配方（把采来的料变成值钱的东西）
+  //   4. 还有空位就按采集补满
+  // 等级变了再点一次即可重排（按钮本来就写着「按当前可达成目标」）。
+  const picked = [];
+  const push = (kind, target, times) => {
+    if (picked.length >= QUEUE_MAX) return;
+    if (picked.some(p => p.kind === kind && p.target === target)) return;
+    picked.push({ kind, target, times });
+  };
+
+  // 1. 四条采集线
   ['qiaocai','caiyu','yu','caiyao'].forEach(kind=>{
-    actionTargets(kind).forEach(t=>{
-      const n = nodeOf(t.node);
-      if (n && nodeUnlocked(n)) cands.push({ kind, target:t.id, node:n.id, lvl:t.lvl||1 });
+    const lv = levelOf(ActionKinds[kind].skill);
+    const cands = actionTargets(kind)
+      .filter(t => (t.lvl||1) <= lv && (() => { const n = nodeOf(t.node); return n && nodeUnlocked(n); })())
+      .sort((a,b) => (b.lvl||1) - (a.lvl||1));      // 降序：先拿高阶
+    if (cands[0]) push(kind, cands[0].id, 20);
+  });
+
+  // 2. 讨伐：挑「能打赢」的最高级异兽。战力口径取三门主战技艺的最低值。
+  {
+    const power = Math.min(levelOf('bing'), levelOf('zhu'), levelOf('taofa'));
+    const mobs = Object.values(Monsters)
+      .filter(m => !m.boss && !m.unkillable && (m.needLvl||1) <= power && nodeUnlocked(nodeOf(m.nodeId) || {}))
+      .sort((a,b) => (b.needLvl||1) - (a.needLvl||1));
+    if (mobs[0]) push('taofa', mobs[0].id, 5);
+  }
+
+  // 3. 制作：材料够、等级够，取等级最高的那条（把原料变成成品，比一直采更赚）
+  {
+    const kinds = ['smith','craft','fletch','jade','herb','cook','burn'];
+    const recs = [];
+    kinds.forEach(kind=>{
+      const sk = ActionKinds[kind] ? ActionKinds[kind].skill : null;
+      if (!sk) return;
+      const lv = levelOf(sk);
+      Recipes.filter(r => r.type === kind && (r.lvl||1) <= lv)
+        .forEach(r => { if (canAfford(r.cost)) recs.push({ kind, r }); });
     });
-  });
-  // 优先当前所在节点，其余按等级升序（贴合进度、不易被锁）
-  cands.sort((a,b)=>{
-    const ah = a.node===Game.node?0:1, bh = b.node===Game.node?0:1;
-    if (ah!==bh) return ah-bh;
-    return (a.lvl||1)-(b.lvl||1);
-  });
+    recs.sort((a,b) => (b.r.lvl||1) - (a.r.lvl||1));
+    // 至多两条，免得整队都在做东西、采集停了
+    recs.slice(0, 2).forEach(x => push(x.kind, x.r.out, 10));
+  }
+
+  // 4. 补满：其余采集线按等级降序续上
+  if (picked.length < QUEUE_MAX){
+    const rest = [];
+    ['qiaocai','caiyu','yu','caiyao'].forEach(kind=>{
+      const lv = levelOf(ActionKinds[kind].skill);
+      actionTargets(kind)
+        .filter(t => (t.lvl||1) <= lv && (() => { const n = nodeOf(t.node); return n && nodeUnlocked(n); })())
+        .forEach(t => rest.push({ kind, target:t.id, lvl:t.lvl||1 }));
+    });
+    rest.sort((a,b) => b.lvl - a.lvl);
+    for (const r of rest) push(r.kind, r.target, 20);
+  }
+
   clearQueue();
-  const picked = cands.slice(0, QUEUE_MAX);
-  picked.forEach(c=> addQueueEntry(c.kind, c.target, 10));
-  const here = picked.find(c=>c.node===Game.node);
-  setFallback(here?here.kind:'idle', here?here.target:'', here?10:1);
+  picked.forEach(c => addQueueEntry(c.kind, c.target, c.times));
+  // 兜底：队列跑完时回到「当前所在山头的采集」，没有就挂机
+  const here = picked.find(c => {
+    const def = ActionKinds[c.kind];
+    if (!def || def.mode !== 'gather') return false;
+    return (Items[c.target] || {}).node === Game.node;
+  });
+  setFallback(here ? here.kind : 'idle', here ? here.target : '', here ? 20 : 1);
   Game.queueLoop = true; saveGame();
-  if (!Game.queueRunning && typeof toggleQueue==='function') toggleQueue();
-  if (typeof UI!=='undefined' && UI.renderQueue) UI.renderQueue();
-  if (UI && UI.toast) UI.toast(`🧭 已排 ${picked.length} 项巡历任务，开始挂机`);
+  if (!Game.queueRunning && typeof toggleQueue === 'function') toggleQueue();
+  if (typeof UI !== 'undefined' && UI.renderQueue) UI.renderQueue();
+  const kinds = [...new Set(picked.map(p => (ActionKinds[p.kind]||{}).label || p.kind))];
+  if (UI && UI.toast) UI.toast(`🧭 已排 ${picked.length} 项（${kinds.join('·')}）`);
   return picked.length;
 }
 

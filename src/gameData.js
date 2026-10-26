@@ -53,7 +53,9 @@ const TUNING = {
   KE_MAP: { 金:'木', 木:'土', 土:'水', 水:'火', 火:'金' },  // 相克：金克木、木克土、土克水、水克火、火克金
   GATHER_DOUBLE: 0.25,     // 采集一次出 2 个的概率
   OBSERVE_SEC: 20,         // 观象/观瑞一次耗时（秒）
-  FARM_PLOTS: 6,           // 圃艺田地数
+  FARM_PLOTS: 6,           // 初始田地数
+  FARM_MAX: 9,             // 开垦上限
+  FARM_PER: 12,            // 每 12 级圃艺开垦一块（12→7、24→8、36→9）
   // 同目标连续讨伐的经验递减：每连杀一次 -3%，下限 60%（换目标 / 败北即重置）
   MOB_DECAY: { STEP: 0.03, MIN: 0.6 },
   // 方国求购订单：常驻 3 单，30 分钟轮换一批；溢价 1.3~1.8 倍于基准价
@@ -804,6 +806,10 @@ R('burn','huozhong',1,24,8,[['tan',3],['zhuyu',1]]);
 R('cook','jiagufan',1,14,1,[['tu',2]]);
 R('cook','zhishengrou',1,22,3,[['shengshengrou',1]]);
 R('cook','daofan',1,30,5,[['dao',3]]);
+// 5 → 28 之间空了二十三级（v1.31.13 补）：这段时间打怪掉的生肉只能生吃，
+// 而熟食的回血是生肉的两倍多——「有肉不能做」比「没肉」更让人难受。
+R('cook','zhichiru',1,36,12,[['chirurou',1]]);       // 赤鱬：食之不疥
+R('cook','zhihujiao',1,60,20,[['hujiaorou',1]]);     // 虎蛟：食者不肿
 R('cook','kaijiyu',1,90,30,[['jiyu',1]]);
 R('cook','piluogeng',1,120,39,[['piluo',2],['tu',1]]);
 R('cook','zhixipu',1,200,52,[['xirou',2]]);
@@ -915,6 +921,11 @@ R('jade','guiyu',1,160,28,[['yu',1]]);
 R('jade','yu2',1,240,28,[['meiyu',2]]);
 R('jade','wenyaofu',1,320,68,[['wenyaoyi',1],['yu',2]]);      // 佩之天下大穰
 R('jade','danghufu',1,300,68,[['danghuran',1],['yu',2]]);     // 食之不眴目
+// 中段护符（v1.31.13）：护符一共七枚，全挤在 5–15 与 68 两段，中间五十级没有一件可佩。
+// 玉石倒是一直在采（琅玕 33、㻬琈 35、水碧 52），采上来只能卖——这三枚把两头接上。
+R('jade','yaobifu',1,260,34,[['yao',1],['yu',2]]);          // 瑶碧符：佩之益学
+R('jade','xuanjifu',1,340,45,[['w_㻬琈之玉',1],['yu',2]]);    // 璇玑符：佩之善采
+R('jade','shuibifu',1,420,57,[['w_水碧',1],['yu',2]]);        // 水碧符：佩之御患
 // 冶铸：西山兵刃
 R('smith','cangyuyue',1,420,72,[['cangyu',2],['tan',3]]);
 R('smith','langganjian',1,480,74,[['jin',2],['langgan',1],['tan',3]]);
@@ -931,6 +942,12 @@ R('cook','jiu',1,60,28,[['ji',3]]);
 R('herb','shilaisan',1,220,66,[['pingcao',1],['zhuyu',1],['shuiping',1]]);
 R('herb','yinaosan',1,260,68,[['xiongqiong',1],['zhuyu',2],['shuiping',1]]);
 R('herb','yushuisan',1,300,70,[['shatang',1],['shuiping',1]]);
+// 中段四味 + 一味（v1.31.13）：把 30 → 66 的空白填成 8 级一档
+R('herb','xingshensan',1,320,33,[['mao',2],['zhuyu',2],['shuiping',1]]);
+R('herb','qingshensan',1,400,41,[['hui',2],['bili',2],['shuiping',1]]);
+R('herb','gubensan',1,480,49,[['duheng',2],['xiongqiong',1],['shuiping',1]]);
+R('herb','jiushisan',1,560,57,[['pingcao',2],['zicao',2],['shuiping',1]]);
+R('herb','wangyousan',1,620,62,[['zs_guicao',1],['zs_rongcao',1],['shuiping',1]]);
 
 // 祠礼产物（虚拟物品：执行后给区域增益）
 addItem(
@@ -997,9 +1014,21 @@ addItem(
   I('baihujia','白虎甲','armor',{ equip:true, grade:'precious', slot:'armor', def:29, lvl:72, value:1500, icon:'🥋', rarity:'RARE' }),
   I('wenyaofu','文鳐符','charm',{ value:260, lvl:68, icon:'🪸', equip:true, grade:'precious', slot:'charm', effect:'佩之天下大穰', yieldBonus:0.15, reqRecord:{ id:'wenyaoyu', tier:3 } }),
   I('danghufu','当扈符','charm',{ value:240, lvl:68, icon:'🪸', equip:true, grade:'precious', slot:'charm', effect:'食之不眴目', xpBonus:0.10, reqRecord:{ id:'danghu', tier:3 }, py:'dāng hù' }),
+  I('yaobifu','瑶碧符','charm',{ value:200, lvl:34, icon:'🪸', equip:true, grade:'fine', slot:'charm', effect:'瑶碧为佩，学而不厌', xpBonus:0.08, py:'yáo bì fú' }),
+  I('xuanjifu','璇玑符','charm',{ value:260, lvl:45, icon:'🪸', equip:true, grade:'fine', slot:'charm', effect:'璇玑之玉，所在必获', gatherBonus:0.10, py:'xuán jī fú' }),
+  I('shuibifu','水碧符','charm',{ value:340, lvl:57, icon:'🪸', equip:true, grade:'rare', slot:'charm', effect:'水碧为佩，可以御患', defBonus:6, py:'shuǐ bì fú' }),
+  I('zhichiru','炙赤鱬','food',{ value:45, heal:90, icon:'🐟', edible:true, effect:'食之不疥', py:'zhì chì rú' }),
+  I('zhihujiao','炙虎蛟','food',{ value:70, heal:150, icon:'🐟', edible:true, effect:'食者不肿，可以已痔', py:'zhì hǔ jiāo' }),
   I('shilaisan','释劳散','potion',{ value:200, lvl:66, icon:'🧪', buff:{ name:'释劳', kind:'gather', gather:0.35, dur:240 }, effect:'食之已劳' }),
   I('yinaosan','益脑散','potion',{ value:240, lvl:68, icon:'🧪', buff:{ name:'益脑', kind:'xp', xpBonus:0.20, dur:300 }, effect:'芎藭之草' }),
   I('yushuisan','御水散','potion',{ value:280, lvl:70, icon:'🧪', buff:{ name:'御水', kind:'def', def:25, dur:300 }, effect:'可以御水' }),
+  // 中段补的四味（v1.31.13）：原先合药从 30 级直接跳到 66，中间三十多级没有新方子，
+  // 技能升到 35 就会发现「能采的药草越来越多，能配的药一个没有」。
+  I('xingshensan','醒神散','potion',{ value:200, lvl:33, icon:'🧪', buff:{ name:'醒神', kind:'xp', xpBonus:0.15, dur:300 }, effect:'茆与祝余，食之不眯' }),
+  I('qingshensan','轻身散','potion',{ value:240, lvl:41, icon:'🧪', buff:{ name:'轻身', kind:'div', div:0.4, dur:240 }, effect:'蕙草之属，服之身轻' }),
+  I('gubensan','固本散','potion',{ value:270, lvl:49, icon:'🧪', buff:{ name:'固本', kind:'def', def:18, dur:300 }, effect:'杜衡与芎藭，可以为固' }),
+  I('jiushisan','久视散','potion',{ value:300, lvl:57, icon:'🧪', buff:{ name:'久视', kind:'gather', gather:0.32, dur:300 }, effect:'薲草茈草，服之不忘' }),
+  I('wangyousan','忘忧散','potion',{ value:320, lvl:62, icon:'🧪', buff:{ name:'忘忧', kind:'offline', offline:0.18, dur:300 }, effect:'鬼草，服之不忧' }),
 );
 
 // ================= 北山经产出物 =================
@@ -2478,7 +2507,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.12',
+  version: '1.31.13',
   codename:'五臧 · 问神',
   updated: '2026-10-25',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',

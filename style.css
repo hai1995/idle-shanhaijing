@@ -943,6 +943,16 @@ svg.bi.mk{ vertical-align:-2px; }
 .ft-bar{ width:100%; height:3px; margin-top:auto; background:var(--rule-2); border-radius:2px; overflow:hidden; }
 .ft-bar i{ display:block; height:100%; background:var(--tai); transition:width .3s; }
 .farm-tile.ripe .ft-bar i{ background:var(--jin); }
+/* 择种：一行 = 主体按钮 + 右侧「全种」 */
+.seed-row-wrap{ display:flex; align-items:stretch; gap:6px; }
+.seed-row-wrap .seed-row{ flex:1 1 auto; min-width:0; }
+.seed-all{ flex:0 0 auto; align-self:center; white-space:nowrap; }
+
+/* 待垦的田：不点、不可种，只告诉玩家还差多少级 */
+.farm-tile.locked{ cursor:default; opacity:.72; border-style:dashed; }
+.farm-tile.locked .tile-nm{ color:var(--ink-3); }
+.farm-tile.locked .tile-tag{ color:var(--ink-4); }
+
 /* 择种浮层：种子一行一条，未持有 / 未达级置灰 */
 .seed-list{ display:grid; gap:6px; margin:12px 0; max-height:46vh; overflow:auto; }
 .seed-row{
@@ -1866,12 +1876,13 @@ body.no-scroll{ overflow:hidden; }
   .panel .rite-grid, .panel .shop-grid{ grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
   .shop-shelf{ padding:9px 8px 10px; }
   .shelf-desc{ display:none; }
-  /* 手机首屏：商旅卡 + 推荐 + 求购三块把商品挤到 1000px 以下，进市廛要先滑两屏才看得到东西。
-     求购改横滑（省约 300px）、推荐只留两条、分类条吸顶——滑到哪儿都能跳档。 */
-  .order-board .ob-grid{ display:flex; gap:8px; overflow-x:auto; scroll-snap-type:x mandatory;
-    padding-bottom:4px; margin:0 -2px; scrollbar-width:none; }
-  .order-board .ob-grid::-webkit-scrollbar{ display:none; }
-  .order-board .ob-card{ flex:0 0 84%; scroll-snap-align:start; }
+  /* 手机首屏：商旅卡 + 推荐 + 求购三块把商品挤到 1000px 以下。
+     求购**不用横滑**——这个游戏本来就有「左右滑切页签」的手势，两处撞在一起时，
+     想滑订单会翻页、想翻页会滑订单。改为单列竖排 + 卡片压薄。
+     推荐只留两条，省下的高度留给货架。 */
+  .order-board .ob-grid{ grid-template-columns:1fr; gap:8px; }
+  .order-board .ob-card{ padding:9px 10px; gap:5px; }
+  .order-board .ob-meta{ font-size:11px; }
   .order-board .hint{ margin-top:6px; }
   .trade-tip ul li:nth-child(n+3){ display:none; }
   /* 分类条不吸顶：手机顶部已有书脊 + 仪表带，再吸一条会把它挤到看不见的地方。 */

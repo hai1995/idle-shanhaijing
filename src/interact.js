@@ -132,11 +132,19 @@ function equipItem(itemId){
   }
   if ((Game.inventory[itemId]||0) <= 0){ log('行囊中没有该物品', 'bad'); return; }
   const slot = equipSlotOf(it);
+  // 先记下行囊那一档的等级——这才是「你要穿上的那件」的等级。
+  // （必须赶在把旧装备写回行囊之前读，否则同名互换时会读成旧件的那一档）
+  const bagEnh = (Game.enhance && Game.enhance[itemId]) || 0;
   const old = Game.gear[slot];
-  if (old) giveItem(old.id || old, 1, false);
+  if (old){
+    // 卸下来的那件把自己的强化等级带回行囊（行囊按 itemId 记一档）
+    if (typeof Game.enhance === 'object') Game.enhance[old.id || old] = Math.max(0, old.enh | 0);
+    giveItem(old.id || old, 1, false);
+  }
   Game.inventory[itemId]--;
   if (Game.inventory[itemId]<=0) delete Game.inventory[itemId];
-  Game.gear[slot] = it;
+  // 身上这件是**独立实例**：自带 enh，与行囊同名之物互不影响（v1.31.13）
+  Game.gear[slot] = Object.assign({}, it, { id: itemId, enh: bagEnh });
   saveGame();
   UI && UI.refreshGear();
   UI && UI.refreshInventory();
@@ -147,20 +155,28 @@ function unequip(slot, toBank){
   const cur = Game.gear[slot];
   if (!cur) return;
   const id = cur.id || cur;
+  // 卸下：实例上的强化等级写回行囊那一档，否则脱下来就变回 +0 了
+  if (typeof Game.enhance === 'object') Game.enhance[id] = Math.max(0, cur.enh | 0);
   giveItem(id, 1, toBank);
   Game.gear[slot] = null;
   UI && UI.refreshGear();
   UI && UI.refreshInventory();
   saveGame();
 }
-// 装备强度（同槽位比较用）
+// 装备强度（同槽位比较用）。
+// 必须算上淬炼：否则「身上一把 +20 的木戈」会被「行囊里一把 +0 的铁剑」挤掉——
+// 一键最优装只看基础值，等于把玩家辛苦淬的阶数扔掉（v1.31.13 修）。
 function gearPower(it){
   if (!it) return 0;
-  if (it.dmg) return it.dmg;
-  if (it.def) return it.def;
-  if (it.axePower) return it.axePower;
-  if (it.pickPower) return it.pickPower;
-  if (it.netPower) return it.netPower;
+  // 实例（装备槽里那件）自带 enh；行囊里的是模板对象，按 itemId 读那一档
+  const key = (it.enh !== undefined) ? it : it.id;
+  const lv = (typeof enhanceLevel === 'function') ? enhanceLevel(key) : 0;
+  const sc = v => (typeof enhanceScaled === 'function') ? enhanceScaled(v, lv) : v;
+  if (it.dmg) return sc(it.dmg);
+  if (it.def) return sc(it.def);
+  if (it.axePower) return sc(it.axePower);
+  if (it.pickPower) return sc(it.pickPower);
+  if (it.netPower) return sc(it.netPower);
   if (it.slot === 'charm') return 1 + (it.defBonus||0) + (it.gatherBonus||0) + (it.divBonus||0) + (it.farmBonus||0) + (it.wise?2:0);
   return 0;
 }
