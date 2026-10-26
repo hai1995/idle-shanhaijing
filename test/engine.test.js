@@ -6927,6 +6927,64 @@ section('便利性优化');
   G.resetToDefault();
 }
 
+// ============ 131. 队列批量编辑 / 产地跳转 / 技能详情动作 ============
+section('队列与跳转');
+{
+  G.resetToDefault();
+  for (const k in ST.Game.skills) ST.Game.skills[k] = { level: 99, xp: 0 };
+  ST.clearQueue();
+
+  // ---- 复制条目 ----
+  const t1 = ST.actionTargets('qiaocai')[0];
+  const e1 = ST.addQueueEntry('qiaocai', t1.id, 7);
+  assert(!!e1 && ST.Game.queue.length === 1, '先有一条');
+  const dup = ST.duplicateQueueEntry(e1.id);
+  assert(!!dup && ST.Game.queue.length === 2, '复制成功（' + ST.Game.queue.length + ' 条）');
+  assert(dup.kind === e1.kind && dup.target === e1.target && dup.qty === e1.qty, '复制出的条目与原条目同行动 / 同目标 / 同数量');
+  assert(dup.id !== e1.id, '复制出来的是新条目（id 不同）');
+  assert(ST.duplicateQueueEntry('nope') === null, '不存在的条目返回 null');
+
+  // 队列满时不再复制
+  ST.clearQueue();
+  for (let i = 0; i < ST.QUEUE_MAX; i++) ST.addQueueEntry('qiaocai', t1.id, 1);
+  assert(ST.Game.queue.length === ST.QUEUE_MAX, '队列已满 ' + ST.QUEUE_MAX);
+  assert(ST.duplicateQueueEntry(ST.Game.queue[0].id) === null, '队列满时拒绝复制');
+
+  // ---- 清理阻塞 ----
+  ST.clearQueue();
+  ST.addQueueEntry('qiaocai', t1.id, 3);                 // 能跑
+  ST.addQueueEntry('jade', 'shanhaitujuan', 1);          // 缺料，跑不通
+  const blocked = ST.Game.queue.filter(e => !ST.entryCanRun(e).ok).length;
+  assert(blocked === 1, '一条阻塞（' + blocked + '）');
+  const n = ST.dropBlockedQueue();
+  assert(n === 1 && ST.Game.queue.length === 1, '移除阻塞 1 条');
+  assert(ST.Game.queue.every(e => ST.entryCanRun(e).ok), '余下条目都能跑');
+  assert(ST.dropBlockedQueue() === 0, '没有阻塞时返回 0');
+
+  // ---- 物品来路带节点：产地可跳 ----
+  G.resetToDefault();
+  const src = ST.itemSources('migu').find(x => x.nodeId);
+  assert(!!src, '迷榖的来路带节点');
+  assert(src.nodeId === 'nanshan-1-01' && src.regionId === 'nanshan-1', '节点与山系正确（' + src.nodeId + '）');
+  assert(typeof src.unlocked === 'boolean', '带解锁状态（未解锁时不放跳转）');
+  assert(!ST.itemSources('shanhaitujuan').some(x => x.nodeId), '图卷无采集来源，不出产地行');
+
+  // ---- 用途：可服用的药不算「一无所用」 ----
+  const uiSrcPk = readText('src/ui/pack.js');
+  assert(uiSrcPk.includes("const dose = it.buff"), '用途里认得「可服用」');
+  assert(uiSrcPk.includes("(crop || dose) ? ''"), '有 crop / dose 时不写「暂无合用之方」');
+  assert(ST.Items.shanhaitujuan.buff && ST.Items.shanhaitujuan.buff.dur === 900, '图卷确实可服用（900 秒）');
+
+  // ---- 技能详情：有「做」而不只是「看」 ----
+  assert(uiSrcPk.includes("采 ${esc(it.name)}"), '采集类技能详情给「采某物」');
+  assert(uiSrcPk.includes("制「"), '制作类技能详情给「制某件」');
+  // 动作与「闭」必须同组：_splitModal 只提第一个按钮组，拆两组会让主次颠倒
+  assert(uiSrcPk.includes("acts.push(`<button class=\"btn\" onclick=\"UI.closeModal()\">闭</button>`)"),
+    '动作与「闭」合在同一按钮组');
+
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

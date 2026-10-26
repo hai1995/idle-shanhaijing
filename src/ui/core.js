@@ -1247,7 +1247,10 @@ function nextStepHtml(tab){
       const hasSeed = Object.values(Items).some(s=>s.crop && (s.lvl||1)<=lv && (Game.inventory[s.id]||0)>0);
       if (hasSeed) out.push({ label:`一键种满 ${empty.length} 块空田`, act:'UI.plantAll()' });
     }
-    const r = Recipes.find(x=>canAfford(x.cost) && levelOf(mapRecipeSkill(x.type)) >= x.lvl);
+    // 材料已齐的配方里挑**最高级**那件：原先取 Recipes 数组里第一个能做的，
+    // 常常是最底层的燧石刀——「下一步」若建议玩家去做早就看不上的东西，比不给更差。
+    const r = Recipes.filter(x=>canAfford(x.cost) && levelOf(mapRecipeSkill(x.type)) >= x.lvl)
+      .sort((a,b)=>b.lvl-a.lvl)[0];
     if (r){ const it = Items[r.out]; out.push({ label:`材料已齐 · 制「${it?it.name:r.out}」`, act:`startActivity('craft','${r.type}::${r.out}',{times:1})` }); }
     if (!out.length) out.push({ label:'去征伐攒著录', tab:'taofa' });
   }
@@ -1269,7 +1272,23 @@ function nextStepHtml(tab){
   if (tab === 'pack'){
     const p = (typeof bulkSellPreview === 'function') ? bulkSellPreview(UI.packSellTier || 'COMMON') : null;
     if (p && p.count > 0) out.push({ label:`清整售出 ${p.count} 件（约 ${fmt(p.total)} 贝）`, act:'bulkSellRun()' });
-    const better = Object.values(Items).some(it=>it.equip && (typeof bagQty==='function'?bagQty(it.id):(Game.inventory[it.id]||0)) > 0 && (it.lvl||1) <= relevantLevel(it));
+    // 「有更强的在包里」才建议换装。原判定只查「行囊里有等级够的装备」，
+    // 于是包里全是打不过身上的旧货时也催玩家点「一键最优装」，点了什么都不会变。
+    const better = (function(){
+      if (typeof gearPower !== 'function' || typeof equipSlotOf !== 'function') return false;
+      for (const g of (Game.packGear || [])){
+        const it = Items[g.id];
+        if (!it || !it.equip) continue;
+        if ((it.lvl||1) > relevantLevel(it)) continue;
+        if (typeof reqRecordOk === 'function' && !reqRecordOk(it)) continue;
+        const slot = equipSlotOf(it);
+        if (!slot) continue;
+        const inst = Object.assign({}, it, { enh: (g.enh | 0) });
+        const cur = Game.gear[slot];
+        if (!cur || gearPower(inst) > gearPower(cur)) return true;
+      }
+      return false;
+    })();
     if (better) out.push({ label:'一键最优装', act:'UI.autoEquipBest()' });
   }
   if (tab === 'yushi'){

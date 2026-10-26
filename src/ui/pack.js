@@ -28,6 +28,7 @@ UI.renderQueue = function(){
             ${!st.ok?`<span class="qi-reason">${esc(st.reason)}</span>`:''}
           </span>
           <span class="qi-btns">
+            <button class="btn tiny" title="在末尾复制一份" onclick="queueDupWithToast('${e.id}');UI.renderQueue()">⧉</button>
             <button class="btn tiny" onclick="moveQueueEntry('${e.id}',-1);UI.renderQueue()">↑</button>
             <button class="btn tiny" onclick="moveQueueEntry('${e.id}',1);UI.renderQueue()">↓</button>
             <button class="btn tiny" onclick="removeQueueEntry('${e.id}');UI.renderQueue()">✕</button>
@@ -39,6 +40,11 @@ UI.renderQueue = function(){
         <button class="btn" onclick="quickIdlePreset()" title="按当前可达成目标自动排好巡历队列并启动">${typeof markIcon==='function'?markIcon('bolt',15):'⚡'} 快速挂机</button>
         <label><input type="checkbox" ${Game.queueLoop?'checked':''} onchange="Game.queueLoop=this.checked;saveGame()"> 循环</label>
         <button class="btn" onclick="clearQueue();UI.renderQueue()">清空</button>
+        ${(function(){
+          // 阻塞项会让队列卡住并转入兜底动作；跑一轮之后这些条目多半已经没意义
+          const n = Game.queue.filter(e=>!entryCanRun(e).ok).length;
+          return n ? `<button class="btn" title="移除当前跑不通的条目（缺料 / 等级不足 / 目标未解锁）" onclick="queueDropWithToast();UI.renderQueue()">清理阻塞 ${n}</button>` : '';
+        })()}
         <span class="hint">已完成 ${Game.queueRound} 轮</span>
       </div>
       <div class="fallback-box">
@@ -59,10 +65,16 @@ UI.renderQueue = function(){
           ${Object.entries(ActionKinds).map(([k,d])=>`<option value="${k}" ${this.queueKind===k?'selected':''}>${d.label}</option>`).join('')}
         </select></div>
       <div class="form-row"><span>目标</span>
-        <select id="queueTarget">
-          ${targets.map(t=>`<option value="${t.id}">${esc(t.name)}（${t.lvl}）</option>`).join('')}
+        <select id="queueTarget" onchange="UI.queueTarget=this.value">
+          ${(()=>{
+            // 保持上次选的目标：连加几个任务时，每加一次都从第一个目标重新选，是最烦的那种重复
+            const cur = this.queueTarget;
+            const has = targets.some(t => t.id === cur);
+            return targets.map(t=>`<option value="${t.id}" ${(has ? t.id === cur : t === targets[0]) ? 'selected' : ''}>${esc(t.name)}（${t.lvl}）</option>`).join('');
+          })()}
         </select></div>
-      <div class="form-row"><span>数量</span><input id="queueQty" type="number" value="10" min="1"></div>
+      <div class="form-row"><span>数量</span><input id="queueQty" type="number" min="1"
+        value="${this.queueQty || 10}" oninput="UI.queueQty=Math.max(1,parseInt(this.value)||1)"></div>
       <button class="btn primary" onclick="addQueueTask()">加入队列</button>
       <div class="hint">采集类按产出个数计数，制作类按次数计数，讨伐按次数计数。</div>
     </div>
@@ -106,12 +118,33 @@ UI.patchQueueProgress = function(){
   }
 };
 function addQueueTask(){
-  const target = $('queueTarget') ? $('queueTarget').value : '';
-  const qty = $('queueQty') ? parseInt($('queueQty').value)||10 : 10;
+  const target = $('queueTarget') ? $('queueTarget').value : (UI.queueTarget || '');
+  const qty = $('queueQty') ? (parseInt($('queueQty').value) || 10) : (UI.queueQty || 10);
   if (!target){ UI.toast('请选择目标'); return; }
+  UI.queueTarget = target; UI.queueQty = qty;
   addQueueEntry(UI.queueKind, target, qty);
   UI.renderQueue();
 }
+// 队列的复制 / 清理在引擎层（queue.js）实现，这里只负责提示文案：
+// 数据操作不该埋在 UI 里，否则测试只能对着源码做正则。
+function queueDuplicateWithToast(id){
+  const e = Game.queue.find(x => x.id === id);
+  if (!e) return false;
+  if (Game.queue.length >= QUEUE_MAX){ UI.toast(`队列最多 ${QUEUE_MAX} 个任务`); return false; }
+  const added = duplicateQueueEntry(id);
+  if (added) UI.toast(`已复制：${entryLabel(e)} ×${e.qty}`);
+  return !!added;
+}
+function queueDropBlockedWithToast(){
+  const n = dropBlockedQueue();
+  if (n) UI.toast(`移除 ${n} 条阻塞任务`);
+  return n;
+}
+// 注意不要覆盖引擎导出的同名函数：测试会执行 UI 文件，
+// 一旦这里再赋一次 window.duplicateQueueEntry，被测的就是这个带 toast 的包装，
+// 引擎语义（返回新条目 / null）全被吃掉。
+window.queueDupWithToast = queueDuplicateWithToast;
+window.queueDropWithToast = queueDropBlockedWithToast;
 window.addQueueTask = addQueueTask;
 
 // ================= 行装 =================
@@ -346,7 +379,13 @@ function itemSources(id){
   const nodes = it.nodes || (it.node ? [it.node] : []);
   if (it.skill && nodes.length){
     const names = nodes.map(n => (nodeOf(n) || {}).name).filter(Boolean);
+    // 带上节点本身：「产自鹿吴之山」在详情里只是句话，玩家想去采还得自己去舆地页找。
+    // 有了 regionId / nodeId，就能给一个「前往」按钮，把信息直接变成动作。
+    const first = nodeOf(nodes[0]) || {};
     out.push({ kind:(Skills[it.skill] || {}).name || '采集', lvl: it.lvl || 1,
+      regionId: first.regionId || String(nodes[0]).replace(/-\d+$/, ''),
+      nodeId: nodes[0],
+      unlocked: (typeof nodeUnlocked === 'function') ? !!nodeUnlocked(first) : true,
       where: names.slice(0, 2).join('、') + (names.length > 2 ? ` 等 ${names.length} 山` : '') });
   }
   for (const r of Recipes){
@@ -551,6 +590,18 @@ UI.itemDetailHtml = function(itemId){
       `<button class="btn tiny ${s.enh === enhLv ? 'on' : ''}" type="button" onclick="showItemDetail('${itemId}','',${s.enh})">+${s.enh} ×${s.qty}</button>`).join('')}</span></div>` : ''}
     ${it.form?`<div class="reveal"><b>形态</b>${esc(it.form)}</div>`:''}
     ${it.effect?`<div class="reveal"><b>效果</b>${esc(it.effect)}</div>`:''}
+    ${(function(){
+      // 产地：可采之物给「前往」，一键切到舆地页对应节点（未解锁则标灰）。
+      // 「产自鹿吴之山」原先只是句话，玩家想采还得自己去舆地页翻——信息与动作之间是断的。
+      const src = (typeof itemSources === 'function') ? itemSources(itemId).find(x => x.nodeId) : null;
+      if (!src || !src.nodeId) return '';
+      const nd = (typeof nodeOf === 'function') ? nodeOf(src.nodeId) : null;
+      const nm = (nd && nd.name) || '';
+      const go = src.unlocked
+        ? `<button class="btn-mini skill-go" onclick="UI.selRegion='${esc(src.regionId)}';UI.selNode='${esc(src.nodeId)}';UI.closeModal();UI.switchTab('yudi')">${typeof markIcon==='function'?markIcon('pin',13):'📍'} 前往${esc(nm)}</button>`
+        : `<span class="hint">${typeof markIcon==='function'?markIcon('lock',13):'🔒'} ${esc(nm)}尚未解锁</span>`;
+      return `<div class="reveal"><b>产地</b><span class="use-box">${go}</span></div>`;
+    })()}
     ${it.note?`<div class="reveal"><b>出处</b>${esc(it.note)}</div>`:''}
     ${it.equip && typeof gearKindOf === 'function' && gearKindOf(it)
       ? (() => {
@@ -567,11 +618,16 @@ UI.itemDetailHtml = function(itemId){
     ${(() => {
       const uses = itemUses(itemId);
       const crop = it.crop ? `<span class="use-chip">可作嘉种（收 ${esc((Items[it.crop]||{}).name || it.crop)}）</span>` : '';
+      // 可服用的药也算「有用」：原先只看它能不能当配方材料，于是山海图卷这种纯增益药
+      // 被判成「暂无合用之方——可售」，和下面「服用：窥山 900s」自相矛盾，等于劝玩家卖掉它。
+      const dose = it.buff
+        ? `<span class="use-chip">服用·${esc(it.buff.name || '增益')}${it.buff.dur ? `（${Math.round(it.buff.dur/60)} 分）` : ''}</span>`
+        : '';
       const body = uses.length
         ? uses.slice(0, 10).map(u => `<span class="use-chip ${u.rite ? 'rite' : ''}">${u.kind}·${esc(u.name)}</span>`).join('') + (uses.length > 10 ? `<span class="hint">等 ${uses.length} 处</span>` : '')
-        : (crop ? '' : '<span class="hint">暂无合用之方——可售或留作图鉴</span>');
+        : ((crop || dose) ? '' : '<span class="hint">暂无合用之方——可售或留作图鉴</span>');
       const price = (typeof sellValue === 'function' && it.value) ? `<span class="hint">回收 ${sellValue(itemId, 1)} 贝 / 件</span>` : '';
-      return (body || crop) ? `<div class="reveal"><b>用途</b><span class="use-box">${crop}${body}${price}</span></div>` : '';
+      return (body || crop || dose) ? `<div class="reveal"><b>用途</b><span class="use-box">${crop}${dose}${body}${price}</span></div>` : '';
     })()}
     ${it.divine && typeof DIVINE_EFFECTS !== 'undefined' && DIVINE_EFFECTS[it.divine]
       ? `<div class="reveal"><b>神兵</b><span class="dv-tag">${esc(DIVINE_EFFECTS[it.divine].label)}</span><span class="dv-text">${esc(DIVINE_EFFECTS[it.divine].text)}</span></div>` : ''}
@@ -730,7 +786,32 @@ function showSkillDetail(id){
       onclick="UI.selRegion='${m.regionId}';UI.selNode='${m.nodeId}';UI.closeModal();UI.switchTab('yudi')">${esc(m.itemName)}·${esc(m.nodeName||'')}</button>`).join('')}</span></div>`:''}
     ${mst.length?`<div class="reveal"><b>材料存余</b><span class="mat-inv">${mst.map(m=>`<span class="${m.ok?'ok':'gap'}">${esc(m.name)} ${m.have}/${m.need}</span>`).join(' · ')}</span></div>`:''}
     ${nx.length?`<div class="reveal"><b>将至</b>${esc(nextUnlockText(nx))}</div>`:''}
-    <div class="modal-btns"><button class="btn" onclick="UI.closeModal()">闭</button></div>`);
+    ${(function(){
+      // 技能详情原先只有「看」没有「做」：看完产出地还得关掉弹窗、去舆地页找那座山、
+      // 再点采集按钮。这里直接给出口——采集类落「采某物」，制作类落「制某件」。
+      const acts = [];
+      if (nf){
+        const node = nodeOf(nf.nodeId);
+        const list = node ? Object.values(Items).filter(it => it.skill === id
+          && ((it.nodes || [it.node]).includes(node.id))
+          && (typeof gatherGate === 'function') && gatherGate(it).usable) : [];
+        list.slice(0, 3).forEach(it => {
+          acts.push(`<button class="btn primary" onclick="UI.closeModal();startActivity('gather','${it.id}')">采 ${esc(it.name)}</button>`);
+        });
+        if (!list.length) acts.push(`<button class="btn" onclick="UI.selRegion='${nf.regionId}';UI.selNode='${nf.nodeId}';UI.closeModal();UI.switchTab('yudi')">前往此地</button>`);
+      } else if (typeof mapRecipeSkill === 'function'){
+        const r = Recipes.filter(x => mapRecipeSkill(x.type) === id && lv >= x.lvl && canAfford(x.cost))
+          .sort((a, b) => b.lvl - a.lvl)[0];
+        if (r){
+          const it = Items[r.out];
+          acts.push(`<button class="btn primary" onclick="UI.closeModal();startActivity('craft','${r.type}::${r.out}',{times:1})">制「${esc(it ? it.name : r.out)}」</button>`);
+        }
+      }
+      // ⚠️ 必须与「闭」同在一组 .modal-btns：UI._splitModal 只把**第一个**按钮组提到页脚，
+      // 分成两组的后果是「闭」留在正文、「采」被提到页脚，顺序与主次都反了。
+      acts.push(`<button class="btn" onclick="UI.closeModal()">闭</button>`);
+      return `<div class="modal-btns">${acts.join('')}</div>`;
+    })()}`);
 }
 window.showSkillDetail = showSkillDetail;
 

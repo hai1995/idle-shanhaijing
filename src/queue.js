@@ -243,6 +243,24 @@ function addQueueEntry(kind, target, qty){
   saveGame();
   return e;
 }
+// 复制一条到末尾：跑完一轮想「再来一份」时，比重新选行动 + 目标 + 数量省事得多。
+// 返回新条目（队列满或原条目不存在则 null）。
+function duplicateQueueEntry(id){
+  const e = Game.queue.find(x => x.id === id);
+  if (!e) return null;
+  if (Game.queue.length >= QUEUE_MAX) return null;
+  return addQueueEntry(e.kind, e.target, e.qty);
+}
+// 移除跑不通的条目（缺料 / 等级不足 / 目标未解锁），返回移除条数。
+// 阻塞项会让队列卡住并转入兜底动作，跑一轮之后这些条目多半已经没意义。
+function dropBlockedQueue(){
+  const before = Game.queue.length;
+  Game.queue = Game.queue.filter(e => entryCanRun(e).ok);
+  if (Game.queueIdx >= Game.queue.length) Game.queueIdx = Math.max(0, Game.queue.length - 1);
+  const n = before - Game.queue.length;
+  if (n) saveGame();
+  return n;
+}
 function removeQueueEntry(id){
   const i = Game.queue.findIndex(e=>e.id===id);
   if (i < 0) return false;
@@ -503,7 +521,8 @@ if (typeof window !== 'undefined'){
   window.pauseQueue = pauseQueue;
   window.toggleQueue = toggleQueue;
   window.addQueueEntry = addQueueEntry;
-  window.removeQueueEntry = removeQueueEntry;
+  window.removeQueueEntry = removeQueueEntry; window.duplicateQueueEntry = duplicateQueueEntry;
+  window.dropBlockedQueue = dropBlockedQueue;
   window.moveQueueEntry = moveQueueEntry;
   window.clearQueue = clearQueue;
   window.setFallback = setFallback;
