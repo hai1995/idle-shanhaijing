@@ -1394,7 +1394,9 @@ svg.bi.mk{ vertical-align:-2px; }
 
 /* 货架：一个分类一块底板。只有两三个方块时也不至于「孤零零浮在页面上」。 */
 .shop-shelf{ margin-bottom:12px; padding:10px 12px 12px; background:var(--paper-2);
-  border:1px solid var(--rule); border-radius:var(--r); scroll-margin-top:12px; }
+  border:1px solid var(--rule); border-radius:var(--r);
+  /* 分类条「跳过去」时留出停靠区的高度——窄屏那条书脊 + 仪表带是 fixed 的 */
+  scroll-margin-top:calc(var(--topdock-h, 0px) + 10px); }
 .shop-shelf .shelf-hd{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:8px; }
 .shop-shelf h4{ margin:0; }
 .shelf-desc{ font-size:11px; color:var(--ink-4); }
@@ -1872,10 +1874,8 @@ body.no-scroll{ overflow:hidden; }
   .order-board .ob-card{ flex:0 0 84%; scroll-snap-align:start; }
   .order-board .hint{ margin-top:6px; }
   .trade-tip ul li:nth-child(n+3){ display:none; }
-  .shop-nav{ position:sticky; top:0; z-index:6; background:var(--paper);
-    padding-top:6px; margin:0 -2px 8px; }
-  /* 吸顶条高约 40px，货架跳过来时标题不能被它盖住 */
-  .shop-shelf{ scroll-margin-top:50px; }
+  /* 分类条不吸顶：手机顶部已有书脊 + 仪表带，再吸一条会把它挤到看不见的地方。 */
+  .shop-nav{ margin:0 -2px 8px; }
   /* 舆地：山系三列、诸山三列；装备 / 行囊 / 廛市出售 / 征兆 / 营造 / 田地同宽 */
   .panel .region-grid, .panel .node-grid,
   .panel .gear-grid, .panel .inv-grid, .panel .sell-grid,

@@ -9,6 +9,11 @@ UI.shopJump = function(catId){
   const el = document.getElementById('shop-' + catId);
   if (!el) return;
   UI._shopCat = catId;
+  // 不能直接 scrollIntoView：手机上有固定的书脊 + 仪表带 + 指引条（合计约 190px），
+  // 滚到 top:0 会被它们盖住，玩家点了「熟食」却看不到「熟食」两个字。
+  // 这里按「内容区可视顶部」算偏移，跳完货架标题正好贴在内容区上沿。
+  // 偏移交给 CSS 的 scroll-margin-top（= 窄屏停靠区高 + 8px），浏览器自己算得比脚本准：
+  // 手算过两版，都因为 --topdock-h 是运行期动态更新而差了几十像素。
   if (el.scrollIntoView) el.scrollIntoView({ behavior:'smooth', block:'start' });
   document.querySelectorAll('.shop-chip').forEach(c => {
     const on = c.getAttribute('onclick') === `UI.shopJump('${catId}')`;
