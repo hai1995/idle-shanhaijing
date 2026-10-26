@@ -56,12 +56,11 @@ function markHtml(text, size){
 function esc(s){
   return String(s==null?'':s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
+// 界面上的数字一律走 fmtNum（万 / 亿）。这里只保留一个转交，
+// 免得「K/M/B」和「万/亿」两套写法又各长各的（2026-10-26 夜间统一）。
 function fmt(n){
-  n = Number(n)||0;
-  if (n >= 1e9) return (n/1e9).toFixed(1)+'B';
-  if (n >= 1e6) return (n/1e6).toFixed(1)+'M';
-  if (n >= 1e4) return (n/1e3).toFixed(1)+'K';
-  return String(Math.floor(n));
+  if (typeof fmtNum === 'function') return fmtNum(n);
+  return String(Math.floor(Number(n) || 0));   // 极端情况：game.js 未加载
 }
 // 上次离线结算的一句话摘要：多久以前 · 离线多长 · 得多少经验
 function lastOfflineText(){

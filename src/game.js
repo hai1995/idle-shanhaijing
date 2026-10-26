@@ -380,11 +380,22 @@ function doRebirth(){
 // 也是将来排行榜要收的那几个字段——先把它们凑到一处，接口才好定。
 // 自带的两个小格式化：战绩文本不该依赖界面层（fmt / fmtTime 都定义在 ui.js，
 // 在 ui.js 加载之前调用就会抛 ReferenceError）。
+// 数字的唯一写法：万 / 亿。
+// 曾经有两套——界面层 fmt() 用的是 K/M/B，战绩与分享文本用这里——同一笔贝币
+// 在两个地方写着「12.3K」和「1.2 万」。中文游戏只该有一套，判据收在这里。
+// 边界也要收：9999.96 万不该写成「10000 万」，那是 1 亿。
 function fmtNum(v){
-  v = Math.round(v || 0);
-  if (v >= 1e8) return (v / 1e8).toFixed(2).replace(/\.?0+$/, '') + ' 亿';
-  if (v >= 1e4) return (v / 1e4).toFixed(1).replace(/\.0$/, '') + ' 万';
-  return String(v);
+  v = Math.round(Number(v) || 0);
+  const neg = v < 0;
+  v = Math.abs(v);
+  const trim = (str) => str.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+  let out;
+  if (v >= 1e8) out = trim((v / 1e8).toFixed(2)) + ' 亿';
+  else if (v >= 1e4){
+    const w = v / 1e4;
+    out = (w >= 9999.95) ? (trim((v / 1e8).toFixed(2)) + ' 亿') : (trim(w.toFixed(1)) + ' 万');
+  } else out = String(v);
+  return (neg ? '-' : '') + out;
 }
 function fmtDur(sec){
   sec = Math.max(0, Math.round(sec || 0));

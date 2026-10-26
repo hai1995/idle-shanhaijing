@@ -8136,6 +8136,28 @@ section('夜间与战阵');
   assert(gG.shaft !== gC.shaft, '两种工具各自算出自己的柄');
 }
 
+// ============ 149. 数字只有一种写法：万 / 亿（2026-10-26 夜间） ============
+// 界面层 fmt() 用 K/M/B，战绩与分享文本 fmtNum() 用万/亿——同一笔贝币两个写法。
+// 顺带修两个边界：9999.9999 万 会被写成「10000 万」；999999 会写成「1000.0K」。
+section('数字写法');
+{
+  const cSrc149 = readText('src/ui/core.js');
+  assert(typeof G.fmtNum === 'function', 'fmtNum 是唯一实现');
+  assert(G.fmtNum(0) === '0', '零');
+  assert(G.fmtNum(NaN) === '0', 'NaN 不落到界面上');
+  assert(G.fmtNum(9999) === '9999', '一万以下照写整数');
+  assert(G.fmtNum(10000) === '1 万', '一万整不多写小数');
+  assert(G.fmtNum(12345) === '1.2 万', '一万以上用万');
+  assert(G.fmtNum(99999999) === '1 亿', '进位边界：9999.99 万 写成 1 亿');
+  assert(G.fmtNum(1e8) === '1 亿', '一亿整');
+  assert(G.fmtNum(1.234e8) === '1.23 亿', '亿保留两位');
+  assert(G.fmtNum(-1500) === '-1500', '负数保留符号');
+  assert(G.fmtNum(-12345) === '-1.2 万', '负数也走万');
+  // 界面层只转交，不再自己写一套
+  assert(G.fmt(12345) === '1.2 万', '界面 fmt 与战绩同一写法');
+  assert(!/toFixed\(1\)\+'[KMB]'/.test(cSrc149), '界面层不再自造 K/M/B');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
