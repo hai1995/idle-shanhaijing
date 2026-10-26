@@ -330,13 +330,11 @@ html.theme-anim, html.theme-anim *{
 .sc-worker{ display:block; width:52px; height:60px; }
 /* 呼吸：固定 3.4s，与采集间隔无关，作为「人活着」的底噪 */
 .sc-figure{ transform-box:view-box; transform-origin:24px 68px; animation:scBreath 3.4s ease-in-out infinite; }
-/* 工具：独立 SVG，绕左上角（握点）旋转。transform 由 JS 每帧写，不用 CSS 动画——
-   详见 src/ui/scene.js 上方那段注释（手机端 CSS 动画不生效的教训）。 */
-.sc-tool{
-  position:absolute; left:26px; top:32px; width:34px; height:34px;
-  overflow:visible; transform-origin:0 0; color:inherit;
-  will-change:transform;
-}
+/* 工具：人物 SVG 内的 <g>，姿态由 SVG 原生 transform 属性驱动（JS 每帧 setAttribute）。
+   ⚠️ 这里**不要**写任何 CSS transform / transform-origin / will-change：
+   Safari 对 SVG 元素的 CSS transform 支持不可靠，三次栽在这里。
+   will-change 在 Safari 的 SVG 上还有「元素不重绘」的旧 bug。 */
+.sc-tool{ color:inherit; }
 
 @keyframes scBreath{
   0%,100%{ transform:translateY(0); }
@@ -412,6 +410,14 @@ html.theme-anim, html.theme-anim *{
   display:block; font-family:var(--f-num); font-size:10px; color:var(--ink-4); letter-spacing:.02em;
 }
 
+
+/* 自查探针（仅 ?probe=1 时出现）：帧数不涨就说明 JS 没跑，而不是「动得太轻」 */
+.sc-probe{
+  position:absolute; left:10px; bottom:6px;
+  font-family:var(--f-num); font-size:9.5px; color:var(--ink-3);
+  letter-spacing:.02em; pointer-events:none;
+  background:rgba(247,245,238,.78); padding:0 4px; border-radius:2px;
+}
 
 /* 产出闪光：以人脚下为中心的一层朱色淡光，0.5 秒退去。
    用 opacity 而非 transform——opacity 在所有内核对所有元素都稳。 */

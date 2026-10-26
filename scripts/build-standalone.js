@@ -13,7 +13,8 @@ const root = path.join(__dirname, '..');
 
 function scriptOrder(){
   const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-  return [...html.matchAll(/<script src="src\/([^"]+)"><\/script>/g)].map(m => m[1]);
+  // 允许 src 带 ?v= 版本串（index.html 用它绕开 GitHub Pages 的静态缓存）
+  return [...html.matchAll(/<script src="src\/([^"?]+)(?:\?[^"]*)?"><\/script>/g)].map(m => m[1]);
 }
 
 // CSS 里 url("assets/xxx") 指向的外部资源（罕用字子集字体）：
@@ -45,7 +46,7 @@ function build(){
     fs.readFileSync(path.join(root, 'src', f), 'utf8')).join('\n');
 
   let out = html
-    .replace('<link rel="stylesheet" href="style.css">', '<style>\n' + css + '\n</style>')
+    .replace(/<link rel="stylesheet" href="style\.css(?:\?[^"]*)?">/, '<style>\n' + css + '\n</style>')
     .replace(/\s*<script src="src\/[^"]+"><\/script>/g, '');
   out = out.replace('</body>', '<script>\n' + scripts + '\n</script>\n</body>');
 

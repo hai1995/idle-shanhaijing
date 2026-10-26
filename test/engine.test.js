@@ -5636,7 +5636,8 @@ section('离线结算与线上同口径');
 // 这里钉住三件事：清单顺序一致、core 在最前、每个文件都真的存在。
 {
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-  const inHtml = [...html.matchAll(/src="(src\/ui\/[^"]+\.js)"/g)].map(m => m[1].replace(/^src\//, ''));
+  // 允许 ?v= 版本串（index.html 用它绕开 GitHub Pages 的静态缓存）
+  const inHtml = [...html.matchAll(/src="(src\/ui\/[^"?]+\.js)(?:\?[^"]*)?"/g)].map(m => m[1].replace(/^src\//, ''));
   assert(inHtml.length > 0, 'index.html 里取到了 ui 文件清单（' + inHtml.length + ' 个）');
   assert(inHtml.join(',') === UI_FILES.join(','),
     'index.html 的 ui 清单与测试 UI_FILES 一致（html: ' + inHtml.join(',') + '）');
@@ -7883,7 +7884,18 @@ section('行动现场');
   assert(typeof ST.sceneAngleAt === 'function', '角度插值在 JS 里');
   assert(Array.isArray(ST.SCENE_SWING) && Array.isArray(ST.SCENE_RIG), '两张帧表：工具与身体');
   assert(!cssSrc145.includes('animation:scSwing'), 'CSS 里不再有挥锄动画（手机端不可靠）');
-  assert(sSrc145.includes("tool.style.transform = 'rotate('"), '每帧写内联 transform');
+  // 三次失败的教训：与其赌内核对 transform（CSS 的、属性的）的支持，不如绕开它。
+  // 现在直接算坐标、写 path 的 d —— 这是 SVG 1.1 的核心属性，没有内核会不支持。
+  assert(typeof ST.sceneToolPath === 'function', '锄头几何在 JS 里算');
+  assert(sSrc145.includes("shaft.setAttribute('d'"), '每帧写 path 的 d 属性');
+  const g0 = ST.sceneToolPath(0), g90 = ST.sceneToolPath(-90);
+  assert(g0.shaft !== g90.shaft, '角度变了，柄的形状就变');
+  // 握点固定：柄的起点必须一直是同一个点，否则「绕手转」就不成立
+  assert(g0.shaft.indexOf('M30 38') === 0 && g90.shaft.indexOf('M30 38') === 0, '柄的起点恒为握点 (30,38)');
+  assert(!/\.sc-tool\s*\{[^}]*transform\s*:/.test(cssSrc145), 'CSS 里不给工具写 transform');
+  assert(!/\.sc-tool\s*\{[^}]*will-change/.test(cssSrc145), 'CSS 里不给工具写 will-change（Safari 上会不重绘）');
+  // 自查入口：帧数不涨 = JS 没跑，而不是「动得太轻」
+  assert(sSrc145.includes('probe=1') && sSrc145.includes('UI.paintProbe'), '?probe=1 可自查帧数与相位');
 
   // 挥落时刻必须落在周期的后段：引擎在 interval 走满时产出，
   // 若锄头在 30% 就落下，玩家看到的是「先出东西、后动一下」。
@@ -7902,9 +7914,8 @@ section('行动现场');
   assert(typeof ST.UI.startSceneMotion === 'function' && typeof ST.UI.stopSceneMotion === 'function', '有启动 / 停止');
   assert(sSrc145.includes('requestAnimationFrame'), '用 rAF 每帧驱动');
   // 工具从人物 SVG 里拆出来：<g> 上的 CSS transform 在部分移动端内核里不生效
-  assert(!/sceneWorker[\s\S]*?class="sc-tool"/.test(sSrc145.slice(0, sSrc145.indexOf('function sceneTool'))),
-    '工具不在人物 SVG 内部');
-  assert(/function sceneTool/.test(sSrc145) && sSrc145.includes('<svg class="sc-tool"'), '工具是独立的 SVG 根元素');
+  assert(sSrc145.includes('${sceneTool(kind)}'), '工具由 sceneWorker 嵌进人物 SVG');
+  assert(/function sceneTool/.test(sSrc145) && sSrc145.includes('<g class="sc-tool"'), '工具是 SVG 内部的 <g>（属性 transform 只对图形元素有效）');
 
   // ---- 3. 版式：人、山、地、收成、记账，一个不少 ----
   const html145 = ST.sceneHtml(stA145);

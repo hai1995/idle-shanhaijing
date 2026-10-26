@@ -69,28 +69,59 @@ function sceneWorker(kind){
       <path d="M21 42 L18 56 L17 67" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" fill="none"/>
       <path d="M23 42 L27 56 L29 67" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" fill="none"/>
       <path d="M18 25 Q24 32 30 38" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/>
+      ${sceneTool(kind)}
     </g>
   </svg>`;
 }
 
-// 工具单独成一个 SVG，**绕左上角（握点）旋转**。
-// 为什么不在人物 SVG 里当 <g>：<g> 上靠 CSS transform 转动，
-// 在部分移动端内核对不齐，表现就是「人站着、锄头不动」——这正是 v1.31.54 上线后
-// 手机端反馈的现象。改成独立 SVG 根元素 + JS 每帧设 transform 之后，
-// 走的是最普通的一条路径：一个 HTML 元素、一条内联 transform，没有内核会不支持。
+// 锄头的几何：握点固定，柄末端绕握点转，刃垂直于柄。
+// **不用 transform 也不改属性旋转，直接算坐标写 path 的 d。**
+// 这是最底层的一条路：`d` 是 SVG 1.1 的核心属性，任何内核都没有理由不支持。
+const SCENE_GRIP = [30, 38];
+const SCENE_STICK = [11, 28];        // 静止时从握点到柄末端的向量
+const SCENE_BLADE = 5.4;             // 刃的半长
+
+function sceneToolPath(a){
+  const rad = (isFinite(a) ? a : 0) * Math.PI / 180;
+  const c = Math.cos(rad), sn = Math.sin(rad);
+  const vx = SCENE_STICK[0]*c - SCENE_STICK[1]*sn;
+  const vy = SCENE_STICK[0]*sn + SCENE_STICK[1]*c;
+  const L  = Math.hypot(SCENE_STICK[0], SCENE_STICK[1]);
+  const px = -vy / L, py = vx / L;                 // 垂直于柄
+  const ex = SCENE_GRIP[0] + vx, ey = SCENE_GRIP[1] + vy;
+  const b1 = [ex - px*SCENE_BLADE, ey - py*SCENE_BLADE];
+  const b2 = [ex + px*SCENE_BLADE, ey + py*SCENE_BLADE];
+  const shrink = (q, k) => [ex + (q[0]-ex)*k, ey + (q[1]-ey)*k];
+  const c1 = shrink(b1, .84), c2 = shrink(b2, .84);
+  const f = n => n.toFixed(1);
+  return {
+    shaft: `M${SCENE_GRIP[0]} ${SCENE_GRIP[1]} L${f(ex)} ${f(ey)}`,
+    blade: `M${f(b1[0])} ${f(b1[1])} L${f(b2[0])} ${f(b2[1])}`,
+    mark:  `M${f(c1[0])} ${f(c1[1])} L${f(c2[0])} ${f(c2[1])}`,
+  };
+}
+
+// 工具：人物 SVG 内部的一个 <g>，**每帧改 SVG 原生 transform 属性**。
+// 三次失败的经验：
+//   v1.31.54 `<g>` + CSS transform  → Safari 不动
+//   v1.31.56 独立 `<svg>` + JS 写 style.transform → Safari 仍不动
+// 结论：Safari 对 SVG 元素的 **CSS** transform 支持不可靠；而 `transform`
+// 属性和 `rotate(角度 cx cy)` 是 SVG 1.1 就有的东西，二十年来没有内核不支持。
+// 所以这里既不写 style.transform，也不用 transform-origin——
+// 旋转中心直接写进属性里：rotate(a 30 38)，坐标就是人物 viewBox 的坐标系。
 function sceneTool(kind){
   if (kind === 'gather'){
-    return `<svg class="sc-tool" viewBox="0 0 34 34" aria-hidden="true">
-      <path d="M0 0 L12 29" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
-      <path d="M7.9 30.7 L16.2 27.3" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-      <path d="M8.6 30.4 L15.6 27.6" stroke="#B03A2B" stroke-width="1.8" stroke-linecap="round" opacity=".85"/>
-    </svg>`;
+    return `<g class="sc-tool">
+      <path class="sc-shaft" d="M30 38 L41 66" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>
+      <path class="sc-blade" d="M36.4 67.6 L46.2 63.7" stroke="currentColor" stroke-width="3.6" stroke-linecap="round"/>
+      <path class="sc-mark"  d="M37.2 67.3 L45.4 64" stroke="#B03A2B" stroke-width="1.6" stroke-linecap="round" opacity=".85"/>
+    </g>`;
   }
   if (kind === 'craft'){
-    return `<svg class="sc-tool" viewBox="0 0 34 34" aria-hidden="true">
-      <path d="M0 0 L9 15" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
-      <rect x="6" y="11" width="11" height="7.5" rx="1.2" fill="currentColor" opacity=".9"/>
-    </svg>`;
+    return `<g class="sc-tool">
+      <path d="M30 38 L38 48" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>
+      <rect x="34" y="44" width="10" height="7" rx="1.2" fill="currentColor" opacity=".9"/>
+    </g>`;
   }
   return '';
 }
@@ -130,7 +161,7 @@ function sceneHtml(s){
         stroke-width="1" vector-effect="non-scaling-stroke"/>
     </svg>
     <div class="sc-stage">
-      <div class="sc-rig">${sceneWorker(s.kind)}${sceneTool(s.kind)}</div>
+      <div class="sc-rig">${sceneWorker(s.kind, s.kind)}</div>
       <div class="sc-pit"><i></i><i></i><i></i></div>
       <svg class="sc-mound" viewBox="0 0 18 7" aria-hidden="true">
         <path d="M1 6 Q9 0 17 6 Z" fill="currentColor" fill-opacity=".2"/>
@@ -143,6 +174,7 @@ function sceneHtml(s){
         : `<b class="sc-label">${esc(s.name)}</b>`}
       <span>${esc(s.note)}</span>
     </div>
+    ${UI._sceneProbe ? '<div class="sc-probe"></div>' : ''}
     <div class="sc-flash"></div>
     <div class="sc-prog"><i id="sceneProg"></i></div>
   </div>`;
@@ -253,6 +285,23 @@ function sceneAngleAt(frames, p){
   return frames[frames.length-1][1];
 }
 
+// ---------- 自查入口：?probe=1 ----------
+// 三次「手机上不动」的教训：隔着屏幕猜哪一环断了，代价太高。
+// 打开 index.html?probe=1，现场条左下角会显示帧数、相位、间隔——
+//   帧数不涨 → JS 没跑（或页面是旧版）
+//   帧数在涨但相位不动 → 引擎没在推进
+//   都正常却看不见动 → 才是渲染/视觉问题
+UI._sceneProbe = (typeof location !== 'undefined' && /[?&]probe=1/.test(location.search));
+UI.paintProbe = function(){
+  if (!UI._sceneProbe) return;
+  if ((UI._sceneFrames || 0) % 10) return;          // 每 10 帧写一次，别把 rAF 拖慢
+  const el = (typeof document !== 'undefined') ? document.querySelector('.sc-probe') : null;
+  if (!el) return;
+  const iv = (typeof currentActionInterval === 'function') ? currentActionInterval() : 0;
+  const t = '帧 ' + (UI._sceneFrames || 0) + ' · 相位 ' + (UI._scenePhase || 0).toFixed(2) + ' · 间隔 ' + iv.toFixed(2) + 's';
+  if (el.textContent !== t) el.textContent = t;
+};
+
 UI.stopSceneMotion = function(){
   if (UI._sceneRaf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(UI._sceneRaf);
   UI._sceneRaf = 0;
@@ -267,9 +316,8 @@ UI.startSceneMotion = function(){
     UI._sceneRaf = requestAnimationFrame(step);
     const bar = document.getElementById('sceneBar');
     if (!bar) return;
-    const tool = bar.querySelector('.sc-tool');
-    const rig  = bar.querySelector('.sc-rig');
-    if (!tool && !rig) return;
+    const rig = bar.querySelector('.sc-rig');
+    if (!bar.querySelector('.sc-shaft') && !rig) return;
     const iv = (typeof currentActionInterval === 'function') ? currentActionInterval() : 1;
     const T = (iv > 0) ? iv * 1000 : 2600;
     let p;
@@ -282,14 +330,29 @@ UI.startSceneMotion = function(){
       p = (now % T) / T;
     }
     p = Math.max(0, Math.min(1, p));
-    if (tool) tool.style.transform = 'rotate(' + sceneAngleAt(SCENE_SWING, p).toFixed(2) + 'deg)';
-    if (rig)  rig.style.transform  = 'rotate(' + sceneAngleAt(SCENE_RIG, p).toFixed(2) + 'deg)';
+    // 锄头：算坐标、写 path 的 d。不用 transform，也不用 CSS 动画。
+    const ta = sceneAngleAt(SCENE_SWING, p);
+    const ra = sceneAngleAt(SCENE_RIG, p);
+    if (!isFinite(ta) || !isFinite(ra)) return;      // 非法值宁可不写，也别把上次的姿态留着
+    const g = sceneToolPath(ta);
+    const shaft = bar.querySelector('.sc-shaft');
+    const blade = bar.querySelector('.sc-blade');
+    const mark  = bar.querySelector('.sc-mark');
+    if (shaft) shaft.setAttribute('d', g.shaft);
+    if (blade) blade.setAttribute('d', g.blade);
+    if (mark)  mark.setAttribute('d', g.mark);
+    // 身体俯仰走 div 的 CSS transform（div 上这条没有任何内核问题）
+    if (rig) rig.style.transform = 'rotate(' + ra.toFixed(2) + 'deg)';
+    UI._scenePhase = p;
+    UI._sceneFrames = (UI._sceneFrames || 0) + 1;
+    if (UI._sceneProbe) UI.paintProbe();
   };
   UI._sceneRaf = requestAnimationFrame(step);
 };
 
 if (typeof window !== 'undefined'){
   window.sceneAngleAt = sceneAngleAt;
+  window.sceneToolPath = sceneToolPath;
   window.SCENE_SWING = SCENE_SWING;
   window.SCENE_RIG = SCENE_RIG;
   window.sceneState = sceneState;
