@@ -40,7 +40,7 @@ vm.createContext(context);
 const base = path.join(__dirname, '..', 'src');
 function loadJS(file){ vm.runInContext(fs.readFileSync(path.join(base, file), 'utf8'), context, {filename:file}); }
 // ui.js 已按页拆成 7 个文件（v1.31.8），顺序与 index.html 一致；core 必须最先。
-const UI_FILES = ['ui/core.js','ui/world.js','ui/map.js','ui/combat.js','ui/codex.js','ui/trade.js','ui/pack.js','ui/misc.js'];
+const UI_FILES = ['ui/core.js','ui/world.js','ui/combat.js','ui/codex.js','ui/trade.js','ui/pack.js','ui/misc.js'];
 const uiSrcAll = UI_FILES.map(f => fs.readFileSync(path.join(base, f), 'utf8')).join('\n');
 ['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','zhongshanData.js','gameData.js','affix.js','save.js','engine.js','game.js','queue.js','interact.js','fx.js','beastIcon.js','riteIcon.js','structureIcon.js','skillIcon.js','itemIcon.js','markIcon.js'].forEach(loadJS);
 const G = context;
@@ -7755,24 +7755,21 @@ section('舆地产地口径');
   G.resetToDefault();
 }
 
-// ============ 144. 舆地图 · 道里判据与「图 / 录」切换（v1.31.51） ============
-// 每座山系的数据里都躺着《山海经》原文的里程（legs），从来没有一行代码读过它。
-// 此节把「里程」收成引擎判据（两种数据格式统一），并钉住舆地图的取舍：
-//   · 横轴必须是**真实里程**、全图同一比例尺（哪条经长哪条经短要看得出来）；
-//   · 原文未载分段里程的经，如实标「未载里程」，不许用正弦等假形状冒充；
-//   · 五系之间原文不载相通里程，跨系路程只能返回 null，不许瞎猜。
-section('舆地图道里');
+// ============ 144. 道里数据：原文里程的读取（v1.31.53 精简） ============
+// 每座山系的 legs 里躺着原文的「又东三百里，曰…」——276 段、75,589 里。
+// v1.31.51/52 曾据此做过「舆地图 / 舆图」两版界面，均已下线（用户决定不要图）。
+// **里程判据保留**：它们是对数据的解读（两种格式统一、跨系不可比），
+// 与界面无关，将来若做「行进出兵」可直接引用。本节只钉数据事实，不测界面。
+section('道里数据');
 {
-  const gSrc151 = readText('src/game.js');
-  const mSrc151 = readText('src/ui/map.js');
-  const wSrc151 = readText('src/ui/world.js');
+  const gSrc = readText('src/game.js');
 
   // ---- 0. 判据在引擎层且已导出 ----
-  assert(typeof ST.regionRoad === 'function', '道里判据在引擎层（单一来源）');
+  assert(typeof ST.regionRoad === 'function', '行程表判据在引擎层（单一来源）');
   assert(typeof ST.regionRoadLength === 'function', '里程合计判据存在');
   assert(typeof ST.roadBetween === 'function', '两山路程判据存在');
-  assert(gSrc151.includes('function regionLegs') && gSrc151.includes('window.regionRoad = regionRoad'), '道里判据已导出到全局');
-  assert(gSrc151.includes("if (Array.isArray(L)) return L;") && gSrc151.includes("if (Array.isArray(L['路线'])) return L['路线'];"),
+  assert(gSrc.includes('function regionLegs') && gSrc.includes('window.regionRoad = regionRoad'), '判据已导出到全局');
+  assert(gSrc.includes("if (Array.isArray(L)) return L;") && gSrc.includes("if (Array.isArray(L['路线'])) return L['路线'];"),
     '两种 legs 格式（数组式 / 对象式）都在一处抹平');
 
   // ---- 1. 两种格式都要能解析 ----
@@ -7784,14 +7781,12 @@ section('舆地图道里');
   const rdArr = ST.regionRoad('zhongshan-1');    // 数组式：legs[]，用 from/to
   assert(rdArr.length >= 10, '数组式（中次一经）也解析出来了');
   assert(rdArr[0].dist === 0, '数组式首山同样归零（只记 from→to，首山不被指向）');
-  assert(rdArr.every(r => r.dist === null || typeof r.dist === 'number'), '数组式每座山都有里程或 null');
 
   // ---- 2. 累计里程单调不减（原文一路向前，不该回头） ----
   let monoBad = 0;
   for (const r of (ST.WORLD.regions||[])){
-    const road = ST.regionRoad(r.regionId);
     let last = -1;
-    for (const p of road){
+    for (const p of ST.regionRoad(r.regionId)){
       if (typeof p.dist !== 'number') continue;
       if (p.dist < last) monoBad++;
       last = p.dist;
@@ -7799,7 +7794,7 @@ section('舆地图道里');
   }
   assert(monoBad === 0, `累计里程单调不减（实测倒退 ${monoBad} 处）`);
 
-  // ---- 3. 里程总量与覆盖率（数据事实，防止日后被误改） ----
+  // ---- 3. 数据总量与覆盖率（防止日后被误改） ----
   let segs = 0, sum = 0, withRoad = 0, noRoad = 0;
   for (const r of (ST.WORLD.regions||[])){
     const legs = ST.regionLegs(r);
@@ -7819,72 +7814,15 @@ section('舆地图道里');
   assert(ST.roadBetween('nanshan-1-01','zhongshan-1-01') === null, '跨系（南山→中山）同样 null');
   assert(ST.roadBetween('nanshan-1-01','nanshan-1-01') === 0, '同山路程为 0');
 
-  // ---- 5. 舆地图：447 座山一座不少 ----
-  const lay = ST.mapLayout(null);
-  let ptTotal = 0;
-  for (const s in lay.bySeries) for (const row of lay.bySeries[s]) ptTotal += row.pts.length;
-  assert(ptTotal === 447, `图上共 447 座山（实测 ${ptTotal}）`);
-  assert(Object.keys(lay.bySeries).length === 5, '五个山系都在图上');
-  assert(lay.scale > 0, '全图比例尺为正');
-
-  // ---- 6. 全图同一比例尺：长经必须比短经长 ----
-  // 这是「诚实」的关键——若各经各自归一化，12,040 里的北次三经会和 2,700 里的南山首经一样长。
-  const rowOf = (rid) => { for (const s in lay.bySeries) { const f = lay.bySeries[s].find(r=>r.regionId===rid); if (f) return f; } return null; };
-  const rLong = rowOf('beishan-3'), rShort = rowOf('nanshan-1');
-  assert(!!rLong && !!rShort, '长短两个样本都取到');
-  if (rLong && rShort){
-    assert(ST.regionRoadLength('beishan-3') === 12040 && ST.regionRoadLength('nanshan-1') === 2700,
-      '两条经的里程各自正确');
-    // v1.31.52 起，图上画的是**形状**（路径积分后的包围盒），不再是里程轴
-    const gLong = ST.regionGeometry('beishan-3'), gShort = ST.regionGeometry('nanshan-1');
-    assert(gLong.bb.h > 5000, `北次三经是竖脉（包围盒高 ${gLong.bb.h} 里）`);
-    assert(gShort.bb.h <= 1, `南山首经是横脉（包围盒高 ${gShort.bb.h} 里）`);
-    assert(gLong.bb.h / Math.max(1, gShort.bb.h) > 100, '一条竖脉、一条横脉：走向真的不同');
-  }
-
-  // ---- 7. 未载里程的经如实标注，不伪造形状 ----
-  const rNone = rowOf('zhongshan-4');
-  assert(!!rNone && rNone.hasLegs === false, '中次四经标为「无真实里程」');
-  assert(mSrc151.includes('未载里程'), '图上写明「未载里程」');
-  assert(mSrc151.includes('stroke-dasharray'), '无里程经用虚线，与实线可区分');
-  // 不许出现「用正弦/伪随机造形状」那种冒充
-  assert(!/Math\.sin\(/.test(mSrc151), '不拿正弦曲线冒充地形');
-
-  // ---- 8. 单系视图：画布更窄，字才够大 ----
-  const layOne = ST.mapLayout('nanshan');
-  assert(Object.keys(layOne.bySeries).length === 1, '单系只含该系');
-  assert(layOne.dims.W < lay.dims.W, '单系画布比全图窄（否则等比缩放后字太小）');
-  assert(layOne.dims.scale > lay.dims.scale, '单系比例尺比全图大（细节才看得清）');
-
-  // ---- 9. SVG 真的画出来了 ----
-  G.resetToDefault();
-  ST.Game.node = 'nanshan-1-03';
-  ST.Game.map = { 'nanshan-1-01': 1, 'nanshan-1-02': 1 };
-  const svg = ST.mapSvg();
-  assert(typeof svg === 'string' && svg.indexOf('<svg') >= 0, 'mapSvg 产出 SVG');
-  assert((svg.match(/class="mp-node/g) || []).length === 447, 'SVG 里 447 个节点');
-  assert(svg.indexOf('山海舆图') >= 0, '有标题');
-  assert(svg.indexOf('已涉') >= 0 && svg.indexOf('朱峰＝此刻所在') >= 0, '页头写明图例');
-  assert((svg.match(/class="mp-node on here|mp-node on/ ) || []).length > 0, '已涉节点带状态类');
-  assert(svg.indexOf('UI.mapPick') >= 0, '节点可点');
-
-  // ---- 10. 「图 / 录」切换在舆地页，不新增页签 ----
-  assert(wSrc151.includes("this.mapMode") && wSrc151.includes('UI.mapMode=true'), '舆地页有图/录切换');
-  assert(wSrc151.includes('map-wrap${this.mapMode?\'\' : \'\'}') || wSrc151.includes("map-wrap${this.mapMode?' hidden':''}"),
-    '图模式下隐藏列表，避免两套内容同时显示');
-  assert(typeof ST.UI.mapMode === 'boolean', 'UI 上有 mapMode 状态');
-  assert(ST.UI.mapSeries === 'all', '图默认显示全图');
-
-  // ---- 11. 点山回「录」并选中该山（地图是导航，不是终点） ----
-  assert(mSrc151.includes('UI.mapPick'), '点击入口存在');
-  assert(mSrc151.includes("this.mapMode = false") || mSrc151.includes('this.mapMode=false'), '点山后回到列表');
-  assert(mSrc151.includes('this.selNode = nodeId') || mSrc151.includes('this.selNode=nodeId'), '点山后选中该山');
-
-  // ---- 12. 一期不改玩法：没有路程成本 ----
-  // 舆地图只是「看」，玩家点一下就瞬移到位——行进成本属于二期，此节钉住「别偷偷加」。
-  // 检查「调用」而非「提及」：注释里说明为什么不做这件事，也算写明。
-  assert(!/travelTo\s*\(/.test(mSrc151.replace(/^\s*\/\/.*$/gm, '')), '舆地图不自行移动（选中由详情页的动作按钮负责）');
-  assert(!mSrc151.includes('setTimeout'), '舆地图没有延时/动画开销');
+  // ---- 5. 界面已下线：舆地页不再有「图 / 录」切换 ----
+  // 这条是「删干净」的守卫：功能撤了，入口、状态、脚本都不该留。
+  const wSrc = readText('src/ui/world.js');
+  const cSrc = readText('src/ui/core.js');
+  assert(!wSrc.includes('view-toggle'), '舆地页已无「图 / 录」切换钮');
+  assert(!wSrc.includes('mapMode'), '舆地页不再引用 mapMode');
+  assert(!cSrc.includes('mapMode') && !cSrc.includes('mapSeries'), 'UI 状态里的地图字段已移除');
+  assert(!fs.existsSync(path.join(base,'src/ui/map.js')), 'src/ui/map.js 已删除');
+  assert(!gSrc.includes('regionGeometry'), '为绘图服务的几何判据已移除');
 
   G.resetToDefault();
 }

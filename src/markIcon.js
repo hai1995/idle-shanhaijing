@@ -99,11 +99,6 @@ const MARK = {
     <path d="M5.6 20.4 V11.6 h6 v8.8" fill="none" stroke="${INK}" stroke-width="1.9"/>
     <path d="M13.6 20.4 V8 h4.8 v12.4" fill="none" stroke="${INK}" stroke-width="1.9"/>
     <path d="M6.6 14.4 h4 M14.6 11.4 h2.8 M14.6 15.4 h2.8" stroke="${WOOD}" stroke-width="1.5" stroke-linecap="round"/>`,
-  // 舆地视图：录（条列）/ 图（山形）。v1.31.51 加「图 / 录」切换时新增。
-  list: `<path d="M4 7 h16 M4 12 h16 M4 17 h11" stroke="${INK}" stroke-width="2" stroke-linecap="round" fill="none"/>`,
-  map: `<path d="M2.6 7.4 L8.4 4.6 L15.6 7.4 L21.4 4.6 V19 L15.6 21.8 L8.4 19 L2.6 21.8 Z"
-      fill="none" stroke="${INK}" stroke-width="1.8" stroke-linejoin="round"/>
-    <path d="M8.4 4.6 V19 M15.6 7.4 V21.8" stroke="${INK}" stroke-width="1.4" stroke-opacity=".55"/>`,
 };
 
 function escAttr(s){

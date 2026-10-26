@@ -1093,68 +1093,6 @@ window.regionRoad = regionRoad;
 window.regionRoadLength = regionRoadLength;
 window.roadBetween = roadBetween;
 
-// ---------- 经的形状：把「又东三百里」积成一条径（v1.31.52） ----------
-// 舆图要画成「地图」，就得知道每座山在**这一经内部的相对位置**。
-// 原文没给坐标，但给了方向与里程——逐段积分就得到真实的走向：
-//   南山经诸段全「东」→ 一条横径；北山经诸段全「北」→ 一条竖径；
-//   北次三经先是东北、再东南 → 一条带拐弯的折径（原文确实如此）。
-// 这是**数据本身导出的形状**，不是编的坐标。
-//
-// ⚠️ 边界：原文各经自首山起算，**彼此不通**。所以每条经的形状只在经内有效，
-// 经与经之间没有相对位置——那是排布问题（UI 层按方位分区摆放），不是数据问题。
-// 这里只负责「经内形状」，不负责「经在图上放哪」。
-const SHAPE_DIR = {
-  '东':[1,0], '西':[-1,0], '南':[0,1], '北':[0,-1],
-  '东南':[0.7071,0.7071], '西南':[-0.7071,0.7071],
-  '东北':[0.7071,-0.7071], '西北':[-0.7071,-0.7071],
-};
-function shapeDirOf(d){
-  if (!d) return [1,0];
-  const k = String(d).replace('行','');
-  return SHAPE_DIR[k] || [1,0];
-}
-// 一条经的几何：每座山的 (x, y)，单位为「里」，外加包围盒。
-// hasLegs=false 时按山序等距排布（x=i, y=0），并如实标注「原文未载里程」。
-function regionGeometry(regionId){
-  const region = (WORLD.regions||[]).find(r => r.regionId === regionId);
-  if (!region) return { pts:[], bb:{x0:0,y0:0,w:1,h:1}, hasLegs:false };
-  const nodes = region.nodes || [];
-  const legs = regionLegs(region);
-  if (!legs.length){
-    const pts = nodes.map((n, i) => ({ id:n.id, name:n.name, x:i, y:0, lv:n.unlockLevel||1 }));
-    return { pts, bb:{ x0:0, y0:0, w:Math.max(1, nodes.length-1), h:1 }, hasLegs:false };
-  }
-  let x = 0, y = 0;
-  const byId = {}, byName = {};
-  for (const leg of legs){
-    const d = shapeDirOf(leg.direction);
-    const dist = (typeof leg.distance === 'number') ? leg.distance : 0;
-    if (dist > 0){ x += d[0] * dist; y += d[1] * dist; }
-    let id = leg.id || null;
-    if (!id && leg.to){
-      const hit = nodes.find(n => n.name === leg.to);
-      if (hit) id = hit.id;
-    }
-    if (id) byId[id] = { x, y };
-    if (leg.to) byName[leg.to] = { x, y };
-  }
-  // 按 nodes 顺序取坐标；原文漏记的那座沿用上一点（不插值臆造）
-  let last = { x:0, y:0 };
-  const pts = nodes.map(n => {
-    const p = byId[n.id] || byName[n.name];
-    if (p) last = p;
-    return { id:n.id, name:n.name, x:last.x, y:last.y, lv:n.unlockLevel||1 };
-  });
-  const xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
-  const x0 = Math.min(...xs), y0 = Math.min(...ys);
-  return {
-    pts,
-    bb: { x0, y0, w: Math.max(1, Math.max(...xs)-x0), h: Math.max(1, Math.max(...ys)-y0) },
-    hasLegs: true,
-  };
-}
-window.regionGeometry = regionGeometry;
-
 function doGather(itemId){
   const it = Items[itemId];
   if (!it || !it.skill) return;

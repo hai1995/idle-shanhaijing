@@ -153,15 +153,7 @@ UI.renderYudi = function(){
   let html = ((typeof Prefs !== 'undefined' && Prefs.hideHint) ? '' :
     `<div class="hint-banner"><span class="mi-ic">${typeof markIcon==='function'?markIcon(hintMark(h),15):h.icon}</span> <span>${esc(h.text)}</span><button class="hint-close" title="关闭指引条（设置中可重开）" onclick="UI.dismissHint()">✕</button></div>`)
     + gatherAgainBar()
-    // 视图切换：录（列表，日常操作）/ 图（道里总图，认路用）。不新增页签——
-    // 舆地页本来就是「找地方」的地方，图与录是同一件事的两种看法。
-    + `<div class="view-toggle">
-        <button class="chip-btn ${this.mapMode?'':'on'}" type="button" onclick="UI.mapMode=false;UI.renderYudi()">${typeof markIcon==='function'?markIcon('list',13):'☰'} 录</button>
-        <button class="chip-btn ${this.mapMode?'on':''}" type="button" onclick="UI.mapMode=true;UI.renderYudi()">${typeof markIcon==='function'?markIcon('map',13):'🗺'} 图</button>
-        ${this.mapMode?'<span class="vt-hint">点山即回录，看其详情与动作</span>':''}
-      </div>`
-    + (this.mapMode && typeof mapSvg === 'function' ? `<div class="panel map-panel">${mapSvg(this.mapSeries)}</div>` : '')
-    + `<div class="map-wrap${this.mapMode?' hidden':''}">
+    + `<div class="map-wrap">
     <div class="panel regions">
       <h3>山系</h3>
       <button type="button" class="locked-toggle" title="展开/收起尚未解锁的山系" onclick="document.body.classList.toggle('show-locked');this.classList.toggle('on')">${typeof markIcon==='function'?markIcon('lock',14):'🔒'} 未解锁山系 ${CHAPTERS.filter(ch=>!regions.filter(r=>ch.regionIds.includes(r.regionId)).some(r=>regionUnlocked(r))).length} 章</button>
