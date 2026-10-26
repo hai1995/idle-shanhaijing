@@ -7092,6 +7092,114 @@ section('图鉴总览与线索');
   G.resetToDefault();
 }
 
+// ============ 134. 罕用字子集：兽名不再显示成豆腐圈 ============
+// 异兽名里的「𧔥」「𪁺」「𩽵」在 CJK 扩展 B 区（U+20000+），PingFang / 思源黑都不收，
+// 浏览器只能画成圈。系统层无解，因此随项目分发一份 41 字子集字体。
+section('罕用字子集');
+{
+  const fsx = require('fs');
+  const fontPath = path.join(__dirname, '..', 'assets', 'rare-han.woff2');
+  assert(fsx.existsSync(fontPath), 'assets/rare-han.woff2 存在');
+  const fsz = fsx.statSync(fontPath).size;
+  assert(fsz > 3000 && fsz < 80 * 1024, '字体体积在 3–80KB（实 ' + Math.round(fsz/1024) + 'KB）');
+
+  const css = readText('style.css');
+  assert(/@font-face\{[^}]*font-family:"RareHan"/.test(css), 'style.css 声明了 RareHan');
+  assert(css.includes('assets/rare-han.woff2'), '@font-face 指向子集文件');
+  assert(css.includes('size-adjust:106%'), '明朝体字面补偿（与黑体混排不缩头）');
+
+  // 字体链：两条主链都要挂上，否则某些场景（宋体排的图鉴名）仍会豆腐
+  assert(/--f-song:[^;]*"RareHan"/.test(css), '宋体链挂 RareHan');
+  assert(/--f-sans:[^;]*"RareHan"/.test(css), '黑体链挂 RareHan');
+
+  // unicode-range 必须精确列出，不能写成整段区间
+  const m = css.match(/unicode-range:\s*([^;]+);/);
+  assert(!!m, '有 unicode-range');
+  const rng = m[1];
+  assert(!/U\+20000-2A6DF/i.test(rng), 'unicode-range 不写成整段扩展 B 区');
+  const cps = new Set();
+  for (const part of rng.split(',')){
+    const t = part.trim();
+    const mm = t.match(/^U\+([0-9A-Fa-f]+)$/);
+    if (mm) cps.add(parseInt(mm[1], 16));
+  }
+  assert(cps.size >= 30, 'unicode-range 列了 ' + cps.size + ' 个码位');
+
+  // ★ 覆盖性：数据里所有 U+20000+ 的字符都必须被字体覆盖。
+  // 将来若加了新的生僻字名而忘了重做子集，这条会当场报出来。
+  const missing = new Set();
+  const scan = (obj, depth) => {
+    if (depth > 5 || obj == null) return;
+    if (typeof obj === 'string'){
+      for (const ch of obj){
+        const c = ch.codePointAt(0);
+        if (c >= 0x20000 && !cps.has(c)) missing.add(c);
+      }
+      return;
+    }
+    if (typeof obj !== 'object') return;
+    for (const v of Object.values(obj)) scan(v, depth + 1);
+  };
+  ['CODEX', 'Items', 'Monsters'].forEach(k => { try { scan(ST[k] || G[k], 0); } catch (e) {} });
+  assert(missing.size === 0, '数据里的高位汉字全在子集内' +
+    (missing.size ? '（缺 ' + [...missing].slice(0, 8).map(c => 'U+' + c.toString(16).toUpperCase()).join(',') + '）' : ''));
+
+  // 构建自检：单文件版不许残留外部资源引用
+  const buildSrc = readText('scripts/build-standalone.js');
+  assert(buildSrc.includes('inlineAssets'), '构建脚本内联 assets/');
+  assert(buildSrc.includes('仍有未内联的 assets/ 资源'), '构建脚本有「未内联即失败」的自检');
+  const stan = readText('idle-shanhaijing-standalone.html');
+  assert(!/url\(["']?assets\//.test(stan), '单文件版没有残留的 assets/ 引用');
+  assert(stan.includes('data:font/woff2;base64,'), '单文件版内联了字体');
+
+  G.resetToDefault();
+}
+
+// ============ 135. 强化至 +N 的预估 ============
+section('强化预估');
+{
+  G.resetToDefault();
+  for (const k in ST.Game.skills) ST.Game.skills[k] = { level: 99, xp: 0 };
+  ST.Game.gear.weapon = null;
+  ST.packGearAdd('baijinqi', 0, 1);
+  ST.equipItem('baijinqi', 0);
+  const tgt = ST.Game.gear.weapon;
+  assert(!!tgt && tgt.id === 'baijinqi', '身上有白金戚（' + (tgt || {}).id + '）');
+
+  const e3 = ST.estimateEnhanceTo(tgt, 3);
+  assert(e3 && e3.tries > 0 && e3.tan > 0 && e3.shells > 0, '返回次数 / 炭 / 贝（' + JSON.stringify(e3) + '）');
+  assert(e3.tries >= 3, '至少一锤一级（' + e3.tries + '）');
+
+  // 目标越高，期望投入越大（单调）
+  const e8 = ST.estimateEnhanceTo(tgt, 8);
+  const e15 = ST.estimateEnhanceTo(tgt, 15);
+  assert(e8.tries > e3.tries && e15.tries > e8.tries, '目标越高锤数越多（' + e3.tries + ' / ' + e8.tries + ' / ' + e15.tries + '）');
+  assert(e15.shells > e8.shells, '贝币同样递增');
+
+  // 上限：超过品阶上限时按上限算，并标出 cap
+  const cap = ST.enhanceCapOf(ST.Items.baijinqi);
+  const eBig = ST.estimateEnhanceTo(tgt, cap + 10);
+  assert(eBig.cap === cap, '预估的 cap = 品阶上限 ' + cap);
+  assert(eBig.tries > e15.tries, '到上限比到 +15 更费');
+
+  // 已至上限时返回 0
+  // 装备槽里的是实例对象，直接改它的 enh 即等于设定等级
+  tgt.enh = cap;
+  const eDone = ST.estimateEnhanceTo(tgt, cap);
+  assert(eDone.tries === 0 && eDone.tan === 0, '已至上限返回 0 投入');
+  tgt.enh = 0;
+
+  // 火候必须进入模拟：漏掉它会把「+18」算成 400 锤都不够
+  const srcG = readText('src/game.js');
+  assert(srcG.includes('heat = Math.min(ENHANCE_HEAT.MAX, heat + 1)'), '模拟里累积火候');
+  assert(ST.estimateEnhanceTo(tgt, cap).tries < 400, '到上限的期望锤数不是撞到 400 的兜底值');
+
+  // 不可淬炼之物返回 null
+  assert(ST.estimateEnhanceTo('migu', 5) === null || ST.estimateEnhanceTo('migu', 5) === undefined, '材料不参与预估');
+
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

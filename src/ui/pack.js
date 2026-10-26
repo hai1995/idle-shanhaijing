@@ -512,15 +512,43 @@ function enhancePanelHtml(target, it){
     <div class="enh-btns">
       <button class="btn small primary" onclick="UI.enhanceOne()">强化 +1</button>
       <span class="enh-to">
-        <input id="enhTarget" type="number" min="${lv + 1}" max="${max}" placeholder="目标等级" inputmode="numeric">
+        <input id="enhTarget" type="number" min="${lv + 1}" max="${max}" placeholder="目标等级" inputmode="numeric"
+          oninput="UI.patchEnhEstimate()">
         <button class="btn small" onclick="UI.enhanceTo()">强化至</button>
       </span>
       ${safe ? '' : `<label class="enh-stone"><input type="checkbox" id="enhStone" ${stones ? 'checked' : 'disabled'}> 用镇物</label>`}
     </div>
+    <div class="enh-est" id="enhEst"></div>
   </div>`;
 }
 
 // 物品详情的内容独立出来：强化 / 重铸执行后就地重绘，不关窗
+// 「强化至 +N」的预估：填了目标才出现，说明要锤几次、耗多少炭与贝。
+// 这块信息原先完全没有——+20 之后一次就要几十万贝，玩家是点下去才知道贵。
+UI.patchEnhEstimate = function(){
+  const box = (typeof document !== 'undefined') ? document.getElementById('enhEst') : null;
+  if (!box) return;
+  const inp = $('enhTarget');
+  const goal = parseInt(inp && inp.value, 10);
+  const target = UI._enhTarget;
+  if (!target || !isFinite(goal) || typeof estimateEnhanceTo !== 'function'){
+    box.textContent = '';
+    box.className = 'enh-est';
+    return;
+  }
+  const e = estimateEnhanceTo(target, goal);
+  if (!e || !e.tries){ box.textContent = ''; box.className = 'enh-est'; return; }
+  const itemId = (typeof enhTargetId === 'function') ? enhTargetId(target) : target;
+  const shortTan = (Game.inventory.tan || 0) < e.tan;
+  const shortShells = Game.shells < e.shells;
+  const warn = (shortTan || shortShells)
+    ? `<b class="est-warn">${shortTan ? '炭不足' : ''}${shortTan && shortShells ? ' · ' : ''}${shortShells ? '贝不足' : ''}</b>` : '';
+  box.innerHTML = `约 <b>${e.tries}</b> 锤 · 炭 <b class="${shortTan ? 'est-warn' : ''}">${fmt(e.tan)}</b>`
+    + ` · 贝 <b class="${shortShells ? 'est-warn' : ''}">${fmt(e.shells)}</b>`
+    + `${e.cap < goal ? `（止于上限 +${e.cap}）` : ''}${warn ? '　' + warn : ''}`;
+  box.className = 'enh-est on' + (warn ? ' short' : '');
+};
+
 UI.itemDetailHtml = function(itemId){
   const it = Items[itemId];
   if (!it) return '';

@@ -16,9 +16,28 @@ function scriptOrder(){
   return [...html.matchAll(/<script src="src\/([^"]+)"><\/script>/g)].map(m => m[1]);
 }
 
+// CSS 里 url("assets/xxx") 指向的外部资源（罕用字子集字体）：
+// 单文件版必须内联，否则换台机器打开就是豆腐块。只处理 assets/ 下的字体，
+// 别的一律不动——顺手内联图片会把产物撑到几十兆。
+function inlineAssets(css){
+  return css.replace(/url\((["']?)(assets\/[^)"']+)\1\)/g, (m, q, rel) => {
+    const fp = path.join(root, rel);
+    if (!fs.existsSync(fp)) throw new Error('CSS 引用的资源不存在：' + rel);
+    const ext = path.extname(rel).toLowerCase();
+    const mime = ext === '.woff2' ? 'font/woff2'
+      : ext === '.woff' ? 'font/woff'
+      : ext === '.ttf' ? 'font/ttf'
+      : ext === '.png' ? 'image/png'
+      : ext === '.svg' ? 'image/svg+xml'
+      : 'application/octet-stream';
+    const b64 = fs.readFileSync(fp).toString('base64');
+    return `url("data:${mime};base64,${b64}")`;
+  });
+}
+
 function build(){
   const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-  const css = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
+  const css = inlineAssets(fs.readFileSync(path.join(root, 'style.css'), 'utf8'));
   const order = scriptOrder();
   if (!order.length) throw new Error('index.html 里没有引用任何 src/*.js');
 
@@ -34,6 +53,8 @@ function build(){
   // 不留「能跑但缺内容」的产物。
   const missing = order.filter(f => !out.includes('// ===== ' + f + ' ====='));
   if (missing.length) throw new Error('单文件版缺少：' + missing.join('、'));
+  // 内联自检：还留着 assets/ 引用就说明字体没进产物，换台机器就是豆腐圈
+  if (/url\(["']?assets\//.test(out)) throw new Error('单文件版仍有未内联的 assets/ 资源');
 
   const outPath = path.join(root, 'idle-shanhaijing-standalone.html');
   fs.writeFileSync(outPath, out);

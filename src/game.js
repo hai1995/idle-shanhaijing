@@ -1935,6 +1935,45 @@ function enhanceItem(target, opts){
   return { ok:true, success, lvBefore:lv, lvAfter:after, lost, wiped, usedStone, cost,
            heat: enhanceHeatOf(itemId), rate: enhanceRateFor(target) };
 }
+// 「强化至 +N」要花多少？——玩家点了才知道，而 +20 之后一次就要几十万贝。
+// 蒙特卡洛 160 轮估中位数：失败在 +10 之后「一败俱毁」，期望值不是简单的 1/p 累加，
+// 解析式会严重低估（掉回 +0 是整段重爬）。所以直接按真规则模拟。
+function estimateEnhanceTo(target, goal, opts){
+  const itemId = enhTargetId(target);
+  const it = Items[itemId];
+  if (!it || !it.equip || !(it.dmg || it.def)) return null;
+  const cap = Math.max(1, Math.min(enhanceCapOf(it), Math.max(1, goal | 0)));
+  const start = Math.max(0, enhanceLevel(target));
+  if (start >= cap) return { tries:0, tan:0, shells:0, reached:start, cap };
+  const stone = !!(opts && opts.stone);
+  const heat0 = (typeof enhanceHeatOf === 'function' ? enhanceHeatOf(itemId) : 0);
+  const forge = (Game.buildings && Game.buildings.cuihuolu) ? 0.06 : 0;
+  const RUNS = 160;
+  const rows = [];
+  for (let r = 0; r < RUNS; r++){
+    let lv = start, tries = 0, tan = 0, shells = 0, heat = heat0;
+    while (lv < cap && tries < 400){
+      const next = lv + 1;
+      tan += 2 + next * 2;
+      shells += Math.round(90 * Math.pow(next, 1.7));
+      tries++;
+      const p = Math.min(0.95, enhanceRate(lv) + heat * ENHANCE_HEAT.STEP + forge);
+      if (Math.random() < p) lv++;
+      else if (lv >= ENHANCE_SAFE && !stone){
+        // ⚠️ 必须模拟火候累积：尽毁一次添一格，这是让 +10 之后还能推进的唯一机制。
+        // 漏掉它，模拟会算出「400 锤也上不去」——那不是游戏难，是估算写错了。
+        lv = 0;
+        heat = Math.min(ENHANCE_HEAT.MAX, heat + 1);
+      }
+    }
+    rows.push({ tries, tan, shells, lv });
+  }
+  rows.sort((a, b) => a.tries - b.tries);
+  const m = rows[Math.floor(rows.length / 2)];
+  return { tries:m.tries, tan:m.tan, shells:m.shells, reached:m.lv, cap };
+}
+window.estimateEnhanceTo = estimateEnhanceTo;
+
 // 强化至目标等级：连续单次强化，直到达标 / 材料耗尽 / 触顶。
 // guard 防止「+30 附近反复失败」时无限循环。
 function enhanceToTarget(which, target, opts){
