@@ -71,34 +71,48 @@ UI.renderShichan = function(){
     }).join('');
     buy += `</div></section>`;
   }
-  // 出售
-  const inv = Object.entries(Game.inventory).filter(([id,q])=>q>0 && (Items[id]||{}).value);
-  inv.sort((a,b)=>{
-    if (this.invSort==='value') return (Items[b[0]].value||0)-(Items[a[0]].value||0);
-    if (this.invSort==='qty') return b[1]-a[1];
+  // 出售：材料按 id、装备按淬炼档分行。
+  // ⚠️ 装备自 v1.31.22 起移出 Game.inventory，只遍历 it 的话这里会一件装备都看不到——
+  // 玩家在商旅页就再也卖不掉旧兵器了。两边都摊成 row，再统一排、统一渲染。
+  const rows = [];
+  for (const [id, q] of Object.entries(Game.inventory)){
+    if (q > 0 && (Items[id] || {}).value) rows.push({ id, enh: null, q });
+  }
+  for (const id of [...new Set((Game.packGear || []).map(g => g.id))]){
+    if (!(Items[id] || {}).value) continue;
+    for (const st of (typeof gearStacks === 'function' ? gearStacks(id) : [])) rows.push({ id, enh: st.enh, q: st.qty });
+  }
+  rows.sort((a, b) => {
+    if (this.invSort === 'value') return (Items[b.id].value || 0) - (Items[a.id].value || 0);
+    if (this.invSort === 'qty') return b.q - a.q;
     return 0;
   });
   let sell = `<div class="tile-grid sell-grid">`;
-  sell += inv.map(([id,q])=>{
+  sell += rows.map(({ id, enh, q })=>{
     const it = Items[id];
     const v = sellValue(id, q);
     const unit = sellValue(id, 1);
+    const enhTag = (enh != null && enh > 0) ? `<span class="ic-enh">+${enh}</span>` : '';
+    const enhArg = (enh != null) ? `,'',${enh}` : '';
+    const sellArg = (enh != null) ? `,${enh}` : '';
     // 方块：图标 + 名 + 整摞售价，点按开物品详情（数量自填），右上角「全」售清
-    return `<div class="tile sell-tile" data-tip data-tip-title="${esc(it.name)}"
-      role="button" tabindex="0" onclick="showItemDetail('${id}')">
+    return `<div class="tile sell-tile${(enh|0) > 0 ? ' enhanced' : ''}" data-tip data-tip-title="${esc(it.name)}${enh ? ' +' + enh : ''}"
+      role="button" tabindex="0" onclick="showItemDetail('${id}'${enhArg})">
       <span class="tile-ic bi-ic">${typeof itemIc==='function'?itemIc(it):it.icon}</span>
-      <span class="tile-nm">${esc(it.name)}</span>
+      <span class="tile-nm">${esc(it.name)}${enhTag}</span>
       <span class="tile-tag">${fmt(v)} 贝</span>
       <button class="tile-more" type="button" title="全售 ${q} 件，得 ${fmt(v)} 贝"
-        onclick="event.stopPropagation();sellItem('${id}',${q});UI.renderShichan()">全</button>
+        onclick="event.stopPropagation();sellItem('${id}',${q}${sellArg});UI.renderShichan()">全</button>
       <span class="tip-body hidden">
-        <div class="bc-sub">持有 ×${q} · 单价 ${fmt(unit)} 贝</div>
+        <div class="bc-sub">持有 ×${q}${enh != null ? `（${enh ? '+' + enh : '+0'} 这一档）` : ''} · 单价 ${fmt(unit)} 贝</div>
         <div class="bc-sub">售 1 得 ${fmt(unit)} 贝 · 全售得 ${fmt(v)} 贝</div>
       </span>
     </div>`;
   }).join('') || '<div class="hint">行囊空空</div>';
   sell += `</div>`;
-  const plainValue = inv.filter(([id])=>(Items[id].value||0)<30).reduce((s,[id,q])=>s+sellValue(id,q),0);
+  // 「清仓凡品」估的是低价材料的总值；装备不进这个口径（一件旧兵器不该被算成杂物）
+  const plainValue = rows.filter(r => r.enh == null && (Items[r.id].value || 0) < 30)
+    .reduce((s, r) => s + sellValue(r.id, r.q), 0);
   // 推荐买卖：低买高卖 / 购入即录 / 清仓凡品
   const tips = [];
   // 推荐原先对每个在售之物都写一条，于是「购入即录：火种 / 清水瓶 / 稌籽」常年霸占前三条——

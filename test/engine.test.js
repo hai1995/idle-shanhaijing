@@ -2079,8 +2079,8 @@ section('方块语言补完：御使 / 征兆 / 出售 / 营造');
   assert(uiSrc.includes('tile-grid omen-grid'), '征兆总效应弹窗同步方块化');
 
   // 41.3 廛市出售：sell-card → sell-tile，点按售 1、右上「全」售清，售价金色
-  assert(uiSrc.includes('class="tile sell-tile') && uiSrc.includes("onclick=\"showItemDetail('${id}')\""), '出售方块点按开物品详情');
-  assert(uiSrc.includes("event.stopPropagation();sellItem('${id}',${q});UI.renderShichan()"), '出售方块右上「全」售清');
+  assert(uiSrc.includes('class="tile sell-tile') && /onclick="showItemDetail\('\$\{id\}'\$\{enhArg\}\)"/.test(uiSrc), '出售方块点按开物品详情（带淬炼档）');
+  assert(uiSrc.includes("event.stopPropagation();sellItem('${id}',${q}${sellArg});UI.renderShichan()"), '出售方块右上「全」售清（装备按档卖）');
   assert(css.includes('.sell-tile .tile-tag{ color:var(--jin); }'), '出售方块售价用金色');
   assert(uiSrc.indexOf('sell-card') < 0, '廛市出售不再用旧行状卡');
 
@@ -5481,7 +5481,7 @@ section('离线结算与线上同口径');
   assert(/class="tile skill-tile[^>]*onclick="showSkillDetail\('\$\{id\}'\)"/.test(uiSrc92), '技能卡单击开详情');
   assert(uiSrc92.includes("onclick=\"showRecipeDetail('${r.type}::${r.out}')\""), '配方卡单击开详情');
   assert(uiSrc92.includes('onclick="showShopItem(${idx})"'), '市廛商品单击开详情');
-  assert(uiSrc92.includes("onclick=\"showItemDetail('${id}')\""), '市廛出售格单击开详情');
+  assert(/onclick="showItemDetail\('\$\{id\}'\$\{enhArg\}\)"/.test(uiSrc92), '市廛出售格单击开详情');
 
   // 92.2 售卖 / 购买 / 制作都能填数量，步进与「至多 / 全部」共用 input.max
   assert(uiSrc92.includes('function qtyStep(') && uiSrc92.includes("parseInt(el.max, 10)"),
