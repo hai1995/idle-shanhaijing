@@ -80,8 +80,10 @@ function fmtClock(sec){
 function fmtTime(sec){
   sec = Math.max(0, Math.floor(sec||0));
   const h = Math.floor(sec/3600), m = Math.floor(sec%3600/60), s = sec%60;
-  if (h > 0) return `${h} 小时 ${m} 分`;
-  if (m > 0) return `${m} 分 ${s} 秒`;
+  // 整点 / 整分不写零头：「再离山 21 小时 0 分 到顶」比「21 小时」难读，
+  // 而「1 分 0 秒」这种在队列 ETA 里满屏都是。
+  if (h > 0) return m ? `${h} 小时 ${m} 分` : `${h} 小时`;
+  if (m > 0) return s ? `${m} 分 ${s} 秒` : `${m} 分`;
   return `${s} 秒`;
 }
 // ---------- 增益口径（顶栏「增益一览」与御使页「当前增益」共用） ----------
@@ -942,6 +944,7 @@ function setTheme(t){
   openSettings();                     // 重开弹窗，刷新按钮选中态
 }
 window.setFx = setFx; window.openSettings = openSettings; window.setTheme = setTheme;
+window.fmtTime = fmtTime;   // 导出供测试与外部文案复用（整点不写零头的口径只有这一处）
 
 // ---------- 游戏昵称 ----------
 function saveNickname(){

@@ -1385,6 +1385,9 @@ svg.bi.mk{ vertical-align:-2px; }
 .gd-rel.up{ color:var(--tai); } .gd-rel.down{ color:var(--ink-4); }
 .gd-cap{ font-family:var(--f-num); font-size:11px; color:var(--jin); }
 .enh-grade{ margin-left:auto; font-family:var(--f-kai); font-size:10.5px; color:var(--ink-4); }
+/* 统计页「近况」：数值与单位分开排，单位小一号，扫一眼只看到数 */
+.rate-rows b{ font-family:var(--f-num); }
+.rate-rows b i{ font-style:normal; font-size:9.5px; font-weight:400; color:var(--ink-4); margin-left:1px; }
 /* 「强化至 +N」的预估行：填了目标才出现 */
 .enh-est{
   margin:4px 0 0; font-family:var(--f-num); font-size:10.5px; line-height:1.5;

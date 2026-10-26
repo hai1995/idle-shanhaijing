@@ -1412,6 +1412,9 @@ svg.bi.mk{ vertical-align:-2px; }
 .gd-rel.up{ color:var(--tai); } .gd-rel.down{ color:var(--ink-4); }
 .gd-cap{ font-family:var(--f-num); font-size:11px; color:var(--jin); }
 .enh-grade{ margin-left:auto; font-family:var(--f-kai); font-size:10.5px; color:var(--ink-4); }
+/* 统计页「近况」：数值与单位分开排，单位小一号，扫一眼只看到数 */
+.rate-rows b{ font-family:var(--f-num); }
+.rate-rows b i{ font-style:normal; font-size:9.5px; font-weight:400; color:var(--ink-4); margin-left:1px; }
 /* 「强化至 +N」的预估行：填了目标才出现 */
 .enh-est{
   margin:4px 0 0; font-family:var(--f-num); font-size:10.5px; line-height:1.5;
@@ -19371,8 +19374,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.44',
-  codename:'昼巡 · 补字',
+  version: '1.31.45',
+  codename:'昼巡 · 近况',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
@@ -23594,6 +23597,50 @@ function stepGame(dt){
 }
 let saveTick = 0;
 let idleSeconds = 0;            // 持续闲置秒数（兜底行动计时）
+// ---------- 效率采样（近 20 分钟） ----------
+// 统计页原先只有累计数字（总经验、总贝币），玩家看不出「此刻」收益几何——
+// 换了一套配装、换了只兽、开了个兆，效率变好还是变坏，全凭感觉。
+// 每 30 游戏秒留一点，保留 40 点；只存内存，不进存档（重开重采即可）。
+const RATE_EVERY = 30, RATE_KEEP = 40;
+function _lootTotal(){
+  const g = Game.stats.gathers || {};
+  let n = 0;
+  for (const k in g) n += g[k] || 0;
+  return n;
+}
+function sampleRate(){
+  const s = { t: Game.stats.time | 0, xp: Game.stats.totalXp || 0, shells: Game.stats.totalEarned || 0,
+              acts: Game.stats.actions || 0, loot: _lootTotal() };
+  const h = Game.rateHistory = Game.rateHistory || [];
+  const last = h[h.length - 1];
+  // 回退（离线结算、读档回拨）→ 丢弃旧点：否则首尾相减会得出负数或离谱的大数
+  if (last && (s.t < last.t || s.xp < last.xp || s.shells < last.shells)) h.length = 0;
+  const tail = h[h.length - 1];
+  if (tail && s.t - tail.t < RATE_EVERY) return;
+  h.push(s);
+  while (h.length > RATE_KEEP) h.shift();
+}
+// 窗口速率：取窗口内最早一点与最后一点相减。样本不足 1 分钟时返回 null（别显示 0）
+function rateSummary(winSec){
+  const h = Game.rateHistory || [];
+  if (h.length < 2) return null;
+  const end = h[h.length - 1];
+  const from = end.t - (winSec || 600);
+  let start = h[0];
+  for (const p of h){ if (p.t >= from){ start = p; break; } }
+  const dt = end.t - start.t;
+  if (dt < 60) return null;
+  const k = 3600 / dt;
+  return {
+    span: dt,
+    xpPerH: Math.max(0, end.xp - start.xp) * k,
+    shellPerH: Math.max(0, end.shells - start.shells) * k,
+    actsPerH: Math.max(0, end.acts - start.acts) * k,
+    lootPerH: Math.max(0, end.loot - start.loot) * k,
+  };
+}
+window.sampleRate = sampleRate; window.rateSummary = rateSummary;
+
 function onSecond(){
   if (Object.keys(Game.farms).length){ farmTick(1); if (UI && UI.patchFarmsProgress) UI.patchFarmsProgress(); }
   if (UI && UI.patchSkillBars) UI.patchSkillBars();      // 技能页经验条秒级跟进（不重建节点）
@@ -23608,6 +23655,7 @@ function onSecond(){
       if (Game.priceHistory.length > 24) Game.priceHistory.shift();
     } }
   Game.stats.time++;
+  sampleRate();             // 效率采样：近 20 分钟的每小时收益（统计页读）
   tickOmens();
   tickAutoRites();          // 续祭：到期前 60 秒自动重备一份祭品
   checkMilestoneToast();
@@ -27123,8 +27171,10 @@ function fmtClock(sec){
 function fmtTime(sec){
   sec = Math.max(0, Math.floor(sec||0));
   const h = Math.floor(sec/3600), m = Math.floor(sec%3600/60), s = sec%60;
-  if (h > 0) return `${h} 小时 ${m} 分`;
-  if (m > 0) return `${m} 分 ${s} 秒`;
+  // 整点 / 整分不写零头：「再离山 21 小时 0 分 到顶」比「21 小时」难读，
+  // 而「1 分 0 秒」这种在队列 ETA 里满屏都是。
+  if (h > 0) return m ? `${h} 小时 ${m} 分` : `${h} 小时`;
+  if (m > 0) return s ? `${m} 分 ${s} 秒` : `${m} 分`;
   return `${s} 秒`;
 }
 // ---------- 增益口径（顶栏「增益一览」与御使页「当前增益」共用） ----------
@@ -27985,6 +28035,7 @@ function setTheme(t){
   openSettings();                     // 重开弹窗，刷新按钮选中态
 }
 window.setFx = setFx; window.openSettings = openSettings; window.setTheme = setTheme;
+window.fmtTime = fmtTime;   // 导出供测试与外部文案复用（整点不写零头的口径只有这一处）
 
 // ---------- 游戏昵称 ----------
 function saveNickname(){
@@ -32162,6 +32213,38 @@ UI.renderStats = function(){
         <span>卜筮 <b data-stat="divines">${s.divines}</b></span>
       </div>
       <div class="stat-rows gather-rows">${gatherRows}</div></div>
+    ${(function(){
+      // 「近况」：统计页其余都是累计数字，看不出「此刻」收益几何。
+      // 换配装 / 换兽 / 开兆之后效率变好变坏，原先全凭感觉。
+      const r = (typeof rateSummary === 'function') ? rateSummary(600) : null;
+      if (!r) return `<div class="panel stat-panel"><h3>近况<span class="hint">挂机一会儿才有数据（每 30 秒采一点）</span></h3>
+        <div class="stat-rows"><span class="hint">仍在采样，满一分钟即出速率。</span></div></div>`;
+      const mins = Math.max(1, Math.round(r.span / 60));
+      const perf = (v, unit) => `${fmt(Math.round(v))}<i>${unit}/时</i>`;
+      return `<div class="panel stat-panel"><h3>近况<span class="hint">近 ${mins} 分钟的平均，按每小时折算</span></h3>
+        <div class="stat-rows rate-rows">
+          <span>修为 <b>${perf(r.xpPerH, '')}</b></span>
+          <span>贝币 <b>${perf(r.shellPerH, '')}</b></span>
+          <span>采获 <b>${perf(r.lootPerH, ' 件')}</b></span>
+          <span>动作 <b>${perf(r.actsPerH, ' 次')}</b></span>
+        </div>
+        ${(()=>{
+          // 与「累计均值」对看：近况低于累计，说明最近掉速了（配装变差、被卡住、粮尽）。
+          // 光看一个数没有基准，两个数一比才有意义。
+          const hrs = (s.time || 0) / 3600;
+          if (hrs < 0.1) return '';
+          const cumXp = (s.totalXp || 0) / hrs;
+          if (!(cumXp > 0)) return '';
+          const d = r.xpPerH / cumXp - 1;
+          if (Math.abs(d) < 0.08) return `<div class="hint">修为与累计均值持平（${fmt(Math.round(cumXp))}/时）</div>`;
+          const word = d > 0 ? '高于' : '低于';
+          return `<div class="hint">修为${word}累计均值 ${Math.abs(Math.round(d*100))}%（均值 ${fmt(Math.round(cumXp))}/时）</div>`;
+        })()}
+        ${Game.activity
+          ? `<div class="hint">当前：${esc((typeof entryLabel === 'function' ? entryLabel(Game.activity) : '') || '')}</div>`
+          : (Game.combat ? '<div class="hint">当前：往讨中</div>' : '<div class="hint">当前空闲——速率会趋近于零</div>')}
+      </div>`;
+    })()}
     <div class="panel stat-panel"><h3>商旅</h3>
       <div class="stat-rows">
         <span>贝币 <b data-stat="shells">${fmt(Game.shells)}</b></span>

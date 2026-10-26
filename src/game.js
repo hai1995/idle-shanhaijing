@@ -2822,6 +2822,50 @@ function stepGame(dt){
 }
 let saveTick = 0;
 let idleSeconds = 0;            // 持续闲置秒数（兜底行动计时）
+// ---------- 效率采样（近 20 分钟） ----------
+// 统计页原先只有累计数字（总经验、总贝币），玩家看不出「此刻」收益几何——
+// 换了一套配装、换了只兽、开了个兆，效率变好还是变坏，全凭感觉。
+// 每 30 游戏秒留一点，保留 40 点；只存内存，不进存档（重开重采即可）。
+const RATE_EVERY = 30, RATE_KEEP = 40;
+function _lootTotal(){
+  const g = Game.stats.gathers || {};
+  let n = 0;
+  for (const k in g) n += g[k] || 0;
+  return n;
+}
+function sampleRate(){
+  const s = { t: Game.stats.time | 0, xp: Game.stats.totalXp || 0, shells: Game.stats.totalEarned || 0,
+              acts: Game.stats.actions || 0, loot: _lootTotal() };
+  const h = Game.rateHistory = Game.rateHistory || [];
+  const last = h[h.length - 1];
+  // 回退（离线结算、读档回拨）→ 丢弃旧点：否则首尾相减会得出负数或离谱的大数
+  if (last && (s.t < last.t || s.xp < last.xp || s.shells < last.shells)) h.length = 0;
+  const tail = h[h.length - 1];
+  if (tail && s.t - tail.t < RATE_EVERY) return;
+  h.push(s);
+  while (h.length > RATE_KEEP) h.shift();
+}
+// 窗口速率：取窗口内最早一点与最后一点相减。样本不足 1 分钟时返回 null（别显示 0）
+function rateSummary(winSec){
+  const h = Game.rateHistory || [];
+  if (h.length < 2) return null;
+  const end = h[h.length - 1];
+  const from = end.t - (winSec || 600);
+  let start = h[0];
+  for (const p of h){ if (p.t >= from){ start = p; break; } }
+  const dt = end.t - start.t;
+  if (dt < 60) return null;
+  const k = 3600 / dt;
+  return {
+    span: dt,
+    xpPerH: Math.max(0, end.xp - start.xp) * k,
+    shellPerH: Math.max(0, end.shells - start.shells) * k,
+    actsPerH: Math.max(0, end.acts - start.acts) * k,
+    lootPerH: Math.max(0, end.loot - start.loot) * k,
+  };
+}
+window.sampleRate = sampleRate; window.rateSummary = rateSummary;
+
 function onSecond(){
   if (Object.keys(Game.farms).length){ farmTick(1); if (UI && UI.patchFarmsProgress) UI.patchFarmsProgress(); }
   if (UI && UI.patchSkillBars) UI.patchSkillBars();      // 技能页经验条秒级跟进（不重建节点）
@@ -2836,6 +2880,7 @@ function onSecond(){
       if (Game.priceHistory.length > 24) Game.priceHistory.shift();
     } }
   Game.stats.time++;
+  sampleRate();             // 效率采样：近 20 分钟的每小时收益（统计页读）
   tickOmens();
   tickAutoRites();          // 续祭：到期前 60 秒自动重备一份祭品
   checkMilestoneToast();

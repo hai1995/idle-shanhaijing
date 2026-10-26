@@ -77,6 +77,38 @@ UI.renderStats = function(){
         <span>卜筮 <b data-stat="divines">${s.divines}</b></span>
       </div>
       <div class="stat-rows gather-rows">${gatherRows}</div></div>
+    ${(function(){
+      // 「近况」：统计页其余都是累计数字，看不出「此刻」收益几何。
+      // 换配装 / 换兽 / 开兆之后效率变好变坏，原先全凭感觉。
+      const r = (typeof rateSummary === 'function') ? rateSummary(600) : null;
+      if (!r) return `<div class="panel stat-panel"><h3>近况<span class="hint">挂机一会儿才有数据（每 30 秒采一点）</span></h3>
+        <div class="stat-rows"><span class="hint">仍在采样，满一分钟即出速率。</span></div></div>`;
+      const mins = Math.max(1, Math.round(r.span / 60));
+      const perf = (v, unit) => `${fmt(Math.round(v))}<i>${unit}/时</i>`;
+      return `<div class="panel stat-panel"><h3>近况<span class="hint">近 ${mins} 分钟的平均，按每小时折算</span></h3>
+        <div class="stat-rows rate-rows">
+          <span>修为 <b>${perf(r.xpPerH, '')}</b></span>
+          <span>贝币 <b>${perf(r.shellPerH, '')}</b></span>
+          <span>采获 <b>${perf(r.lootPerH, ' 件')}</b></span>
+          <span>动作 <b>${perf(r.actsPerH, ' 次')}</b></span>
+        </div>
+        ${(()=>{
+          // 与「累计均值」对看：近况低于累计，说明最近掉速了（配装变差、被卡住、粮尽）。
+          // 光看一个数没有基准，两个数一比才有意义。
+          const hrs = (s.time || 0) / 3600;
+          if (hrs < 0.1) return '';
+          const cumXp = (s.totalXp || 0) / hrs;
+          if (!(cumXp > 0)) return '';
+          const d = r.xpPerH / cumXp - 1;
+          if (Math.abs(d) < 0.08) return `<div class="hint">修为与累计均值持平（${fmt(Math.round(cumXp))}/时）</div>`;
+          const word = d > 0 ? '高于' : '低于';
+          return `<div class="hint">修为${word}累计均值 ${Math.abs(Math.round(d*100))}%（均值 ${fmt(Math.round(cumXp))}/时）</div>`;
+        })()}
+        ${Game.activity
+          ? `<div class="hint">当前：${esc((typeof entryLabel === 'function' ? entryLabel(Game.activity) : '') || '')}</div>`
+          : (Game.combat ? '<div class="hint">当前：往讨中</div>' : '<div class="hint">当前空闲——速率会趋近于零</div>')}
+      </div>`;
+    })()}
     <div class="panel stat-panel"><h3>商旅</h3>
       <div class="stat-rows">
         <span>贝币 <b data-stat="shells">${fmt(Game.shells)}</b></span>

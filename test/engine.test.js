@@ -7200,6 +7200,70 @@ section('强化预估');
   G.resetToDefault();
 }
 
+// ============ 136. 效率采样：近况速率与累计均值的对比 ============
+section('效率采样');
+{
+  G.resetToDefault();
+  ST.Game.rateHistory = [];
+  assert(ST.rateSummary(600) === null, '没有样本时返回 null（不显示 0）');
+
+  // 每 30 游戏秒一点，产出线性增长
+  ST.Game.stats.time = 0;
+  ST.Game.stats.totalXp = 0; ST.Game.stats.totalEarned = 0; ST.Game.stats.actions = 0;
+  ST.Game.stats.gathers = { gui: 0 };
+  for (let i = 0; i < 25; i++){
+    ST.Game.stats.time += 30;
+    ST.Game.stats.totalXp += 5000; ST.Game.stats.totalEarned += 800;
+    ST.Game.stats.actions += 40; ST.Game.stats.gathers.gui += 30;
+    ST.sampleRate();
+  }
+  assert(ST.Game.rateHistory.length === 25, '采到 25 点（' + ST.Game.rateHistory.length + '）');
+  const r = ST.rateSummary(600);
+  assert(!!r, '有速率');
+  assert(r.span === 600, '窗口 10 分钟（' + r.span + '）');
+  assert(Math.abs(r.xpPerH - 600000) < 1, '修为 600K/时（' + Math.round(r.xpPerH) + '）');
+  assert(Math.abs(r.shellPerH - 96000) < 1, '贝币 96K/时（' + Math.round(r.shellPerH) + '）');
+  assert(Math.abs(r.lootPerH - 3600) < 1, '采获 3600 件/时（' + Math.round(r.lootPerH) + '）');
+
+  // 采样节流：不足 30 秒不重复记点
+  const n0 = ST.Game.rateHistory.length;
+  ST.Game.stats.time += 5;
+  ST.sampleRate();
+  assert(ST.Game.rateHistory.length === n0, '未满 30 秒不记点');
+  ST.Game.stats.time += 30;
+  ST.sampleRate();
+  assert(ST.Game.rateHistory.length === n0 + 1, '满 30 秒记一点');
+
+  // 回退（离线结算 / 读档回拨）必须清空，否则算出负数或天文数字
+  ST.Game.stats.totalXp = 0;
+  ST.sampleRate();
+  assert(ST.Game.rateHistory.length === 1, '产出回退时清空历史（只剩刚记的这一点）');
+
+  // 保留上限
+  ST.Game.rateHistory = [];
+  ST.Game.stats.time = 0;
+  for (let i = 0; i < 80; i++){
+    ST.Game.stats.time += 30;
+    ST.Game.stats.totalXp += 100;
+    ST.sampleRate();
+  }
+  assert(ST.Game.rateHistory.length === 40, '最多保留 40 点（' + ST.Game.rateHistory.length + '）');
+
+  // 统计页有「近况」面板，并与累计均值对比
+  const uiSrcM = readText('src/ui/misc.js');
+  assert(uiSrcM.includes('近况'), '统计页有「近况」面板');
+  assert(uiSrcM.includes('累计均值'), '与累计均值对比');
+  assert(uiSrcM.includes('仍在采样'), '样本不足时给说明而不是显示 0');
+
+  // fmtTime 整点不写零头
+  assert(ST.fmtTime(3600) === '1 小时', '3600 秒 = 1 小时（' + ST.fmtTime(3600) + '）');
+  assert(ST.fmtTime(75600) === '21 小时', '75600 秒 = 21 小时（' + ST.fmtTime(75600) + '）');
+  assert(ST.fmtTime(3660) === '1 小时 1 分', '有零头才写分（' + ST.fmtTime(3660) + '）');
+  assert(ST.fmtTime(60) === '1 分', '60 秒 = 1 分（' + ST.fmtTime(60) + '）');
+
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
