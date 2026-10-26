@@ -3468,15 +3468,15 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
 {
   G.resetToDefault();
   const divine = Object.values(ST.Items).filter(i => i.divine);
-  assert(divine.length === 7, '七件神兵（' + divine.map(d => d.name).join('、') + '）');
+  assert(divine.length === 10, '十件神兵（' + divine.map(d => d.name).join('、') + '）');
   assert(divine.every(d => ST.DIVINE_EFFECTS[d.divine]), '每件都挂已知特性');
   const kinds = new Set(divine.map(d => d.divine));
-  assert(kinds.size === 4, '四种特性都用上了（破甲/饮血/疾风/裂甲）');
+  assert(kinds.size === 6, '六种特性都用上了（破甲/饮血/疾风/裂甲/斩厉/混沌）');
   assert(divine.every(d => !ST.Recipes.some(r => r.out === d.id)), '神兵不可锻造');
 
   // BOSS 与神兵一一对应
   const bossDivine = Object.values(ST.Monsters).filter(m => m.divine);
-  assert(bossDivine.length === 7, '七只 BOSS 各有专属神兵');
+  assert(bossDivine.length === 10, '十只 BOSS 各有专属神兵（六凶 + 刑天 + 三尊守关神）');
   for (const m of bossDivine){
     assert(!!ST.Items[m.divine], m.name + ' 的神兵存在（' + m.divine + '）');
     assert(ST.Items[m.divine].divine, m.name + ' 的神兵带特性');
@@ -3503,6 +3503,24 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   assert(fast < slow, '疾风神兵攻速更快（' + fast.toFixed(2) + ' < ' + slow.toFixed(2) + '）');
   ST.Game.combat = null;
 
+  // 三尊守关神的两条特性（v1.31.18）：混沌不吃被克，斩厉收半血。
+  // 用同一件弓改 divine 字段做对照——伤害区间只受「兵器数值 + 特性」影响，变量只剩特性。
+  const fireFoe = Object.values(ST.Monsters).find(m => m.el === '火' && !m.boss);
+  const fake = d => Object.assign({}, ST.Items.chijingong, { id:'__divt', divine:d });   // 金弓，火敌 → 被克
+  ST.Game.combat = { monsterId: fireFoe.id, monsterHp: 999999 };
+  ST.Game.gear.weapon = fake(null);  const plainDmg = ST.playerDamageRange();
+  ST.Game.gear.weapon = fake('chaos'); const chaosDmg = ST.playerDamageRange();
+  assert(chaosDmg.lo > plainDmg.lo, '混沌：被克不再减伤（' + plainDmg.lo + ' → ' + chaosDmg.lo +
+    '，敌 ' + fireFoe.name + ' 火属）');
+  ST.Game.gear.weapon = fake('behead');
+  ST.Game.combat.monsterHp = Math.floor(fireFoe.hp * 0.9);
+  const aboveHalf = ST.playerDamageRange();
+  ST.Game.combat.monsterHp = Math.floor(fireFoe.hp * 0.3);
+  const belowHalf = ST.playerDamageRange();
+  assert(belowHalf.lo > aboveHalf.lo, '斩厉：半血以下伤害更高（' + aboveHalf.lo + ' → ' + belowHalf.lo + '）');
+  ST.Game.gear.weapon = ST.Items.ganqi;
+  ST.Game.combat = null;
+
   // 掉落接线 + 详情展示
   const gameSrc61 = readText('src/game.js');
   assert(gameSrc61.includes('m.divine && Items[m.divine] && chance(DIVINE_DROP)'), '击杀 BOSS 时按概率掉神兵');
@@ -3521,7 +3539,7 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
 
   // 62.1 数值落在所属品阶的容差带内——这是「合理数值」的可验证定义
   const stat = all.filter(i => ST.gearKindOf(i));
-  assert(stat.length === 52, '参与数值校验的装备 52 件（' + stat.length + '）');
+  assert(stat.length === 58, '参与数值校验的装备 58 件（' + stat.length + '）');
   const out = [];
   for (const it of stat){
     const g = ST.GEAR_GRADE[it.grade], r = ST.gearRatio(it);
@@ -6114,7 +6132,7 @@ section('快速挂机');
 // 曾经「配方有相邻档」却「档里没有可换的兵器」，玩家只能把金剑从 10 级用到 26 级。
 // 这里按「部位」看实际可换装备的等级跨度，把每一段空白钉住（v1.31.16）。
 {
-  const LIMIT = { melee: 12, bow: 14, armor: 14 };
+  const LIMIT = { melee: 12, bow: 12, armor: 12 };
   const byKind = {};
   for (const it of Object.values(ST.Items)){
     const k = ST.gearKindOf(it);

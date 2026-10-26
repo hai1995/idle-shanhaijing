@@ -8,7 +8,7 @@
 // ---------- 数值常量表（所有可调参数集中于此） ----------
 const TUNING = {
   // 每技能 81 级，取「九九八十一」之数——这是**本卷（五臧山经）的上限**，不是全局硬顶。
-  // 全书 447 山、315 异兽、62 件装备的等级都排在这 1–81 里，等级再往上就没有内容可接，
+  // 全书 447 山、315 异兽、68 件装备的等级都排在这 1–81 里，等级再往上就没有内容可接，
   // 所以「等级」不设成无限：那只会让数字涨而山不动，反而把「练满」这个终局目标抹掉。
   // 真正该无上限的是**修为**（Game.stats.totalXp，累计经验），它从第一分钟起就在涨，
   // 满级后继续累积，是将来排行榜的主数值。续卷二经时，把此值抬高、
@@ -768,6 +768,9 @@ addItem(
   I('bailianjian','百炼剑','weapon',{ equip:true, grade:'fine', weapon:true, dmg:46, lvl:44, value:760, icon:'⚔️', el:'金' }),
   I('xisihejia','犀兕合甲','armor',{ equip:true, grade:'fine', slot:'armor', def:15, lvl:44, value:640, icon:'🥋' }),
   I('sangzhegong','桑柘弓','bow',{ equip:true, grade:'fine', weapon:true, ranged:true, dmg:34, lvl:44, value:560, icon:'🏹', el:'木' }),
+  // 31 → 58 之间原本二十四级只有一张弓（v1.31.18 补两档）：竹胎角弭、梓胎漆固，都是寻常材料
+  I('jiaogong','角弓','bow', { equip:true, grade:'fine', weapon:true, ranged:true, dmg:29, lvl:37, value:460, icon:'🏹', el:'木' }),
+  I('qigong','漆弓','bow',  { equip:true, grade:'fine', weapon:true, ranged:true, dmg:41, lvl:50, value:700, icon:'🏹', el:'木' }),
   I('zaochimao','凿齿矛','weapon',{ equip:true, grade:'rare', weapon:true, dmg:55, lvl:55, value:1600, icon:'🔱', el:'金', rarity:'RARE' }),
   // 55 → 72 之间十七级只有神兵（要打 BOSS）可换（v1.31.16 补）：铁为刃、炭为薪的寻常重器。
   I('tieyue','铁钺','weapon',{ equip:true, grade:'fine', weapon:true, dmg:58, lvl:62, value:1050, icon:'🪓', el:'金' }),
@@ -792,6 +795,8 @@ addItem(
 addItem(
   I('pijia','皮甲','armor', { equip:true, grade:'common', slot:'armor', def:6,  lvl:20, value:120, icon:'🥋' }),
   I('sijia','兕甲','armor', { equip:true, grade:'fine', slot:'armor', def:11, lvl:34, value:260, icon:'🥋', py:'sì' }),
+  // 皮甲 20 → 兕甲 34 之间十四级（v1.31.18 补）：韦（熟皮）为甲，犀皮一张即可
+  I('weijia','韦甲','armor', { equip:true, grade:'fine', slot:'armor', def:9, lvl:26, value:180, icon:'🥋' }),
   // 34 → 44 与 44 → 60 两段空白（v1.31.16 补）：犀皮、兕皮都是打猎常得，一路叠到重犀甲。
   I('xijia','犀甲','armor', { equip:true, grade:'fine', slot:'armor', def:13, lvl:39, value:420, icon:'🥋' }),
   I('zhongxijia','重犀甲','armor', { equip:true, grade:'fine', slot:'armor', def:17, lvl:52, value:760, icon:'🥋' }),
@@ -875,6 +880,8 @@ R('fletch','zizu',5,60,16,[['zi',1],['chijin',1]]);
 R('fletch','chijingong',1,240,26,[['chijin',2],['sheng',2]]);
 R('fletch','chijinzu',5,160,26,[['chijin',1],['zi',1]]);
 R('fletch','tonggong',1,290,31,[['tong',2],['zi',2]]);
+R('fletch','jiaogong',1,330,37,[['zhu',2],['sheng',3]]);
+R('fletch','qigong',1,360,50,[['zi',2],['zhu',1],['sheng',2]]);
 R('fletch','baijinzu',5,260,36,[['baijin',1],['zi',1]]);
 R('fletch','dafenggong',1,1200,58,[['dafengyu',1],['baijin',2],['sheng',3]]);
 // 制器
@@ -885,6 +892,7 @@ R('craft','pijia',1,120,20,[['xipi',1],['sheng',1]]);
 R('craft','sijia',1,240,34,[['sipi',2],['sheng',2]]);
 // 34 → 44 → 60 两段空白（v1.31.16 补）：犀甲（39）、重犀甲（52）
 R('craft','xijia',1,280,39,[['xipi',2],['sheng',2]]);
+R('craft','weijia',1,180,26,[['xipi',1],['sheng',2]]);
 R('craft','zhongxijia',1,360,52,[['xipi',3],['sheng',2]]);
 R('craft','yayujia',1,900,60,[['yayupi',3],['sheng',2],['xiangya',1]]);
 R('craft','siwang',1,80,10,[['sheng',3],['jin',2]]);
@@ -1049,6 +1057,14 @@ addItem(
     rarity:'LEGENDARY', divine:'pierce', note:'封豨之牙为刃，重而能断' }),
   I('ganqi','干戚','weapon',{ equip:true, grade:'divine', weapon:true, dmg:118, lvl:81, value:12000, icon:'🪓', el:'金',
     rarity:'LEGENDARY', divine:'crit', note:'刑天操干戚以舞——以乳为目，以脐为口，战而不屈' }),
+  // 三尊守关神（v1.31.18 补）：此前六凶与刑天各有遗物，唯独西次三经的三位守关者没有。
+  // 它们不是「六凶」，却是全书最后一段路的三道门——打得过它们，该有凭证。
+  I('jiubuhuyue','九部虎钺','weapon',{ equip:true, grade:'divine', weapon:true, dmg:80, lvl:56, value:3800, icon:'🪓', el:'金',
+    rarity:'LEGENDARY', divine:'swift', note:'陆吾司天之九部，钺成九尾之形——持之者疾' }),
+  I('yusheng','玉胜','weapon',{ equip:true, grade:'divine', weapon:true, dmg:85, lvl:59, value:4200, icon:'🗡️', el:'金',
+    rarity:'LEGENDARY', divine:'behead', note:'西王母蓬发戴胜，胜以玉为骨——司天之厉及五残' }),
+  I('hundunyu','浑敦羽弓','bow',{ equip:true, grade:'divine', weapon:true, ranged:true, dmg:72, lvl:61, value:4500, icon:'🏹', el:'土',
+    rarity:'LEGENDARY', divine:'chaos', note:'帝江六足四翼，浑敦无面目——其羽为弦，不落五行' }),
   I('tongzu','铜镞矢','arrow',{ equip:true, grade:'rare', slot:'quiver', dmg:16, lvl:66, value:60, icon:'➶', el:'金' }),
   I('tiezu','铁镞矢','arrow',{ equip:true, grade:'rare', slot:'quiver', dmg:17, lvl:72, value:110, icon:'➶', el:'金' }),
   I('baihujia','白虎甲','armor',{ equip:true, grade:'precious', slot:'armor', def:29, lvl:72, value:1500, icon:'🥋', rarity:'RARE' }),
@@ -2170,15 +2186,15 @@ addMonster({ id:'xingtian', name:'刑天', boss:true, el:'金', needLvl:81, hp:3
 // 出处均为《西山经》原文（公有领域）。⚠️ 提示词/文案纪律：只用原文形态要素，
 // 西王母不引用任何当代形象；帝江「浑敦无面目」——不可画面部。
 addMonster({ id:'luwu', name:'陆吾', boss:true, el:'金', needLvl:56, hp:2500, atk:58, def:40, xp:5000,
-  coins:6000, drop:'luwuuwei', threat:5, nodeId:'xishan-3-08',
+  coins:6000, drop:'luwuuwei', threat:5, nodeId:'xishan-3-08', divine:'jiubuhuyue',
   form:'虎身而九尾，人面而虎爪；是神也，司天之九部及帝之囿时（昆仑之丘守关者）',
   special:{ name:'九部之讨', every:9, dmg:1.0, pierce:0.25, hits:9 }, desc:'九尾九段连击' });
 addMonster({ id:'xiwangmu', name:'西王母', boss:true, el:'金', needLvl:59, hp:2650, atk:61, def:36, xp:5300,
-  coins:9000, drop:'xiwangmusheng', threat:5, nodeId:'xishan-3-11',
+  coins:9000, drop:'xiwangmusheng', threat:5, nodeId:'xishan-3-11', divine:'yusheng',
   form:'其状如人，豹尾虎齿而善啸，蓬发戴胜，是司天之厉及五残（玉山）',
   special:{ name:'善啸', every:10, dmg:1.2, pierce:0.45, fear:true }, desc:'啸声震慑：短时间内玩家命中降低' });
 addMonster({ id:'dijiang', name:'帝江', boss:true, el:'土', needLvl:61, hp:2750, atk:63, def:30, xp:5500,
-  coins:14000, drop:'dijiangnang', threat:5, nodeId:'xishan-3-18',
+  coins:14000, drop:'dijiangnang', threat:5, nodeId:'xishan-3-18', divine:'hundunyu',
   form:'状如黄囊，赤如丹火，六足四翼，浑敦无面目（天山）',
   special:{ name:'混沌嬗变', every:12, dmg:1.1, pierce:0.3, elementShift:true }, desc:'无面目而五行不定，周期性变换属性' });
 
@@ -2566,8 +2582,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.17',
-  codename:'卷二 · 重山',
+  version: '1.31.18',
+  codename:'守关 · 三器',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',

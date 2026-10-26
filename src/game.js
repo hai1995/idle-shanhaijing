@@ -1762,6 +1762,9 @@ const DIVINE_EFFECTS = {
   drink: { label:'饮血', text:'命中回复所伤 8%' },
   swift: { label:'疾风', text:'攻势 +20%' },
   crit:  { label:'裂甲', text:'暴击率 +12%' },
+  // 三尊守关神的两条（v1.31.18）：不新增面板，只改一条既有的判定
+  behead:{ label:'斩厉', text:'目标半血以下，伤害 +25%' },
+  chaos: { label:'混沌', text:'不受五行相克所减（被克不再 ×0.75）' },
 };
 const DIVINE_DROP = 0.06;
 function divineOf(){
@@ -1803,7 +1806,8 @@ function playerDamageRange(){
   if (beast){
     // 词条「引」只放大「克制关系带来的偏离」，不改基线：同属 ×1.00 仍是 ×1.00
     const fEl = foeElement(beast, Game.combat);
-    const m = wuxingMult(playerElement(), fEl);
+    // 神兵「混沌」：五行不定，被克也不再打折扣（相生与同属照旧）
+    const m = divineHas('chaos') ? Math.max(1, wuxingMult(playerElement(), fEl)) : wuxingMult(playerElement(), fEl);
     dmg *= (1 + (m - 1) * (1 + af.elBoost/100));
     if (style === 'zhu' && wuxingSheng(playerElement(), fEl)) dmg *= TUNING.WUXING.SHENG;
   }
@@ -1814,6 +1818,8 @@ function playerDamageRange(){
     const arm = divineHas('pierce') ? 0.5 : 1;      // 神兵「破甲」：无视一半
     dmg = Math.max(dmg * 0.6, dmg - beast.def * 0.35 * arm);
   }
+  // 神兵「斩厉」：半血以下补一刀——司天之厉及五残，正是收尾的意思
+  if (divineHas('behead') && beast && Game.combat && Game.combat.monsterHp < beast.hp * 0.5) dmg *= 1.25;
   return { lo: Math.max(1, Math.floor(dmg*0.6)), hi: Math.max(1, Math.floor(dmg*1.4)) };
 }
 function playerAttackInterval(){
