@@ -699,9 +699,16 @@ function useConsumable(itemId){
   const invQty = Game.inventory[itemId]||0;
   if (invQty <= 0){ UI && UI.toast('行囊中没有此物'); return false; }
   if (it.heal){ // 食物：即时回血
+    // 气血只存在于战斗态（Game.combat.playerHp），非战时没有可回的血。
+    // 原先照样扣物品、照样弹「回血 40」——玩家白丢一块肉，界面还说回了。
+    // 这里不扣物，直说留待战时用（战斗结束后气血本就回满，无需常驻血量）。
+    if (!Game.combat){
+      UI && UI.toast(`🍖 未在战中，气血自复；${it.name}留待战时再用`);
+      return false;
+    }
     Game.inventory[itemId]--;
     if (Game.inventory[itemId]<=0) delete Game.inventory[itemId];
-    if (Game.combat){
+    {
       const heal = healAmount(it);
       Game.combat.playerHp = Math.min(playerMaxHp(), Game.combat.playerHp + heal);
       UI && UI.floatText(playerEl(), `+${heal} ❤️`, '#58b368');

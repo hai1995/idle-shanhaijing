@@ -6972,7 +6972,8 @@ section('队列与跳转');
   // ---- 用途：可服用的药不算「一无所用」 ----
   const uiSrcPk = readText('src/ui/pack.js');
   assert(uiSrcPk.includes("const dose = it.buff"), '用途里认得「可服用」');
-  assert(uiSrcPk.includes("(crop || dose) ? ''"), '有 crop / dose 时不写「暂无合用之方」');
+  assert(uiSrcPk.includes("(crop || dose || wear) ? ''"), '有用途（可作种 / 可服用 / 可装备）时不写「暂无合用之方」');
+  assert(uiSrcPk.includes("可装备·${esc(GearSlotLabels[equipSlotOf(it)]"), '装备的用途写明「可装备·槽位」');
   assert(ST.Items.shanhaitujuan.buff && ST.Items.shanhaitujuan.buff.dur === 900, '图卷确实可服用（900 秒）');
 
   // ---- 技能详情：有「做」而不只是「看」 ----
@@ -6982,6 +6983,78 @@ section('队列与跳转');
   assert(uiSrcPk.includes("acts.push(`<button class=\"btn\" onclick=\"UI.closeModal()\">闭</button>`)"),
     '动作与「闭」合在同一按钮组');
 
+  G.resetToDefault();
+}
+
+// ============ 132. 淬炼等待 / 非战进食 / 兆标记 / 队列改量 ============
+section('淬炼等待与几处修正');
+{
+  G.resetToDefault();
+
+  // ---- 淬炼的等待：与动效开关解耦 ----
+  assert(typeof ST.enhWaitMs === 'function', '导出 enhWaitMs');
+  const w0 = ST.enhWaitMs({ lv: 0, grade: 0 });
+  const w10 = ST.enhWaitMs({ lv: 10, grade: 0 });
+  const wGod = ST.enhWaitMs({ lv: 10, grade: 1 });
+  assert(w0 >= 900, '低阶也要等（' + w0 + 'ms）');
+  assert(w10 > w0, '等级越高等越久（' + w0 + ' → ' + w10 + '）');
+  assert(wGod > w10, '品阶越高等越久（' + w10 + ' → ' + wGod + '）');
+  assert(ST.enhWaitMs({ lv: 99, grade: 1 }) <= 3400, '封顶 3.4 秒，不让人罚站');
+
+  // 动效关闭也是等，只是短一点——这正是原先的漏洞：light/off 直接瞬间出结果
+  const oldFx = ST.Prefs.fxLevel;
+  ST.Prefs.fxLevel = 'off';
+  const wOff = ST.enhWaitMs({ lv: 0, grade: 0 });
+  assert(wOff >= 900, '动效关闭仍要等（' + wOff + 'ms）');
+  assert(wOff < w0, '但比全效短（' + wOff + ' < ' + w0 + '）');
+  ST.Prefs.fxLevel = oldFx;
+
+  // 强化本身不再「只看 forgeShow」：源码里等待时长由 enhWaitMs 决定
+  const uiSrcPk2 = readText('src/ui/pack.js');
+  assert(uiSrcPk2.includes('const dur = enhWaitMs({ lv: r.lvBefore'), '单次强化按 enhWaitMs 等待');
+  assert(uiSrcPk2.includes('UI._showEnhWait(dur'), '等待期显示「砧上」过程条');
+  assert(!/if \(!played\)\{ UI\.refreshItemModal\(itemId\); UI\._revealEnh/.test(uiSrcPk2),
+    '不再有「没播动效就立即揭晓」的分支');
+
+  // ---- 非战斗进食：不扣物、不谎报回血 ----
+  G.resetToDefault();
+  ST.giveItem('shengshengrou', 2, false);
+  const q0 = ST.bagQty('shengshengrou');
+  const okNoFight = ST.useConsumable('shengshengrou');
+  assert(okNoFight === false, '非战斗时食用返回 false');
+  assert(ST.bagQty('shengshengrou') === q0, '非战斗时不扣物品（' + q0 + ' → ' + ST.bagQty('shengshengrou') + '）');
+
+  // 战斗中才是真回血
+  ST.Game.combat = { playerHp: 10, monsterId: Object.keys(ST.Monsters)[0], repeat: 1 };
+  const before = ST.Game.combat.playerHp;
+  const okFight = ST.useConsumable('shengshengrou');
+  assert(okFight === true, '战斗中食用成功');
+  assert(ST.Game.combat.playerHp > before, '战斗中确实回血（' + before + ' → ' + ST.Game.combat.playerHp + '）');
+  assert(ST.bagQty('shengshengrou') === q0 - 1, '战斗中扣一件');
+  ST.Game.combat = null;
+
+  // ---- 兆的标记位不再是死字段 ----
+  const txtWar = ST.omenEffectText({ war: true, polar: '凶', polarity: '凶' });
+  const txtWind = ST.omenEffectText({ wind: true, move: -0.2 });
+  const txtPsy = ST.omenEffectText({ psy: true, divine: -0.3 });
+  assert(txtWar.includes('駮可御之'), '兵灾之兆写明「駮可御之」：' + txtWar);
+  assert(txtWind.includes('行旅迟滞'), '大风写明行旅迟滞：' + txtWind);
+  assert(txtPsy.includes('卜筮失准'), '有恐写明卜筮失准：' + txtPsy);
+
+  // ---- 队列条目改数量 ----
+  G.resetToDefault();
+  ST.clearQueue();
+  const tgt = ST.actionTargets('qiaocai')[0];
+  const qe = ST.addQueueEntry('qiaocai', tgt.id, 10);
+  assert(ST.setQueueQty(qe.id, 42) === true && qe.qty === 42, '改数量成功（' + qe.qty + '）');
+  assert(ST.setQueueQty(qe.id, 42) === false, '数量没变时返回 false（不白写盘）');
+  ST.setQueueQty(qe.id, 0);
+  assert(qe.qty === 1, '填 0 夹到 1（' + qe.qty + '）');
+  ST.setQueueQty(qe.id, 99999);
+  assert(qe.qty === 9999, '上限 9999（' + qe.qty + '）');
+  assert(ST.setQueueQty('nope', 5) === false, '不存在的条目返回 false');
+
+  ST.clearQueue();
   G.resetToDefault();
 }
 

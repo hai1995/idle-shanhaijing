@@ -1335,6 +1335,30 @@ svg.bi.mk{ vertical-align:-2px; }
 .gd-rel.up{ color:var(--tai); } .gd-rel.down{ color:var(--ink-4); }
 .gd-cap{ font-family:var(--f-num); font-size:11px; color:var(--jin); }
 .enh-grade{ margin-left:auto; font-family:var(--f-kai); font-size:10.5px; color:var(--ink-4); }
+/* 砧上：强化等待期的过程条。锤子在敲、火色在走，成败仍未知——
+   这几秒就是「期盼感」的所在，所以它不跟画质开关一起关掉。 */
+.enh-forge{ display:flex; align-items:center; gap:9px; margin:8px 0 2px; }
+.ef-anvil{
+  font-size:16px; line-height:1; flex:0 0 auto;
+  animation:efHammer .62s cubic-bezier(.4,0,.5,1) infinite;
+  transform-origin:80% 80%;
+}
+@keyframes efHammer{
+  0%,100%{ transform:rotate(-10deg) translateY(-2px); }
+  55%{ transform:rotate(9deg) translateY(2px); }
+}
+.ef-mid{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:3px; }
+.ef-txt{ font-size:11px; color:var(--ink-3); letter-spacing:.04em; }
+.ef-bar{ height:3px; background:var(--rule-2); border-radius:2px; overflow:hidden; }
+.ef-bar i{
+  display:block; height:100%; border-radius:2px;
+  background:linear-gradient(90deg,#C99A3A,#B03A2B);
+  transition:width .12s linear;
+}
+.ef-lb{ font-family:var(--f-num); font-size:10.5px; color:var(--ink-4); white-space:nowrap; flex:0 0 auto; }
+/* 等待期间只锁按钮，不锁整块：玩家还能看等级、看火候，只是不能再落第二锤 */
+.enh-row-busy{ pointer-events:none; opacity:.45; }
+@media (prefers-reduced-motion: reduce){ .ef-anvil{ animation:none; } }
 /* 火候：十二格炉温，毁一次亮一格 */
 .enh-heat{ display:flex; align-items:center; gap:6px; margin:3px 0 5px; }
 .enh-heat .hlabel{ font-family:var(--f-kai); font-size:10.5px; letter-spacing:.08em; color:var(--ink-4); }
@@ -1527,6 +1551,16 @@ svg.bi.mk{ vertical-align:-2px; }
 .qi-ic{ width:20px; height:20px; display:inline-flex; vertical-align:-5px; margin-right:5px; flex:none; }
 .qi-meta{ display:flex; align-items:center; gap:6px; flex:0 0 auto; min-width:0; }
 .qi-prog{ font-family:var(--f-num); font-size:10.5px; color:var(--qing); white-space:nowrap; }
+/* 条目数量可直接改：跑起来才发现要多要少，别非删了重加。
+   故意做得窄、灰、克制——它是次要操作，不该跟「启动 / 清空」抢视线。 */
+.qi-qty{
+  width:36px; flex:0 0 auto; padding:1px 3px; text-align:center;
+  font-family:var(--f-num); font-size:10.5px; color:var(--ink-3);
+  background:var(--paper-2); border:1px solid var(--rule-2); border-radius:3px;
+  -moz-appearance:textfield;
+}
+.qi-qty::-webkit-outer-spin-button, .qi-qty::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+.qi-qty:focus{ outline:none; border-color:var(--zhu); color:var(--ink); background:var(--paper); }
 .qi-eta{ font-family:var(--f-num); font-size:10.5px; color:var(--ink-4); margin-left:4px; white-space:nowrap; }
 .qi-reason{ font-size:10px; color:var(--zhu); }
 .qi-btns{ display:flex; gap:2px; }

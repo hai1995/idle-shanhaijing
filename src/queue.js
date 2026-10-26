@@ -261,6 +261,17 @@ function dropBlockedQueue(){
   if (n) saveGame();
   return n;
 }
+// 改某条的数量：跑的时候才发现要得多 / 要得少，原先只能删了重加。
+// 已完成的计数（done）不清零——玩家只是想多要一点，不是想重跑。
+function setQueueQty(id, qty){
+  const e = Game.queue.find(x => x.id === id);
+  if (!e) return false;
+  const v = Math.max(1, Math.min(9999, Math.floor(parseInt(qty, 10) || 1)));
+  if (v === e.qty) return false;
+  e.qty = v;
+  saveGame();
+  return true;
+}
 function removeQueueEntry(id){
   const i = Game.queue.findIndex(e=>e.id===id);
   if (i < 0) return false;
@@ -523,7 +534,7 @@ if (typeof window !== 'undefined'){
   window.addQueueEntry = addQueueEntry;
   window.removeQueueEntry = removeQueueEntry; window.duplicateQueueEntry = duplicateQueueEntry;
   window.dropBlockedQueue = dropBlockedQueue;
-  window.moveQueueEntry = moveQueueEntry;
+  window.moveQueueEntry = moveQueueEntry; window.setQueueQty = setQueueQty;
   window.clearQueue = clearQueue;
   window.setFallback = setFallback;
   window.quickIdlePreset = quickIdlePreset;

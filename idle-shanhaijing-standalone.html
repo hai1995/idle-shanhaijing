@@ -1362,6 +1362,30 @@ svg.bi.mk{ vertical-align:-2px; }
 .gd-rel.up{ color:var(--tai); } .gd-rel.down{ color:var(--ink-4); }
 .gd-cap{ font-family:var(--f-num); font-size:11px; color:var(--jin); }
 .enh-grade{ margin-left:auto; font-family:var(--f-kai); font-size:10.5px; color:var(--ink-4); }
+/* 砧上：强化等待期的过程条。锤子在敲、火色在走，成败仍未知——
+   这几秒就是「期盼感」的所在，所以它不跟画质开关一起关掉。 */
+.enh-forge{ display:flex; align-items:center; gap:9px; margin:8px 0 2px; }
+.ef-anvil{
+  font-size:16px; line-height:1; flex:0 0 auto;
+  animation:efHammer .62s cubic-bezier(.4,0,.5,1) infinite;
+  transform-origin:80% 80%;
+}
+@keyframes efHammer{
+  0%,100%{ transform:rotate(-10deg) translateY(-2px); }
+  55%{ transform:rotate(9deg) translateY(2px); }
+}
+.ef-mid{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:3px; }
+.ef-txt{ font-size:11px; color:var(--ink-3); letter-spacing:.04em; }
+.ef-bar{ height:3px; background:var(--rule-2); border-radius:2px; overflow:hidden; }
+.ef-bar i{
+  display:block; height:100%; border-radius:2px;
+  background:linear-gradient(90deg,#C99A3A,#B03A2B);
+  transition:width .12s linear;
+}
+.ef-lb{ font-family:var(--f-num); font-size:10.5px; color:var(--ink-4); white-space:nowrap; flex:0 0 auto; }
+/* 等待期间只锁按钮，不锁整块：玩家还能看等级、看火候，只是不能再落第二锤 */
+.enh-row-busy{ pointer-events:none; opacity:.45; }
+@media (prefers-reduced-motion: reduce){ .ef-anvil{ animation:none; } }
 /* 火候：十二格炉温，毁一次亮一格 */
 .enh-heat{ display:flex; align-items:center; gap:6px; margin:3px 0 5px; }
 .enh-heat .hlabel{ font-family:var(--f-kai); font-size:10.5px; letter-spacing:.08em; color:var(--ink-4); }
@@ -1554,6 +1578,16 @@ svg.bi.mk{ vertical-align:-2px; }
 .qi-ic{ width:20px; height:20px; display:inline-flex; vertical-align:-5px; margin-right:5px; flex:none; }
 .qi-meta{ display:flex; align-items:center; gap:6px; flex:0 0 auto; min-width:0; }
 .qi-prog{ font-family:var(--f-num); font-size:10.5px; color:var(--qing); white-space:nowrap; }
+/* 条目数量可直接改：跑起来才发现要多要少，别非删了重加。
+   故意做得窄、灰、克制——它是次要操作，不该跟「启动 / 清空」抢视线。 */
+.qi-qty{
+  width:36px; flex:0 0 auto; padding:1px 3px; text-align:center;
+  font-family:var(--f-num); font-size:10.5px; color:var(--ink-3);
+  background:var(--paper-2); border:1px solid var(--rule-2); border-radius:3px;
+  -moz-appearance:textfield;
+}
+.qi-qty::-webkit-outer-spin-button, .qi-qty::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+.qi-qty:focus{ outline:none; border-color:var(--zhu); color:var(--ink); background:var(--paper); }
 .qi-eta{ font-family:var(--f-num); font-size:10.5px; color:var(--ink-4); margin-left:4px; white-space:nowrap; }
 .qi-reason{ font-size:10px; color:var(--zhu); }
 .qi-btns{ display:flex; gap:2px; }
@@ -17917,7 +17951,9 @@ const OMENS = {
 
 // ---------- 西山 / 北山 征兆（据 JSON 的 node.omen 数组派生，效果为自研调参） ----------
 // 西山 15 组里仅 3 组为吉；北山 4 组（肥遗大旱 / 山𤟤大风 / 酸与有恐 / 大蛇大旱）全凶。
-// 兵灾类（有兵/大兵）可被駮「可以御兵」御之；大风（移动效率）可被御风御使削弱；有恐（卜筮失准）扰决策。
+// 兵灾类（有兵/大兵）可被駮「可以御兵」御之（见 activateOmen）；
+// 大风（移动效率 -20%）与有恐（卜筮 -30%）只走数值，没有「御风」这类对位御使——
+// 此前注释写成「可被御风御使削弱」，是从未实现的承诺，已更正。
 (function buildRegionOmens(){
   const IDS = {
     '肥𧔥':'feiyi', '鸾鸟':'luanniao', '凫徯':'fuxi', '朱厌':'zhuyan', '蛮蛮':'manman',
@@ -19277,8 +19313,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.41',
-  codename:'昼巡 · 接榫',
+  version: '1.31.42',
+  codename:'昼巡 · 炉火',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
@@ -21377,9 +21413,16 @@ function useConsumable(itemId){
   const invQty = Game.inventory[itemId]||0;
   if (invQty <= 0){ UI && UI.toast('行囊中没有此物'); return false; }
   if (it.heal){ // 食物：即时回血
+    // 气血只存在于战斗态（Game.combat.playerHp），非战时没有可回的血。
+    // 原先照样扣物品、照样弹「回血 40」——玩家白丢一块肉，界面还说回了。
+    // 这里不扣物，直说留待战时用（战斗结束后气血本就回满，无需常驻血量）。
+    if (!Game.combat){
+      UI && UI.toast(`🍖 未在战中，气血自复；${it.name}留待战时再用`);
+      return false;
+    }
     Game.inventory[itemId]--;
     if (Game.inventory[itemId]<=0) delete Game.inventory[itemId];
-    if (Game.combat){
+    {
       const heal = healAmount(it);
       Game.combat.playerHp = Math.min(playerMaxHp(), Game.combat.playerHp + heal);
       UI && UI.floatText(playerEl(), `+${heal} ❤️`, '#58b368');
@@ -24153,6 +24196,17 @@ function dropBlockedQueue(){
   if (n) saveGame();
   return n;
 }
+// 改某条的数量：跑的时候才发现要得多 / 要得少，原先只能删了重加。
+// 已完成的计数（done）不清零——玩家只是想多要一点，不是想重跑。
+function setQueueQty(id, qty){
+  const e = Game.queue.find(x => x.id === id);
+  if (!e) return false;
+  const v = Math.max(1, Math.min(9999, Math.floor(parseInt(qty, 10) || 1)));
+  if (v === e.qty) return false;
+  e.qty = v;
+  saveGame();
+  return true;
+}
 function removeQueueEntry(id){
   const i = Game.queue.findIndex(e=>e.id===id);
   if (i < 0) return false;
@@ -24415,7 +24469,7 @@ if (typeof window !== 'undefined'){
   window.addQueueEntry = addQueueEntry;
   window.removeQueueEntry = removeQueueEntry; window.duplicateQueueEntry = duplicateQueueEntry;
   window.dropBlockedQueue = dropBlockedQueue;
-  window.moveQueueEntry = moveQueueEntry;
+  window.moveQueueEntry = moveQueueEntry; window.setQueueQty = setQueueQty;
   window.clearQueue = clearQueue;
   window.setFallback = setFallback;
   window.quickIdlePreset = quickIdlePreset;
@@ -27373,6 +27427,10 @@ const UI = {
     }
   },
   closeModal(){
+    // 关窗时把「砧上」的定时器一并收掉：弹窗没了还在跑的 interval 会一直碰空 DOM，
+    // 而且强化结果已落库（料已扣、成败已定），清的是 UI，不是结果。
+    if (typeof UI._clearEnhWait === 'function') UI._clearEnhWait();
+    UI._enhBusy = false;
     const m = $('modal');
     if (m) m.classList.add('hidden');
     if (document.body) document.body.classList.remove('no-scroll');
@@ -30310,6 +30368,14 @@ const OMEN_EFFECT_LABELS = [
   ['offline','离线收益'], ['trade','商旅收益'], ['fish','渔获'], ['build','营造经验'],
   ['craft','制作速度'], ['move','行动速度'], ['divine','卜筮'],
 ];
+// 兆上的「标记位」：不是数值，但玩家该知道它意味着什么。
+// wind / psy 原先只在数据里躺着，界面上谁也看不见；war 有真机制（駮可御兵）却从没写出来——
+// 注释里曾写「大风可被御风御使削弱」，那是从未实现的承诺，已随本次更正删去。
+const OMEN_TAGS = {
+  war:  '兵戈之兆 · 御使駮可御之',
+  wind: '行旅迟滞，舟车难行',
+  psy:  '人心惶惶，卜筮失准',
+};
 function omenEffectText(def){
   const parts = [];
   for (const [k, label] of OMEN_EFFECT_LABELS){
@@ -30317,6 +30383,7 @@ function omenEffectText(def){
     parts.push(`${label} ${def[k] > 0 ? '+' : ''}${Math.round(def[k]*100)}%${def.dur ? `（${fmtTime(def.dur)}）` : ''}`);
   }
   if (def.wise) parts.push('抉择类事件必出最优解');
+  for (const [k, t] of Object.entries(OMEN_TAGS)) if (def[k]) parts.push(t);
   return parts.join('；');
 }
 window.omenEffectText = omenEffectText;
@@ -30764,6 +30831,9 @@ UI.renderQueue = function(){
           <span class="qi-name">${qiIc}${esc(entryLabel(e))}</span>
           <span class="qi-meta">
             <span class="qi-prog">${esc(entryProgressText(e))}</span>
+            <input class="qi-qty" type="number" min="1" step="1" value="${e.qty}"
+              title="改这一条的数量（改完回车或点别处即生效）"
+              onchange="setQueueQty('${e.id}', this.value)">
             <span class="qi-eta">约 ${fmtTime(estimateEntrySeconds(e))}</span>
             ${!st.ok?`<span class="qi-reason">${esc(st.reason)}</span>`:''}
           </span>
@@ -31294,7 +31364,14 @@ UI.itemDetailHtml = function(itemId){
     const why = !lvOk ? `需${requiredSkillName(it)} ${it.lvl}` : (!recOk ? '著录未及' : '');
     actions.push(`<button class="btn ${ok?'primary':''}" ${ok?'':'disabled'} onclick="equipItem('${itemId}',${enhLv});UI.closeModal()">装备${enhLv ? ' +' + enhLv : ''}${ok?'':'（'+why+'）'}</button>`);
   }
-  if (it.heal || it.buff) actions.push(`<button class="btn primary" onclick="useConsumable('${itemId}');UI.closeModal()">${it.heal?'食用':'服用'}</button>`);
+  // 食物只在战中有意义（气血只存在于战斗态）：非战时按钮降为次要样式、写明「战中」，
+  // 点了也不关窗——省得玩家白丢一块肉还以为回了血。
+  if (it.heal || it.buff){
+    const noFight = !!it.heal && !Game.combat;
+    const label = it.heal ? (noFight ? '食用（战中）' : '食用') : '服用';
+    actions.push(`<button class="btn ${noFight ? '' : 'primary'}" ${noFight ? 'title="气血只在战中会掉，此物留待战时用"' : ''}
+      onclick="useConsumable('${itemId}');${noFight ? '' : 'UI.closeModal()'}">${label}</button>`);
+  }
   // 出售改成「数量可填」的交易区（见下方 tradeBlock），不再放死档位按钮
 
   const hasAffix = it.equip && typeof affixSlotOf === 'function' && affixSlotOf(it);
@@ -31363,11 +31440,16 @@ UI.itemDetailHtml = function(itemId){
       const dose = it.buff
         ? `<span class="use-chip">服用·${esc(it.buff.name || '增益')}${it.buff.dur ? `（${Math.round(it.buff.dur/60)} 分）` : ''}</span>`
         : '';
+      // 装备的用途就是「穿」：原先这条完全没列，一件兵器点开也写「暂无合用之方——可售」，
+      // 等于劝玩家把身上的家伙卖掉。
+      const wear = (it.equip && typeof equipSlotOf === 'function' && typeof GearSlotLabels !== 'undefined')
+        ? `<span class="use-chip">可装备·${esc(GearSlotLabels[equipSlotOf(it)] || '')}</span>`
+        : '';
       const body = uses.length
         ? uses.slice(0, 10).map(u => `<span class="use-chip ${u.rite ? 'rite' : ''}">${u.kind}·${esc(u.name)}</span>`).join('') + (uses.length > 10 ? `<span class="hint">等 ${uses.length} 处</span>` : '')
-        : ((crop || dose) ? '' : '<span class="hint">暂无合用之方——可售或留作图鉴</span>');
+        : ((crop || dose || wear) ? '' : '<span class="hint">暂无合用之方——可售或留作图鉴</span>');
       const price = (typeof sellValue === 'function' && it.value) ? `<span class="hint">回收 ${sellValue(itemId, 1)} 贝 / 件</span>` : '';
-      return (body || crop || dose) ? `<div class="reveal"><b>用途</b><span class="use-box">${crop}${dose}${body}${price}</span></div>` : '';
+      return (body || crop || dose || wear) ? `<div class="reveal"><b>用途</b><span class="use-box">${wear}${crop}${dose}${body}${price}</span></div>` : '';
     })()}
     ${it.divine && typeof DIVINE_EFFECTS !== 'undefined' && DIVINE_EFFECTS[it.divine]
       ? `<div class="reveal"><b>神兵</b><span class="dv-tag">${esc(DIVINE_EFFECTS[it.divine].label)}</span><span class="dv-text">${esc(DIVINE_EFFECTS[it.divine].text)}</span></div>` : ''}
@@ -31652,6 +31734,75 @@ UI.refreshItemModal = function(itemId){
 };
 
 // 锁定面板上的强化按钮：演出期间不接受第二次点击
+// ---------- 淬炼的「等待」（v1.31.42） ----------
+// 强化原先只在动效为「全」时才有 1.25 秒演出；设为「轻」或「关」（省电、老设备）就退回瞬间出结果——
+// 而「落锤→揭晓」的等待是这件装备的仪式，不是装饰，不该跟着画质开关一起关掉。
+// 所以时长单独算：等级越高、品阶越好，这一锤越慢；动效关闭只缩短，不归零。
+function enhWaitMs(o){
+  o = o || {};
+  const lv = Math.max(0, o.lv | 0);
+  const g = Math.max(0, Math.min(1, o.grade || 0));      // 0..1：品阶越高压得越久
+  let ms = 1250 + lv * 45 + g * 600;
+  if (typeof Prefs !== 'undefined' && Prefs && Prefs.fxLevel === 'off') ms *= 0.72;
+  return Math.max(900, Math.min(3400, Math.round(ms)));
+}
+
+// 「砧上」过程条：不透露成败，只报这一锤走到了哪一步。
+// 四段文案按进度换，节奏感就在这四句里——一锤到底反而没有悬念。
+const ENH_STEPS = ['炭火通红…', '一锤落下', '火星迸起', '淬入水中…'];
+// 品阶越高的活越慢：凡品一锤就成型，神兵要反复锻打才见分晓
+const ENH_GRADE_W = { '凡':0, '良':0.15, '精':0.35, '珍':0.6, '神':1 };
+window.enhWaitMs = enhWaitMs;
+function enhGradeWeight(it){
+  if (typeof gearGrade !== 'function') return 0;
+  const g = gearGrade(it);
+  const w = ENH_GRADE_W[(g && g.name) || ''];
+  return (w == null) ? 0.2 : w;
+}
+
+UI._enhPending = null;
+UI._showEnhWait = function(dur, label){
+  const box = $('modalBox');
+  // 无头环境（测试 stub）没有 querySelector：安静跳过，别把整条渲染路径拖垮
+  if (!box || typeof box.querySelector !== 'function') return null;
+  const row = box.querySelector('.enh-btns');
+  if (!row) return null;
+  const old = box.querySelector('.enh-forge');
+  if (old) old.remove();
+  const el = document.createElement('div');
+  el.className = 'enh-forge';
+  el.innerHTML = `<span class="ef-anvil">🔨</span>
+    <span class="ef-mid"><span class="ef-txt">${esc(ENH_STEPS[0])}</span>
+      <span class="ef-bar"><i style="width:0%"></i></span></span>
+    <span class="ef-lb">${esc(label || '')}</span>`;
+  row.parentNode.insertBefore(el, row);
+  row.classList.add('enh-row-busy');
+  const bar = el.querySelector('.ef-bar i');
+  const txt = el.querySelector('.ef-txt');
+  const t0 = Date.now();
+  const timer = setInterval(()=>{
+    const p = Math.min(1, (Date.now() - t0) / Math.max(1, dur));
+    if (bar) bar.style.width = (p * 100).toFixed(1) + '%';
+    const idx = Math.min(ENH_STEPS.length - 1, Math.floor(p * ENH_STEPS.length));
+    if (txt && txt.textContent !== ENH_STEPS[idx]) txt.textContent = ENH_STEPS[idx];
+    if (p >= 1) UI._clearEnhWait();
+  }, 60);
+  UI._enhPending = { timer, t0, dur, el };
+  return el;
+};
+UI._clearEnhWait = function(){
+  const p = UI._enhPending;
+  if (p && p.timer) clearInterval(p.timer);
+  UI._enhPending = null;
+  const box = $('modalBox');
+  if (box && typeof box.querySelector === 'function'){
+    const el = box.querySelector('.enh-forge');
+    if (el) el.remove();
+    const row = box.querySelector('.enh-btns');
+    if (row) row.classList.remove('enh-row-busy');
+  }
+};
+
 UI._lockEnhPanel = function(){
   const box = $('modalBox');
   if (!box) return;
@@ -31694,21 +31845,28 @@ UI.enhanceOne = function(target){
     UI.refreshItemModal(itemId);
     return;
   }
+  // 失败时把「火候涨了几格」一并写出来：一败俱毁本来就痛，若连补偿都不提，
+  // 玩家只会觉得这系统在坑他（火候本身就是为此设计的）。
+  const step = (typeof ENHANCE_HEAT !== 'undefined') ? Math.round(ENHANCE_HEAT.STEP * 100) : 8;
+  const heatGain = (r.success || r.usedStone) ? '' : `（火候 +${step}%）`;
   if (r.success) UI._enhLast = { id:itemId, text:`成：+${r.lvBefore} → +${r.lvAfter}`, cls:'good' };
-  else if (r.wiped) UI._enhLast = { id:itemId, text:`毁：+${r.lvBefore} → +0`, cls:'bad' };
-  else if (r.lost) UI._enhLast = { id:itemId, text:`败：跌至 +${r.lvAfter}`, cls:'bad' };
-  else UI._enhLast = { id:itemId, text:`败：${r.usedStone ? '镇物护住原阶' : '仅损材料'}`, cls:'sys' };
+  else if (r.wiped) UI._enhLast = { id:itemId, text:`毁：+${r.lvBefore} → +0${heatGain}`, cls:'bad' };
+  else if (r.lost) UI._enhLast = { id:itemId, text:`败：跌至 +${r.lvAfter}${heatGain}`, cls:'bad' };
+  else UI._enhLast = { id:itemId, text:`败：${r.usedStone ? '镇物护住原阶' : '仅损材料'}${heatGain}`, cls:'sys' };
 
-  const played = (typeof UI.forgeShow === 'function') && UI.forgeShow(it, { heavy:false });
-  if (!played){ UI.refreshItemModal(itemId); UI._revealEnh(itemId, r); return; }
-
+  // 结果已落库（料已扣、成败已定），但先不揭晓：这一锤要等。
+  // ⚠️ 等待不跟动效开关走：设为「轻 / 关」只是少播几下火花，不该变成瞬间出结果。
   UI._enhBusy = true;
   UI._lockEnhPanel();
+  const dur = enhWaitMs({ lv: r.lvBefore, grade: enhGradeWeight(it) });
+  UI.forgeShow && UI.forgeShow(it, { heavy:false });      // 有这个动效就照播，没有也照等
+  UI._showEnhWait(dur, `+${r.lvBefore} → +${r.lvBefore + 1}`);
   setTimeout(()=>{
+    UI._clearEnhWait();
     UI._enhBusy = false;
     UI.refreshItemModal(itemId);
     UI._revealEnh(itemId, r);
-  }, 1250);
+  }, dur);
 };
 
 UI.enhanceTo = function(target){
@@ -31722,9 +31880,17 @@ UI.enhanceTo = function(target){
   const stoneEl = $('enhStone');
   const stone = !!(stoneEl && stoneEl.checked);
   const it = Items[itemId];
-  const played = (typeof UI.forgeShow === 'function') && UI.forgeShow(it, { heavy:true });
-  if (played){ UI._enhBusy = true; UI._lockEnhPanel(); }
+  // 「强化至 +N」是一串锤：等待时长按预计锤数给（目标越高，锻得越久），封顶四秒出头——
+  // 再长就成罚站了。real 次数只有跑完才知道，这里按「至少一级一锤、越往上越费」估。
+  const lvNow = enhanceLevel(target);
+  const est = Math.max(1, (t - lvNow)) * 1.8;
+  const dur = Math.max(1200, Math.min(4600, Math.round(700 + est * 150 + enhGradeWeight(it) * 600)));
+  UI._enhBusy = true;
+  UI._lockEnhPanel();
+  UI.forgeShow && UI.forgeShow(it, { heavy:true });
+  UI._showEnhWait(dur, `+${lvNow} → +${t}`);
   const run = ()=>{
+    UI._clearEnhWait();
     const r = enhanceToTarget(target, t, { stone, noToast: true });
     UI._enhLast = { id:itemId, cls: r.done ? 'good' : (r.wiped ? 'bad' : 'sys'),
       text: `${r.done ? '已至' : (r.wiped ? '尽毁于' : '止于')} +${r.lv}（${r.tries} 次 · 成 ${r.ups} 败 ${r.downs}${r.stones ? ` · 镇物 ${r.stones}` : ''}）` };
@@ -31737,8 +31903,7 @@ UI.enhanceTo = function(target){
       else if (r.wiped){ FX.shakeHard(box); }
     }
   };
-  if (played) setTimeout(run, 1450);
-  else run();
+  setTimeout(run, dur);
 };
 
 UI.reforgeNow = function(itemId){

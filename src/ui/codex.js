@@ -469,6 +469,14 @@ const OMEN_EFFECT_LABELS = [
   ['offline','离线收益'], ['trade','商旅收益'], ['fish','渔获'], ['build','营造经验'],
   ['craft','制作速度'], ['move','行动速度'], ['divine','卜筮'],
 ];
+// 兆上的「标记位」：不是数值，但玩家该知道它意味着什么。
+// wind / psy 原先只在数据里躺着，界面上谁也看不见；war 有真机制（駮可御兵）却从没写出来——
+// 注释里曾写「大风可被御风御使削弱」，那是从未实现的承诺，已随本次更正删去。
+const OMEN_TAGS = {
+  war:  '兵戈之兆 · 御使駮可御之',
+  wind: '行旅迟滞，舟车难行',
+  psy:  '人心惶惶，卜筮失准',
+};
 function omenEffectText(def){
   const parts = [];
   for (const [k, label] of OMEN_EFFECT_LABELS){
@@ -476,6 +484,7 @@ function omenEffectText(def){
     parts.push(`${label} ${def[k] > 0 ? '+' : ''}${Math.round(def[k]*100)}%${def.dur ? `（${fmtTime(def.dur)}）` : ''}`);
   }
   if (def.wise) parts.push('抉择类事件必出最优解');
+  for (const [k, t] of Object.entries(OMEN_TAGS)) if (def[k]) parts.push(t);
   return parts.join('；');
 }
 window.omenEffectText = omenEffectText;

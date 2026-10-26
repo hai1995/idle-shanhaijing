@@ -481,6 +481,10 @@ const UI = {
     }
   },
   closeModal(){
+    // 关窗时把「砧上」的定时器一并收掉：弹窗没了还在跑的 interval 会一直碰空 DOM，
+    // 而且强化结果已落库（料已扣、成败已定），清的是 UI，不是结果。
+    if (typeof UI._clearEnhWait === 'function') UI._clearEnhWait();
+    UI._enhBusy = false;
     const m = $('modal');
     if (m) m.classList.add('hidden');
     if (document.body) document.body.classList.remove('no-scroll');
