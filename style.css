@@ -1264,6 +1264,20 @@ svg.bi.mk{ vertical-align:-2px; }
   margin-top:2px; font-size:9.5px; line-height:1.3; color:var(--ink-4);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;
 }
+/* 图鉴「前往」：未录条目就地跳到舆地对应节点。
+   按钮要小而克制——图鉴是查阅页，不是行动页，抢了主色的戏不好。 */
+.cc-go{
+  margin-top:4px; padding:2px 8px; font-family:var(--f-kai); font-size:10.5px;
+  color:var(--zhu-d); background:transparent;
+  border:1px solid var(--zhu); border-radius:2px; cursor:pointer;
+  transition:background .15s, color .15s;
+}
+.cc-go:hover{ background:var(--zhu); color:var(--paper); }
+.cc-lock{
+  display:inline-block; margin-top:4px; padding:2px 6px;
+  font-family:var(--f-kai); font-size:10px; color:var(--ink-4);
+  border:1px dashed var(--rule-2); border-radius:2px; cursor:default;
+}
 /* 图鉴完成度总览：四类并排，各自一条细进度。
    1121 条的收集进度若只在「当前类」显示，玩家永远不知道自己整体走到哪了。 */
 .codex-overview{

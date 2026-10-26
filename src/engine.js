@@ -63,6 +63,7 @@ const Prefs = {
   band: true,            // 卷二难度带：九九 + 轮回之后自动生效，可关掉回头打本卷
   recipeSkill: null,     // 制作配方停留的分类；null = 自动（按「能做的最高级配方」定）
   lastGatherTimes: null, // 上次手动设定的采集次数（null = 一直采）；下次弹出预填
+  lastGatherId: null,    // 上次采的物（id）；舆地页「再采」据此一键接上
 };
 
 function cloneDefaultGame(){

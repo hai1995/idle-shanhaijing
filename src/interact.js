@@ -24,6 +24,8 @@ function startActivity(kind, arg, opts){
     // 不传 / null = 一直采——挂机时「采 3 次就停」反而是少数意图。
     const gTimes = (opts && opts.times > 0) ? Math.floor(opts.times) : null;
     if (opts && opts.times !== undefined) Prefs.lastGatherTimes = gTimes;
+    // 记住采的是哪件物：舆地页的「再采」据此一键接上（同战斗页的「再战」）
+    Prefs.lastGatherId = arg;
     Game.activity = { kind:'gather', skill:it.skill, itemId:arg, src:'manual', remain:gTimes, total:gTimes };
   } else if (kind === 'craft'){
     const [type, out] = String(arg).split('::');

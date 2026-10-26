@@ -237,6 +237,25 @@ function codexOverviewHtml(v){
   return `<div class="codex-overview">${rows}
     <span class="cx-ov-sum">总 ${v.done}/${v.total}（${v.total ? Math.round(v.done/v.total*100) : 0}%）</span></div>`;
 }
+// 未录条目的「前往」：能定位到节点就给一枚按钮，节点还锁着就写明要多少级。
+function codexGoBtn(e){
+  const cn = (typeof codexNode === 'function') ? codexNode(e) : null;
+  if (!cn) return '';
+  const n = (typeof nodeOf === 'function') ? nodeOf(cn.nodeId) : null;
+  if (n && typeof nodeUnlocked === 'function' && !nodeUnlocked(n)){
+    const why = (typeof nodeLockReason === 'function') ? nodeLockReason(n) : '未解锁';
+    return `<span class="cc-lock" title="${esc(why)}">需 ${n.unlockLevel} 级</span>`;
+  }
+  return `<button class="cc-go" type="button" title="前往 ${esc(n ? n.name : '')}"
+    onclick="event.stopPropagation();UI.gotoCodexNode('${cn.nodeId}','${cn.regionId}')">前往</button>`;
+}
+UI.gotoCodexNode = function(nodeId, regionId){
+  UI.selRegion = regionId;
+  UI.selNode = nodeId;
+  UI.switchTab('yudi');
+  UI.closeModal();
+};
+
 function codexGridInner(v){
   const q = v.q;
   return v.shown.length ? v.shown.map(e=>{
@@ -251,9 +270,13 @@ function codexGridInner(v){
       // 但筛到「仅未录」时，玩家就是在找这些东西去哪打／去哪采——那时才给一行产地，
       // 平时仍留白（未知本身是收藏的乐趣）。
       const where = v.onlyMiss ? codexWhereOf(e) : '';
+      // 前往：山川类（447 条，占全图鉴四成）此前既无产地也无入口——它的条目 id 就是
+      // nodeId，codexNode 现已认得。未录的山就在那儿，给一枚「前往」比让人自己翻舆地强。
+      const goBtn = v.onlyMiss ? codexGoBtn(e) : '';
       return `<div class="codex-card unseen" onclick="showCodexDetail('${e.id}')" title="${esc(e.name)} · 未见${where ? ' · ' + esc(where) : ''}">
         <div class="cc-name">${nmHtml}</div>
         ${where ? `<div class="cc-where">${esc(where)}</div>` : ''}
+        ${goBtn}
       </div>`;
     }
     // 阶位用五个方点表示深浅，避免满屏重复的「未见」二字
@@ -333,7 +356,7 @@ function showCodexDetail(id){
     return `<div class="reveal ${locked?'locked':''}"><b>${TUNING.MASTERY.NAMES[i]}</b>${locked?'<span class="lock-tag">未揭示</span>':esc(txt||'（无）')}</div>`;
   }).join('');
   const cn = codexNode(e);
-  const cnLabel = e.cat === '异兽' ? '前往讨伐节点' : '前往产出节点';
+  const cnLabel = e.cat === '异兽' ? '前往讨伐节点' : (e.cat === '山川' ? '前往此山' : '前往产出节点');
   const cnBtn = cn ? `<button class="btn on" onclick="UI.selRegion='${cn.regionId}';UI.selNode='${cn.nodeId}';UI.switchTab('yudi');UI.closeModal()">${typeof markIcon==='function'?markIcon('pin',13):'📍'} ${cnLabel}</button>` : '';
   // 异兽 / 神祇详情：绘形大像置顶（未著录也画——详情本就是「书中先有其名」）
   const icHtml = (typeof beastIcon === 'function' && (e.cat === '异兽' || e.cat === '神祇'))

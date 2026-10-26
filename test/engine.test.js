@@ -7378,6 +7378,70 @@ section('卡住告警');
   G.resetToDefault();
 }
 
+// ============ 140. 图鉴山川指路 · 再采条 · 离线对照（v1.31.47） ============
+section('图鉴指路与再采');
+{
+  G.resetToDefault();
+  // ---- 1. 山川类能指路 ----
+  // 447 条山川的图鉴 id 就是 nodeId；此前 codexNode 只认异兽与物品，
+  // 于是山川这一类（占全图鉴四成）详情页永远没有「前往」。
+  const shan = Object.values(ST.CODEX || {}).filter(e=>e.cat==='山川');
+  const wSrc2 = readText('src/ui/world.js');
+  const cSrc2 = readText('src/ui/codex.js');
+  assert(wSrc2.includes("e.cat === '山川'"), 'codexNode 认得山川类（条目 id 即 nodeId）');
+  assert(cSrc2.includes('function codexGoBtn') && cSrc2.includes('UI.gotoCodexNode'), '图鉴给出「前往」入口');
+  assert(cSrc2.includes('cc-go') && cSrc2.includes('cc-lock'), '未录卡片渲染前往按钮 / 等级门槛');
+  const css2 = readText('style.css');
+  assert(css2.includes('.cc-go{') && css2.includes('.cc-lock{'), '「前往」与门槛有样式');
+  // 逐条核对：每条山川都能落到一个真实节点
+  if (shan && shan.length){
+    let ok = 0;
+    for (const e of shan){ if (G.nodeOf(e.id)) ok++; }
+    assert(ok === shan.length, shan.length + ' 条山川全部能定位到节点（' + ok + '）');
+  }
+  // 已录的条目不显示前往（避免与详情弹窗里的入口重复）
+  assert(cSrc2.includes("const goBtn = v.onlyMiss ? codexGoBtn(e) : ''"), '「前往」只在「仅未录」筛选下出现');
+
+  // ---- 2. 舆地「再采」条 ----
+  assert(readText('src/engine.js').includes('lastGatherId: null'), 'Prefs 里有「上次采的物」这一位（默认空）');
+  const it2 = ST.Items.migu;
+  ST.Game.skills.qiaocai.level = Math.max(ST.Game.skills.qiaocai.level || 1, it2.lvl);
+  ST.Game.node = 'nanshan-1-01';
+  ST.startActivity('gather', 'migu', { times:4 });
+  assert(ST.Prefs.lastGatherId === 'migu', '采过即记住是哪件物');
+  assert(ST.Prefs.lastGatherTimes === 4, '连次数一起记住');
+  ST.Game.activity = null;
+  assert(typeof ST.UI.regather === 'function', '舆地有「再采」入口');
+  assert(wSrc2.includes('function gatherAgainBar') && wSrc2.includes('UI.regather'), '「再采」条在舆地页');
+  // 再采：沿用上次的物与次数
+  ST.UI.regather();
+  assert(ST.Game.activity && ST.Game.activity.kind === 'gather' && ST.Game.activity.itemId === 'migu', '「再采」接上了同一件物');
+  assert(ST.Game.activity.remain === 4, '「再采」沿用上次的次数（余 4 次）');
+  ST.Game.activity = null;
+  // 正在采同一件时，「再采」条应当让位（顶栏已写着「余 N 次」）
+  ST.startActivity('gather', 'migu');
+  const barHide = G.gatherAgainBar ? G.gatherAgainBar() : null;
+  assert(barHide === '' || barHide === null, '正在采同一件物时不显示「再采」条');
+  ST.Game.activity = null;
+
+  // ---- 3. 统计页离线对照 ----
+  const mSrc = readText('src/ui/misc.js');
+  assert(mSrc.includes('estimateOfflineGains'), '统计页近况给出离线折算对照');
+  assert(mSrc.includes('离线一小时约'), '离线对照写明一小时口径');
+  // 顺带修一处旧错：「当前：行动·undefined」——entryLabel 是队列条目用的，
+  // 喂给它活动对象取不到 target，自然拼出 undefined。
+  assert(mSrc.includes('currentActivityLabel()'), '近况的「当前」用活动标签（不再拼出 undefined）');
+  assert(!mSrc.includes('entryLabel(Game.activity)'), '不再把队列标签函数用在活动上');
+  assert(typeof ST.estimateOfflineGains === 'function', '离线估算函数可用');
+  // 估算按「当前活动」推：得有活动才谈得上离线折算多少
+  ST.startActivity('gather', 'migu');
+  ST.Game.node = (ST.Items.migu.node || ST.Game.node);
+  const off = ST.estimateOfflineGains(1);
+  assert(off && off.xp > 0, '离线一小时能估出修为（' + (off && off.xp) + '）');
+  ST.Game.activity = null;
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

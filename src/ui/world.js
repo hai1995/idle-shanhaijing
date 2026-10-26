@@ -146,6 +146,7 @@ UI.renderYudi = function(){
   // 指引条只控制自身显隐，地图/山系/节点/详情必须始终渲染（曾因三元表达式包住整页导致关闭指引条后界面全空）
   let html = ((typeof Prefs !== 'undefined' && Prefs.hideHint) ? '' :
     `<div class="hint-banner"><span class="mi-ic">${typeof markIcon==='function'?markIcon(hintMark(h),15):h.icon}</span> <span>${esc(h.text)}</span><button class="hint-close" title="关闭指引条（设置中可重开）" onclick="UI.dismissHint()">✕</button></div>`)
+    + gatherAgainBar()
     + `<div class="map-wrap">
     <div class="panel regions">
       <h3>山系</h3>
@@ -434,6 +435,32 @@ UI.startGatherTimes = function(itemId){
   this.closeModal();
   startActivity('gather', itemId, { times:n });
 };
+// 「再采」条：与征伐页的「再战」对称。
+// 采一遍是「选山 → 找物 → 定次数 → 开始」四步；做完一轮往往还要再来一轮
+// （换目标前先把手上的料补足），这四步不该每次重走。
+// 采的就是当前活动时不显示——此时顶栏已经写着「采 X · 余 N 次」。
+function gatherAgainBar(){
+  const id = Prefs.lastGatherId;
+  if (!id || !Items[id]) return '';
+  const a = Game.activity;
+  if (a && a.kind === 'gather' && a.itemId === id) return '';
+  const it = Items[id];
+  const times = Prefs.lastGatherTimes;
+  const n = (times && times > 0) ? ` · ${times} 次` : ' · ♾';
+  return `<div class="rematch-bar gather-bar">
+    <button class="btn primary" type="button" onclick="UI.regather()">🪓 再采 ${esc(it.name)}${n}</button>
+    <span class="hint">沿用上次的物${times && times > 0 ? '与次数' : ''}；要改次数点下方那件物</span>
+  </div>`;
+}
+UI.regather = function(){
+  const id = Prefs.lastGatherId;
+  if (!id || !Items[id]){ this.toast('上次的采集目标已不可采'); return false; }
+  const times = (Prefs.lastGatherTimes && Prefs.lastGatherTimes > 0) ? Prefs.lastGatherTimes : null;
+  const ok = startActivity('gather', id, times ? { times } : undefined);
+  if (ok) this.toast(`🪓 再采 ${Items[id].name}`);
+  return ok;
+};
+
 function observeButtonForNode(node){
   const site = Object.values(OBSERVE_SITES).find(s=>s.nodeId === node.id);
   if (!site) return '';
@@ -579,10 +606,15 @@ function materialStatusForSkill(skillId){
   return Object.values(map).map(m=>{ const have = (Game.inventory && Game.inventory[m.id]) || 0; return { ...m, have, ok: have >= m.need }; });
 }
 // 图鉴条目 → 其产出/讨伐节点
+// ⚠️ 山川类的条目 id **就是** nodeId（buildCodex 里 put({ id: node.id, cat:'山川' })），
+// 原先只按「异兽取 monster.nodeId、其余取 Items[id].node」找节点——山川这一类
+// Items 里根本没有同名物品，于是 447 条山川永远查不到节点，详情页也就没有「前往」，
+// 图鉴里的山川类（占全图鉴四成）成了唯一指不了路的分类。
 function codexNode(e){
   if (!e) return null;
   let nodeId = null;
   if (e.cat === '异兽'){ const m = Monsters[e.id]; if (m) nodeId = m.nodeId; }
+  else if (e.cat === '山川'){ if (nodeOf(e.id)) nodeId = e.id; }
   else { const it = Items[e.id]; if (it) nodeId = it.node; }
   if (!nodeId) return null;
   for (const r of (WORLD.regions||[])){

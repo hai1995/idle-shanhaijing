@@ -105,13 +105,27 @@ UI.renderStats = function(){
           return `<div class="hint">修为${word}累计均值 ${Math.abs(Math.round(d*100))}%（均值 ${fmt(Math.round(cumXp))}/时）</div>`;
         })()}
         ${Game.activity
-          ? `<div class="hint">当前：${esc((typeof entryLabel === 'function' ? entryLabel(Game.activity) : '') || '')}</div>`
+          ? `<div class="hint">当前：${esc((typeof currentActivityLabel === 'function' ? currentActivityLabel() : '') || '')}</div>`
           : (Game.combat ? '<div class="hint">当前：往讨中</div>' : '<div class="hint">当前空闲——速率会趋近于零</div>')}
         ${(()=>{
           // 卡住告警：与顶栏那条 toast 同源（rateStall），这里给的是「几分钟、卡的是什么」。
           const st = (typeof rateStall === 'function') ? rateStall() : null;
           if (!st) return '';
           return `<div class="hint stall-warn">⚠ 近 ${Math.max(1, Math.round(st.seconds / 60))} 分钟修为没有增长，但仍在「${esc(currentActivityLabel())}」——多半卡住了：料不足、产地不符，或队列被阻塞。</div>`;
+        })()}
+        ${(()=>{
+          // 离线对照：现在这速率是「盯着屏幕」才有的。下线一晚上能拿多少？
+          // 拿离线口径（按当前活动照真实公式折算一小时）与在线速率比，
+          // 玩家才知道该守着还是该关掉。差得远就说明离线效率还浅（多半是没盖山海阁）。
+          if (typeof estimateOfflineGains !== 'function') return '';
+          const p = estimateOfflineGains(1);
+          if (!p || !(p.xp > 0)) return '';
+          const offXp = Math.round(p.xp);
+          const pct = r.xpPerH > 0 ? Math.round(offXp / r.xpPerH * 100) : 0;
+          const ks = Object.keys(p.items || {});
+          const loot = ks.length ? `、+${fmt(p.items[ks[0]])} ${esc((Items[ks[0]]||{}).name||ks[0])}` : '';
+          const word = pct >= 90 ? '离线几乎不掉（关掉也照收）' : pct >= 60 ? '离线约抵在线的七成' : '离线只剩在线的一小半';
+          return `<div class="hint">离线一小时约 <b>${fmt(offXp)}</b> 修为${loot}——${word}（在线 ${pct}%）。</div>`;
         })()}
       </div>`;
     })()}
