@@ -1088,6 +1088,19 @@ addItem(
   I('yaobifu','瑶碧符','charm',{ value:200, lvl:34, icon:'🪸', equip:true, grade:'fine', slot:'charm', effect:'瑶碧为佩，学而不厌', xpBonus:0.08, py:'yáo bì fú' }),
   I('xuanjifu','璇玑符','charm',{ value:260, lvl:45, icon:'🪸', equip:true, grade:'fine', slot:'charm', effect:'璇玑之玉，所在必获', gatherBonus:0.10, py:'xuán jī fú' }),
   I('shuibifu','水碧符','charm',{ value:340, lvl:57, icon:'🪸', equip:true, grade:'rare', slot:'charm', effect:'水碧为佩，可以御患', defBonus:6, py:'shuǐ bì fú' }),
+  // 中山三神赐（v1.31.20）：初谒专属异宝，全游戏唯一来源、无配方不可合成。
+  // 泰逢——中次三经和山之神，虎尾出入有光：佩之修学不辍（xp）
+  I('zs_taifeng_huang','泰逢璜','charm',{ value:320, lvl:70, icon:'🟡', equip:true, grade:'precious', slot:'charm',
+    effect:'出入有光，佩之修学不辍', xpBonus:0.08, py:'tài féng huáng',
+    note:'和山之神泰逢初谒所赐——其状如人而虎尾，好居于萯山之阳，出入有光' }),
+  // 耕父——中次八经丰山之神，常游清泠之渊：佩之所获必丰（yield）
+  I('zs_fengshan_light','丰山之光','charm',{ value:360, lvl:71, icon:'🔆', equip:true, grade:'precious', slot:'charm',
+    effect:'出入有光，佩之所获必丰', yieldBonus:0.12, py:'fēng shān zhī guāng',
+    note:'丰山神耕父初谒所赐——常游清泠之渊，出入有光；其神见则其国为败，佩其光者反得其丰' }),
+  // 帝之二女——中次十二经洞庭之神，出入必以飘风暴雨：佩之得风雨之势（dmg）
+  I('zs_ernv_pei','帝女之珮','charm',{ value:400, lvl:73, icon:'🌀', equip:true, grade:'precious', slot:'charm',
+    effect:'出入必以飘风暴雨，佩之得风雨之势', dmgBonus:0.08, py:'dì nǚ zhī pèi',
+    note:'洞庭之山帝之二女初谒所赐——常游于江渊，出入必以飘风暴雨' }),
   I('zhichiru','炙赤鱬','food',{ value:45, heal:90, icon:'🐟', edible:true, effect:'食之不疥', py:'zhì chì rú' }),
   I('zhihujiao','炙虎蛟','food',{ value:70, heal:150, icon:'🐟', edible:true, effect:'食者不肿，可以已痔', py:'zhì hǔ jiāo' }),
   I('shilaisan','释劳散','potion',{ value:200, lvl:66, icon:'🧪', buff:{ name:'释劳', kind:'gather', gather:0.35, dur:240 }, effect:'食之已劳' }),
@@ -1563,15 +1576,17 @@ const FAUNA_META = {
   // 且赐的正是**本系祠礼要用的那件祭品**（雄鸡 / 吉玉 / 珪 / 藻圭 / 牝豚 / 稌米 / 玉 / 羊牲）：
   // 「谒见本系山神 → 得行祭之料」于是成了一条闭环，而不是两份互不相干的表。
   '武罗':     { id:'zs_wuluo',   el:'木', deity:true, py:'wǔ luó',  gift:'yu',          note:'青要之山神——人面豹文，小要而白齿，穿耳以鐻，其鸣如鸣玉。其山「其阳多玉」' },
-  '泰逢':     { id:'zs_taifeng', el:'火', deity:true, py:'tài féng',gift:'yang',        note:'和山之神——其状如人而虎尾，好居于萯山之阳，出入有光。祠用一牡羊' },
+  // 特例三神：赐物不是祭品，而是一件专属护符（唯一来源 = 初谒，不可合成）——
+  // 十位全给祭品虽然闭环，但谒见之间毫无差异；这三位各留一件「神赐异宝」。
+  '泰逢':     { id:'zs_taifeng', el:'火', deity:true, py:'tài féng',gift:'zs_taifeng_huang', note:'和山之神——其状如人而虎尾，好居于萯山之阳，出入有光。祠用一牡羊' },
   '骄虫':     { id:'zs_jiaochong', el:'火', deity:true, py:'jiāo chóng', gift:'jiyu2',  note:'平逢之山神——其状如人而二首，是为螫虫，实惟蜂蜜之庐。其祠用吉玉' },
   '𬠷围':     { id:'zs_weiu',    el:'木', deity:true, py:'tuó wéi', gift:'zs_zaogui',   note:'骄山神——其状如人面，羊角虎爪，恒游于雎漳之渊，出入有光。其祠用藻圭' },
   '计蒙':     { id:'zs_jimeng',  el:'水', deity:true, py:'jì méng', gift:'tu',          note:'光山神——其状人身而龙首，恒游于漳渊，出入必有飘风暴雨。其祠糈用稌' },
   '涉𬠷':     { id:'zs_shetuo',  el:'土', deity:true, py:'shè tuó', gift:'xiongji',     note:'岐山神——其状人身而方面，三足。其祠用一雄鸡' },
   '神人':     { id:'zs_shenren', el:'金', deity:true, py:'shén rén',gift:'jiyu2',        note:'熊山之穴——恒出入神人，夏启而冬闭，冬启乃必有兵。其祠用吉玉' },
-  '耕父':     { id:'zs_gengfu',  el:'水', deity:true, py:'gēng fù', gift:'guiyu',       note:'丰山神——常游清泠之渊，出入有光，见则其国为败。其祠用珪' },
+  '耕父':     { id:'zs_gengfu',  el:'水', deity:true, py:'gēng fù', gift:'zs_fengshan_light', note:'丰山神——常游清泠之渊，出入有光，见则其国为败。其祠用珪' },
   '于儿':     { id:'zs_yuer',    el:'水', deity:true, py:'yú ér',   gift:'zs_mutun',    note:'夫夫之山神——其状人身而身操两蛇，常游于江渊，出入有光。其祠用牝豚' },
-  '帝之二女': { id:'zs_ernv',    el:'水', deity:true, py:'dì zhī èr nǚ', gift:'tu',     note:'洞庭之山——帝之二女居之，常游于江渊，出入必以飘风暴雨。其祠糈用稌' },
+  '帝之二女': { id:'zs_ernv',    el:'水', deity:true, py:'dì zhī èr nǚ', gift:'zs_ernv_pei',     note:'洞庭之山——帝之二女居之，常游于江渊，出入必以飘风暴雨。其祠糈用稌' },
   '鸓':     { id:'lei',      el:'木', drop:'niaoyu', py:'lěi' },
   '白蛇':   { id:'baishe',   el:'水', drop:'baishepi', extra:[['zs_baishe_r',0.4,1]], note:'蛇而色白——其胆入药（中次十二经柴桑之山多白蛇）' },
   '虎':     { id:'hu',       el:'金', drop:'hupi', man:true },
@@ -2597,8 +2612,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.19',
-  codename:'昼巡 · 会员',
+  version: '1.31.20',
+  codename:'昼巡 · 神赐',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',

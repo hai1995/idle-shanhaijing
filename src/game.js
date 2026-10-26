@@ -442,6 +442,7 @@ function xpMult(){
   m += rebirthGain();                               // 轮回印：越转越快，不封顶
   m += relicSum('xp');                              // 前世遗物：每卷一缕旧学
   m += memberBonus('xp');                           // 会员：修行经验
+  if (Game.gear.charm && Game.gear.charm.xpBonus) m += Game.gear.charm.xpBonus;     // 泰逢璜 / 当扈符：佩之修学
   return m;
 }
 function dmgMult(){
@@ -450,6 +451,7 @@ function dmgMult(){
   m += deployedBonuses().dmg;
   m += omenMod('dmg');               // 有兵之兆（凫徯 / 朱厌 / 大鹗…）：伤害 -15%
   if (Game.buff && Game.buff.def && Game.buff.def.kind === 'all' && Game.buff.def.dmg) m += Game.buff.def.dmg;
+  if (Game.gear.charm && Game.gear.charm.dmgBonus) m += Game.gear.charm.dmgBonus;   // 帝女之珮：风雨之势
   return m;
 }
 function defBonus(){
@@ -495,6 +497,7 @@ function globalYieldBonus(){
   b += rebirthYield();               // 轮回印：采获随转数递增
   b += relicSum('yield');            // 前世遗物
   b += memberBonus('yield');         // 会员：采获
+  if (Game.gear.charm && Game.gear.charm.yieldBonus) b += Game.gear.charm.yieldBonus; // 丰山之光 / 文鳐符：佩之所获必丰
   return b;
 }
 function isWise(){                       // 灌灌「佩之不惑」

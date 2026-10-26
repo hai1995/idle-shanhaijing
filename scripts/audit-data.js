@@ -244,6 +244,8 @@ for (const [name, map] of [['观象', W.OBSERVE_SITES], ['养成', W.GROW_SITES]
   }
   // 中山诸神赐的是「本系祠礼要用的那件祭品」：谒见 → 得料 → 行祭，一条闭环。
   // 改礼单时若忘了同步赐物，这条会报——免得又变成两份互不相干的表。
+  // 例外（v1.31.20）：泰逢/耕父/帝之二女赐专属护符（神赐异宝，不入礼单）。
+  const DEITY_CHARM = { zs_taifeng:'zs_taifeng_huang', zs_gengfu:'zs_fengshan_light', zs_ernv:'zs_ernv_pei' };
   for (const [nodeId, s] of Object.entries(W.AUDIENCE_SITES || {})){
     if (String(nodeId).indexOf('zhongshan-') !== 0) continue;
     const regionId = nodeId.replace(/-\d+$/, '');
@@ -251,7 +253,7 @@ for (const [name, map] of [['观象', W.OBSERVE_SITES], ['养成', W.GROW_SITES]
       && (W.RITES[r.out] || {}).regionId === regionId);
     if (!rite) continue;
     const cost = new Set((rite.cost || []).map(([id]) => id));
-    const hit = (s.deities || []).some(d => d.gift && cost.has(d.gift));
+    const hit = (s.deities || []).some(d => d.gift && (cost.has(d.gift) || DEITY_CHARM[d.id] === d.gift));
     if (!hit)
       bad('谒见', `${s.name} 的赐物（${(s.deities || []).map(d => d.gift || '无').join('/')}）都不在本系祠礼（${rite.out}）之内——谒见与行祭接不上`);
   }

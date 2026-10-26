@@ -4992,7 +4992,9 @@ section('谒见之赐');
   const empty = sites.filter(([, s2]) => !(s2.deities || []).some(d => d.gift)).map(([k]) => k);
   assert(empty.length === 0, '每处至少一位神祇带初谒之赐' + (empty.length ? '：' + empty.join('、') : ''));
 
-  // 中山诸神：赐物必须是本系祠礼要用的那一样，否则「谒见」与「行祭」还是两张皮
+  // 中山诸神：赐物必须是本系祠礼要用的那一样，否则「谒见」与「行祭」还是两张皮。
+  // 例外（v1.31.20）：泰逢/耕父/帝之二女赐专属护符（神赐异宝，不入礼单）。
+  const DEITY_CHARM = { zs_taifeng:'zs_taifeng_huang', zs_gengfu:'zs_fengshan_light', zs_ernv:'zs_ernv_pei' };
   const offRite = [];
   for (const [nodeId, s2] of sites){
     if (nodeId.indexOf('zhongshan-') !== 0) continue;
@@ -5000,10 +5002,30 @@ section('谒见之赐');
     const rite = ST.Recipes.find(r => r.type === 'rite' && (ST.RITES[r.out] || {}).regionId === regionId);
     if (!rite) continue;
     const cost = new Set((rite.cost || []).map(([id]) => id));
-    if (!s2.deities.some(d => d.gift && cost.has(d.gift)))
+    if (!s2.deities.some(d => d.gift && (cost.has(d.gift) || DEITY_CHARM[d.id] === d.gift)))
       offRite.push(`${s2.name}→${s2.deities.map(d => d.gift || '无').join('/')}`);
   }
-  assert(offRite.length === 0, '中山诸神的赐物都在本系礼单之内' + (offRite.length ? '：' + offRite.join('、') : ''));
+  assert(offRite.length === 0, '中山诸神的赐物都在本系礼单之内（三神护符例外）' + (offRite.length ? '：' + offRite.join('、') : ''));
+
+  // 三神特例赐物：真护符、真加成、全游戏唯一来源
+  const charmIds = Object.values(DEITY_CHARM);
+  for (const cid of charmIds){
+    const it = ST.Items[cid];
+    assert(it && it.equip && it.slot === 'charm', cid + ' 是可装备护符');
+    assert(!ST.Recipes.some(r => r.out === cid), cid + ' 无配方（唯一来源=初谒之赐）');
+  }
+  assert(ST.Items.zs_taifeng_huang.xpBonus === 0.08, '泰逢璜 xp+8%');
+  assert(ST.Items.zs_fengshan_light.yieldBonus === 0.12, '丰山之光 采获+12%');
+  assert(ST.Items.zs_ernv_pei.dmgBonus === 0.08, '帝女之珮 伤害+8%');
+  // 其余七位中山神仍赐祭品（礼单闭环不被破坏）
+  const zhongGifts = [];
+  for (const [nodeId, s2] of sites){
+    if (nodeId.indexOf('zhongshan-') !== 0) continue;
+    s2.deities.forEach(d => zhongGifts.push([d.id, d.gift]));
+  }
+  for (const [did, g] of zhongGifts){
+    if (!DEITY_CHARM[did]) assert(g && ST.Items[g] && !ST.Items[g].equip, did + ' 仍赐祭品（' + g + '）');
+  }
 
   // 实发：只在初谒给一次，且赐物真进背包
   ST.Game.inventory = {};
@@ -5021,6 +5043,19 @@ section('谒见之赐');
   // 赐物写进异迹索引：玩家挑这一趟值不值，得先看见给什么
   const row = ST.heteroSites().find(x => x.kind === '谒见' && x.id === nid);
   assert(row && row.gain.indexOf('初谒赐') >= 0 && row.gain.indexOf('吉玉') >= 0, '索引写明赐物：' + (row || {}).gain);
+
+  // 神赐护符的加成要真接线（v1.31.20）：佩戴前后 xpMult / globalYieldBonus / dmgMult 必须变化
+  const oldCharm = ST.Game.gear.charm;
+  ST.Game.gear.charm = ST.Items.zs_taifeng_huang;
+  const xpWith = ST.xpMult();
+  ST.Game.gear.charm = ST.Items.zs_fengshan_light;
+  const yWith = ST.globalYieldBonus();
+  ST.Game.gear.charm = ST.Items.zs_ernv_pei;
+  const dWith = ST.dmgMult();
+  ST.Game.gear.charm = oldCharm;
+  assert(xpWith >= 0.08 + (oldCharm && oldCharm.xpBonus || 0), '泰逢璜入 xpMult（' + xpWith.toFixed(3) + '）');
+  assert(yWith >= 0.12, '丰山之光入 globalYieldBonus（' + yWith.toFixed(3) + '）');
+  assert(dWith >= 1.08, '帝女之珮入 dmgMult（' + dWith.toFixed(3) + '）');
 }
 
 // ============ 84. 六凶 0/7：分子分母不是一回事 ============
