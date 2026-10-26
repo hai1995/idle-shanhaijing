@@ -9,6 +9,8 @@
 //      若现场也在重绘范围内，动画每渲染一次就归零，等于没有动画；
 //   ③ 不改变任何产出与节奏，纯视觉层（平衡零风险）。
 
+// 五系各一色。日间是深墨，夜间必须换一套浅的——同一块 #1F3D5C 放在 #17140F 上，
+// 对比度只有 1.6:1，等于没有画面。夜间版按「同一色相提亮到 4.5:1 以上」取。
 const SCENE_INK = {
   nanshan:  '#2E5269',
   xishan:   '#6B6659',
@@ -16,18 +18,55 @@ const SCENE_INK = {
   dongshan: '#566E4C',
   zhongshan:'#B03A2B',
 };
+const SCENE_INK_NIGHT = {
+  nanshan:  '#8FB4CB',
+  xishan:   '#B6AB92',
+  beishan:  '#7FA3C6',
+  dongshan: '#A2C48E',
+  zhongshan:'#DE6650',
+};
 
-// 当前行动 → 现场要画的东西。无行动 / 纯征伐时返回 null（征伐页自有战斗画面，
-// 在仪表带上再画一遍战场是重复）。
+// 当前主题。读 documentElement 的 data-theme，与 CSS 用同一个判据（setTheme 写的就是它）。
+function sceneNight(){
+  if (typeof document === 'undefined' || !document.documentElement) return false;
+  return document.documentElement.getAttribute('data-theme') === 'night';
+}
+// night 参数只为测试留的：不传就跟当前主题走（判据仍是 sceneNight 一处）。
+function sceneInkOf(ser, night){
+  const n = (night === undefined) ? sceneNight() : !!night;
+  const pal = n ? SCENE_INK_NIGHT : SCENE_INK;
+  return pal[ser] || (n ? '#B6AB92' : '#6B6659');
+}
+
+// 当前行动 → 现场要画的东西。
+// v1.31.61 起，征伐也算一种「行动」：此前这里对战斗直接返回 null，
+// 于是挂机打怪时整条现场消失，玩家反而看不见「在打」。
 function sceneState(){
   const a = (typeof Game !== 'undefined') ? Game.activity : null;
-  if (!a) return null;
   const node = (typeof nodeOf === 'function' && typeof Game.node === 'string') ? nodeOf(Game.node) : null;
   const reg  = (typeof regionOf === 'function' && typeof Game.node === 'string') ? regionOf(Game.node) : null;
   const ser  = reg ? String(reg.regionId).split('-')[0] : '';
-  const ink  = SCENE_INK[ser] || '#6B6659';
-  const iv   = (typeof currentActionInterval === 'function') ? currentActionInterval() : 3;
+  const ink  = sceneInkOf(ser);
   const place = node ? node.name : '';
+  const iv   = (typeof currentActionInterval === 'function') ? currentActionInterval() : 3;
+
+  // 征伐：战斗是另一套状态（Game.combat），不在 Game.activity 里
+  const cb = (typeof Game !== 'undefined') ? Game.combat : null;
+  if (cb && typeof foeOf === 'function' && typeof Monsters !== 'undefined' && Monsters[cb.monsterId]){
+    const m = foeOf(Monsters[cb.monsterId]);
+    // 节拍取「几秒一击」，与采集的「几秒一采」是同一个概念：
+    // 动画周期必须等于产出周期，否则「一击一伤」的因果会错位。
+    const atk = (typeof playerAttackInterval === 'function') ? Math.max(0.2, playerAttackInterval()) : 1;
+    return {
+      kind:'fight', ink, place, iv: atk,
+      key: `fight:${cb.monsterId}`,
+      verb:'战', name: m.name,
+      note: `每 ${atk.toFixed(1)} 秒一击`,
+      foe: { name: m.name, hp: Math.max(0, Math.round(cb.monsterHp || 0)), max: Math.round(m.hp || 0) },
+    };
+  }
+
+  if (!a) return null;
 
   if (a.kind === 'gather'){
     const it = (typeof Items !== 'undefined') ? Items[a.itemId] : null;
@@ -101,16 +140,25 @@ const SCENE_GRIP = [31, 30];
 const SCENE_STICK = [10, 29];         // 静止时从握点到柄末端的向量
 const SCENE_BLADE = 7.4;             // 刃的半长（锄刃宽，短了像锤子）
 
-function sceneToolPath(a){
+// 每种工具一套「柄向量 + 刃半宽」。锄长、锤短，但举落是同一套帧表——
+// 动作的节奏属于「人」，不属于工具，所以只换尺寸，不换时间轴。
+const SCENE_KIT = {
+  gather: { stick: SCENE_STICK, blade: SCENE_BLADE },
+  craft:  { stick: [4, 17],     blade: 6.2 },
+};
+
+function sceneToolPath(a, kind){
+  const kit = SCENE_KIT[kind] || SCENE_KIT.gather;
+  const stick = kit.stick, half = kit.blade;
   const rad = (isFinite(a) ? a : 0) * Math.PI / 180;
   const c = Math.cos(rad), sn = Math.sin(rad);
-  const vx = SCENE_STICK[0]*c - SCENE_STICK[1]*sn;
-  const vy = SCENE_STICK[0]*sn + SCENE_STICK[1]*c;
-  const L  = Math.hypot(SCENE_STICK[0], SCENE_STICK[1]);
+  const vx = stick[0]*c - stick[1]*sn;
+  const vy = stick[0]*sn + stick[1]*c;
+  const L  = Math.hypot(stick[0], stick[1]);
   const px = -vy / L, py = vx / L;                 // 垂直于柄
   const ex = SCENE_GRIP[0] + vx, ey = SCENE_GRIP[1] + vy;
-  const b1 = [ex - px*SCENE_BLADE, ey - py*SCENE_BLADE];
-  const b2 = [ex + px*SCENE_BLADE, ey + py*SCENE_BLADE];
+  const b1 = [ex - px*half, ey - py*half];
+  const b2 = [ex + px*half, ey + py*half];
   const shrink = (q, k) => [ex + (q[0]-ex)*k, ey + (q[1]-ey)*k];
   const c1 = shrink(b1, .84), c2 = shrink(b2, .84);
   const f = n => n.toFixed(1);
@@ -137,13 +185,110 @@ function sceneTool(kind){
       <path class="sc-mark"  d="M35 61.7 L46.8 57.1" stroke="#B03A2B" stroke-width="1.8" stroke-linecap="round" opacity=".88"/>
     </g>`;
   }
+  // 锤：与锄同一套几何（柄 + 头），只是柄短、头方。这样「举—落」的节奏不用另写一份。
   if (kind === 'craft'){
     return `<g class="sc-tool">
-      <path d="M30 38 L38 48" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>
-      <rect x="34" y="44" width="10" height="7" rx="1.2" fill="currentColor" opacity=".9"/>
+      <path class="sc-shaft" d="M31 30 L35 47" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+      <path class="sc-blade" d="M31.6 48 L38.6 44.4" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
+      <path class="sc-mark"  d="M32.6 47.5 L36.6 45.4" stroke="#B03A2B" stroke-width="1.6" stroke-linecap="round" opacity=".8"/>
+    </g>`;
+  }
+  // 剑：贴着手的短柄 + 长刃 + 红缨。剑不挥，靠整个人前冲（见 paintFight）。
+  if (kind === 'fight'){
+    return `<g class="sc-tool">
+      <path d="M31 30 L54 39" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>
+      <path d="M42 34.4 L55 39.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity=".55"/>
+      <path d="M33.4 35.2 L38.8 28.8" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+      <path d="M29.6 28.6 L26.4 26.2" stroke="#B03A2B" stroke-width="2" stroke-linecap="round" opacity=".85"/>
     </g>`;
   }
   return '';
+}
+
+// 敌方：一头伏低的兽。四足 + 头 + 角 + 尾，34px 高足够认出来。
+// 面向左（朝我方），fill 用 currentColor，与画面同色系。
+function sceneFoe(){
+  return `<svg class="sc-foe" viewBox="0 0 46 34" aria-hidden="true">
+    <path d="M9 26 Q6 19 12 16 Q20 12 29 13 Q39 14 41 20 L40 27 Q30 30 20 29 Q12 29 9 26 Z"
+      fill="currentColor" opacity=".82"/>
+    <path d="M13 16 Q7 15 4.6 19.4 Q3.6 22.6 8 23 Q11.6 23 13 16 Z" fill="currentColor" opacity=".88"/>
+    <path d="M11.4 15 L12.6 8.6 L16.4 13.6 Z" fill="currentColor" opacity=".88"/>
+    <path d="M14.6 13.4 L16.8 5.2 L19 12.6 Z" fill="currentColor" opacity=".7"/>
+    <path d="M40 18 Q45 14.4 44 8.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".8"/>
+    <g stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".85">
+      <path d="M14 26 L13 31"/><path d="M20.4 28 L20.4 31"/>
+      <path d="M31 28 L31 31"/><path d="M37 26.6 L38 31"/>
+    </g>
+    <circle cx="9" cy="19" r="1.15" fill="#B03A2B"/>
+  </svg>`;
+}
+
+// 地面上的「物」：每种行动一件，和锄头一样只用线条与淡墨块。
+function sceneProps(kind){
+  if (kind === 'gather'){
+    return `<div class="sc-pit"><i></i><i></i><i></i></div>
+      <svg class="sc-mound" viewBox="0 0 18 7" aria-hidden="true">
+        <path d="M1 6 Q9 0 17 6 Z" fill="currentColor" fill-opacity=".2"/>
+      </svg>`;
+  }
+  // 砧：一块上宽下窄的石
+  if (kind === 'craft'){
+    return `<svg class="sc-anvil" viewBox="0 0 24 13" aria-hidden="true">
+      <path d="M2.4 6.2 L21.6 6.2 L18.4 11.6 L5.6 11.6 Z" fill="currentColor" fill-opacity=".24"/>
+      <path d="M1 3 L23 3 L21.4 6.2 L2.6 6.2 Z" fill="currentColor" fill-opacity=".3"/>
+      <path d="M1.6 3 L22.4 3" stroke="currentColor" stroke-opacity=".42" stroke-width="1.1"/>
+    </svg>`;
+  }
+  // 苗：三株，风一来一起摆（CSS 驱动，不占 JS 帧）
+  if (kind === 'grow'){
+    return `<svg class="sc-sprout" viewBox="0 0 30 26" aria-hidden="true">
+      <!-- 一丛灌木：一个不规则的墨块 + 几点叶。28px 宽里，块面比线条容易认出「这是植物」 -->
+      <path d="M4 17 Q1.6 8.6 9 6.4 Q11.6 1.4 18 3.2 Q25 2 26.4 9 Q29.4 14 23.8 17.2
+               Q19.4 20 15 19.2 Q8.4 20.2 4 17 Z" fill="currentColor" opacity=".42"/>
+      <path d="M15 25 L15 18.4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity=".7"/>
+      <g fill="currentColor" opacity=".6">
+        <circle cx="10.4" cy="9.6" r="1.3"/><circle cx="17" cy="6.4" r="1.1"/>
+        <circle cx="21" cy="12.2" r="1.2"/><circle cx="7.6" cy="14" r="1"/>
+      </g>
+    </svg>`;
+  }
+  // 门阙：两柱一枋，谒见所立之处
+  if (kind === 'audience'){
+    return `<svg class="sc-gate" viewBox="0 0 34 30" aria-hidden="true">
+      <!-- 三级台阶，自下而上收窄。30px 的宽里，台阶比门阙好认得多 -->
+      <g fill="currentColor" opacity=".3">
+        <rect x="0" y="22" width="34" height="6"/>
+        <rect x="4" y="16" width="26" height="6"/>
+        <rect x="8.6" y="10" width="16.8" height="6"/>
+      </g>
+      <g stroke="currentColor" stroke-opacity=".4" stroke-width="1.1">
+        <path d="M0 22 L34 22"/><path d="M4 16 L30 16"/><path d="M8.6 10 L25.4 10"/>
+      </g>
+      <path d="M0 28 L34 28" stroke="currentColor" stroke-opacity=".26" stroke-width="1"/>
+    </svg>`;
+  }
+  return '';
+}
+
+// 天象：观象时抬头看的东西，铺满整条现场（不放在 stage 里）
+function sceneSky(kind){
+  if (kind !== 'observe') return '';
+  return `<svg class="sc-stars" viewBox="0 0 405 60" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0 0 L405 0 L405 22 Q330 30 250 24 Q160 17 90 26 Q40 31 0 25 Z"
+      fill="currentColor" fill-opacity=".05"/>
+    <g fill="currentColor" opacity=".55">
+      <path d="M120 14 l1.8 3.6 -1.8 3.6 -1.8 -3.6 Z"/>
+      <path d="M196 9 l1.6 3.2 -1.6 3.2 -1.6 -3.2 Z"/>
+      <path d="M268 16 l1.5 3 -1.5 3 -1.5 -3 Z"/>
+      <path d="M330 11 l1.8 3.6 -1.8 3.6 -1.8 -3.6 Z"/>
+    </g>
+    <path d="M236 4.4 a6.4 6.4 0 1 0 0 12.8 a7.6 7.6 0 1 1 0 -12.8 Z" fill="currentColor" opacity=".35"/>
+  </svg>`;
+}
+
+// 现场中央：一击命中的火花（CSS 驱动，只在 .hit 那一刻显形）
+function sceneSpark(){
+  return `<div class="sc-spark"><i></i><i></i><i></i><i></i></div>`;
 }
 
 // 远山：三层折线，最远最淡。宽度随容器拉伸（preserveAspectRatio=none），
@@ -176,15 +321,19 @@ function sceneHtml(s){
   // 只有采集与制作会「一件一件出东西」；观象、谒见、莳植没有计数可言，
   // 硬摆一个永远是 0 的大数字，比不摆更让人困惑。
   const counted = (s.kind === 'gather' || s.kind === 'craft');
+  const fight = (s.kind === 'fight');
+  const hud = fight
+    ? `<b class="sc-label">${esc(s.foe.name)}</b><span>气血 ${s.foe.hp} / ${s.foe.max}</span>`
+    : (counted
+        ? `<b><i class="sc-n${t && t.n ? '' : ' zero'}">${t && t.n ? t.n : 0}</i> 件</b>`
+        : `<b class="sc-label">${esc(s.name)}</b>`);
   return `<div class="sc-wrap${anim}" data-kind="${s.kind}" style="--ai:${s.iv.toFixed(2)}s;color:${s.ink}">
     <div class="sc-sky"></div>
     ${sceneHills()}
-    <div class="sc-stage">
+    ${sceneSky(s.kind)}
+    <div class="sc-stage${fight ? ' sc-duel' : ''}">
       <div class="sc-rig">${sceneWorker(s.kind, s.kind)}</div>
-      <div class="sc-pit"><i></i><i></i><i></i></div>
-      <svg class="sc-mound" viewBox="0 0 18 7" aria-hidden="true">
-        <path d="M1 6 Q9 0 17 6 Z" fill="currentColor" fill-opacity=".2"/>
-      </svg>
+      ${fight ? sceneFoe() + sceneSpark() : sceneProps(s.kind)}
     </div>
     <!-- 地面放在人物之后：前坡把小腿挡住，「站在坡后」比「站在一块板上」自然 -->
     <svg class="sc-ground" viewBox="0 0 700 32" preserveAspectRatio="none" aria-hidden="true">
@@ -195,9 +344,7 @@ function sceneHtml(s){
     </svg>
     <div class="sc-drops"></div>
     <div class="sc-hud">
-      ${counted
-        ? `<b><i class="sc-n${t && t.n ? '' : ' zero'}">${t && t.n ? t.n : 0}</i> 件</b>`
-        : `<b class="sc-label">${esc(s.name)}</b>`}
+      ${hud}
       <span>${esc(s.note)}</span>
     </div>
     ${UI.sceneProbeOn() ? '<div class="sc-probe"></div>' : ''}
@@ -231,6 +378,8 @@ UI.renderScene = function(){
   const sig = sceneSig(s);
   if (sig !== UI._sceneSig){
     UI._sceneSig = sig;
+    UI._sceneKind = s.kind;
+    UI._sceneIv = s.iv;
     bar.innerHTML = sceneHtml(s);
     if (UI.startSceneMotion) UI.startSceneMotion();     // 重建后重新接管
   }
@@ -301,6 +450,11 @@ const SCENE_SWING = [
 ];
 const SCENE_RIG = [
   [0, 0], [7, .6], [26, -3.4], [35, -3.6], [56, 4], [62, 1.4], [72, .3], [100, 0],
+];
+// 征伐不用「举落」，用「前冲」：先缩半步蓄力，再突进 9px，命中回弹。
+// 单位是 px（translateX），与上面的角度帧表共用 sceneAngleAt 的插值。
+const SCENE_LUNGE = [
+  [0, 0], [10, -1.2], [45, -3], [62, -3.4], [88, 9], [94, 2.4], [100, 0],
 ];
 
 // 分段插值。纯线性的挥动像机械臂，故每段中间加一点缓动。
@@ -392,11 +546,42 @@ UI.startSceneMotion = function(){
   UI._sceneRaf = requestAnimationFrame(step);
 };
 
+// 征伐的单帧：相位取战斗自己的 timer（不是采集的 activityProgress）。
+// 命中判定用「相位绕回」——timer 被减掉一个间隔的瞬间，就是这一击落下的时候。
+function paintFight(bar, rig){
+  const iv = UI._sceneIv > 0 ? UI._sceneIv : 1;
+  const c = (typeof Game !== 'undefined') ? Game.combat : null;
+  let p;
+  if (c && typeof c.timer === 'number'){
+    p = Math.max(0, Math.min(1, c.timer / iv));
+  } else {
+    const T = iv * 1000;
+    p = (sceneNow() % T) / T;
+  }
+  const dx = sceneAngleAt(SCENE_LUNGE, p);
+  if (rig && isFinite(dx)) rig.style.transform = 'translateX(' + dx.toFixed(1) + 'px)';
+  const last = UI._scenePhase;
+  if (last !== undefined && p < last - 0.35){
+    const fo = bar.querySelector('.sc-foe');
+    const sp = bar.querySelector('.sc-spark');
+    if (fo){ fo.classList.remove('hit'); void fo.getBoundingClientRect(); fo.classList.add('hit'); }
+    if (sp){ sp.classList.remove('on'); void sp.offsetWidth; sp.classList.add('on'); }
+  }
+  UI._scenePhase = p;
+  UI._sceneFrames = (UI._sceneFrames || 0) + 1;
+  UI._sceneLast = sceneNow();
+  UI._sceneMiss = 0;
+  if (UI._sceneCss) UI.sceneCssFallback(false);
+  if (UI.sceneProbeOn()) UI.paintProbe();
+}
+
 // 单帧绘制。抽出来是为了让 watchdog 与启动路径共用一份（判据单一来源）。
 UI.paintSceneFrame = function(){
   const bar = (typeof document !== 'undefined') ? document.getElementById('sceneBar') : null;
   if (!bar) return;
   const rig = bar.querySelector('.sc-rig');
+  // 征伐走另一套：不挥工具，整个人前冲；命中一刻迸火。
+  if (UI._sceneKind === 'fight'){ paintFight(bar, rig); return; }
   if (!bar.querySelector('.sc-shaft') && !rig) return;
   const iv = (typeof currentActionInterval === 'function') ? currentActionInterval() : 1;
   const T = (iv > 0) ? iv * 1000 : 2600;
@@ -414,7 +599,7 @@ UI.paintSceneFrame = function(){
   const ta = sceneAngleAt(SCENE_SWING, p);
   const ra = sceneAngleAt(SCENE_RIG, p);
   if (!isFinite(ta) || !isFinite(ra)) return;      // 非法值宁可不写，也别把上次的姿态留着
-  const g = sceneToolPath(ta);
+  const g = sceneToolPath(ta, UI._sceneKind);
   const shaft = bar.querySelector('.sc-shaft');
   const blade = bar.querySelector('.sc-blade');
   const mark  = bar.querySelector('.sc-mark');
@@ -470,6 +655,13 @@ if (typeof document !== 'undefined' && document.addEventListener){
 if (typeof window !== 'undefined'){
   window.sceneAngleAt = sceneAngleAt;
   window.sceneToolPath = sceneToolPath;
+  window.SCENE_LUNGE = SCENE_LUNGE;
+  window.SCENE_KIT = SCENE_KIT;
+  window.sceneInkOf = sceneInkOf;
+  window.sceneNight = sceneNight;
+  window.sceneProps = sceneProps;
+  window.sceneFoe = sceneFoe;
+  window.sceneSky = sceneSky;
   window.SCENE_SWING = SCENE_SWING;
   window.SCENE_RIG = SCENE_RIG;
   window.sceneState = sceneState;

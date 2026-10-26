@@ -629,6 +629,9 @@ const UI = {
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', t === 'night' ? '#0E0B07' : '#1E1C18');
     if (persist){ try { localStorage.setItem('shj-theme', t); } catch(e){} }
+    // 现场的画面颜色不是 CSS 变量给的，是渲染时按主题挑的墨色写进内联样式（见 sceneInkOf）。
+    // 不在这里重画一次，切到夜间后那条现场会留着一身「日间的深墨」——整条看不见。
+    if (this.renderScene) this.renderScene();
   },
   toggleTheme(){
     const de = document.documentElement;

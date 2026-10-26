@@ -8044,6 +8044,76 @@ section('指引条版面');
     '正文 min-width:0（否则 flex 项不肯缩，截断失效）');
 }
 
+// ============ 148. 夜间要连现场一起暗，征伐也是一场行动（v1.31.61） ============
+// ① 夜间的病根不是「少写了几条 night 规则」，是现场的颜色不走 token：
+//    底色写死 #F5F2E8→#EAE5D6，墨色在 JS 里按山系写死深色。整页转夜，只有这条还是白纸。
+// ② 征伐此前不进现场（sceneState 直接 return null），挂机打怪时画面整条消失。
+section('夜间与战阵');
+{
+  const sSrc148 = readText('src/ui/scene.js');
+  const cssSrc148 = readText('style.css');
+  const cSrc148 = readText('src/ui/core.js');
+
+  // ---- 1. 底色走 token，不再写死 ----
+  const wrapRule = ((cssSrc148.match(/^\.sc-wrap\{[\s\S]*?\}/m) || [''])[0]).replace(/\/\*[\s\S]*?\*\//g, '');
+  assert(wrapRule && !/#[0-9A-Fa-f]{6}/.test(wrapRule), '现场底色不再写死色值（注释不算）');
+  assert(/var\(--paper-3\)/.test(wrapRule), '底色走 --paper-3 / --paper token');
+  assert(cssSrc148.includes('[data-theme="night"] .sc-wrap'), '夜间给现场单独一条');
+
+  // ---- 2. 墨色两套，夜间更亮 ----
+  const lum = hex => {
+    const v = hex.replace('#','');
+    const r = parseInt(v.slice(0,2),16), g = parseInt(v.slice(2,4),16), b = parseInt(v.slice(4,6),16);
+    return .2126*r + .7152*g + .0722*b;
+  };
+  assert(typeof ST.sceneInkOf === 'function', '墨色选取是一处判据');
+  for (const ser of ['nanshan','xishan','beishan','dongshan','zhongshan']){
+    const d = ST.sceneInkOf(ser, false), n = ST.sceneInkOf(ser, true);
+    assert(d !== n, ser + ' 有日/夜两色');
+    assert(lum(n) > lum(d) + 40, ser + ' 夜间那色明显更亮（暗底上才看得见）');
+  }
+
+  // ---- 3. 切主题要重画现场：颜色是渲染时写进内联样式的，不重画就留着旧墨 ----
+  assert(/applyTheme\(t, persist\)\{[\s\S]{0,600}this\.renderScene\(\)/.test(cSrc148),
+    'applyTheme 里重画现场');
+
+  // ---- 4. 征伐进现场 ----
+  const combat = { monsterId: Object.keys(ST.Monsters)[0], monsterHp: 5, playerHp: 100, style: 'normal', timer: .3 };
+  const savedActivity = ST.Game.activity, savedCombat = ST.Game.combat;
+  ST.Game.activity = null; ST.Game.combat = combat;
+  const fs = ST.sceneState();
+  assert(fs && fs.kind === 'fight', '有战斗时现场给 fight，而不是 null');
+  assert(fs.foe && fs.foe.max > 0 && fs.foe.hp >= 0, '带上敌方气血');
+  assert(fs.iv > 0 && fs.iv < 60, '间隔取「几秒一击」');
+  const fHtml = ST.sceneHtml(fs);
+  assert(fHtml.includes('sc-duel'), '征伐时舞台加宽');
+  assert(fHtml.includes('class="sc-foe"'), '右侧有兽');
+  assert(fHtml.includes('sc-spark'), '命中火花');
+  assert(fHtml.indexOf('sc-n') < 0, '征伐不摆「已采几件」');
+  ST.Game.activity = savedActivity; ST.Game.combat = savedCombat;
+
+  // ---- 5. 其余行动各有其物，且都在这条现场里 ----
+  assert(ST.sceneProps('craft').includes('sc-anvil'), '制作有砧');
+  assert(ST.sceneProps('grow').includes('sc-sprout'), '莳植有灌木');
+  assert(ST.sceneProps('audience').includes('sc-gate'), '谒见有阶');
+  assert(ST.sceneProps('gather').includes('sc-mound'), '采集有土堆');
+  assert(ST.sceneSky('observe').includes('sc-stars'), '观象有天象');
+  assert(ST.sceneSky('gather') === '', '别的行动不画星空');
+
+  // ---- 6. 征伐用「前冲」，不是「举落」 ----
+  assert(Array.isArray(ST.SCENE_LUNGE) && ST.SCENE_LUNGE.some(f => f[1] > 5),
+    '前冲帧表有实际位移');
+  assert(sSrc148.includes("UI._sceneKind === 'fight'") && sSrc148.includes('paintFight'),
+    '单帧绘制对征伐分路');
+  assert(sSrc148.includes('SCENE_LUNGE, p'), '前冲用自己那张帧表');
+
+  // ---- 7. 锤与锄共用时间轴、只换尺寸 ----
+  assert(ST.SCENE_KIT && ST.SCENE_KIT.craft && ST.SCENE_KIT.craft.stick[1] < ST.SCENE_KIT.gather.stick[1],
+    '锤柄比锄柄短');
+  const gG = ST.sceneToolPath(0, 'gather'), gC = ST.sceneToolPath(0, 'craft');
+  assert(gG.shaft !== gC.shaft, '两种工具各自算出自己的柄');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

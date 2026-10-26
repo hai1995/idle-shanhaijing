@@ -136,6 +136,12 @@
 [data-theme="night"] .gear-tile:hover{ background:rgba(236,230,216,.055); }
 [data-theme="night"] #tipLayer{ border-color:rgba(236,230,216,.22); }
 [data-theme="night"] .fx-float{ text-shadow:0 1px 0 rgba(0,0,0,.5), 0 0 12px rgba(0,0,0,.4); }
+/* 夜间现场：天光从「压白」改成「压暗」，否则顶上一条亮带像没关的灯。
+   底色已走 token；这里只补两处写死过的光。 */
+[data-theme="night"] .sc-wrap{ --sc-sky:rgba(236,230,216,.045); }
+[data-theme="night"] .sc-flash{
+  background:radial-gradient(circle at 22% 78%, rgba(221,87,66,.26), rgba(221,87,66,.06) 42%, transparent 62%);
+}
 
 *{ box-sizing:border-box; margin:0; padding:0; }
 html{ -webkit-text-size-adjust:100%; }
@@ -302,12 +308,15 @@ html.theme-anim, html.theme-anim *{
 
 .sc-wrap{
   position:relative; height:82px; overflow:hidden;
-  background:linear-gradient(180deg, #F5F2E8 0%, #EAE5D6 100%);
+  /* 底色走 token：此前是写死的 #F5F2E8→#EAE5D6，于是夜间模式下整页都暗了，
+     只有这条现场还是一块发亮的纸（v1.31.61 修）。 */
+  background:linear-gradient(180deg, var(--paper-3) 0%, var(--paper) 100%);
   border-bottom:1px solid var(--rule);
-  color:#6B6659;                 /* 由内联 style 覆盖为该山系之色 */
+  color:var(--ink-3);            /* 由内联 style 覆盖为该山系之色 */
   --ai:3s;                       /* 一次行动的秒数，动画周期与之相同 */
+  --sc-sky:rgba(255,255,255,.55);/* 天光：日间压白，夜间压暗（见夜间段） */
 }
-.sc-sky{ position:absolute; inset:0; background:linear-gradient(180deg, rgba(255,255,255,.55), transparent 58%); }
+.sc-sky{ position:absolute; inset:0; background:linear-gradient(180deg, var(--sc-sky), transparent 58%); }
 .sc-hills{ position:absolute; left:0; right:0; top:0; width:100%; height:52px; color:inherit; }
 .sc-birds{ transform-box:view-box; animation:scBird 19s ease-in-out infinite alternate; }
 @keyframes scBird{
@@ -352,6 +361,53 @@ html.theme-anim, html.theme-anim *{
 }
 .sc-pit i:nth-child(2){ left:9px; animation-delay:-.1s; }
 .sc-pit i:nth-child(3){ left:2px; animation-delay:-.2s; }
+
+/* —— 各行动的「物」 ——
+   一件行动配一件物：砧（制）、苗（莳）、阙（谒）、星（观）、兽（战）。
+   都只用 currentColor 与淡墨填充，换主题时跟着走，不需要另配一套色。 */
+.sc-anvil{ position:absolute; left:34px; bottom:13px; width:24px; height:13px; color:inherit; }
+.sc-sprout{
+  position:absolute; left:42px; bottom:10px; width:30px; height:26px; color:inherit;
+  transform-origin:50% 100%; animation:scSway 3.2s ease-in-out infinite;
+}
+@keyframes scSway{
+  0%,100%{ transform:rotate(-1.6deg); }
+  50%    { transform:rotate(1.8deg); }
+}
+.sc-gate{ position:absolute; left:42px; bottom:13px; width:34px; height:30px; color:inherit; opacity:.92; }
+.sc-stars{ position:absolute; left:0; right:0; top:0; width:100%; height:60px; color:inherit; pointer-events:none; }
+.sc-stars g{ animation:scTwinkle 4.6s ease-in-out infinite; }
+@keyframes scTwinkle{
+  0%,100%{ opacity:.45; }
+  50%    { opacity:.9; }
+}
+
+/* —— 征伐 —— 舞台加宽：人在左，兽在右 */
+.sc-duel{ width:150px; }
+.sc-foe{
+  position:absolute; right:0; bottom:11px; width:46px; height:34px; color:inherit;
+  transform-origin:70% 100%;
+}
+.sc-foe.hit{ animation:scHit .26s ease-out; }
+@keyframes scHit{
+  0%  { transform:translateX(0) scale(1); }
+  30% { transform:translateX(3.5px) scale(1.04); filter:drop-shadow(0 0 3px rgba(176,58,43,.9)); }
+  100%{ transform:translateX(0) scale(1); }
+}
+/* 命中火花：四个点沿各自方向迸开。方向写在各 <i> 上，动画只有一条。 */
+.sc-spark{ position:absolute; right:30px; bottom:30px; width:2px; height:2px; pointer-events:none; }
+.sc-spark i{
+  position:absolute; left:0; top:0; width:2.6px; height:2.6px; border-radius:50%;
+  background:var(--zhu); opacity:0; --sx:10px; --sy:-8px;
+}
+.sc-spark i:nth-child(2){ --sx:-7px; --sy:-10px; }
+.sc-spark i:nth-child(3){ --sx:9px;  --sy:6px; }
+.sc-spark i:nth-child(4){ --sx:-9px; --sy:3px; }
+.sc-spark.on i{ animation:scSpark .3s ease-out; }
+@keyframes scSpark{
+  0%  { opacity:1; transform:translate(0,0) scale(1); }
+  100%{ opacity:0; transform:translate(var(--sx), var(--sy)) scale(.35); }
+}
 @keyframes scDust{
   0%, 25%{ opacity:0; transform:translate(0,0) scale(.7); }
   30%    { opacity:.34; transform:translate(-1px,-4px) scale(.85); }   /* 第一锄的小土 */
@@ -368,11 +424,11 @@ html.theme-anim, html.theme-anim *{
   position:absolute; left:26px; bottom:0;
   display:flex; align-items:center; gap:2px;
   padding:1px 5px 1px 2px; border-radius:3px;
-  background:rgba(247,245,238,.94); border:1px solid rgba(107,102,89,.24);
+  background:var(--paper-3); border:1px solid var(--rule);
   font-family:var(--f-kai); font-size:10px; line-height:1.5; color:var(--ink-2);
   white-space:nowrap; animation:scDrop 1.25s ease-out forwards;
 }
-.sc-drop em{ font-style:normal; font-family:var(--f-num); font-size:10px; color:#B08A34; }
+.sc-drop em{ font-style:normal; font-family:var(--f-num); font-size:10px; color:var(--jin); }
 .sc-drop s{ text-decoration:none; margin-left:2px; font-size:9px; color:var(--zhu-d); }
 /* 初次著录：这一件是「图鉴里还没见过的」，值得比普通收成显眼一档 */
 .sc-drop.first{ border-color:rgba(176,58,43,.5); box-shadow:0 0 0 2px rgba(176,58,43,.1); }
@@ -416,7 +472,7 @@ html.theme-anim, html.theme-anim *{
   position:absolute; left:10px; bottom:6px;
   font-family:var(--f-num); font-size:9.5px; color:var(--ink-3);
   letter-spacing:.02em; pointer-events:none;
-  background:rgba(247,245,238,.78); padding:0 4px; border-radius:2px;
+  background:var(--paper-3); padding:0 4px; border-radius:2px; box-shadow:0 0 0 1px var(--rule-2);
 }
 
 /* 产出闪光：以人脚下为中心的一层朱色淡光，0.5 秒退去。
@@ -459,6 +515,10 @@ html.theme-anim, html.theme-anim *{
 .sc-wrap.no-anim .sc-tool,
 .sc-wrap.no-anim .sc-birds,
 .sc-wrap.no-anim .sc-stage,
+.sc-wrap.no-anim .sc-sprout,
+.sc-wrap.no-anim .sc-stars g,
+.sc-wrap.no-anim .sc-foe,
+.sc-wrap.no-anim .sc-spark i,
 .sc-wrap.no-anim .sc-pit i{ animation:none; }
 .sc-wrap.no-anim .sc-drop{ animation-duration:.01s; }
 
