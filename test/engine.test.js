@@ -6050,6 +6050,35 @@ section('快速挂机');
   assert(/已达成 \d+ \/ \d+/.test(html), '标题报出已达成几条');
 }
 
+// ============ 110. 图鉴成就点开看「还差哪些」 ============
+// 成就只写「异兽 著录 153 / 306」，玩家看不出差的那些是什么、在哪。
+// 点开列未著录的条目，各带一处出没之地（同名异兽按名去重）。
+{
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui', 'codex.js'), 'utf8');
+  assert(src.includes('UI.codexAchDetail') && src.includes('function codexWhere'),
+    '图鉴成就有「还差哪些」详情');
+  assert(src.includes('role="button" tabindex="0"') && src.includes("onclick=\"UI.codexAchDetail("),
+    '每条图鉴成就都可点开');
+
+  // 数据侧：未著录池按名去重，且能给出山名
+  G.resetToDefault();
+  ST.Game.records = {};
+  const pool = Object.values(ST.CODEX).filter(e => e.cat === '异兽' && !(ST.Game.records || {})[e.id]);
+  assert(pool.length > 100, '异兽未录 ' + pool.length + ' 条（新档应几乎全未录）');
+  const names = new Set(pool.map(e => e.name));
+  assert(names.size < pool.length, '同名异兽确实重复（去重前 ' + pool.length + ' 条 / 去重后 ' + names.size + ' 名）');
+  // 至少多数条目能给出一处山名（少数观瑞/神祇没有产地）
+  const withWhere = pool.filter(e => {
+    const it = ST.Items[e.id];
+    if (it && it.node) return !!ST.nodeOf(it.node);
+    const m = ST.Monsters[e.id];
+    return !!(m && m.nodeId && ST.nodeOf(m.nodeId));
+  });
+  assert(withWhere.length > pool.length * 0.8,
+    `${withWhere.length}/${pool.length} 条能标出山名`);
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

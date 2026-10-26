@@ -47,7 +47,8 @@ UI.openAchModal = function(){
     <div class="ach-list">
       ${rows.map(({ a, st, done }) => {
         const p = Math.min(100, Math.round(done / Math.max(1, a.need) * 100));
-        return `<div class="ach-row st-${st}">
+        return `<div class="ach-row st-${st}" role="button" tabindex="0"
+          onclick="UI.codexAchDetail('${a.id}')" title="点开看还差哪些">
           <div class="ach-main">
             <div class="ach-nm">${esc(a.name)}<span class="ach-tag">${stText[st]}</span></div>
             <div class="ach-desc">${esc(a.desc)} · 当前 ${done}</div>
@@ -63,6 +64,48 @@ UI.openAchModal = function(){
     <div class="modal-btns">
       ${claimable ? `<button class="btn primary" onclick="claimAllCodexAch();UI.closeModal();UI.renderCodex()">一并领取（${claimable}）</button>` : ''}
       <button class="btn" onclick="UI.closeModal()">闭</button>
+    </div>`);
+};
+
+// 「还差哪些」：图鉴成就只写「异兽 著录 262/292」，玩家看不出差的 30 条是什么、在哪。
+// 点开就把未著录的列出来，各带一处出没之地；差得太多时只列前 12 条并给出总数。
+function codexWhere(id){
+  const it = (typeof Items !== 'undefined') ? Items[id] : null;
+  if (it && it.node){ const n = nodeOf(it.node); return n ? (n.name || '') : ''; }
+  const m = (typeof Monsters !== 'undefined') ? Monsters[id] : null;
+  if (m && m.nodeId){ const n = nodeOf(m.nodeId); return n ? (n.name || '') : ''; }
+  return '';
+}
+UI.codexAchDetail = function(id){
+  const a = (window.CODEX_ACHIEVEMENTS || []).find(x => x.id === id);
+  if (!a) return;
+  const st = codexAchState(a);
+  const done = codexDoneCount(a.cat);
+  const stText = { claimable:'可领', locked:'未达', claimed:'已领' };
+  // 未著录的那几条
+  const pool = Object.values(CODEX).filter(e => (a.cat ? e.cat === a.cat : true) && !(Game.records || {})[e.id]);
+  const seen = new Set();
+  const rows = [];
+  for (const e of pool){
+    if (seen.has(e.name)) continue;      // 同名异兽散在各山，按名去重
+    seen.add(e.name);
+    rows.push({ name: e.name, where: codexWhere(e.id) });
+  }
+  const shown = rows.slice(0, 12);
+  const p = Math.min(100, Math.round(done / Math.max(1, a.need) * 100));
+  const tabOf = { beast:'beast', mountain:'mountain', thing:'thing', deity:'deity' };
+  UI.modal(`<h3>${esc(a.name)} <span class="tier">${stText[st]}</span></h3>
+    <div class="meta">当前 ${done} 条 · 目标 ${a.need} 条（全 ${a.total} 条）${done < a.need ? ` · 还差 ${a.need - done}` : ' · 已达标'}</div>
+    <div class="ach-pro" style="margin:8px 0 12px"><i style="width:${p}%"></i></div>
+    ${rows.length ? `<div class="reveal"><b>还差</b><span class="ach-letters">${
+      shown.map(r => `<span class="ach-letter">${esc(r.name)}${r.where ? `<i>${esc(r.where)}</i>` : ''}</span>`).join('')
+    }${rows.length > shown.length ? `<span class="hint">…另 ${rows.length - shown.length} 条，去图鉴里翻</span>` : ''}</span></div>`
+      : '<div class="reveal"><b>还差</b>此类已尽收</div>'}
+    <div class="reveal"><b>回馈</b>${esc(codexAchRewardText(a))}</div>
+    <div class="modal-btns">
+      ${st === 'claimable' ? `<button class="btn primary" onclick="claimCodexAch('${a.id}');UI.closeModal();UI.openAchModal();UI.renderCodex()">领取</button>` : ''}
+      ${a.cat ? `<button class="btn" onclick="UI.closeModal();UI.codexTab='${tabOf[a.cat] || 'beast'}';UI.renderCodex()">去图鉴看</button>` : ''}
+      <button class="btn" onclick="UI.openAchModal()">返回列表</button>
     </div>`);
 };
 
