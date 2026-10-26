@@ -161,6 +161,10 @@ UI.renderYudi = function(){
             const un = regionUnlocked(r);
             const done = r.nodes.filter(n=>Game.map[n.id]).length;
             const full = r.nodes.length > 0 && done >= r.nodes.length;
+            // 巡礼印记：满额未领 → 朱色「赏」；已领 → 淡墨「巡」。
+            // 25/25 只写在选中山系的标题行，切走就看不见了，方块上得留痕。
+            const pg = (typeof regionPilgrim === 'function') ? regionPilgrim(r.regionId) : null;
+            const seal = (pg && pg.full) ? (pg.claimed ? '巡' : '赏') : '';
             // 中山经十二系已于 v1.13 全录，此分支现仅在数据缺失时兜底（空山系不按进度渲染）
             const todo = r.nodes.length > 0;
             // 方块：山系名 + 涉山进度；未解锁只留一把锁与所需等级
@@ -170,6 +174,7 @@ UI.renderYudi = function(){
               <span class="rg-name">${esc(r.regionName)}</span>
               <span class="rg-sub">${un ? (todo ? `${done}/${r.nodes.length} 山` : '待补录') : `${typeof markIcon==='function'?markIcon('lock',13):'🔒'} ${r.unlockLevel} 级`}</span>
               ${un && todo && done > 0 ? `<span class="rg-bar"><i style="width:${(done/r.nodes.length*100).toFixed(0)}%"></i></span>` : ''}
+              ${seal ? `<span class="rg-seal ${pg.claimed?'done':'ready'}" title="${pg.claimed?'此系巡礼已成':'诸山皆涉，可领赏'}">${seal}</span>` : ''}
             </div>`;
           }).join('')}
           </div>

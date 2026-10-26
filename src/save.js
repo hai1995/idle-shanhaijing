@@ -33,17 +33,24 @@ const SAVE_MIGRATIONS = {
   5: (d) => {
     const inv = (d.inventory && typeof d.inventory === 'object') ? d.inventory : {};
     const enh = (d.enhance && typeof d.enhance === 'object') ? d.enhance : {};
-    const out = [];
-    if (Array.isArray(d.packGear)) out.push(...d.packGear);
+    const bucket = new Map();
+    const add = (id, enh, n) => {
+      const k = id + '@' + enh;
+      const cur = bucket.get(k);
+      if (cur) cur.n += n; else bucket.set(k, { id, enh, n });
+    };
+    if (Array.isArray(d.packGear)){
+      for (const g of d.packGear) if (g && g.id) add(g.id, (parseInt(g.enh, 10) || 0), Math.max(1, parseInt(g.n, 10) || 1));
+    }
     for (const id of Object.keys(inv)){
       const n = Math.floor(inv[id] || 0);
       if (n <= 0) continue;
       const isEquip = !!(typeof Items !== 'undefined' && Items[id] && Items[id].equip);
       if (!isEquip) continue;
-      const lv = Math.max(0, parseInt(enh[id], 10) || 0);
-      for (let i = 0; i < n; i++) out.push({ id, enh: lv });
+      add(id, Math.max(0, parseInt(enh[id], 10) || 0), n);
       delete inv[id];
     }
+    const out = [...bucket.values()];
     d.inventory = inv;
     d.packGear = out;
     return d;
@@ -115,8 +122,21 @@ function serializeSave(){
     mobStreak: G.mobStreak || {}, orders: G.orders || [], ordersAt: G.ordersAt || 0,
     pilgrim: G.pilgrim || {},
     enhance: G.enhance || {}, enhanceHeat: G.enhanceHeat || {}, affixSalt: G.affixSalt || {},
-    // 行囊装备：一件一条，各自带淬炼档（v6）
-    packGear: Array.isArray(G.packGear) ? G.packGear.map(g => ({ id: g.id, enh: g.enh | 0 })) : [],
+    // 行囊装备：同 id 同淬炼档合并成一条 { id, enh, n }。
+    // 按件存是为了让「+2」与「+0」分得开，但存档没必要真写 n 条——
+    // 一百支箭就是一百条 JSON，几百件杂装能把 localStorage 撑爆。
+    packGear: (() => {
+      if (!Array.isArray(G.packGear)) return [];
+      const m = new Map();
+      for (const g of G.packGear){
+        if (!g || !g.id) continue;
+        const k = g.id + '@' + (g.enh | 0);
+        const cur = m.get(k);
+        if (cur) cur.n++;
+        else m.set(k, { id: g.id, enh: g.enh | 0, n: 1 });
+      }
+      return [...m.values()];
+    })(),
     rebirth: G.rebirth || { count:0, at:0, best:0 },
     // 会员权益快照：由账号层写入，本地只读；未登录时恒为 { tier:'none', until:0 }
     member: G.member || { tier:'none', until:0 },

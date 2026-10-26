@@ -654,6 +654,14 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
 .region-tile.on{ border-color:var(--zhu); background:var(--zhu-w); }
 .region-tile.on .rg-name{ color:var(--zhu-d); }
 .region-tile.full .rg-sub{ color:var(--tai); }
+/* 巡礼印记：右上角一方小印。未领为朱底白字（催你点），已领转淡墨（只记个痕） */
+.region-tile{ position:relative; }
+.rg-seal{
+  position:absolute; top:3px; right:3px; width:14px; height:14px; border-radius:2px;
+  font-family:var(--f-kai); font-size:9px; line-height:14px; text-align:center; font-weight:700;
+}
+.rg-seal.ready{ background:var(--zhu); color:#fff; }
+.rg-seal.done{ background:transparent; color:var(--ink-4); border:1px solid var(--rule); }
 .region-tile.lock{ border-style:dashed; }
 .region-tile.lock .rg-name{ color:var(--ink-3); }
 .region-tile .rg-bar{
@@ -2512,6 +2520,18 @@ details.hetero-panel .hp-left{ margin-left:auto; font-style:normal; color:var(--
 .hetero-row .hr-where{ color:var(--ink-3); font-size:11px; }
 .hetero-row .hr-gain{ color:var(--ink-3); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .hetero-row .hr-lock{ text-align:right; font-size:11px; color:var(--ink-4); white-space:nowrap; }
+/* 窄屏：五列放不下（3.2+6+7+8+6.6em ≈ 400px），改成两行三列。
+   宁可折成两行，也不要横向溢出——异迹表是「还差哪几处」的索引，滚丢一列就失去意义。 */
+@media (max-width:640px){
+  .hetero-row{
+    grid-template-columns:3.2em minmax(0,1fr) 6.4em; row-gap:2px; padding:6px 9px;
+  }
+  .hetero-row > .hr-kind{ grid-column:1; grid-row:1 / span 2; align-self:start; }
+  .hetero-row > .hr-name{ grid-column:2; grid-row:1; }
+  .hetero-row > .hr-go, .hetero-row > .hr-lock{ grid-column:3; grid-row:1; justify-self:end; }
+  .hetero-row > .hr-where{ grid-column:2; grid-row:2; }
+  .hetero-row > .hr-gain{ grid-column:2; grid-row:2; text-align:right; }
+}
 .hetero-row .hr-go{ padding:1px 8px; justify-self:end; }
 @media (max-width:720px){
   .hetero-row{ grid-template-columns:3em 1fr 4em; }
@@ -19194,8 +19214,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.24',
-  codename:'昼巡 · 巡礼',
+  version: '1.31.25',
+  codename:'昼巡 · 收束',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
@@ -19448,17 +19468,24 @@ const SAVE_MIGRATIONS = {
   5: (d) => {
     const inv = (d.inventory && typeof d.inventory === 'object') ? d.inventory : {};
     const enh = (d.enhance && typeof d.enhance === 'object') ? d.enhance : {};
-    const out = [];
-    if (Array.isArray(d.packGear)) out.push(...d.packGear);
+    const bucket = new Map();
+    const add = (id, enh, n) => {
+      const k = id + '@' + enh;
+      const cur = bucket.get(k);
+      if (cur) cur.n += n; else bucket.set(k, { id, enh, n });
+    };
+    if (Array.isArray(d.packGear)){
+      for (const g of d.packGear) if (g && g.id) add(g.id, (parseInt(g.enh, 10) || 0), Math.max(1, parseInt(g.n, 10) || 1));
+    }
     for (const id of Object.keys(inv)){
       const n = Math.floor(inv[id] || 0);
       if (n <= 0) continue;
       const isEquip = !!(typeof Items !== 'undefined' && Items[id] && Items[id].equip);
       if (!isEquip) continue;
-      const lv = Math.max(0, parseInt(enh[id], 10) || 0);
-      for (let i = 0; i < n; i++) out.push({ id, enh: lv });
+      add(id, Math.max(0, parseInt(enh[id], 10) || 0), n);
       delete inv[id];
     }
+    const out = [...bucket.values()];
     d.inventory = inv;
     d.packGear = out;
     return d;
@@ -19530,8 +19557,21 @@ function serializeSave(){
     mobStreak: G.mobStreak || {}, orders: G.orders || [], ordersAt: G.ordersAt || 0,
     pilgrim: G.pilgrim || {},
     enhance: G.enhance || {}, enhanceHeat: G.enhanceHeat || {}, affixSalt: G.affixSalt || {},
-    // 行囊装备：一件一条，各自带淬炼档（v6）
-    packGear: Array.isArray(G.packGear) ? G.packGear.map(g => ({ id: g.id, enh: g.enh | 0 })) : [],
+    // 行囊装备：同 id 同淬炼档合并成一条 { id, enh, n }。
+    // 按件存是为了让「+2」与「+0」分得开，但存档没必要真写 n 条——
+    // 一百支箭就是一百条 JSON，几百件杂装能把 localStorage 撑爆。
+    packGear: (() => {
+      if (!Array.isArray(G.packGear)) return [];
+      const m = new Map();
+      for (const g of G.packGear){
+        if (!g || !g.id) continue;
+        const k = g.id + '@' + (g.enh | 0);
+        const cur = m.get(k);
+        if (cur) cur.n++;
+        else m.set(k, { id: g.id, enh: g.enh | 0, n: 1 });
+      }
+      return [...m.values()];
+    })(),
     rebirth: G.rebirth || { count:0, at:0, best:0 },
     // 会员权益快照：由账号层写入，本地只读；未登录时恒为 { tier:'none', until:0 }
     member: G.member || { tier:'none', until:0 },
@@ -20216,7 +20256,12 @@ function applySave(d){
         Game.packGear.push({ id, enh: isFinite(v) ? Math.max(0, Math.min(capG, v)) : 0 });
       };
       if (Array.isArray(d.packGear)){
-        for (const g of d.packGear){ if (g && typeof g.id === 'string') push(g.id, g.enh); }
+        // n 是「同档几件」（v1.31.25 起的压缩写法）；旧档是一条一件，n 缺省即 1
+        for (const g of d.packGear){
+          if (!g || typeof g.id !== 'string') continue;
+          const n = Math.max(1, Math.min(9999, parseInt(g.n, 10) || 1));
+          for (let i = 0; i < n; i++) push(g.id, g.enh);
+        }
       }
       const legacy = {};
       if (d.enhance && typeof d.enhance === 'object'){
@@ -28077,6 +28122,10 @@ UI.renderYudi = function(){
             const un = regionUnlocked(r);
             const done = r.nodes.filter(n=>Game.map[n.id]).length;
             const full = r.nodes.length > 0 && done >= r.nodes.length;
+            // 巡礼印记：满额未领 → 朱色「赏」；已领 → 淡墨「巡」。
+            // 25/25 只写在选中山系的标题行，切走就看不见了，方块上得留痕。
+            const pg = (typeof regionPilgrim === 'function') ? regionPilgrim(r.regionId) : null;
+            const seal = (pg && pg.full) ? (pg.claimed ? '巡' : '赏') : '';
             // 中山经十二系已于 v1.13 全录，此分支现仅在数据缺失时兜底（空山系不按进度渲染）
             const todo = r.nodes.length > 0;
             // 方块：山系名 + 涉山进度；未解锁只留一把锁与所需等级
@@ -28086,6 +28135,7 @@ UI.renderYudi = function(){
               <span class="rg-name">${esc(r.regionName)}</span>
               <span class="rg-sub">${un ? (todo ? `${done}/${r.nodes.length} 山` : '待补录') : `${typeof markIcon==='function'?markIcon('lock',13):'🔒'} ${r.unlockLevel} 级`}</span>
               ${un && todo && done > 0 ? `<span class="rg-bar"><i style="width:${(done/r.nodes.length*100).toFixed(0)}%"></i></span>` : ''}
+              ${seal ? `<span class="rg-seal ${pg.claimed?'done':'ready'}" title="${pg.claimed?'此系巡礼已成':'诸山皆涉，可领赏'}">${seal}</span>` : ''}
             </div>`;
           }).join('')}
           </div>
@@ -31205,6 +31255,7 @@ UI.renderStats = function(){
       <div class="stat-rows">
         <span>已录 <b data-stat="recorded">${recordedCount()}/${Object.keys(CODEX).length}</b></span>
         <span>山已涉 <b data-stat="nodes">${Object.keys(Game.map).length}/${WORLD.regions.reduce((s,r)=>s+r.nodes.length,0)}</b></span>
+        <span>山系巡礼 <b data-stat="pilgrim">${Object.keys(Game.pilgrim||{}).length}/${WORLD.regions.length} 系</b></span>
         <span>观象处 <b data-stat="observed">${Object.values(Game.observed).filter(Boolean).length}/${Object.keys(OBSERVE_SITES).length}</b></span>
         ${(() => {
           // 统计报「还差几处」，得给一条去路——否则玩家看完数字还是得一座座山翻

@@ -627,6 +627,14 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
 .region-tile.on{ border-color:var(--zhu); background:var(--zhu-w); }
 .region-tile.on .rg-name{ color:var(--zhu-d); }
 .region-tile.full .rg-sub{ color:var(--tai); }
+/* 巡礼印记：右上角一方小印。未领为朱底白字（催你点），已领转淡墨（只记个痕） */
+.region-tile{ position:relative; }
+.rg-seal{
+  position:absolute; top:3px; right:3px; width:14px; height:14px; border-radius:2px;
+  font-family:var(--f-kai); font-size:9px; line-height:14px; text-align:center; font-weight:700;
+}
+.rg-seal.ready{ background:var(--zhu); color:#fff; }
+.rg-seal.done{ background:transparent; color:var(--ink-4); border:1px solid var(--rule); }
 .region-tile.lock{ border-style:dashed; }
 .region-tile.lock .rg-name{ color:var(--ink-3); }
 .region-tile .rg-bar{
@@ -2485,6 +2493,18 @@ details.hetero-panel .hp-left{ margin-left:auto; font-style:normal; color:var(--
 .hetero-row .hr-where{ color:var(--ink-3); font-size:11px; }
 .hetero-row .hr-gain{ color:var(--ink-3); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .hetero-row .hr-lock{ text-align:right; font-size:11px; color:var(--ink-4); white-space:nowrap; }
+/* 窄屏：五列放不下（3.2+6+7+8+6.6em ≈ 400px），改成两行三列。
+   宁可折成两行，也不要横向溢出——异迹表是「还差哪几处」的索引，滚丢一列就失去意义。 */
+@media (max-width:640px){
+  .hetero-row{
+    grid-template-columns:3.2em minmax(0,1fr) 6.4em; row-gap:2px; padding:6px 9px;
+  }
+  .hetero-row > .hr-kind{ grid-column:1; grid-row:1 / span 2; align-self:start; }
+  .hetero-row > .hr-name{ grid-column:2; grid-row:1; }
+  .hetero-row > .hr-go, .hetero-row > .hr-lock{ grid-column:3; grid-row:1; justify-self:end; }
+  .hetero-row > .hr-where{ grid-column:2; grid-row:2; }
+  .hetero-row > .hr-gain{ grid-column:2; grid-row:2; text-align:right; }
+}
 .hetero-row .hr-go{ padding:1px 8px; justify-self:end; }
 @media (max-width:720px){
   .hetero-row{ grid-template-columns:3em 1fr 4em; }

@@ -6458,8 +6458,16 @@ section('行囊装备按件存');
   legacy.enhance = { [ITEM]: 7 };
   const mig = ST.migrateSave(JSON.parse(JSON.stringify(legacy)));
   assert(mig.version === 6 && !mig.inventory[ITEM], 'v5 档把装备移出 inventory');
-  assert(Array.isArray(mig.packGear) && mig.packGear.filter(g => g.id === ITEM).length === 3, '3 件全迁成实例');
-  assert(mig.packGear.filter(g => g.id === ITEM).every(g => g.enh === 7), '旧档共享的 +7 落到每一件上');
+  const migRows = (mig.packGear || []).filter(g => g.id === ITEM);
+  assert(migRows.reduce((a, g) => a + (g.n || 1), 0) === 3, '3 件全迁成实例');
+  assert(migRows.every(g => g.enh === 7), '旧档共享的 +7 落到每一件上');
+
+  // 同档压缩存：50 支箭 + 3 件同名装，写进存档只留档位条数，不逐件写
+  ST.packGearAdd('tongzu', 0, 50);
+  const sv2 = ST.serializeSave();
+  const arrowRows = sv2.packGear.filter(g => g.id === 'tongzu');
+  assert(arrowRows.length === 1 && arrowRows[0].n === 50, '50 支同档箭压成 1 条（n=50）');
+  assert(JSON.stringify(sv2.packGear.map(g => g.n)).length < 200, '存档里不逐件写');
 
   ST.localStorage.removeItem('shj_zhulu_save_v1');
   G.resetToDefault();

@@ -254,7 +254,12 @@ function applySave(d){
         Game.packGear.push({ id, enh: isFinite(v) ? Math.max(0, Math.min(capG, v)) : 0 });
       };
       if (Array.isArray(d.packGear)){
-        for (const g of d.packGear){ if (g && typeof g.id === 'string') push(g.id, g.enh); }
+        // n 是「同档几件」（v1.31.25 起的压缩写法）；旧档是一条一件，n 缺省即 1
+        for (const g of d.packGear){
+          if (!g || typeof g.id !== 'string') continue;
+          const n = Math.max(1, Math.min(9999, parseInt(g.n, 10) || 1));
+          for (let i = 0; i < n; i++) push(g.id, g.enh);
+        }
       }
       const legacy = {};
       if (d.enhance && typeof d.enhance === 'object'){
