@@ -200,7 +200,7 @@ function sceneHtml(s){
         : `<b class="sc-label">${esc(s.name)}</b>`}
       <span>${esc(s.note)}</span>
     </div>
-    ${UI._sceneProbe ? '<div class="sc-probe"></div>' : ''}
+    ${UI.sceneProbeOn() ? '<div class="sc-probe"></div>' : ''}
     <div class="sc-flash"></div>
     <div class="sc-prog"><i id="sceneProg"></i></div>
   </div>`;
@@ -234,6 +234,7 @@ UI.renderScene = function(){
     bar.innerHTML = sceneHtml(s);
     if (UI.startSceneMotion) UI.startSceneMotion();     // 重建后重新接管
   }
+  if (UI.startSceneWatch) UI.startSceneWatch();         // 心跳监护只开一个，重复调用无副作用
 };
 
 // 采集 / 制作完成一次时的「落地」：物品从土里蹦出来、锄头复位、土粒迸开。
@@ -323,64 +324,148 @@ function sceneAngleAt(frames, p){
 //   帧数不涨 → JS 没跑（或页面是旧版）
 //   帧数在涨但相位不动 → 引擎没在推进
 //   都正常却看不见动 → 才是渲染/视觉问题
-UI._sceneProbe = (typeof location !== 'undefined' && /[?&]probe=1/.test(location.search));
+// 两个入口：URL 上的 ?probe=1（电脑上方便），以及设置页的「现场诊断」开关。
+// 后者是为「添加到主屏幕」准备的——独立模式没有地址栏，改不了 URL，
+// 但设置里那一下点得动。诊断不出来就只能继续猜，这个开关值一条命。
+UI._sceneProbeUrl = (typeof location !== 'undefined' && /[?&]probe=1/.test(location.search));
+UI.sceneProbeOn = function(){
+  return !!UI._sceneProbeUrl || (typeof Prefs !== 'undefined' && !!Prefs.sceneProbe);
+};
 UI.paintProbe = function(){
-  if (!UI._sceneProbe) return;
-  if ((UI._sceneFrames || 0) % 10) return;          // 每 10 帧写一次，别把 rAF 拖慢
+  if (!UI.sceneProbeOn()) return;
   const el = (typeof document !== 'undefined') ? document.querySelector('.sc-probe') : null;
   if (!el) return;
   const iv = (typeof currentActionInterval === 'function') ? currentActionInterval() : 0;
-  const t = '帧 ' + (UI._sceneFrames || 0) + ' · 相位 ' + (UI._scenePhase || 0).toFixed(2) + ' · 间隔 ' + iv.toFixed(2) + 's';
+  // 除了帧数/相位，还要写「距上一帧多久」与「谁在驱动」——
+  // 前者一眼看出链是不是断了，后者说明此刻是 JS 还是 CSS 在画。
+  const gap = UI._sceneCss ? '停' : (UI._sceneLast ? Math.round(sceneNow() - UI._sceneLast) + 'ms' : '—');
+  const drv = UI._sceneCss ? 'CSS（JS 停摆）' : 'JS';
+  const t = '帧 ' + (UI._sceneFrames || 0) + ' · 相位 ' + (UI._scenePhase || 0).toFixed(2)
+          + ' · 间隔 ' + iv.toFixed(2) + 's · 迟 ' + gap + ' · ' + drv;
   if (el.textContent !== t) el.textContent = t;
 };
+
+function sceneNow(){
+  return (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+}
+
+UI._sceneLast = 0;      // 上一帧的时间戳：心跳停了没有，就看这个
+UI._sceneMiss = 0;      // 连续几次「心跳停了」
+UI._sceneCss  = false;  // 是否已降级给 CSS 关键帧
 
 UI.stopSceneMotion = function(){
   if (UI._sceneRaf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(UI._sceneRaf);
   UI._sceneRaf = 0;
 };
 
+// 降级开关：把锄头交给 CSS 关键帧（见 style.css 的 scFallback）。
+// 只有当 JS 这条链被证明救不回来时才用——它的相位只按墙钟走，
+// 与产出不同步，但「在动」比「对得准却没动」重要。
+UI.sceneCssFallback = function(on){
+  const bar = (typeof document !== 'undefined') ? document.getElementById('sceneBar') : null;
+  if (!bar || !bar.classList) return;
+  if (on) bar.classList.add('fx-css'); else bar.classList.remove('fx-css');
+  UI._sceneCss = !!on;
+  UI.paintProbe();       // 降级之后 JS 不再出帧，诊断行得在这里改一次口
+};
+
 UI.startSceneMotion = function(){
   if (typeof requestAnimationFrame !== 'function' || typeof document === 'undefined') return;
-  if (UI._sceneRaf) return;                    // 已在跑，不叠加
   // 动效关掉时保留静帧：画面还在（知道在做什么），只是不动
   if (typeof Prefs !== 'undefined' && Prefs.fxLevel === 'off') return;
+  // 已在跑且心跳新鲜 → 不叠加；心跳过期（id 还在、链其实断了）→ 重启。
+  // v1.31.59 之前这里是 `if (UI._sceneRaf) return;`：只要 id 没清掉就永远不再启动，
+  // 一旦某一帧被丢掉，这个现场就永久定住——iOS「添加到主屏幕」正是这么定住的。
+  if (UI._sceneRaf && sceneNow() - UI._sceneLast < 1200) return;
+  UI.stopSceneMotion();
   const step = ()=>{
-    UI._sceneRaf = requestAnimationFrame(step);
-    const bar = document.getElementById('sceneBar');
-    if (!bar) return;
-    const rig = bar.querySelector('.sc-rig');
-    if (!bar.querySelector('.sc-shaft') && !rig) return;
-    const iv = (typeof currentActionInterval === 'function') ? currentActionInterval() : 1;
-    const T = (iv > 0) ? iv * 1000 : 2600;
-    let p;
-    if (typeof activityProgress === 'number' && iv > 0){
-      p = activityProgress / iv;
-    } else {
-      // 兜底：万一拿不到引擎的进度变量（跨 script 的顶层 let 在个别环境里读不到），
-      // 就按墙钟自走。宁可相位和产出的对齐略有偏差，也不能定住不动。
-      const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
-      p = (now % T) / T;
+    try {
+      UI.paintSceneFrame();
+    } finally {
+      // 切后台时主动收链。iOS 独立模式挂起页面时，已排队的回调会被丢掉；
+      // 若自调度写在函数开头，丢掉一次就再也接不上。
+      // 现在改成「画完再排」，并且后台不排——回来由 visibilitychange 重开。
+      if (typeof document !== 'undefined' && !document.hidden) UI._sceneRaf = requestAnimationFrame(step);
+      else UI._sceneRaf = 0;
     }
-    p = Math.max(0, Math.min(1, p));
-    // 锄头：算坐标、写 path 的 d。不用 transform，也不用 CSS 动画。
-    const ta = sceneAngleAt(SCENE_SWING, p);
-    const ra = sceneAngleAt(SCENE_RIG, p);
-    if (!isFinite(ta) || !isFinite(ra)) return;      // 非法值宁可不写，也别把上次的姿态留着
-    const g = sceneToolPath(ta);
-    const shaft = bar.querySelector('.sc-shaft');
-    const blade = bar.querySelector('.sc-blade');
-    const mark  = bar.querySelector('.sc-mark');
-    if (shaft) shaft.setAttribute('d', g.shaft);
-    if (blade) blade.setAttribute('d', g.blade);
-    if (mark)  mark.setAttribute('d', g.mark);
-    // 身体俯仰走 div 的 CSS transform（div 上这条没有任何内核问题）
-    if (rig) rig.style.transform = 'rotate(' + ra.toFixed(2) + 'deg)';
-    UI._scenePhase = p;
-    UI._sceneFrames = (UI._sceneFrames || 0) + 1;
-    if (UI._sceneProbe) UI.paintProbe();
   };
   UI._sceneRaf = requestAnimationFrame(step);
 };
+
+// 单帧绘制。抽出来是为了让 watchdog 与启动路径共用一份（判据单一来源）。
+UI.paintSceneFrame = function(){
+  const bar = (typeof document !== 'undefined') ? document.getElementById('sceneBar') : null;
+  if (!bar) return;
+  const rig = bar.querySelector('.sc-rig');
+  if (!bar.querySelector('.sc-shaft') && !rig) return;
+  const iv = (typeof currentActionInterval === 'function') ? currentActionInterval() : 1;
+  const T = (iv > 0) ? iv * 1000 : 2600;
+  let p;
+  if (typeof activityProgress === 'number' && iv > 0){
+    p = activityProgress / iv;
+  } else {
+    // 兜底：万一拿不到引擎的进度变量（跨 script 的顶层 let 在个别环境里读不到），
+    // 就按墙钟自走。宁可相位和产出的对齐略有偏差，也不能定住不动。
+    const now = sceneNow();
+    p = (now % T) / T;
+  }
+  p = Math.max(0, Math.min(1, p));
+  // 锄头：算坐标、写 path 的 d。不用 transform，也不用 CSS 动画。
+  const ta = sceneAngleAt(SCENE_SWING, p);
+  const ra = sceneAngleAt(SCENE_RIG, p);
+  if (!isFinite(ta) || !isFinite(ra)) return;      // 非法值宁可不写，也别把上次的姿态留着
+  const g = sceneToolPath(ta);
+  const shaft = bar.querySelector('.sc-shaft');
+  const blade = bar.querySelector('.sc-blade');
+  const mark  = bar.querySelector('.sc-mark');
+  if (shaft) shaft.setAttribute('d', g.shaft);
+  if (blade) blade.setAttribute('d', g.blade);
+  if (mark)  mark.setAttribute('d', g.mark);
+  // 身体俯仰走 div 的 CSS transform（div 上这条没有任何内核问题）
+  if (rig) rig.style.transform = 'rotate(' + ra.toFixed(2) + 'deg)';
+  UI._scenePhase = p;
+  UI._sceneFrames = (UI._sceneFrames || 0) + 1;
+  UI._sceneLast = sceneNow();
+  UI._sceneMiss = 0;
+  if (UI._sceneCss) UI.sceneCssFallback(false);     // JS 活过来了，收回降级
+  if (UI.sceneProbeOn()) UI.paintProbe();
+};
+
+// 心跳监护：rAF 这条链在任何环境下都有可能被掐断（切后台、省电模式、
+// 独立 WebView 挂起）。断了不能就让它断着——每秒看一眼，停了就重启；
+// 连试三次都起不来，说明这个环境压根不给 rAF，降级给 CSS。
+UI.startSceneWatch = function(){
+  if (typeof setInterval !== 'function' || UI._sceneWatchId) return;
+  UI._sceneWatchId = setInterval(function(){
+    if (typeof document !== 'undefined' && document.hidden) return;
+    if (!UI._sceneSig || UI._sceneSig === 'none') return;
+    if (typeof Prefs !== 'undefined' && Prefs.fxLevel === 'off') return;
+    if (sceneNow() - (UI._sceneLast || 0) < 1800){ UI._sceneMiss = 0; return; }
+    UI._sceneMiss = (UI._sceneMiss || 0) + 1;
+    if (UI._sceneMiss >= 3){
+      if (!UI._sceneCss) UI.sceneCssFallback(true);
+      return;                                        // 别每分钟再撞一次墙
+    }
+    UI._sceneRaf = 0;
+    UI.startSceneMotion();
+  }, 1000);
+};
+
+// 回到前台：清掉陈旧的心跳记录，重新开链。
+// pageshow 管「从 bfcache 里被翻出来」，focus 管「切 App 回来但没触发 visibility」。
+if (typeof document !== 'undefined' && document.addEventListener){
+  const resume = ()=>{
+    if (typeof document !== 'undefined' && document.hidden) return;
+    UI._sceneLast = 0; UI._sceneMiss = 0; UI._sceneRaf = 0;
+    if (UI._sceneCss) UI.sceneCssFallback(false);
+    if (UI._sceneSig && UI._sceneSig !== 'none') UI.startSceneMotion();
+  };
+  document.addEventListener('visibilitychange', resume);
+  if (typeof window !== 'undefined' && window.addEventListener){
+    window.addEventListener('pageshow', resume);
+    window.addEventListener('focus', resume);
+  }
+}
 
 if (typeof window !== 'undefined'){
   window.sceneAngleAt = sceneAngleAt;

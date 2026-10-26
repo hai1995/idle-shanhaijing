@@ -884,6 +884,8 @@ UI.renderSettings = function(){
             <button class="btn ${Prefs.hideHint?'':'on'}" onclick="Prefs.hideHint=!Prefs.hideHint;saveGame();UI.renderSettings();UI.refreshActivity()">${Prefs.hideHint?'关':'开'}</button></div>
           <div class="form-row"><span>行动现场画面<span class="hint" style="display:block;margin-top:2px">仪表带下方那块小画面，关掉可省一截屏高</span></span>
             <button class="btn ${Prefs.sceneOn===false?'':'on'}" onclick="Prefs.sceneOn=(Prefs.sceneOn===false);saveGame();UI.renderSettings();UI.refreshActivity()">${Prefs.sceneOn===false?'关':'开'}</button></div>
+          <div class="form-row"><span>现场诊断<span class="hint" style="display:block;margin-top:2px">在现场左下角显示「帧数 / 相位 / 心跳 / 谁在驱动」。加到主屏幕后没有地址栏，<code>?probe=1</code> 用不了，只能从这里开</span></span>
+            <button class="btn ${Prefs.sceneProbe?'on':''}" onclick="Prefs.sceneProbe=!Prefs.sceneProbe;saveGame();UI._sceneSig=null;UI.renderSettings();UI.refreshActivity()">${Prefs.sceneProbe?'开':'关'}</button></div>
         </section>
         <section class="set-sec">
           <h4>偏好</h4>

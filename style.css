@@ -432,6 +432,23 @@ html.theme-anim, html.theme-anim *{
   100%{ opacity:0; }
 }
 
+/* 降级：JS 的 rAF 链被环境掐死时（iOS「添加到主屏幕」最容易遇到），
+   把现场交给 CSS 关键帧转。转的是 .sc-stage 这个 div，不是 <g>——
+   div 的 transform 任何内核都认，这是最后一道保险。
+   相位只按墙钟走、与产出不同步；但「在动」比「准却不动」要紧。 */
+#sceneBar.fx-css .sc-stage{
+  transform-origin:27.9px 26.6px;
+  animation:scFallback var(--ai, 3s) cubic-bezier(.36,.05,.5,.95) infinite;
+}
+@keyframes scFallback{
+  0%   { transform:rotate(0deg); }
+  12%  { transform:rotate(-1.2deg); }
+  46%  { transform:rotate(-11deg); }
+  58%  { transform:rotate(-11.6deg); }
+  90%  { transform:rotate(1.8deg); }
+  100% { transform:rotate(0deg); }
+}
+
 /* 底部细进度：看画面时眼睛在现场，进度也该在那里 */
 .sc-prog{ position:absolute; left:0; right:0; bottom:0; height:3px; background:rgba(107,102,89,.08); }
 .sc-prog i{ display:block; height:100%; width:0; background:var(--zhu); opacity:.7; transition:width .18s linear; }
@@ -441,6 +458,7 @@ html.theme-anim, html.theme-anim *{
 .sc-wrap.no-anim .sc-figure,
 .sc-wrap.no-anim .sc-tool,
 .sc-wrap.no-anim .sc-birds,
+.sc-wrap.no-anim .sc-stage,
 .sc-wrap.no-anim .sc-pit i{ animation:none; }
 .sc-wrap.no-anim .sc-drop{ animation-duration:.01s; }
 

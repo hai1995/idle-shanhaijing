@@ -7982,6 +7982,49 @@ section('行动现场');
   G.resetToDefault();
 }
 
+// ============ 146. 现场驱动必须能自愈（v1.31.59） ============
+// 用户报：「Safari 里直接开有动画，添加到屏幕上就没有」。
+// 根因是自调度写在 rAF 回调的**开头**，而 iOS 独立 WebView 挂起页面时
+// 会把「已排队但未执行」的回调丢掉——丢一次，链就断了；更糟的是
+// `UI._sceneRaf` 里还留着那个死掉的 id，`if (UI._sceneRaf) return;`
+// 于是永远不再启动。本节钉住四条：自调度的位置、心跳、watchdog、CSS 降级。
+section('现场驱动自愈');
+{
+  const sSrc146 = readText('src/ui/scene.js');
+  const cssSrc146 = readText('style.css');
+  const cSrc146 = readText('src/ui/core.js');
+
+  // ---- 1. 自调度放在「画完」之后，且后台不排 ----
+  assert(/finally\s*\{[\s\S]{0,420}requestAnimationFrame\(step\)/.test(sSrc146),
+    '自调度在 finally 里（丢一帧不至于断链）');
+  assert(sSrc146.includes('document.hidden'), '切后台时主动收链');
+
+  // ---- 2. 用「心跳」判断是否还在跑，而不是用 id ----
+  assert(!/^\s*if \(UI\._sceneRaf\) return;/m.test(sSrc146), '不再把「id 非 0」当成「还在跑」');
+  assert(sSrc146.includes('_sceneLast') && sSrc146.includes('1200'), '心跳过期就重启');
+
+  // ---- 3. watchdog：断了要能自己接回来，接不回来才降级 ----
+  assert(typeof ST.UI.startSceneWatch === 'function', '有 watchdog');
+  assert(sSrc146.includes('_sceneMiss >= 3'), '连试三次都起不来才降级');
+  assert(sSrc146.includes("addEventListener('visibilitychange'"), '回前台重开');
+  assert(sSrc146.includes("addEventListener('pageshow'"), 'pageshow 重开（bfcache）');
+  assert(sSrc146.includes("addEventListener('focus'"), 'focus 重开（切 App 回来）');
+
+  // ---- 4. CSS 兜底：转 div，不转 <g> ----
+  assert(cssSrc146.includes('#sceneBar.fx-css .sc-stage'), '降级转的是 .sc-stage 这个 div');
+  assert(cssSrc146.includes('@keyframes scFallback'), '有 scFallback 关键帧');
+  assert(/\.sc-wrap\.no-anim[\s\S]{0,80}\.sc-stage/.test(cssSrc146), '动效关闭时降级也停');
+
+  // ---- 5. 诊断入口：URL 与设置页合成一处判据 ----
+  assert(typeof ST.Prefs.sceneProbe === 'boolean', 'Prefs.sceneProbe 存在');
+  assert(cSrc146.includes('Prefs.sceneProbe'), '设置页能开诊断（主屏幕模式没有地址栏）');
+  assert(typeof ST.UI.sceneProbeOn === 'function', 'sceneProbeOn 是唯一判据');
+  assert(!sSrc146.includes('UI._sceneProbe ?'), '渲染处不再直读 URL 标记');
+
+  // ---- 6. 单帧绘制独立成函数：启动与 watchdog 共用一份 ----
+  assert(typeof ST.UI.paintSceneFrame === 'function', '单帧绘制独立成函数');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
