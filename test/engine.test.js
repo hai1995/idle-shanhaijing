@@ -7058,6 +7058,40 @@ section('淬炼等待与几处修正');
   G.resetToDefault();
 }
 
+// ============ 133. 图鉴：完成度总览 + 未录产地线索 ============
+section('图鉴总览与线索');
+{
+  G.resetToDefault();
+  const uiSrcCx = readText('src/ui/codex.js');
+  assert(uiSrcCx.includes('codex-overview'), '图鉴有完成度总览');
+  assert(uiSrcCx.includes('cx-ov-sum'), '总览末尾写总进度');
+  // 总览是「四类各自的 done/total」，不是只报当前类
+  assert(uiSrcCx.includes("const rows = Object.entries(catMap).map"), '总览按 catMap 四类各算一遍');
+
+  // 产地线索：异兽取所在山，物品取第一处采集点
+  const beast = Object.values(ST.Monsters).find(m => !m.boss && m.nodeId);
+  const bw = ST.codexWhereOf({ id: beast.id, cat: '异兽', name: beast.name });
+  assert(!!bw && bw === (ST.nodeOf(beast.nodeId) || {}).name, '异兽产地 = 所在山名（' + bw + '）');
+
+  const iw = ST.codexWhereOf({ id: 'migu', cat: '灵木', name: '迷榖' });
+  assert(iw === (ST.nodeOf('nanshan-1-01') || {}).name, '物品产地 = 首处采集地（' + iw + '）');
+
+  assert(ST.codexWhereOf({ id: 'not_exist', cat: '百物', name: 'X' }) === '', '查不到的条目返回空串');
+
+  // 只在「仅未录」时显示：默认留白
+  assert(uiSrcCx.includes('const where = onlyMiss ? codexWhereOf(e)'), '产地只在仅未录时给');
+
+  // 四类计数之和应等于图鉴总数（分母不重不漏）
+  const catMap = { beast:'异兽', mountain:'山川', thing:['灵木','金玉','水族','灵草','嘉谷','百物'], deity:['祠典','神祇'] };
+  let sum = 0;
+  for (const c of Object.values(catMap)){
+    sum += Object.values(ST.CODEX).filter(e => Array.isArray(c) ? c.includes(e.cat) : e.cat === c).length;
+  }
+  assert(sum === Object.keys(ST.CODEX).length, '四类之和 = 图鉴总数（' + sum + '）');
+
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

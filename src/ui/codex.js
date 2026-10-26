@@ -109,6 +109,26 @@ UI.codexAchDetail = function(id){
     </div>`);
 };
 
+// 未录条目的产地线索：异兽看它在哪座山，物品看第一处采集点。
+// 只给「一處地」，不是攻略——目的是让「仅未录」这张待办清单能直接照着走。
+function codexWhereOf(e){
+  if (!e) return '';
+  const m = (typeof Monsters !== 'undefined') ? Monsters[e.id] : null;
+  if (m && m.nodeId){
+    const nd = (typeof nodeOf === 'function') ? nodeOf(m.nodeId) : null;
+    if (nd) return nd.name;
+  }
+  if (typeof itemSources === 'function'){
+    const src = itemSources(e.id).find(x => x.nodeId);
+    if (src){
+      const nd = nodeOf(src.nodeId);
+      if (nd) return nd.name;
+    }
+  }
+  return '';
+}
+window.codexWhereOf = codexWhereOf;
+
 UI.renderCodex = function(keepFocus){
   const box = $('content');
   if (!box) return;
@@ -165,6 +185,25 @@ UI.renderCodex = function(keepFocus){
     <span class="hint">本类 ${tabDone}/${tabTotal}${q?` · 命中 ${shown.length}`:''}${onlyMiss?` · 未录 ${shown.length}`:''} · 总录 ${done}/${total}</span>
   </div>
   <div class="codex-bar" title="本类已著录 ${tabPct}%"><div class="fill" style="width:${tabPct}%"></div></div>
+  ${(()=>{
+    // 完成度总览：1121 条散在四类里，只看当前类的分母不知道「其余三类还剩多少」，
+    // 每切一次页签才看一眼，等于没有全局概念。四格并排，点哪格进哪类。
+    const rows = Object.entries(catMap).map(([k, c])=>{
+      const list = Object.values(CODEX).filter(e => Array.isArray(c) ? c.includes(e.cat) : e.cat === c);
+      const dn = list.filter(e => ((Game.records || {})[e.id] || {}).count > 0).length;
+      const pc = list.length ? Math.round(dn / list.length * 100) : 0;
+      const miss = list.length - dn;
+      return `<button class="cx-ov ${this.codexTab===k?'on':''}${miss===0?' full':''}" type="button"
+          onclick="UI.codexTab='${k}';UI.renderCodex()"
+          title="${tabs[k]}：已录 ${dn} / ${list.length}${miss ? `，还差 ${miss}` : '，已尽收'}">
+        <span class="cx-ov-t">${tabs[k]}</span>
+        <span class="cx-ov-v">${dn}<i>/${list.length}</i></span>
+        <span class="cx-ov-b"><i style="width:${pc}%"></i></span>
+      </button>`;
+    }).join('');
+    return `<div class="codex-overview">${rows}
+      <span class="cx-ov-sum">总 ${done}/${total}（${total ? Math.round(done/total*100) : 0}%）</span></div>`;
+  })()}
   <div class="codex-grid">
     ${shown.length ? shown.map(e=>{
       const rec = Game.records[e.id]||{count:0,tier:0};
@@ -174,9 +213,13 @@ UI.renderCodex = function(keepFocus){
         ? `<span class="nm">${hi(e.name,q)}${e.py?`<rt>${hi(e.py,q)}</rt>`:''}</span>`
         : nameTag(e.name, e.py);
       if (!seen){
-        // 未著录：只留名字与虚线框，整片图鉴才读得出「哪些还没见过」
-        return `<div class="codex-card unseen" onclick="showCodexDetail('${e.id}')" title="${esc(e.name)} · 未见">
+        // 未著录：只留名字与虚线框，整片图鉴才读得出「哪些还没见过」。
+        // 但筛到「仅未录」时，玩家就是在找这些东西去哪打／去哪采——那时才给一行产地，
+        // 平时仍留白（未知本身是收藏的乐趣）。
+        const where = onlyMiss ? codexWhereOf(e) : '';
+        return `<div class="codex-card unseen" onclick="showCodexDetail('${e.id}')" title="${esc(e.name)} · 未见${where ? ' · ' + esc(where) : ''}">
           <div class="cc-name">${nmHtml}</div>
+          ${where ? `<div class="cc-where">${esc(where)}</div>` : ''}
         </div>`;
       }
       // 阶位用五个方点表示深浅，避免满屏重复的「未见」二字

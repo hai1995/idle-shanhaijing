@@ -1262,6 +1262,36 @@ svg.bi.mk{ vertical-align:-2px; }
 .cmp-line.up b, .cmp-line.up{ color:var(--zhu-d); }
 .cmp-line.down b, .cmp-line.down{ color:#3f7a52; }
 .cmp-line.same{ color:var(--ink-4); }
+/* 「仅未录」时的产地线索：只在待办模式下出现，平时留白 */
+.cc-where{
+  margin-top:2px; font-size:9.5px; line-height:1.3; color:var(--ink-4);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;
+}
+/* 图鉴完成度总览：四类并排，各自一条细进度。
+   1121 条的收集进度若只在「当前类」显示，玩家永远不知道自己整体走到哪了。 */
+.codex-overview{
+  display:flex; flex-wrap:wrap; align-items:center; gap:6px;
+  margin:6px 0 8px;
+}
+.cx-ov{
+  flex:1 1 68px; min-width:68px; display:flex; flex-direction:column; gap:2px;
+  padding:5px 7px 6px; border:1px solid var(--rule-2); border-radius:var(--r);
+  background:var(--paper-2); cursor:pointer; text-align:left;
+  transition:border-color .15s, background .15s;
+}
+.cx-ov:hover{ border-color:var(--rule); }
+.cx-ov.on{ border-color:var(--zhu); background:var(--paper); }
+.cx-ov-t{ font-family:var(--f-kai); font-size:10px; color:var(--ink-4); letter-spacing:.04em; white-space:nowrap; }
+.cx-ov-v{ font-family:var(--f-num); font-size:12.5px; font-weight:700; color:var(--ink-2); line-height:1.1; }
+.cx-ov-v i{ font-style:normal; font-size:9.5px; font-weight:400; color:var(--ink-4); }
+.cx-ov-b{ display:block; height:2px; background:var(--rule-2); border-radius:1px; overflow:hidden; margin-top:2px; }
+.cx-ov-b i{ display:block; height:100%; background:var(--qing); }
+.cx-ov.full .cx-ov-b i{ background:var(--zhu); }
+.cx-ov.full .cx-ov-v{ color:var(--zhu-d); }
+.cx-ov-sum{
+  flex:0 0 auto; margin-left:auto; font-family:var(--f-num); font-size:10.5px; color:var(--ink-4);
+  white-space:nowrap; padding-left:4px;
+}
 /* 图鉴检索：他类命中数挂在分类按钮上（搜蛊雕时停在百物页也能看见该去哪） */
 .q-hit{
   margin-left:3px; padding:0 3px; border-radius:7px;
@@ -19313,8 +19343,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.42',
-  codename:'昼巡 · 炉火',
+  version: '1.31.43',
+  codename:'昼巡 · 图志',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
@@ -30008,6 +30038,26 @@ UI.codexAchDetail = function(id){
     </div>`);
 };
 
+// 未录条目的产地线索：异兽看它在哪座山，物品看第一处采集点。
+// 只给「一處地」，不是攻略——目的是让「仅未录」这张待办清单能直接照着走。
+function codexWhereOf(e){
+  if (!e) return '';
+  const m = (typeof Monsters !== 'undefined') ? Monsters[e.id] : null;
+  if (m && m.nodeId){
+    const nd = (typeof nodeOf === 'function') ? nodeOf(m.nodeId) : null;
+    if (nd) return nd.name;
+  }
+  if (typeof itemSources === 'function'){
+    const src = itemSources(e.id).find(x => x.nodeId);
+    if (src){
+      const nd = nodeOf(src.nodeId);
+      if (nd) return nd.name;
+    }
+  }
+  return '';
+}
+window.codexWhereOf = codexWhereOf;
+
 UI.renderCodex = function(keepFocus){
   const box = $('content');
   if (!box) return;
@@ -30064,6 +30114,25 @@ UI.renderCodex = function(keepFocus){
     <span class="hint">本类 ${tabDone}/${tabTotal}${q?` · 命中 ${shown.length}`:''}${onlyMiss?` · 未录 ${shown.length}`:''} · 总录 ${done}/${total}</span>
   </div>
   <div class="codex-bar" title="本类已著录 ${tabPct}%"><div class="fill" style="width:${tabPct}%"></div></div>
+  ${(()=>{
+    // 完成度总览：1121 条散在四类里，只看当前类的分母不知道「其余三类还剩多少」，
+    // 每切一次页签才看一眼，等于没有全局概念。四格并排，点哪格进哪类。
+    const rows = Object.entries(catMap).map(([k, c])=>{
+      const list = Object.values(CODEX).filter(e => Array.isArray(c) ? c.includes(e.cat) : e.cat === c);
+      const dn = list.filter(e => ((Game.records || {})[e.id] || {}).count > 0).length;
+      const pc = list.length ? Math.round(dn / list.length * 100) : 0;
+      const miss = list.length - dn;
+      return `<button class="cx-ov ${this.codexTab===k?'on':''}${miss===0?' full':''}" type="button"
+          onclick="UI.codexTab='${k}';UI.renderCodex()"
+          title="${tabs[k]}：已录 ${dn} / ${list.length}${miss ? `，还差 ${miss}` : '，已尽收'}">
+        <span class="cx-ov-t">${tabs[k]}</span>
+        <span class="cx-ov-v">${dn}<i>/${list.length}</i></span>
+        <span class="cx-ov-b"><i style="width:${pc}%"></i></span>
+      </button>`;
+    }).join('');
+    return `<div class="codex-overview">${rows}
+      <span class="cx-ov-sum">总 ${done}/${total}（${total ? Math.round(done/total*100) : 0}%）</span></div>`;
+  })()}
   <div class="codex-grid">
     ${shown.length ? shown.map(e=>{
       const rec = Game.records[e.id]||{count:0,tier:0};
@@ -30073,9 +30142,13 @@ UI.renderCodex = function(keepFocus){
         ? `<span class="nm">${hi(e.name,q)}${e.py?`<rt>${hi(e.py,q)}</rt>`:''}</span>`
         : nameTag(e.name, e.py);
       if (!seen){
-        // 未著录：只留名字与虚线框，整片图鉴才读得出「哪些还没见过」
-        return `<div class="codex-card unseen" onclick="showCodexDetail('${e.id}')" title="${esc(e.name)} · 未见">
+        // 未著录：只留名字与虚线框，整片图鉴才读得出「哪些还没见过」。
+        // 但筛到「仅未录」时，玩家就是在找这些东西去哪打／去哪采——那时才给一行产地，
+        // 平时仍留白（未知本身是收藏的乐趣）。
+        const where = onlyMiss ? codexWhereOf(e) : '';
+        return `<div class="codex-card unseen" onclick="showCodexDetail('${e.id}')" title="${esc(e.name)} · 未见${where ? ' · ' + esc(where) : ''}">
           <div class="cc-name">${nmHtml}</div>
+          ${where ? `<div class="cc-where">${esc(where)}</div>` : ''}
         </div>`;
       }
       // 阶位用五个方点表示深浅，避免满屏重复的「未见」二字
