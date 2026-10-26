@@ -60,6 +60,13 @@ p = activityProgress / currentActionInterval()
 结果：六次采样六个不同角度（−77° → −17° → +4° → +6° → −39° → −97°）。
 **CSS 全禁之后仍在动**——因为驱动它的是 JS 和一条内联 transform。
 
+**再加一层兜底：拿不到进度就按墙钟走**
+
+相位本来取 `activityProgress / interval`。这是跨 script 读的顶层 `let`——
+正常环境没问题，但万一某个环境读不到，相位会恒为 0，锄头就定在那儿。
+所以加了一行：读不到就退化为 `performance.now() % 周期 / 周期`。
+**宁可相位与产出的对齐略有偏差，也不能定住不动。**
+
 **测**：第 145 节改指新实现，新增「工具不在人物 SVG 内部」「每帧写内联 transform」
 「相位取 activityProgress / interval」「CSS 里不再有挥锄动画」等断言。
 引擎测试 2665 通过 / 0 失败。

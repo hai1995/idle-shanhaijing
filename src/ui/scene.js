@@ -271,8 +271,17 @@ UI.startSceneMotion = function(){
     const rig  = bar.querySelector('.sc-rig');
     if (!tool && !rig) return;
     const iv = (typeof currentActionInterval === 'function') ? currentActionInterval() : 1;
-    const prog = (typeof activityProgress === 'number') ? activityProgress : 0;
-    const p = (iv > 0) ? Math.max(0, Math.min(1, prog / iv)) : 0;
+    const T = (iv > 0) ? iv * 1000 : 2600;
+    let p;
+    if (typeof activityProgress === 'number' && iv > 0){
+      p = activityProgress / iv;
+    } else {
+      // 兜底：万一拿不到引擎的进度变量（跨 script 的顶层 let 在个别环境里读不到），
+      // 就按墙钟自走。宁可相位和产出的对齐略有偏差，也不能定住不动。
+      const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      p = (now % T) / T;
+    }
+    p = Math.max(0, Math.min(1, p));
     if (tool) tool.style.transform = 'rotate(' + sceneAngleAt(SCENE_SWING, p).toFixed(2) + 'deg)';
     if (rig)  rig.style.transform  = 'rotate(' + sceneAngleAt(SCENE_RIG, p).toFixed(2) + 'deg)';
   };
