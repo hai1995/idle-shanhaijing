@@ -17423,6 +17423,10 @@ addItem(
   I('qibifu','启闭符','potion',{ value:240, lvl:73, icon:'🚪', rarity:'RARE',
     buff:{ name:'启闭', kind:'all', def:12, offline:0.10, dur:300 }, effect:'熊山之穴夏启而冬闭，冬启乃必有兵' }),
   I('shetui','蛇蜕','material',{ value:75, lvl:72, icon:'🐍', note:'夫夫之山神操两蛇——蜕可入药', py:'shé tuì' }),
+  // 山海图卷（v1.31.32）：四系特产合刻一图。特产只在「走遍该系」后才有稳定来源，
+  // 所以这张图是巡礼的兑现口——不是又一件可有可无的药。
+  I('shanhaitujuan','山海图卷','potion',{ value:1500, lvl:72, icon:'📜', rarity:'LEGENDARY',
+    buff:{ name:'窥山', kind:'all', yield:0.25, def:8, dur:900 }, effect:'览图知天下，所获皆丰', py:'shān hǎi tú juàn' }),
 );
 
 // ---------- 配方 ----------
@@ -17571,6 +17575,9 @@ R('jade','danghufu',1,300,68,[['danghuran',1],['yu',2]]);     // 食之不眴目
 // 中段护符（v1.31.13）：护符一共七枚，全挤在 5–15 与 68 两段，中间五十级没有一件可佩。
 // 玉石倒是一直在采（琅玕 33、㻬琈 35、水碧 52），采上来只能卖——这三枚把两头接上。
 R('jade','yaobifu',1,260,34,[['yao',1],['yu',2]]);          // 瑶碧符：佩之益学
+// 山海图卷：四系特产各一 + 玉二。特产的稳定来源是「该系巡礼后采集 1%」，
+// 所以这配方天然要求玩家先走遍几系，而不是有贝就能买。
+R('jade','shanhaitujuan',1,1200,72,[['migu',1],['yushi',1],['langgan',1],['zs_guicao',1],['yu',2]]);
 R('jade','xuanjifu',1,340,45,[['w_㻬琈之玉',1],['yu',2]]);    // 璇玑符：佩之善采
 R('jade','shuibifu',1,420,57,[['w_水碧',1],['yu',2]]);        // 水碧符：佩之御患
 // 冶铸：西山兵刃
@@ -19234,8 +19241,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.31',
-  codename:'昼巡 · 特产',
+  version: '1.31.32',
+  codename:'昼巡 · 图卷',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
@@ -21446,6 +21453,20 @@ function doGather(itemId){
   Game.stats.gathers[skillId] = (Game.stats.gathers[skillId]||0) + 1;
   gainXp(skillId, it.xp * qty * (1 + bonus*0.5) * overEff);
   recordObject(itemId, qty);
+  // 山系特产：该系已巡礼时，采集有小概率带出特产（1%）。
+  // 巡礼领赏给 2 件是「一次性见面礼」，这里才是持续来源——
+  // 否则特产只能当收藏，配方一旦消耗就绝版。
+  {
+    const rid = (regionOf(Game.node) || {}).regionId;
+    const pil = rid && (typeof regionPilgrim === 'function') ? regionPilgrim(rid) : null;
+    if (pil && pil.full && typeof pilgrimGiftOf === 'function' && chance(0.01)){
+      const sp = pilgrimGiftOf(rid);
+      if (sp && sp.id !== itemId){
+        giveItem(sp.id, 1, false);
+        log(`🎋 此系风物：兼得 ${sp.name}`, 'gold', 'skill');
+      }
+    }
+  }
   // 渔获兼得：𩶯魮之鱼「是生珠玉」
   const gb = (window.GATHER_BONUS||{})[itemId];
   if (gb && chance(gb.chance) && Items[gb.item]){

@@ -812,6 +812,20 @@ function doGather(itemId){
   Game.stats.gathers[skillId] = (Game.stats.gathers[skillId]||0) + 1;
   gainXp(skillId, it.xp * qty * (1 + bonus*0.5) * overEff);
   recordObject(itemId, qty);
+  // 山系特产：该系已巡礼时，采集有小概率带出特产（1%）。
+  // 巡礼领赏给 2 件是「一次性见面礼」，这里才是持续来源——
+  // 否则特产只能当收藏，配方一旦消耗就绝版。
+  {
+    const rid = (regionOf(Game.node) || {}).regionId;
+    const pil = rid && (typeof regionPilgrim === 'function') ? regionPilgrim(rid) : null;
+    if (pil && pil.full && typeof pilgrimGiftOf === 'function' && chance(0.01)){
+      const sp = pilgrimGiftOf(rid);
+      if (sp && sp.id !== itemId){
+        giveItem(sp.id, 1, false);
+        log(`🎋 此系风物：兼得 ${sp.name}`, 'gold', 'skill');
+      }
+    }
+  }
   // 渔获兼得：𩶯魮之鱼「是生珠玉」
   const gb = (window.GATHER_BONUS||{})[itemId];
   if (gb && chance(gb.chance) && Items[gb.item]){

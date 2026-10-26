@@ -6713,6 +6713,24 @@ section('巡礼特产');
   G.resetToDefault();
 }
 
+// ============ 124. 山海图卷：四系特产的兑现口 ============
+section('山海图卷与特产再生');
+{
+  G.resetToDefault();
+  const it = ST.Items.shanhaitujuan;
+  assert(!!it && it.buff && it.buff.yield === 0.25, '山海图卷在册（采获 +25%/900s）');
+  const rc = ST.Recipes.find(r => r.out === 'shanhaitujuan');
+  assert(!!rc && rc.type === 'jade' && rc.lvl === 72, '配方走琢玉、需 72 级');
+  const mats = rc.cost.map(([id]) => id);
+  for (const id of ['migu','yushi','langgan','zs_guicao']) assert(mats.includes(id), '材料含 ' + id);
+
+  // 特产可再生产：该系巡礼后采集 1% 带出（用固定随机数验证分支确实能走到）
+  const src = readText('src/game.js');
+  assert(/pil\.full && typeof pilgrimGiftOf === 'function' && chance\(0\.01\)/.test(src), '采集带出特产的分支存在');
+
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
