@@ -8349,6 +8349,55 @@ section('巡历队列边界');
   G.resetToDefault();
 }
 
+// ============ 155. 轮回：最危险的一次操作（2026-10-27 清晨） ============
+// 轮回会把所有技艺打回起手等级——写错一行就是「玩家的进度没了」。
+// 此前没有测试锁住「该重置的、该保留的、清掉的」，这一节补上。
+section('轮回边界');
+{
+  G.resetToDefault();
+
+  const r0 = ST.doRebirth();
+  assert(r0.ok === false && typeof r0.reason === 'string', '未满 81 级时拒绝轮回，并给出理由');
+
+  // 记一点「不应该被重置」的东西
+  ST.Game.records = { nanshan: { 1: true } };
+  ST.Game.observed = { obs1: true };
+  ST.Game.skills.qiaocai.level = ST.TUNING.REBIRTH.MIN_LEVEL;
+  ST.Game.skills.yudi.level = 37;           // 舆地属于「走过的路不忘」
+  ST.Game.combat = { monsterId: Object.keys(ST.Monsters)[0], monsterHp: 1, playerHp: 1, timer: 0 };
+  ST.Game.activity = { kind: 'gather', skill: 'qiaocai', itemId: 'migu' };
+
+  const r1 = ST.doRebirth();
+  assert(r1.ok === true, '满级可以轮回');
+  assert(ST.Game.rebirth.count === 1, '记下第 1 转');
+  assert(ST.Game.skills.qiaocai.level === ST.TUNING.REBIRTH.START_PER, '技艺回到起手等级（1 转 = 8 级）');
+  assert(ST.Game.skills.yudi.level === 37, '舆地不重置（走过的路不忘）');
+  assert(ST.Game.node === 'nanshan-1-01', '送回南山起点');
+  assert(ST.Game.activity === null && ST.Game.combat === null, '旧行动与旧战斗一并收掉');
+  assert(Object.keys(ST.Game.records).length === 1, '著录保留');
+  assert(ST.Game.rebirth.history.length === 1, '记一条本轮成绩');
+  assert(ST.rebirthCount() === 1 && ST.rebirthGain() > 0, '轮回乘区立即生效');
+
+  // 连转十次：history 只留最近 10 条（更早的只进统计，不占存档）
+  for (let i = 0; i < 12; i++){
+    ST.Game.skills.qiaocai.level = ST.TUNING.REBIRTH.MIN_LEVEL;
+    ST.doRebirth();
+  }
+  assert(ST.Game.rebirth.count === 13, '连转 12 次后共 13 转（实测 ' + ST.Game.rebirth.count + '）');
+  assert(ST.Game.rebirth.history.length <= 10, 'history 最多 10 条（实测 ' + ST.Game.rebirth.history.length + '）');
+  assert(ST.Game.skills.qiaocai.level === ST.TUNING.REBIRTH.START_CAP,
+    '起手等级封顶 ' + ST.TUNING.REBIRTH.START_CAP + '（再转也不涨）');
+
+  // 队列在转生后不能卡死
+  ST.Game.queue = [ST.makeQueueEntry('gather', 'migu', 1)];
+  ST.Game.queueRunning = true;
+  let err = null;
+  try { ST.ensureQueueActivity(); } catch(e){ err = e.message; }
+  assert(!err, '转生后队列仍能算出下一步（' + err + '）');
+
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

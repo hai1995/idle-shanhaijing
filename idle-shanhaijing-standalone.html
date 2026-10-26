@@ -19687,7 +19687,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.66',
+  version: '1.31.67',
   codename:'昼巡 · 近况',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -21476,7 +21476,6 @@ function doRebirth(){
   Prefs.lastHuntId = null; Prefs.lastHuntTimes = null;
   // 「再采」记的物也一并清掉：轮回后技艺归零，原来那件物多半采不动了
   Prefs.lastGatherId = null;
-  Game.combat = null;
   autoAttack = false;
   // 送回南山起点：当前那座山多半已打不动
   Game.node = 'nanshan-1-01';

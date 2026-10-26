@@ -363,7 +363,6 @@ function doRebirth(){
   Prefs.lastHuntId = null; Prefs.lastHuntTimes = null;
   // 「再采」记的物也一并清掉：轮回后技艺归零，原来那件物多半采不动了
   Prefs.lastGatherId = null;
-  Game.combat = null;
   autoAttack = false;
   // 送回南山起点：当前那座山多半已打不动
   Game.node = 'nanshan-1-01';
