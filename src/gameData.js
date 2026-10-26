@@ -1409,8 +1409,16 @@ const GROW_SITES = {
     cost:[['w_柘木',1]],
     desc:'炎帝之少女女娃，溺于东海，故为精卫，常衔西山之木石以堙于东海——发鸠之山多柘木',
     // 200 阶 × 10 分钟 = 33 小时。若只在终点给一次，中间三十多个钟头毫无节点感；
-    // 每 25 阶给一次「东海又浅一分」的路标（羽 ×1 + 阶数×4 贝），大成再加重。
+    // 每 25 阶给一次「东海又浅一分」的小路标（羽 ×1 + 阶数×4 贝），大成再加重。
     stepEvery:25, stepReward:{ item:'jingweiyu', qty:1, shellPerStage:4 },
+    // 四段大路标（v1.31.22）：每 50 阶一段，给的东西各不相同，且永久抬高采集——
+    // 「堆量」之所以枯燥，是因为每到 50 阶与 49 阶毫无区别。段奖励只领一次（记在 st.segs）。
+    segments: [
+      { at:50,  name:'一篑', reward:{ jingweiyu:3, yu:2 }, gather:0.02, text:'一篑之土，东海始浅（采集 +2%）' },
+      { at:100, name:'半程', reward:{ jingweiyu:5, gui:5 }, gather:0.03, text:'海波已退半里（采集 +3%）' },
+      { at:150, name:'三篑', reward:{ jingweiyu:8, zhenwu:1 }, gather:0.03, text:'渊面见底，蜃气渐收（采集 +3%，另得镇物）' },
+      { at:200, name:'成海', reward:{ jingweiyu:10, yu:5 }, gather:0.05, text:'东海可涉，木石成洲（采集 +5%）' },
+    ],
     reward:{ yu:3, jingweiyu:5 },
     infiniteNote:'无限累积，对应「樵采累计」长线里程碑；东海渐浅 200 阶后封顶',
   },
@@ -2621,8 +2629,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.21',
-  codename:'昼巡 · 观象',
+  version: '1.31.22',
+  codename:'昼巡 · 分档',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',

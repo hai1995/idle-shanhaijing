@@ -79,6 +79,7 @@ function cloneDefaultGame(){
   g.queue = []; g.queueIdx = 0; g.queueRound = 0; g.queueRunning = false; g.queueLoop = true; g.fallback = null;
   g.mobStreak = {};
   g.enhance = {}; g.enhanceHeat = {};
+  g.packGear = [];   // 行囊里的装备实例（每件自带淬炼等级；v1.31.22 起）
   // 装备槽必须显式清空：cloneDefaultGame 是「深拷贝当前状态再覆盖字段」，
   // 漏了这一项的话，重开新档时身上还穿着上一局那件（连淬炼阶数一起）——
   // 装备改成按件存实例之后，这个漏洞才看得出来。
@@ -236,6 +237,35 @@ function applySave(d){
           const v = parseInt(d.enhanceHeat[k], 10);
           if (isFinite(v) && v > 0) Game.enhanceHeat[k] = Math.min(hm, v);
         }
+      }
+    }
+    // 行囊装备改为「按件」存（v1.31.22）：每件自带淬炼等级，+2 与 +0 不再并成一堆。
+    // 旧档把装备混在 inventory 里、按 itemId 记一档强化，这里统一迁成实例：
+    // 同 id 的 n 件都取 d.enhance[id] 那一档（旧档本来就是共享一档，语义不变）。
+    Game.packGear = [];
+    {
+      const capG = (typeof window !== 'undefined' && window.ENHANCE_MAX) || 30;
+      const push = (id, enh) => {
+        const it = Items[id];
+        if (!it || !it.equip) return;
+        const v = parseInt(enh, 10);
+        Game.packGear.push({ id, enh: isFinite(v) ? Math.max(0, Math.min(capG, v)) : 0 });
+      };
+      if (Array.isArray(d.packGear)){
+        for (const g of d.packGear){ if (g && typeof g.id === 'string') push(g.id, g.enh); }
+      }
+      const legacy = {};
+      if (d.enhance && typeof d.enhance === 'object'){
+        for (const k in d.enhance){
+          const v = parseInt(d.enhance[k], 10);
+          if (isFinite(v) && v > 0) legacy[k] = Math.min(capG, v);
+        }
+      }
+      for (const id of Object.keys(Game.inventory)){
+        if (!(Items[id] && Items[id].equip)) continue;
+        const n = Math.max(0, Math.floor(Game.inventory[id] || 0));
+        for (let i = 0; i < n; i++) push(id, legacy[id] || 0);
+        delete Game.inventory[id];       // 装备不再记在 inventory（否则总数会翻倍）
       }
     }
     // 装备词条重铸次数（旧档无此字段：salt=0 即「初次派生」的词条，与新版一致）
@@ -448,10 +478,54 @@ function addRecord(objId, n){
 window.addRecord = addRecord;
 
 // ---------- 物品 ----------
-function totalOf(itemId){ return (Game.banking[itemId]||0) + (Game.inventory[itemId]||0); }
+// 装备与材料是两套账（v1.31.22）：
+//   · 材料：Game.inventory[itemId] = 件数（同物同类，可堆叠）；
+//   · 装备：Game.packGear = [{ id, enh }]，一件一条，各自带自己的淬炼等级。
+// 早先装备也混在 inventory 里、强化档按 itemId 共享一档，于是「+2 一件 + 十九件 +0」
+// 只能显示成「×20、+0」——这正是玩家报的堆叠问题。现在按件存，天然分得开。
+function isEquipId(itemId){ const it = Items[itemId]; return !!(it && it.equip); }
+function packGearCount(itemId){
+  let n = 0;
+  for (const g of (Game.packGear || [])) if (g.id === itemId) n++;
+  return n;
+}
+function packGearAdd(itemId, enh, qty){
+  Game.packGear = Game.packGear || [];
+  const v = Math.max(0, Math.min(ENHANCE_MAX, parseInt(enh, 10) || 0));
+  for (let i = 0; i < (qty || 1); i++) Game.packGear.push({ id: itemId, enh: v });
+}
+// 取走装备实例：指定 enh 时只从该档取；否则先拿 +0、再拿低档（绝不先吃玩家淬过的那件）
+// 返回实际取走的条数。
+function packGearTake(itemId, qty, enh){
+  qty = Math.floor(qty || 0);
+  let left = qty;
+  const idxs = (Game.packGear || []).map((g, i) => ({ g, i }))
+    .filter(x => x.g.id === itemId && (enh == null || (x.g.enh | 0) === (enh | 0)))
+    .sort((a, b) => (a.g.enh | 0) - (b.g.enh | 0));
+  const drop = new Set();
+  for (const x of idxs){ if (left <= 0) break; drop.add(x.i); left--; }
+  if (drop.size) Game.packGear = Game.packGear.filter((_, i) => !drop.has(i));
+  return qty - left;
+}
+// 行囊里某一类（装备）按档汇总：[{ enh, qty }]，档位从高到低
+function gearStacks(itemId){
+  const m = new Map();
+  for (const g of (Game.packGear || [])) if (g.id === itemId) m.set(g.enh | 0, (m.get(g.enh | 0) || 0) + 1);
+  return [...m.entries()].map(([enh, qty]) => ({ enh, qty })).sort((a, b) => b.enh - a.enh);
+}
+// 行囊里能用的件数（装备走实例表，其余走计数表）
+function bagQty(itemId){
+  return isEquipId(itemId) ? packGearCount(itemId) : (Game.inventory[itemId] || 0);
+}
+function totalOf(itemId){ return (Game.banking[itemId]||0) + bagQty(itemId); }
 function giveItem(itemId, qty, toBank){
   qty = Math.floor(qty);
   if (!(qty > 0)) return;
+  if (isEquipId(itemId) && !toBank){
+    packGearAdd(itemId, 0, qty);        // 新得的装备一律 +0；强化过的只可能是自己那一件
+    Game.stats.actions++;
+    return;
+  }
   const target = (toBank ? Game.banking : Game.inventory);
   target[itemId] = (target[itemId]||0) + qty;
   Game.stats.actions++;
@@ -459,6 +533,11 @@ function giveItem(itemId, qty, toBank){
 function takeItem(itemId, qty, preferBank){
   qty = Math.floor(qty);
   if (!(qty > 0)) return;
+  if (isEquipId(itemId) && !preferBank){
+    const got = packGearTake(itemId, qty, null);
+    qty -= got;
+    if (qty <= 0){ Game.stats.actions++; return; }
+  }
   if (preferBank){
     const b = Game.banking[itemId]||0;
     const used = Math.min(b, qty);
@@ -495,6 +574,8 @@ if (typeof window !== 'undefined'){
   window.xpForLevel = xpForLevel; window.levelFromXp = levelFromXp; window.xpForNextLevel = xpForNextLevel;
   window.gainXp = gainXp; window.levelOf = levelOf; window.totalSkillLevel = totalSkillLevel;
   window.totalOf = totalOf; window.giveItem = giveItem; window.takeItem = takeItem;
+  window.bagQty = bagQty; window.gearStacks = gearStacks; window.packGearAdd = packGearAdd;
+  window.packGearTake = packGearTake; window.packGearCount = packGearCount; window.isEquipId = isEquipId;
   window.canAfford = canAfford; window.payCost = payCost;
   window.resetToDefault = resetToDefault; window.saveGame = saveGame; window.loadGame = loadGame;
   window.sanitizeBag = sanitizeBag; window.log = log;

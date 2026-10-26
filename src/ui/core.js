@@ -399,6 +399,12 @@ const UI = {
         if (bar.style.width !== w) bar.style.width = w;
       }
     }
+    // 田地标题上的圃艺等级/经验也跟着秒级走（经验每收获一次就变）
+    const flv = document.getElementById('farmPuyiLv');
+    if (flv && typeof farmLevelText === 'function'){
+      const t = farmLevelText();
+      if (flv.textContent !== t) flv.textContent = t;
+    }
   },
   // 技能页当前的行动高亮：只切 class，不重建节点
   patchSkillActive(){
@@ -1236,7 +1242,7 @@ function nextStepHtml(tab){
   if (tab === 'pack'){
     const p = (typeof bulkSellPreview === 'function') ? bulkSellPreview(UI.packSellTier || 'COMMON') : null;
     if (p && p.count > 0) out.push({ label:`清整售出 ${p.count} 件（约 ${fmt(p.total)} 贝）`, act:'bulkSellRun()' });
-    const better = Object.values(Items).some(it=>it.equip && (Game.inventory[it.id]||0) > 0 && (it.lvl||1) <= relevantLevel(it));
+    const better = Object.values(Items).some(it=>it.equip && (typeof bagQty==='function'?bagQty(it.id):(Game.inventory[it.id]||0)) > 0 && (it.lvl||1) <= relevantLevel(it));
     if (better) out.push({ label:'一键最优装', act:'UI.autoEquipBest()' });
   }
   if (tab === 'yushi'){

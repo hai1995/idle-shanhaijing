@@ -394,6 +394,7 @@ function bestEnhance(){
   let best = { id:null, lv:0 };
   const consider = (id, lv) => { if (lv > best.lv) best = { id, lv }; };
   for (const id in (Game.enhance || {})) consider(id, Game.enhance[id] || 0);
+  for (const g of (Game.packGear || [])) if ((g.enh | 0) > 0) consider(g.id, g.enh | 0);
   for (const slot in (Game.gear || {})){
     const g = Game.gear[slot];
     if (g && (g.enh | 0) > 0) consider(g.id || slot, g.enh | 0);
@@ -461,8 +462,20 @@ function defBonus(){
   if (Game.buff && Game.buff.def && Game.buff.def.kind === 'all' && Game.buff.def.def) b += Game.buff.def.def;
   return b;
 }
+// 精卫填海的段奖励：永久抬高采集（「东海渐浅一分」不只是文案）。
+// 只算已领的段，读档后照样生效——段记录在 Game.grow.jingwei.segs。
+function jingweiGatherBonus(){
+  const site = (typeof GROW_SITES !== 'undefined') ? GROW_SITES.jingwei : null;
+  if (!site || !Array.isArray(site.segments)) return 0;
+  const st = (Game.grow && Game.grow.jingwei) || null;
+  if (!st || !Array.isArray(st.segs)) return 0;
+  let b = 0;
+  for (const seg of site.segments) if (st.segs.indexOf(seg.at) >= 0) b += (seg.gather || 0);
+  return b;
+}
 function gatherSpeedMult(){
   let m = 1 + deployedBonuses().gatherSpeed;
+  m += jingweiGatherBonus();
   (window.Milestones||[]).forEach(ms=>{ if (ms.gather && ms.check()) m *= (1 + ms.gather); });
   if (Game.gear.charm && Game.gear.charm.gatherBonus) m += Game.gear.charm.gatherBonus;
   if (Game.buff && Game.buff.def && Game.buff.def.kind === 'gather') m += Game.buff.def.gather;
@@ -561,6 +574,7 @@ window.gatherSpeedMult = gatherSpeedMult; window.farmSpeedMult = farmSpeedMult;
 window.divMult = divMult; window.tradeMult = tradeMult; window.globalYieldBonus = globalYieldBonus;
 window.isWise = isWise; window.offlineEff = offlineEff; window.offlineCapHours = offlineCapHours;
 window.observeEffBonus = observeEffBonus; window.observedObserveCount = observedObserveCount;
+window.jingweiGatherBonus = jingweiGatherBonus;
 window.maxSkillLevel = maxSkillLevel; window.deployedBonuses = deployedBonuses;
 
 // ---------- 征兆系统 ----------
@@ -911,11 +925,15 @@ window.farmPlots = farmPlots; window.nextPlotLevel = nextPlotLevel;
 function farmTick(elapsed){
   const grew = [];
   const speed = farmSpeedMult();
-  for (const slot in Game.farms){
+  // 边遍历边删：先取键快照，免得漏掉排在后面的那块田（「最后一块田卡住」的成因之一）
+  for (const slot of Object.keys(Game.farms)){
     const f = Game.farms[slot];
     if (!f || !f.seedId) continue;
     const seed = Items[f.seedId];
     if (!seed || !seed.crop){ delete Game.farms[slot]; continue; }
+    // 存档里若留下坏值（NaN/字符串），这块田会永远「不大于 0」，既不熟也不长
+    if (typeof f.remain !== 'number' || !isFinite(f.remain)) f.remain = 0;
+    if (!(typeof elapsed === 'number') || !isFinite(elapsed)) elapsed = 0;
     f.remain -= elapsed * speed;
     if (f.remain <= 0){
       const crop = Items[seed.crop];
@@ -935,7 +953,8 @@ function farmTick(elapsed){
 function farmCatchUp(seconds){
   if (seconds > 0 && Object.keys(Game.farms).length) farmTick(seconds);
 }
-function slotIdNum(slot){ return parseInt(String(slot).replace('farm',''))+1; }
+// 田块 key 是 p0…p8（不是 farm0），旧写法 parseInt('p8') 得 NaN，日志就写成「田地NaN 收获」
+function slotIdNum(slot){ const n = parseInt(String(slot).replace(/^p/, ''), 10); return (isFinite(n) ? n : 0) + 1; }
 function plantSeed(plotId, seedId, silent){
   const seed = Items[seedId];
   if (!seed || !seed.crop){ UI && UI.toast('此非嘉种'); return false; }
@@ -1381,6 +1400,18 @@ function doGrow(siteId){
   st.stage++;
   gainXp('puyi', 400 + st.stage*120);
   gainXp('zhulu', 40);
+  // 段奖励（精卫填海）：每 50 阶一段，只领一次——记在 st.segs（已领的 at 列表）
+  if (Array.isArray(site.segments) && site.segments.length){
+    st.segs = Array.isArray(st.segs) ? st.segs : [];
+    for (const seg of site.segments){
+      if (st.stage < seg.at || st.segs.indexOf(seg.at) >= 0) continue;
+      st.segs.push(seg.at);
+      const got = Object.entries(seg.reward || {}).map(([id, q]) => `${(Items[id] || {}).name || id}×${q}`).join('、');
+      for (const [id, q] of Object.entries(seg.reward || {})) giveItem(id, q, false);
+      log(`🌊 ${site.name}·${seg.name}：${seg.text}${got ? '（得 ' + got + '）' : ''}`, 'gold', 'skill');
+      UI && UI.toast(`🌊 ${site.name}·${seg.name}\n${seg.text}${got ? '\n得 ' + got : ''}`);
+    }
+  }
   if (st.stage >= site.stages){
     for (const [id, qty] of Object.entries(site.reward)) giveItem(id, qty, false);
     st.stage = 0;
@@ -2007,12 +2038,14 @@ function doPlayerAttack(c, m){
   const style = combatMode();
   if (style === 'ranged'){
     const arrow = Game.gear.quiver;
-    if (!arrow || (Game.inventory[arrow.id]||0) <= 0){
+    // 矢也是装备（equip/slot:quiver），自 v1.31.22 起按件存在 packGear 里
+    const arrowQty = arrow ? (typeof bagQty === 'function' ? bagQty(arrow.id) : (Game.inventory[arrow.id]||0)) : 0;
+    if (!arrow || arrowQty <= 0){
       if (styleAvailable('attack')){ c.style = 'attack'; log('🏹 矢尽，改用近战', 'bad', 'combat'); }
       else { Game.combat = null; UI && UI.toast('矢尽，无以讨伐'); return; }
     } else {
-      Game.inventory[arrow.id]--;
-      if (Game.inventory[arrow.id] <= 0){ delete Game.inventory[arrow.id]; Game.gear.quiver = null; }
+      takeItem(arrow.id, 1, false);
+      if ((typeof bagQty === 'function' ? bagQty(arrow.id) : (Game.inventory[arrow.id]||0)) <= 0) Game.gear.quiver = null;
     }
   }
   // 大风「飘风」：闪避窗口
@@ -2953,7 +2986,7 @@ function settleAway(seconds){
   }
   // 田地照常生长
   const beforeH = Game.stats.harvests;
-  farmCatchUp(seconds * farmSpeedMult());
+  farmCatchUp(seconds);   // 速度只在 farmTick 里乘一次（原先这里与 farmTick 各乘一遍，离线等于平方）
   summary.harvests = Game.stats.harvests - beforeH;
   // 御使经验
   gainXp('yushi', 0.5 * Object.keys(Game.deployed).length * seconds * 0.5);

@@ -127,26 +127,35 @@ UI.autoEquipBest = function(){
 // 两处各写一遍迟早会长歪（一边认别名一边不认）。
 UI.packListHtml = function(){
   const q = String(this.packQuery || '').trim().toLowerCase();
-  let inv = Object.entries(Game.inventory).filter(([id, n]) => n > 0);
+  // 装备按「件」存（每件自带淬炼档），材料按 id 计数——所以先摊成统一的 row 再排、再渲染。
+  // 这样「+2 的木戈 ×1」与「木戈 ×19」是两行，不会再被并成「×20、+0」。
+  let rows = Object.entries(Game.inventory)
+    .filter(([, n]) => n > 0)
+    .map(([id, n]) => ({ id, enh: null, qty: n }));
+  for (const id of [...new Set((Game.packGear || []).map(g => g.id))]){
+    for (const st of (typeof gearStacks === 'function' ? gearStacks(id) : [])) rows.push({ id, enh: st.enh, qty: st.qty });
+  }
   if (q){
-    inv = inv.filter(([id]) => {
+    rows = rows.filter(({ id }) => {
       const it = Items[id] || {};
       return String(it.name || id).toLowerCase().includes(q)
         || String(it.py || '').toLowerCase().includes(q)
         || String(id).toLowerCase().includes(q);
     });
   }
-  inv.sort((a, b) => {
-    if (this.invSort === 'value') return (Items[b[0]].value || 0) - (Items[a[0]].value || 0);
-    if (this.invSort === 'qty') return b[1] - a[1];
+  rows.sort((a, b) => {
+    if (this.invSort === 'value') return (Items[b.id].value || 0) - (Items[a.id].value || 0);
+    if (this.invSort === 'qty') return b.qty - a.qty;
     return 0;
   });
-  if (!inv.length) return q ? '<div class="hint">行囊里没有对上的物件</div>' : '<div class="hint">行囊空空</div>';
-  return inv.map(([id, qty]) => {
+  if (!rows.length) return q ? '<div class="hint">行囊里没有对上的物件</div>' : '<div class="hint">行囊空空</div>';
+  return rows.map(({ id, enh, qty }) => {
     const it = Items[id] || {};
-    return `<div class="inv-card ${rarityClass(it)}" onclick="showItemDetail('${id}')">
+    const enhTag = (enh != null && enh > 0) ? `<span class="ic-enh" title="淬炼 +${enh}">+${enh}</span>` : '';
+    const enhArg = (enh != null) ? `,'',${enh}` : '';
+    return `<div class="inv-card ${rarityClass(it)}${(enh|0) > 0 ? ' enhanced' : ''}" onclick="showItemDetail('${id}'${enhArg})">
       <span class="ic-icon">${typeof itemIc==='function'?itemIc(id,20):(it.icon||'⬜')}</span>
-      <span class="ic-name">${nameTag(it.name || id, it.py)}${it.equip?gradeBadge(it):''}</span>
+      <span class="ic-name">${nameTag(it.name || id, it.py)}${enhTag}${it.equip?gradeBadge(it):''}</span>
       <span class="ic-qty">×${qty}</span>
       <span class="ic-val">${(it.value||0)*qty} 贝</span>
     </div>`;
@@ -440,8 +449,22 @@ UI.itemDetailHtml = function(itemId){
   // 而不是行囊里同名的另一件。
   const gearInst = (UI._detailGear && Game.gear[UI._detailGear]
     && (Game.gear[UI._detailGear].id || Game.gear[UI._detailGear]) === itemId) ? Game.gear[UI._detailGear] : null;
-  UI._enhTarget = gearInst || itemId;
-  const qty = Game.inventory[itemId] || 0;
+  // 行囊装备按档看：_detailEnh 指定哪一档，未指定取最高档。qty 是「这一档几件」，
+  // bagAll 是「同名共几件」——两者分开，玩家才知道自己卖的是哪一档。
+  const stacks = (it.equip && !gearInst && typeof gearStacks === 'function') ? gearStacks(itemId) : [];
+  const bagAll = (typeof bagQty === 'function') ? bagQty(itemId) : (Game.inventory[itemId] || 0);
+  const enhLv = (it.equip && !gearInst)
+    ? (UI._detailEnh != null ? UI._detailEnh : (stacks[0] ? stacks[0].enh : 0))
+    : 0;
+  const qty = (it.equip && !gearInst)
+    ? ((stacks.find(s => s.enh === enhLv) || {}).qty || 0)
+    : bagAll;
+  // 强化目标：身上那件实例 / 行囊里这一档的第一件实例
+  const bagInst = (it.equip && !gearInst)
+    ? ((Game.packGear || []).find(g => g.id === itemId && (g.enh | 0) === enhLv) || null)
+    : null;
+  UI._enhTarget = gearInst || bagInst || (it.equip ? null : itemId);
+  const enhShow = gearInst ? (gearInst.enh | 0) : enhLv;
   const rec = Game.records[itemId];
   const actions = [];
   if (it.equip && gearInst){
@@ -451,7 +474,7 @@ UI.itemDetailHtml = function(itemId){
     const recOk = (typeof reqRecordOk !== 'function') || reqRecordOk(it);
     const ok = lvOk && recOk;
     const why = !lvOk ? `需${requiredSkillName(it)} ${it.lvl}` : (!recOk ? '著录未及' : '');
-    actions.push(`<button class="btn ${ok?'primary':''}" ${ok?'':'disabled'} onclick="equipItem('${itemId}');UI.closeModal()">装备${ok?'':'（'+why+'）'}</button>`);
+    actions.push(`<button class="btn ${ok?'primary':''}" ${ok?'':'disabled'} onclick="equipItem('${itemId}',${enhLv});UI.closeModal()">装备${enhLv ? ' +' + enhLv : ''}${ok?'':'（'+why+'）'}</button>`);
   }
   if (it.heal || it.buff) actions.push(`<button class="btn primary" onclick="useConsumable('${itemId}');UI.closeModal()">${it.heal?'食用':'服用'}</button>`);
   // 出售改成「数量可填」的交易区（见下方 tradeBlock），不再放死档位按钮
@@ -461,8 +484,12 @@ UI.itemDetailHtml = function(itemId){
   const afCost = hasAffix ? affixReforgeCost(itemId) : null;
   const afOk = afCost ? ((Game.inventory.tan || 0) >= afCost.tan && Game.shells >= afCost.shells) : false;
 
-  return `<h3><span class="mi-ic">${typeof itemIc==='function'?itemIc(itemId,18):it.icon}</span> ${esc(it.name)} ${it.equip?gradeBadge(it):`<span class="tier">${rarityName(it)}</span>`}</h3>
-    <div class="meta">行囊 ${qty} 件${rec?` · 著录 ${rec.count} 次（${TUNING.MASTERY.NAMES[rec.tier]}）`:''}</div>
+  return `<h3><span class="mi-ic">${typeof itemIc==='function'?itemIc(itemId,18):it.icon}</span> ${esc(it.name)}${enhShow ? ` <span class="hd-enh">+${enhShow}</span>` : ''} ${it.equip?gradeBadge(it):`<span class="tier">${rarityName(it)}</span>`}</h3>
+    <div class="meta">${it.equip
+      ? `行囊 ${bagAll} 件${qty ? ` · 本档 ${enhShow ? '+' + enhShow : '+0'} ×${qty}` : ''}`
+      : `行囊 ${qty} 件`}${rec?` · 著录 ${rec.count} 次（${TUNING.MASTERY.NAMES[rec.tier]}）`:''}</div>
+    ${(it.equip && !gearInst && stacks.length > 1) ? `<div class="reveal"><b>分档</b><span class="use-box">${stacks.map(s =>
+      `<button class="btn tiny ${s.enh === enhLv ? 'on' : ''}" type="button" onclick="showItemDetail('${itemId}','',${s.enh})">+${s.enh} ×${s.qty}</button>`).join('')}</span></div>` : ''}
     ${it.form?`<div class="reveal"><b>形态</b>${esc(it.form)}</div>`:''}
     ${it.effect?`<div class="reveal"><b>效果</b>${esc(it.effect)}</div>`:''}
     ${it.note?`<div class="reveal"><b>出处</b>${esc(it.note)}</div>`:''}
@@ -489,35 +516,37 @@ UI.itemDetailHtml = function(itemId){
     })()}
     ${it.divine && typeof DIVINE_EFFECTS !== 'undefined' && DIVINE_EFFECTS[it.divine]
       ? `<div class="reveal"><b>神兵</b><span class="dv-tag">${esc(DIVINE_EFFECTS[it.divine].label)}</span><span class="dv-text">${esc(DIVINE_EFFECTS[it.divine].text)}</span></div>` : ''}
-    ${enhancePanelHtml(UI._enhTarget || itemId, it)}
+    ${(UI._enhTarget || !it.equip) ? enhancePanelHtml(UI._enhTarget || itemId, it) : ''}
     ${afList.length?`<div class="reveal"><b>词条</b>${afList.map(x=>`<span class="af-txt"><i>${esc(x.name)}</i>${esc(x.text)}</span>`).join('')}</div>`:''}
     ${afCost?`<div class="reveal"><b>重铸</b><span class="af-recost">换一组词条（炭×${afCost.tan} · ${afCost.shells} 贝）</span>
       <button class="btn small ${afOk?'primary':''}" ${afOk?'':'disabled'} onclick="UI.reforgeNow('${itemId}')">重铸</button></div>`:''}
     ${it.buff?`<div class="reveal"><b>服用</b>${esc(it.buff.name)}（${it.buff.dur}s）</div>`:''}
     ${it.heal?`<div class="reveal"><b>食用</b>回血 ${it.heal}</div>`:''}
     ${(it.value && qty > 0) ? `<div class="reveal trade-block">
-      <b>售出${gearInst ? '（行囊中的那一件）' : ''}</b>
+      <b>售出${it.equip ? `（行囊 ${enhShow ? '+' + enhShow : '+0'} 这一档）` : ''}</b>
       <div class="qty-line">
         <button class="btn tiny" type="button" title="减一件" onclick="qtyStep('sellQty',-1)">−</button>
         <input id="sellQty" class="qty-input" type="number" inputmode="numeric" min="1" max="${qty}" value="1"
-          oninput="syncSell('${itemId}')">
+          oninput="syncSell('${itemId}',${it.equip ? enhLv : 'null'})">
         <button class="btn tiny" type="button" title="加一件" onclick="qtyStep('sellQty',1)">＋</button>
         <button class="btn tiny" type="button" onclick="qtySet('sellQty',${qty})">全部</button>
-        <button class="btn primary" onclick="sellN('${itemId}')">售出</button>
+        <button class="btn primary" onclick="sellN('${itemId}',${it.equip ? enhLv : 'null'})">售出</button>
       </div>
       <div class="hint">可得 <b class="qty-gain" id="sellGain">${fmt(sellValue(itemId, 1))} 贝</b> · 单价 ${fmt(sellValue(itemId,1))} 贝 · 持有 ×${qty}</div>
-      ${(it.equip && enhanceLevel(itemId) > 0) ? `<div class="hint danger">⚠ 行囊这批已淬炼到 +${enhanceLevel(itemId)}，售出后阶数与投入一并失去</div>` : ''}
+      ${(it.equip && enhShow > 0) ? `<div class="hint danger">⚠ 这一档已淬炼到 +${enhShow}，售出后阶数与投入一并失去</div>` : ''}
       ${gearInst ? '<div class="hint">身上的那一件不受影响</div>' : ''}
     </div>` : ''}
     <div class="modal-btns">${actions.join('')}<button class="btn" onclick="UI.closeModal()">闭</button></div>`;
 };
 
-function showItemDetail(itemId, gearSlot){
+// enh：行囊里点的是哪一档（+2 的那堆 / +0 的那堆）。不传则默认最高档。
+function showItemDetail(itemId, gearSlot, enh){
   if (!Items[itemId]) return;
-  if (UI._detailId !== itemId || UI._detailGear !== (gearSlot || null)) UI._enhLast = null;
+  const enhv = (enh == null) ? null : (enh | 0);
+  if (UI._detailId !== itemId || UI._detailGear !== (gearSlot || null) || UI._detailEnh !== enhv) UI._enhLast = null;
   UI._detailId = itemId;
-  // gearSlot 非空 = 从装备槽点进来，强化作用于身上那件实例；否则作用于行囊那一类
   UI._detailGear = gearSlot || null;
+  UI._detailEnh = enhv;
   UI.modal(UI.itemDetailHtml(itemId));
 }
 
@@ -537,25 +566,34 @@ function qtySet(id, v){
   el.value = Math.max(1, Math.min(max, v));
   el.dispatchEvent(new Event('input', { bubbles: true }));
 }
-function syncSell(itemId){
+function syncSell(itemId, enh){
   const el = $('sellQty'), g = $('sellGain');
   if (!el || !g) return;
-  const have = Math.max(1, Game.inventory[itemId] || 1);
+  const have = Math.max(1, sellableQty(itemId, enh));
   const n = Math.max(1, Math.min(have, parseInt(el.value, 10) || 1));
   g.textContent = fmt(sellValue(itemId, n)) + ' 贝';
 }
-function sellN(itemId){
+// 这一档可卖几件（装备按档，材料按总量）
+function sellableQty(itemId, enh){
+  if (enh != null && typeof isEquipId === 'function' && isEquipId(itemId)){
+    const st = (typeof gearStacks === 'function' ? gearStacks(itemId) : []).find(x => x.enh === (enh|0));
+    return st ? st.qty : 0;
+  }
+  return (typeof bagQty === 'function') ? bagQty(itemId) : (Game.inventory[itemId] || 0);
+}
+function sellN(itemId, enh){
   const el = $('sellQty');
-  const have = Game.inventory[itemId] || 0;
+  const have = sellableQty(itemId, enh);
   if (have <= 0){ UI.closeModal(); return; }
   const n = Math.max(1, Math.min(have, parseInt(el && el.value, 10) || 1));
-  const gain = sellItem(itemId, n);
+  const gain = sellItem(itemId, n, enh == null ? undefined : enh);
   if (gain > 0) UI.toast(`⚖️ 售出 ${(Items[itemId]||{}).name||''} ×${n}，得贝 ${fmt(gain)}`);
-  if ((Game.inventory[itemId] || 0) > 0) UI.refreshItemModal(itemId);
+  if (sellableQty(itemId, enh) > 0) UI.refreshItemModal(itemId);
+  else if (sellableQty(itemId, null) > 0) showItemDetail(itemId, '', null);   // 这一档卖空了，退回看别的档
   else UI.closeModal();
 }
 window.qtyStep = qtyStep; window.qtySet = qtySet;
-window.syncSell = syncSell; window.sellN = sellN;
+window.syncSell = syncSell; window.sellN = sellN; window.sellableQty = sellableQty;
 
 // ---------- 市廛：商品详情与批量购入 ----------
 // 原先点一下直接买 1 份、右上「×10」买十份——想买 37 份得点四次。
@@ -582,7 +620,7 @@ function showShopItem(idx){
         <button class="btn tiny" type="button" title="加一份" onclick="qtyStep('buyQty',1)" ${max?'':'disabled'}>＋</button>
         <button class="btn tiny" type="button" onclick="qtySet('buyQty',${Math.max(1,max)})" ${max?'':'disabled'}>至多</button>
       </div>
-      <div class="hint">共计 <b class="qty-gain" id="buyCost">${fmt(s.cost)} 贝</b> · 持有 ×${Game.inventory[s.itemId]||0} · 贝币 ${fmt(Game.shells)} · ${lvOk?`至多可买 ${max} 份`:`需商旅 ${s.lvl} 级（现 ${levelOf('shanglv')}）`}</div>
+      <div class="hint">共计 <b class="qty-gain" id="buyCost">${fmt(s.cost)} 贝</b> · 持有 ×${typeof bagQty==='function'?bagQty(s.itemId):(Game.inventory[s.itemId]||0)} · 贝币 ${fmt(Game.shells)} · ${lvOk?`至多可买 ${max} 份`:`需商旅 ${s.lvl} 级（现 ${levelOf('shanglv')}）`}</div>
     </div>
     <div class="modal-btns">
       <button class="btn primary" id="buyGo" onclick="buyN(${idx})" ${max?'':'disabled'}>购入 1 份（${fmt(s.cost)} 贝）</button>
@@ -704,6 +742,10 @@ window.craftN = craftN; window.craftAll = craftAll;
 
 // 就地重绘：保持滚动位置，免得强化一下就被弹回顶部
 UI.refreshItemModal = function(itemId){
+  // 淬炼成功后那一件换档了（+0 堆里的一件 → +1 堆）：详情要跟着跳到新档，
+  // 否则会停在一个已经空了的档上，看着像「强化把装备弄没了」。
+  const t = UI._enhTarget;
+  if (t && typeof t === 'object' && (t.id === itemId) && UI._detailEnh != null) UI._detailEnh = (t.enh | 0);
   const box = $('modalBox');
   const body = box && box.querySelector('.modal-body');
   const y = body ? body.scrollTop : (box ? box.scrollTop : 0);

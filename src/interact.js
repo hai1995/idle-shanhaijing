@@ -117,7 +117,8 @@ function reqRecordText(it){
   const cur = ((Game.records || {})[r.id] || {}).tier || 0;
   return `需著录「${nm}」至${need}（今 ${TUNING.MASTERY.NAMES[cur] || '未录'}）`;
 }
-function equipItem(itemId){
+// enh 指定「穿哪一档」；不传则穿行囊里淬炼最高的那件（玩家攒了一堆 +0 时最符合直觉）。
+function equipItem(itemId, enh){
   const it = Items[itemId];
   if (!it || !it.equip){ log('该物品无法装备', 'bad'); return; }
   if ((it.lvl||1) > relevantLevel(it)){
@@ -130,21 +131,22 @@ function equipItem(itemId){
     UI && UI.toast(`🔒 ${reqRecordText(it)}`);
     return;
   }
-  if ((Game.inventory[itemId]||0) <= 0){ log('行囊中没有该物品', 'bad'); return; }
+  const stacks = (typeof gearStacks === 'function') ? gearStacks(itemId) : [];
+  if (!stacks.length){ log('行囊中没有该物品', 'bad'); return; }
+  // 指定档位时只认那一档；没指定就取最高档（+2 的那件，而不是随手一件 +0）
+  const want = (enh == null) ? stacks[0].enh : (stacks.find(s => s.enh === (enh|0)) || {}).enh;
+  if (want == null){ log('行囊中没有这一档', 'bad'); return; }
   const slot = equipSlotOf(it);
-  // 先记下行囊那一档的等级——这才是「你要穿上的那件」的等级。
-  // （必须赶在把旧装备写回行囊之前读，否则同名互换时会读成旧件的那一档）
-  const bagEnh = (Game.enhance && Game.enhance[itemId]) || 0;
   const old = Game.gear[slot];
   if (old){
-    // 卸下来的那件把自己的强化等级带回行囊（行囊按 itemId 记一档）
-    if (typeof Game.enhance === 'object') Game.enhance[old.id || old] = Math.max(0, old.enh | 0);
+    // 卸下来的那件带着自己的淬炼等级回到行囊（每件一档，v1.31.22）
     giveItem(old.id || old, 1, false);
+    const back = Game.packGear[Game.packGear.length - 1];
+    if (back && back.id === (old.id || old)) back.enh = Math.max(0, old.enh | 0);
   }
-  Game.inventory[itemId]--;
-  if (Game.inventory[itemId]<=0) delete Game.inventory[itemId];
+  if (!packGearTake(itemId, 1, want)){ log('行囊中没有该物品', 'bad'); return; }
   // 身上这件是**独立实例**：自带 enh，与行囊同名之物互不影响（v1.31.13）
-  Game.gear[slot] = Object.assign({}, it, { id: itemId, enh: bagEnh });
+  Game.gear[slot] = Object.assign({}, it, { id: itemId, enh: want });
   saveGame();
   UI && UI.refreshGear();
   UI && UI.refreshInventory();
@@ -155,9 +157,10 @@ function unequip(slot, toBank){
   const cur = Game.gear[slot];
   if (!cur) return;
   const id = cur.id || cur;
-  // 卸下：实例上的强化等级写回行囊那一档，否则脱下来就变回 +0 了
-  if (typeof Game.enhance === 'object') Game.enhance[id] = Math.max(0, cur.enh | 0);
+  // 卸下：这件带着自己的强化等级回行囊（每件一档，不必再写回共享的 Game.enhance）
   giveItem(id, 1, toBank);
+  const back = (Game.packGear || [])[Game.packGear.length - 1];
+  if (back && back.id === id) back.enh = Math.max(0, cur.enh | 0);
   Game.gear[slot] = null;
   UI && UI.refreshGear();
   UI && UI.refreshInventory();
@@ -185,16 +188,17 @@ function maybeAutoEquip(){
   if (!Prefs.autoEquip) return;
   for (const slot in Game.gear){
     const cur = Game.gear[slot];
-    let best = cur, bestPower = gearPower(cur);
-    for (const id in Game.inventory){
-      const it = Items[id];
+    let best = cur, bestId = null, bestEnh = null, bestPower = gearPower(cur);
+    for (const g of (Game.packGear || [])){
+      const it = Items[g.id];
       if (!it || !it.equip || equipSlotOf(it) !== slot) continue;
       if ((it.lvl||1) > relevantLevel(it)) continue;
       if (!reqRecordOk(it)) continue;
-      const p = gearPower(it);
-      if (p > bestPower){ best = it; bestPower = p; }
+      const inst = Object.assign({}, it, { enh: g.enh | 0 });
+      const p = gearPower(inst);
+      if (p > bestPower){ best = inst; bestId = g.id; bestEnh = g.enh | 0; bestPower = p; }
     }
-    if (best && best !== cur) equipItem(best.id);
+    if (best && best !== cur && bestId) equipItem(bestId, bestEnh);
   }
 }
 // 一键最优装：每个槽位换成行囊里更强、且相应技艺等级达标的装备。
@@ -204,21 +208,23 @@ function equipBest(){
   const changes = [];
   for (const slot in GearSlotLabels){
     const cur = Game.gear[slot];
-    let best = cur, bestPower = gearPower(cur);
-    for (const id in Game.inventory){
-      const it = Items[id];
+    let best = cur, bestId = null, bestEnh = null, bestPower = gearPower(cur);
+    // 行囊里每件装备各算各的（含它自己的淬炼档），不能只按 id 取模板——
+    // 否则「+12 的木戈」与「+0 的铁剑」比出来的是同一个数值。
+    for (const g of (Game.packGear || [])){
+      const it = Items[g.id];
       if (!it || !it.equip) continue;
-      if ((Game.inventory[id]||0) <= 0) continue;
       if (equipSlotOf(it) !== slot) continue;
       if ((it.lvl||1) > relevantLevel(it)) continue;
       if (!reqRecordOk(it)) continue;
-      const p = gearPower(it);
-      if (p > bestPower){ best = it; bestPower = p; }
+      const inst = Object.assign({}, it, { enh: g.enh | 0 });
+      const p = gearPower(inst);
+      if (p > bestPower){ best = inst; bestId = g.id; bestEnh = g.enh | 0; bestPower = p; }
     }
-    if (best && best !== cur){
+    if (best && best !== cur && bestId){
       const from = cur ? cur.name : '空';
-      equipItem(best.id);
-      changes.push(`${GearSlotLabels[slot]}：${from} → ${best.name}`);
+      equipItem(bestId, bestEnh);
+      changes.push(`${GearSlotLabels[slot]}：${from} → ${best.name}${bestEnh ? ' +' + bestEnh : ''}`);
     }
   }
   return changes;
@@ -243,14 +249,25 @@ function sellValue(itemId, qty){
   if (SHOP_ITEM_IDS.has(itemId)) m *= SHOP_BUYBACK;
   return Math.round(it.value * qty * m);
 }
-function sellItem(itemId, qty){
+// enh 指定「卖哪一档」（装备按档卖）；不传则先卖 +0、再卖低档
+function sellItem(itemId, qty, enh){
   qty = Math.floor(qty||1);
-  const have = Game.inventory[itemId]||0;
+  const have = (typeof bagQty === 'function') ? bagQty(itemId) : (Game.inventory[itemId]||0);
   if (have <= 0 || qty <= 0) return 0;
-  qty = Math.min(qty, have);
+  if (enh != null && typeof isEquipId === 'function' && isEquipId(itemId)){
+    const st = (typeof gearStacks === 'function' ? gearStacks(itemId) : []).find(x => x.enh === (enh|0));
+    qty = Math.min(qty, st ? st.qty : 0);
+    if (qty <= 0) return 0;
+  } else {
+    qty = Math.min(qty, have);
+  }
   const gain = sellValue(itemId, qty);
   if (gain <= 0){ UI && UI.toast('此物无所值'); return 0; }
-  takeItem(itemId, qty, false);
+  if (enh != null && typeof packGearTake === 'function' && typeof isEquipId === 'function' && isEquipId(itemId)){
+    packGearTake(itemId, qty, enh);
+  } else {
+    takeItem(itemId, qty, false);
+  }
   Game.shells += gain;
   Game.stats.sold += gain;
   Game.stats.totalEarned += gain;
@@ -371,7 +388,7 @@ function deliverOrder(idx){
   if (!o) return false;
   const it = Items[o.itemId];
   if (!it){ Game.orders.splice(idx, 1); return false; }
-  const have = Game.inventory[o.itemId]||0;
+  const have = (typeof bagQty === 'function') ? bagQty(o.itemId) : (Game.inventory[o.itemId]||0);
   if (have < o.qty){ UI && UI.toast(`🔒 ${it.name} 还差 ${o.qty - have} 件`); return false; }
   takeItem(o.itemId, o.qty, false);
   Game.shells += o.total;

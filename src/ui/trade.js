@@ -127,7 +127,7 @@ UI.renderShichan = function(){
   (Game.orders||[]).forEach(o=>{
     if (o.done) return;
     const it = Items[o.itemId];
-    if (it && (Game.inventory[o.itemId]||0) >= o.qty)
+    if (it && ((typeof bagQty === 'function') ? bagQty(o.itemId) : (Game.inventory[o.itemId]||0)) >= o.qty)
       tips.push(`方国求购：<b>${esc(it.name)}</b> ×${o.qty} 已备齐，可交割得 <b>${fmt(o.total)}</b> 贝`);
   });
 
@@ -142,7 +142,7 @@ UI.renderShichan = function(){
     board = (Game.orders||[]).map((o, idx)=>{
       const it = Items[o.itemId] || { name:o.itemId, icon:'📦' };
       const region = regionById(o.regionId);
-      const have = Game.inventory[o.itemId]||0;
+      const have = (typeof bagQty === 'function') ? bagQty(o.itemId) : (Game.inventory[o.itemId]||0);
       const ok = !o.done && have >= o.qty;
       return `<div class="ob-card ${o.done?'done':''}" data-tip data-tip-title="${esc(it.name)}">
         <div class="ob-top"><span class="rc-icon">${typeof itemIc==='function'?itemIc(o.itemId,16):(it.icon||'📦')}</span><b>${esc(it.name)}</b>

@@ -9,7 +9,7 @@
 //
 // 依赖：仅用标准 Web API，不引用本项目其它模块（保证可独立测试）。
 
-const SAVE_VERSION = 5;                       // 当前存档结构版本（v5：会员权益快照）
+const SAVE_VERSION = 6;                       // 当前存档结构版本（v6：行囊装备按件存，含各自强化档）
 const SAVE_KEY = 'shj_zhulu_save_v1';         // 本地存档键（沿用旧键，旧档直接可读）
 const SAVE_TIME_KEY = SAVE_KEY + '_time';     // 最后写入时间戳（离线结算用）
 const SAVE_META_KEY = 'shj_zhulu_meta_v1';    // 元数据：rev / dirty / savedAt / deviceId
@@ -26,6 +26,26 @@ const SAVE_MIGRATIONS = {
     d.mobStreak = (d.mobStreak && typeof d.mobStreak === 'object') ? d.mobStreak : {};
     d.orders = Array.isArray(d.orders) ? d.orders : [];
     d.ordersAt = isFinite(d.ordersAt) ? d.ordersAt : 0;
+    return d;
+  },
+  // v5 → v6：行囊装备从「按 id 计数 + 共享一档强化」改为「按件实例」
+  // 旧的 enhance[id] 是整堆共享的，迁过来就是 n 件同一档——语义不变，只是能分开了。
+  5: (d) => {
+    const inv = (d.inventory && typeof d.inventory === 'object') ? d.inventory : {};
+    const enh = (d.enhance && typeof d.enhance === 'object') ? d.enhance : {};
+    const out = [];
+    if (Array.isArray(d.packGear)) out.push(...d.packGear);
+    for (const id of Object.keys(inv)){
+      const n = Math.floor(inv[id] || 0);
+      if (n <= 0) continue;
+      const isEquip = !!(typeof Items !== 'undefined' && Items[id] && Items[id].equip);
+      if (!isEquip) continue;
+      const lv = Math.max(0, parseInt(enh[id], 10) || 0);
+      for (let i = 0; i < n; i++) out.push({ id, enh: lv });
+      delete inv[id];
+    }
+    d.inventory = inv;
+    d.packGear = out;
     return d;
   },
   // v4 → v5：会员权益快照（现在恒为未开通；账号系统登录后写入 tier / until）
@@ -94,6 +114,8 @@ function serializeSave(){
     queueRunning: !!G.queueRunning, queueLoop: G.queueLoop !== false, fallback: G.fallback || null,
     mobStreak: G.mobStreak || {}, orders: G.orders || [], ordersAt: G.ordersAt || 0,
     enhance: G.enhance || {}, enhanceHeat: G.enhanceHeat || {}, affixSalt: G.affixSalt || {},
+    // 行囊装备：一件一条，各自带淬炼档（v6）
+    packGear: Array.isArray(G.packGear) ? G.packGear.map(g => ({ id: g.id, enh: g.enh | 0 })) : [],
     rebirth: G.rebirth || { count:0, at:0, best:0 },
     // 会员权益快照：由账号层写入，本地只读；未登录时恒为 { tier:'none', until:0 }
     member: G.member || { tier:'none', until:0 },

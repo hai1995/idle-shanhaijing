@@ -365,14 +365,23 @@ function growButtonForNode(node){
     const next = Math.min(site.stages, (Math.floor(stage / site.stepEvery) + 1) * site.stepEvery);
     stepTip = ` · 下一路标 ${next} 阶`;
   }
+  // 段奖励（精卫填海）：写明下一段是第几阶、叫什么、给什么——不然「50 阶」只是个数字
+  if (Array.isArray(site.segments) && site.segments.length && !done){
+    const got = Array.isArray(st.segs) ? st.segs : [];
+    const seg = site.segments.find(s2 => got.indexOf(s2.at) < 0);
+    if (seg) stepTip += ` · 下一段 ${seg.at} 阶「${seg.name}」`;
+  }
   const stepTxt = site.sec >= 3600
     ? `${Math.round(site.sec / 3600)} 小时一阶`
     : `${Math.round(site.sec / 60)} 分一阶`;
   const sub = done
     ? `${site.stages}/${site.stages} 已成 · 可再投`
     : `${stage}/${site.stages}${stepTip} · ${stepTxt}${cost ? ' · 耗 ' + cost : ''}`;
+  // 段奖励逐条列在 title 里：玩家点之前就该知道「熬到 100 阶有什么」
+  const segTips = Array.isArray(site.segments) ? site.segments.map(s2 => `${s2.at} 阶·${s2.name}：${s2.text}`).join('\n') : '';
+  const tip = esc(site.desc) + (segTips ? `\n\n${esc(segTips)}` : '');
   return `<button class="btn ${un && !done?'primary':''}" ${un && !done?'':'disabled'} onclick="startGrow('${key}')"
-    title="${esc(site.desc)}">🌱 灌木 ${esc(site.name)}<i>${sub}</i></button>`;
+    title="${tip}">🌱 灌木 ${esc(site.name)}<i>${sub}</i></button>`;
 }
 // 特殊节点的「地气」：原文设定之外，把它实际影响什么写清楚。
 // 尽沙 / 百仞 / 干河三处原先只有一句原文，玩家不知道走进去会怎样。
@@ -583,7 +592,7 @@ UI.renderSkills = function(){
   </div>
 
   <div class="panel farm-panel">
-    <h3>圃艺 · 田地<button class="btn small gear-best" type="button" onclick="UI.plantAll()">一键种植</button></h3>
+    <h3>圃艺 · 田地<span class="farm-lv" id="farmPuyiLv">${farmLevelText()}</span><button class="btn small gear-best" type="button" onclick="UI.plantAll()">一键种植</button></h3>
     <div class="tile-grid farm-grid">
     ${farmTilesHtml()}
     </div>
@@ -675,6 +684,22 @@ UI.confirmRebirth = function(){
   if (this.refreshActivity) this.refreshActivity();
   this.switchTab('skills');
 };
+
+// 圃艺等级与经验：就写在田地标题旁——玩家站在田边最想知道的不是「我几级」，
+// 而是「还差多少升下一级、下一块田几级开」。两者都放进这一行。
+function farmLevelText(){
+  const sk = (Game.skills && Game.skills.puyi) || { level:1, xp:0 };
+  const lv = sk.level || 1;
+  const xc = (typeof xpForLevel === 'function') ? xpForLevel(lv) : 0;
+  const xn = (typeof xpForLevel === 'function') ? xpForLevel(lv + 1) : 0;
+  const cur = Math.max(0, (sk.xp || 0) - xc);
+  const need = Math.max(0, xn - xc);
+  const pct = need > 0 ? Math.min(100, cur / need * 100) : 100;
+  const left = Math.max(0, need - cur);
+  const nextPlot = (typeof nextPlotLevel === 'function') ? nextPlotLevel() : 0;
+  const tail = nextPlot ? ` · 下一块田 Lv${nextPlot}` : ' · 田已尽垦';
+  return `Lv ${lv} · 经验 ${fmt(cur)}/${fmt(need)}（${pct.toFixed(0)}%，还需 ${fmt(left)}）${tail}`;
+}
 
 // 田地方块 HTML（整页渲染与就地补绘共用）
 function farmTilesHtml(){
@@ -815,11 +840,14 @@ UI.patchFarms = function(){
   if (grid) grid.innerHTML = farmTilesHtml();
 };
 // 每秒轻量跟进：只改进度条宽度、剩余时间与成熟态，不重建 DOM（不打断悬停浮层）
+// ⚠️ 收获后若 DOM 里还留着那块田（Game.farms 已无此格），早先的 `return` 会让它
+// 永远停在「0 秒 / 100%」——玩家看到的「最后一块田卡住」就是它。这里发现残留就整块重绘。
 UI.patchFarmsProgress = function(){
   if (this.currentTab !== 'skills') return;
+  let stale = false;
   document.querySelectorAll('#content .farm-tile.growing').forEach(el=>{
     const f = Game.farms[el.dataset.plot];
-    if (!f) return;                                   // 刚收获的交给 patchFarms 整块重绘
+    if (!f){ stale = true; return; }
     const pct = Math.max(0, Math.min(100, (1 - f.remain/f.grow)*100));
     const ripe = pct >= 100;
     el.classList.toggle('ripe', ripe);
@@ -828,8 +856,9 @@ UI.patchFarmsProgress = function(){
     const bar = el.querySelector('.ft-bar i');
     if (bar) bar.style.width = pct.toFixed(0) + '%';
     const tag = el.querySelector('.tile-tag');
-    if (tag) tag.textContent = fmtTime(f.remain/Math.max(0.1,farmSpeedMult()));
+    if (tag) tag.textContent = fmtTime(Math.max(0, f.remain)/Math.max(0.1,farmSpeedMult()));
   });
+  if (stale) this.patchFarms();
 };
 // 征兆就地补绘：有征兆到期 / 新触发时，祠祀页的 active 态、总效应、禳解行要立刻跟上
 UI.patchOmens = function(){

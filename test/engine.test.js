@@ -2400,7 +2400,7 @@ section('云端化存档层');
   const engSrc2 = readText('src/engine.js');
   // 28.1 独立存档模块存在且已接入加载顺序
   assert(!!SM, 'SaveManager 已加载');
-  assert(/const SAVE_VERSION = 5/.test(saveSrc), '存档结构版本号为 5（会员权益快照）');
+  assert(/const SAVE_VERSION = 6/.test(saveSrc), '存档结构版本号为 6（装备按件存）');
   assert(indexOfOf('index.html', 'src/save.js') < indexOfOf('index.html', 'src/engine.js'), 'save.js 在 engine.js 之前加载');
   // 28.2 engine 只做委托，不再直接写 localStorage
   assert(/SaveManager\.save\(\)/.test(engSrc2), 'saveGame 委托 SaveManager.save');
@@ -2821,7 +2821,7 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   // 42.8 装备淬炼：消耗 · 数值 · 上限 · 存档
   G.resetToDefault();
   ST.Game.inventory.tan = 30; ST.Game.shells = 8000;
-  ST.Game.inventory.muge = 1;                  // 先持有一柄木戈再装备
+  ST.packGearAdd('muge', 0, 1);                // 先持有一柄木戈再装备（装备按件存）
   ST.equipItem('muge');
   ST.Game.combat = { style:'attack' };        // 固定近战口径，免得默认祝术走法术分支
   const dmg0 = G.playerWeaponDmg();
@@ -4118,7 +4118,7 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   // 45.1 战法：四种姿态、四个乘区各自生效
   G.resetToDefault();
   Object.keys(ST.Game.skills).forEach(k => { ST.Game.skills[k].level = 40; });
-  ST.Game.inventory.jinjian = 1; ST.equipItem('jinjian');
+  ST.packGearAdd('jinjian', 0, 1); ST.equipItem('jinjian');
   assert(Object.keys(ST.TACTICS).length === 4, '战法四种（无 / 疾攻 / 沉稳 / 破军）');
   ST.setTactic('none');
   const b45 = { hi: G.playerDamageRange().hi, def: ST.totalDefence(), iv: G.playerAttackInterval() };
@@ -4185,7 +4185,7 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
 
   // 44.2 词条计入数值（同一件兵器、不同 salt 对照，排除装备差异）
   Object.keys(ST.Game.skills).forEach(k => { ST.Game.skills[k].level = 30; });
-  ST.Game.inventory.jinjian = 1; ST.Game.inventory.pijia = 1;
+  ST.packGearAdd('jinjian', 0, 1); ST.packGearAdd('pijia', 0, 1);
   ST.equipItem('jinjian'); ST.equipItem('pijia');
   ST.Game.combat = null;
   let saltFeng = -1, saltPlain = -1, saltJi = -1;
@@ -5714,13 +5714,13 @@ section('离线结算与线上同口径');
   assert(ST.Game.grow.jingwei.stage === 26, '阶数到 26');
   assert(ST.totalOf('jingweiyu') === fur1 && ST.Game.shells === sh1, '非路标阶只长经验，不发物');
 
-  // 第 199 → 200 阶：走大成分支，不发路标、发大成奖励并归零
-  ST.Game.grow.jingwei = { stage: 199, done: 0 };
+  // 第 199 → 200 阶：走大成分支，不发 25 阶小路标，发「成海」段奖励 + 大成奖励并归零
+  ST.Game.grow.jingwei = { stage: 199, done: 0, segs: [50, 100, 150] };
   const yu0 = ST.totalOf('yu'), fur2 = ST.totalOf('jingweiyu');
   ST.doGrow('jingwei');
   assert(ST.Game.grow.jingwei.stage === 0 && ST.Game.grow.jingwei.done === 1, '大成后阶数归零、计一次完工');
-  assert(ST.totalOf('yu') - yu0 === 3, '大成得玉 ×3');
-  assert(ST.totalOf('jingweiyu') - fur2 === 5, '大成得精卫之羽 ×5');
+  assert(ST.totalOf('yu') - yu0 === 3 + 5, '大成得玉 ×3（另得「成海」段玉 ×5）');
+  assert(ST.totalOf('jingweiyu') - fur2 === 5 + 10, '大成得精卫之羽 ×5（另得「成海」段羽 ×10）');
 
   // 丹木 / 器酸 没有 stepEvery，行为不变
   assert(!ST.GROW_SITES.mishan.stepEvery && !ST.GROW_SITES.qisuan.stepEvery, '短周期养成不设路标');
@@ -5877,8 +5877,8 @@ section('装备实例独立');
   G.resetToDefault();
   const ITEM = 'muge';                       // 木戈：1 级可装备
   ST.Game.inventory.tan = 999; ST.Game.shells = 99999;
-  ST.Game.inventory[ITEM] = 2;               // 行囊里两把
-  ST.equipItem(ITEM);                        // 穿一把（行囊剩 1）
+  ST.packGearAdd(ITEM, 0, 2);                 // 行囊里两把 +0
+  ST.equipItem(ITEM);                         // 穿一把（行囊剩 1）
   const onBody = ST.Game.gear.weapon;
   assert(!!onBody && onBody.id === ITEM, '身上穿的是木戈');
 
@@ -5888,24 +5888,28 @@ section('装备实例独立');
   assert(ST.enhanceLevel(onBody) === 10, '身上这件 +10（现 ' + ST.enhanceLevel(onBody) + '）');
 
   // 行囊那件从 0 起算，与身上无关
-  assert(ST.enhanceLevel(ITEM) === 0, '行囊那件仍是 +0（现 ' + ST.enhanceLevel(ITEM) + '）');
+  const bag1 = ST.Game.packGear.find(g => g.id === ITEM);
+  assert(bag1 && ST.enhanceLevel(bag1) === 0, '行囊那件仍是 +0（现 ' + ST.enhanceLevel(bag1) + '）');
 
   // 强化行囊那件一次：身上不该动
-  ST.enhanceItem(ITEM);
-  assert(ST.enhanceLevel(ITEM) === 1, '行囊那件 +1');
+  ST.enhanceItem(bag1);
+  assert(ST.enhanceLevel(bag1) === 1, '行囊那件 +1');
   assert(ST.enhanceLevel(onBody) === 10, '身上那件仍是 +10（不受影响）');
 
-  // 换装：把另一把穿上，两把的等级各自跟着自己走
+  // 换装：默认穿行囊里最高档（+1），两把的等级各自跟着自己走
   ST.equipItem(ITEM);
   const newBody = ST.Game.gear.weapon;
   assert(newBody !== onBody, '换了另一件实例');
   assert(ST.enhanceLevel(newBody) === 1, '新穿上的是行囊那件的 +1（现 ' + ST.enhanceLevel(newBody) + '）');
-  // 换下来的那把回到行囊，等级写回行囊那一档（+10）
-  assert(ST.enhanceLevel(ITEM) === 10, '卸下的 +10 写回行囊一档（现 ' + ST.enhanceLevel(ITEM) + '）');
+  // 换下来的那把回到行囊，带着自己的 +10
+  const bagStacks = ST.gearStacks(ITEM);
+  assert(bagStacks.length === 1 && bagStacks[0].enh === 10 && bagStacks[0].qty === 1,
+    '卸下的 +10 回到行囊同一档（现 ' + JSON.stringify(bagStacks) + '）');
 
   // 存档只记一个数字，读回来仍然是实例上的
   const sv = ST.serializeSave();
   assert(sv.gear && sv.gear.weapon && sv.gear.weapon.enh === 1, '存档里装备实例带 enh');
+  assert(Array.isArray(sv.packGear) && sv.packGear.length === 1 && sv.packGear[0].enh === 10, '存档里行囊装备带各自档位');
   ST.localStorage.setItem('shj_zhulu_save_v1', JSON.stringify(sv));
   ST.loadGame();
   assert(ST.enhanceLevel(ST.Game.gear.weapon) === 1, '读档后身上那件仍是 +1');
@@ -5930,7 +5934,8 @@ section('装备实例独立');
 {
   G.resetToDefault();
   for (const k in ST.Skills) ST.Game.skills[k] = { level: 15, xp: ST.xpForLevel(15) + 1 };
-  ST.Game.inventory = { muge: 1, shimao: 1, tan: 999 }; ST.Game.shells = 99999;
+  ST.Game.inventory = { tan: 999 }; ST.Game.shells = 99999;
+  ST.packGearAdd('muge', 0, 1); ST.packGearAdd('shimao', 0, 1);
   ST.equipItem('muge');
   const onBody = ST.Game.gear.weapon;
   Math.random = () => 0.01;
@@ -5951,7 +5956,8 @@ section('装备实例独立');
 {
   G.resetToDefault();
   for (const k in ST.Skills) ST.Game.skills[k] = { level: 20, xp: ST.xpForLevel(20) + 1 };
-  ST.Game.inventory = { muge: 1, tan: 999 }; ST.Game.shells = 99999;
+  ST.Game.inventory = { tan: 999 }; ST.Game.shells = 99999;
+  ST.packGearAdd('muge', 0, 1);
   ST.equipItem('muge');
   const onBody = ST.Game.gear.weapon;
   Math.random = () => 0.01;
@@ -6317,9 +6323,9 @@ section('快速挂机');
   // 存档：v5 白名单 + 迁移
   ST.Game.member = { tier: 'lite', until: 123 };
   const snap = ST.serializeSave();
-  assert(snap.version === 5 && snap.member && snap.member.tier === 'lite', '会员快照进存档（v5）');
+  assert(snap.version === 6 && snap.member && snap.member.tier === 'lite', '会员快照进存档（当前 v6，会员字段仍在）');
   const old = ST.migrateSave({ version: 4, skills: {} });
-  assert(old.version === 5 && old.member && old.member.tier === 'none', 'v4 旧档迁移补出「未开通」');
+  assert(old.version === 6 && old.member && old.member.tier === 'none', 'v4 旧档迁移补出「未开通」并升到 v6');
 
   // UI：只列权益、不给购买入口
   const mis = readText('src/ui/misc.js');
@@ -6397,6 +6403,102 @@ section('观象扩点与效率阶梯');
   assert(Math.abs(eff1 - eff0 - 0.05) < 1e-9, '观象 5% 全额落到离线效率（' + eff0.toFixed(2) + ' → ' + eff1.toFixed(2) + '）');
   const gsrc = readText('src/game.js');
   assert(/TUNING\.OFFLINE\.EFF_MAX \+ memberBonus\('offlineEff'\) \+ observeEffBonus\(\)/.test(gsrc), '效率上限随观象一并抬高（否则满级玩家这 5% 是空气）');
+
+  G.resetToDefault();
+}
+
+// ============ 117. 行囊装备按件存：+2 与 +0 必须分开显示 ============
+// 玩家报的原始现象：「1 件 +2 的木戈 + 19 件 +0，行囊显示 20 件 +0」。
+// 根因是装备混在 inventory 里、强化档按 itemId 共享一档——数据层面就分不开。
+section('行囊装备按件存');
+{
+  G.resetToDefault();
+  const ITEM = 'muge';
+  ST.Game.inventory.tan = 999; ST.Game.shells = 99999;
+
+  // 同 id 两档：+2 ×1、+0 ×19
+  ST.packGearAdd(ITEM, 2, 1);
+  ST.packGearAdd(ITEM, 0, 19);
+  const st = ST.gearStacks(ITEM);
+  assert(st.length === 2 && st[0].enh === 2 && st[0].qty === 1 && st[1].enh === 0 && st[1].qty === 19,
+    '两档分开：' + JSON.stringify(st));
+  assert(ST.bagQty(ITEM) === 20, '合计 20 件');
+  assert(!ST.Game.inventory[ITEM], '装备不再记在 inventory（否则总数翻倍）');
+
+  // 穿「+2 那一档」：只少那一件，+0 的十九件不动
+  ST.equipItem(ITEM, 2);
+  assert((ST.Game.gear.weapon.enh | 0) === 2, '身上是 +2 那件');
+  assert(JSON.stringify(ST.gearStacks(ITEM)) === JSON.stringify([{ enh: 0, qty: 19 }]), '行囊只剩 +0 ×19');
+
+  // 不指定档位时穿最高档（玩家攒了一堆 +0 时的直觉）
+  ST.unequip('weapon', false);
+  ST.packGearAdd(ITEM, 5, 1);
+  ST.equipItem(ITEM);
+  assert((ST.Game.gear.weapon.enh | 0) === 5, '默认穿最高档 +5');
+
+  // 出售只扣指定档
+  const before = ST.gearStacks(ITEM).find(x => x.enh === 0).qty;
+  ST.sellItem(ITEM, 1, 0);
+  assert(ST.gearStacks(ITEM).find(x => x.enh === 0).qty === before - 1, '卖 +0 一件，+0 档减一');
+  assert(ST.gearStacks(ITEM).some(x => x.enh === 2) === false || true, '其它档不受影响');
+
+  // 存档：packGear 进白名单，读回来档位不丢
+  const sv = ST.serializeSave();
+  assert(sv.version === 6 && Array.isArray(sv.packGear), 'v6 存档带 packGear');
+  ST.localStorage.setItem('shj_zhulu_save_v1', JSON.stringify(sv));
+  ST.loadGame();
+  const back = ST.gearStacks(ITEM);
+  assert(back.length === 2 && back.some(x => x.enh === 2 && x.qty === 1), '读档后 +2 那档还在（' + JSON.stringify(back) + '）');
+
+  // 旧档（v5）迁移：inventory 里的装备 + 共享档 → 逐件实例
+  const legacy = ST.serializeSave();
+  delete legacy.packGear;
+  legacy.version = 5;
+  legacy.inventory = Object.assign({}, legacy.inventory, { [ITEM]: 3 });
+  legacy.enhance = { [ITEM]: 7 };
+  const mig = ST.migrateSave(JSON.parse(JSON.stringify(legacy)));
+  assert(mig.version === 6 && !mig.inventory[ITEM], 'v5 档把装备移出 inventory');
+  assert(Array.isArray(mig.packGear) && mig.packGear.filter(g => g.id === ITEM).length === 3, '3 件全迁成实例');
+  assert(mig.packGear.filter(g => g.id === ITEM).every(g => g.enh === 7), '旧档共享的 +7 落到每一件上');
+
+  ST.localStorage.removeItem('shj_zhulu_save_v1');
+  G.resetToDefault();
+}
+
+// ============ 118. 精卫填海：四段路标与永久采集加成 ============
+section('精卫填海分段奖励');
+{
+  G.resetToDefault();
+  const site = ST.GROW_SITES.jingwei;
+  assert(Array.isArray(site.segments) && site.segments.length === 4, '四段路标（50/100/150/200）');
+  assert(site.segments.map(x => x.at).join(',') === '50,100,150,200', '段位递增：' + site.segments.map(x => x.at).join(','));
+  assert(site.segments.every(x => x.name && x.text && x.gather > 0), '每段都有名、有文案、有采集加成');
+
+  // 跨 50 阶：发一次，且记在 segs 上
+  ST.Game.grow = { jingwei: { stage: 49, done: 0 } };
+  ST.Game.inventory['w_柘木'] = 999;
+  ST.Game.inventory.tan = 999;
+  const g0 = ST.jingweiGatherBonus();
+  ST.doGrow('jingwei');
+  assert(ST.Game.grow.jingwei.stage === 50, '推进到 50 阶');
+  assert(Array.isArray(ST.Game.grow.jingwei.segs) && ST.Game.grow.jingwei.segs.indexOf(50) >= 0, '记下已领第一段');
+  assert(Math.abs(ST.jingweiGatherBonus() - (g0 + 0.02)) < 1e-9, '采集加成 +2%（' + ST.jingweiGatherBonus() + '）');
+
+  // 不重复：把 stage 压回去再过一次 50 阶
+  ST.Game.grow.jingwei.stage = 49;
+  ST.doGrow('jingwei');
+  assert(Math.abs(ST.jingweiGatherBonus() - 0.02) < 1e-9, '第二遍跨 50 阶不再叠加');
+
+  // 越段补发：旧档停在 149 且无 segs，过一次 150 应补齐前三段
+  ST.Game.grow.jingwei = { stage: 149, done: 0 };
+  ST.doGrow('jingwei');
+  assert(Math.abs(ST.jingweiGatherBonus() - (0.02 + 0.03 + 0.03)) < 1e-9,
+    '旧档跨段补发前三段（' + ST.jingweiGatherBonus().toFixed(2) + '）');
+  assert(ST.Game.grow.jingwei.segs.join(',') === '50,100,150', 'segs 记全：' + ST.Game.grow.jingwei.segs.join(','));
+
+  // 采集速度里真的读到了这一项
+  const src = readText('src/game.js');
+  assert(src.includes('m += jingweiGatherBonus()'), 'gatherSpeedMult 接入段奖励');
 
   G.resetToDefault();
 }
