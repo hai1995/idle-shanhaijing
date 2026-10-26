@@ -311,6 +311,12 @@ html.theme-anim, html.theme-anim *{
 #activityText::before{ content:''; display:inline-block; width:5px; height:5px; margin-right:7px; vertical-align:1px;
   border-radius:50%; background:var(--ink-4); }
 #statusbar.running #activityText::before{ background:var(--zhu); box-shadow:0 0 0 3px var(--zhu-w); }
+/* 现场显示时，进度改由现场底部那根承担；仪表带这根收起来，免得上下各画一根。
+   （现场被玩家关掉时这个类不会加，仪表带照旧有进度条。） */
+#statusbar.scene-on #actionProg{ display:none; }
+/* 进度条收走后，「停止」会紧贴着行动名，右边留一大块空。
+   让行动名吃掉剩余宽度，把停止按钮顶到最右。 */
+#statusbar.scene-on #activityText{ flex:1 1 auto; }
 
 /* —— 现场：仪表带下方的行动画面（v1.31.54） ——
    采集是这个游戏最核心的动作，此前全部视觉反馈只有仪表带上那根细进度条，
@@ -330,6 +336,11 @@ html.theme-anim, html.theme-anim *{
 }
 .sc-sky{ position:absolute; inset:0; background:linear-gradient(180deg, rgba(255,255,255,.55), transparent 58%); }
 .sc-hills{ position:absolute; left:0; right:0; top:0; width:100%; height:52px; color:inherit; }
+.sc-birds{ transform-box:view-box; animation:scBird 19s ease-in-out infinite alternate; }
+@keyframes scBird{
+  from{ transform:translate(0,0); }
+  to  { transform:translate(18px,-3px); }
+}
 /* 地面：一条起伏的土坡，不再是平直灰带——平带看着像「站在一块板子上」 */
 .sc-ground{
   position:absolute; left:0; right:0; bottom:0; height:22px; width:100%;
@@ -343,10 +354,17 @@ html.theme-anim, html.theme-anim *{
 }
 /* 52×60 是折中：人占场景高约七成，再大就顶到山线，再小就只剩一个符号。 */
 .sc-worker{ display:block; width:52px; height:60px; }
+/* 整体俯仰：包一层 div 做 rotate。这是兼容性最好的一层——
+   SVG 内部元素的 CSS transform 在部分内核对不齐，整个人一起动就不会「定住」。 */
+.sc-rig{ transform-origin:50% 100%; animation:scRig var(--ai) ease-in-out infinite; }
 /* 原点落在脚上：呼吸是「身子轻微起伏」，脚不动 */
 .sc-figure{ transform-origin:24px 68px; animation:scBreath 3.4s ease-in-out infinite; }
-/* 原点在手上：锄头绕握点旋转 */
-.sc-tool{ transform-origin:30px 38px; animation:scSwing var(--ai) ease-in-out infinite; }
+/* 原点在手上：锄头绕握点旋转。transform-box 显式写成 view-box，
+   让 px 原点按 viewBox 坐标解释，而不是元素自身的 bbox。 */
+.sc-tool{
+  transform-box:view-box; transform-origin:30px 38px;
+  animation:scSwing var(--ai) ease-in-out infinite;
+}
 
 @keyframes scBreath{
   0%,100%{ transform:translateY(0); }
@@ -354,12 +372,29 @@ html.theme-anim, html.theme-anim *{
 }
 /* 落下排在周期末尾：引擎在 interval 走满时产出，此刻锄头正好砸到地上——
    因果对齐，玩家看到的是「这一锄挖出来的」，而不是「先出东西再动一下」。 */
+/* 一个采集周期挥两锄：第一锄松土，第二锄出土。
+   原先一个周期只挥一下，两秒多的间隔里几乎静止——玩家会以为动画没跑。
+   两锄把「动」的密度翻倍，而第二锄仍落在周期末尾，与引擎产出的时刻对齐。 */
 @keyframes scSwing{
   0%  { transform:rotate(6deg); }
-  46% { transform:rotate(-112deg); }  /* 举到竖直偏右 */
-  62% { transform:rotate(-106deg); }  /* 最高点略停，有「抡」的分量 */
-  92% { transform:rotate(4deg); }     /* 落下、插入土中 */
+  15% { transform:rotate(-98deg); }   /* 第一锄举起 */
+  29% { transform:rotate(4deg); }     /* 第一锄落下（松土） */
+  34% { transform:rotate(6deg); }
+  56% { transform:rotate(-114deg); }  /* 第二锄举得更高 */
+  68% { transform:rotate(-108deg); }  /* 最高点略停，有「抡」的分量 */
+  92% { transform:rotate(4deg); }     /* 第二锄落下 ← 引擎正好在这一刻产出 */
   100%{ transform:rotate(6deg); }
+}
+/* 整个人随锄俯仰：举起时略后仰，落下时前俯 */
+@keyframes scRig{
+  0%  { transform:rotate(0deg); }
+  15% { transform:rotate(-2.2deg); }
+  29% { transform:rotate(3.2deg); }
+  40% { transform:rotate(.4deg); }
+  56% { transform:rotate(-2.6deg); }
+  68% { transform:rotate(-2.2deg); }
+  92% { transform:rotate(3.6deg); }
+  100%{ transform:rotate(0deg); }
 }
 /* 土粒：与挥锄同一周期，只在落下那一段可见 */
 .sc-pit{ position:absolute; left:31px; bottom:1px; width:20px; height:8px; }
@@ -372,9 +407,12 @@ html.theme-anim, html.theme-anim *{
 .sc-pit i:nth-child(2){ left:9px; animation-delay:calc(var(--ai) * -.04); }
 .sc-pit i:nth-child(3){ left:2px; animation-delay:calc(var(--ai) * -.07); }
 @keyframes scDust{
-  0%, 88%{ opacity:0; transform:translate(0,0) scale(1); }
-  93%    { opacity:.5;  transform:translate(-2px,-6px) scale(1.15); }
-  99%    { opacity:0;   transform:translate(-6px,-13px) scale(.75); }
+  0%, 25%{ opacity:0; transform:translate(0,0) scale(.7); }
+  30%    { opacity:.34; transform:translate(-1px,-4px) scale(.85); }   /* 第一锄的小土 */
+  38%    { opacity:0; transform:translate(-4px,-9px) scale(.6); }
+  86%    { opacity:0; transform:translate(0,0) scale(.7); }
+  93%    { opacity:.55; transform:translate(-2px,-7px) scale(1.2); }   /* 第二锄的大土 */
+  99%    { opacity:0; transform:translate(-7px,-14px) scale(.8); }
   100%   { opacity:0; }
 }
 
@@ -426,12 +464,18 @@ html.theme-anim, html.theme-anim *{
   display:block; font-family:var(--f-num); font-size:10px; color:var(--ink-4); letter-spacing:.02em;
 }
 
-/* 山名题字：仿古籍插图的墨书小字，放右上角——左上角是人物所在的，
-   题字压在人头上会糊成一团。仪表带已写全称，此处只作画中落款。 */
-.sc-cap{
-  position:absolute; right:14px; top:6px;
-  font-family:var(--f-kai); font-size:11px; letter-spacing:.14em;
-  color:var(--ink-3); opacity:.62;
+
+/* 产出闪光：以人脚下为中心的一层朱色淡光，0.5 秒退去。
+   用 opacity 而非 transform——opacity 在所有内核对所有元素都稳。 */
+.sc-flash{
+  position:absolute; inset:0; pointer-events:none; opacity:0;
+  background:radial-gradient(circle at 22% 78%, rgba(176,58,43,.22), rgba(176,58,43,.05) 42%, transparent 62%);
+}
+.sc-flash.on{ animation:scFlash .5s ease-out; }
+@keyframes scFlash{
+  0%  { opacity:0; }
+  16% { opacity:1; }
+  100%{ opacity:0; }
 }
 
 /* 底部细进度：看画面时眼睛在现场，进度也该在那里 */
@@ -439,8 +483,10 @@ html.theme-anim, html.theme-anim *{
 .sc-prog i{ display:block; height:100%; width:0; background:var(--zhu); opacity:.7; transition:width .18s linear; }
 
 /* 动效关掉时保留静帧：画面还在（知道在做什么），只是不动 */
+.sc-wrap.no-anim .sc-rig,
 .sc-wrap.no-anim .sc-figure,
 .sc-wrap.no-anim .sc-tool,
+.sc-wrap.no-anim .sc-birds,
 .sc-wrap.no-anim .sc-pit i{ animation:none; }
 .sc-wrap.no-anim .sc-drop{ animation-duration:.01s; }
 
@@ -455,7 +501,6 @@ html.theme-anim, html.theme-anim *{
   .sc-mound{ left:56px; }
   .sc-drops{ bottom:52px; }
   .sc-hud{ bottom:12px; }
-  .sc-cap{ top:8px; }
 }
 
 /* 窄屏：压到 74px。手机上一屏要装书脊 + 仪表带 + 现场 + 页签 + 内容，
@@ -467,7 +512,6 @@ html.theme-anim, html.theme-anim *{
   .sc-drops{ bottom:4px; }
   .sc-hud{ right:10px; bottom:9px; }
   .sc-hud b .sc-n{ font-size:17px; }
-  .sc-cap{ right:10px; top:4px; font-size:10px; }
 }
 
 /* 增益图标：书脊最右，一枚四角星。有增益时亮起、带朱色计数；没有时只是暗淡入口 */
@@ -19578,7 +19622,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.54',
+  version: '1.31.55',
   codename:'昼巡 · 近况',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -29188,20 +29232,20 @@ function sceneHtml(s){
         stroke-width="1" vector-effect="non-scaling-stroke"/>
     </svg>
     <div class="sc-stage">
-      ${sceneWorker(s.kind)}
+      <div class="sc-rig">${sceneWorker(s.kind)}</div>
       <div class="sc-pit"><i></i><i></i><i></i></div>
       <svg class="sc-mound" viewBox="0 0 18 7" aria-hidden="true">
         <path d="M1 6 Q9 0 17 6 Z" fill="currentColor" fill-opacity=".2"/>
       </svg>
     </div>
     <div class="sc-drops"></div>
-    ${s.place ? `<div class="sc-cap">${esc(s.place)}</div>` : ''}
     <div class="sc-hud">
       ${counted
         ? `<b><i class="sc-n${t && t.n ? '' : ' zero'}">${t && t.n ? t.n : 0}</i> 件</b>`
         : `<b class="sc-label">${esc(s.name)}</b>`}
       <span>${esc(s.note)}</span>
     </div>
+    <div class="sc-flash"></div>
     <div class="sc-prog"><i id="sceneProg"></i></div>
   </div>`;
 }
@@ -29218,6 +29262,10 @@ UI.renderScene = function(){
   if (!bar) return;
   const on = !(typeof Prefs !== 'undefined' && Prefs.sceneOn === false);
   const s = on ? sceneState() : null;
+  // 现场显示时，仪表带那根细进度条要收起来（v1.31.55）：
+  // 同一件事（挖到几分）在屏幕上下各画一根，是纯冗余。进度改由现场底部那根承担。
+  const sb = (typeof document !== 'undefined') ? document.getElementById('statusbar') : null;
+  if (sb && sb.classList) sb.classList.toggle('scene-on', !!s);
   if (!s){ bar.classList.add('hidden'); bar.innerHTML = ''; UI._sceneSig = 'none'; return; }
   bar.classList.remove('hidden');
   const sig = sceneSig(s);
@@ -29251,6 +29299,14 @@ UI.sceneBeat = function(itemId, qty, opts){
     }
   }
   if (typeof Prefs !== 'undefined' && Prefs.fxLevel === 'off') return;
+  // 产出时整条现场闪一下：这一层用 opacity，不依赖 SVG 动画。
+  // 万一某个内核对 <g> 的 CSS transform 支持不全，出货这件事仍然看得见。
+  const flash = bar.querySelector('.sc-flash');
+  if (flash){
+    flash.classList.remove('on');
+    void flash.offsetWidth;
+    flash.classList.add('on');
+  }
   // 土粒不用在这里驱动：它靠 CSS 与 --ai 同步（见 scDust 帧），
   // 若在这里再触发一次，两套时序会打架。
   // 收成浮起

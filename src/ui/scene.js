@@ -122,20 +122,20 @@ function sceneHtml(s){
         stroke-width="1" vector-effect="non-scaling-stroke"/>
     </svg>
     <div class="sc-stage">
-      ${sceneWorker(s.kind)}
+      <div class="sc-rig">${sceneWorker(s.kind)}</div>
       <div class="sc-pit"><i></i><i></i><i></i></div>
       <svg class="sc-mound" viewBox="0 0 18 7" aria-hidden="true">
         <path d="M1 6 Q9 0 17 6 Z" fill="currentColor" fill-opacity=".2"/>
       </svg>
     </div>
     <div class="sc-drops"></div>
-    ${s.place ? `<div class="sc-cap">${esc(s.place)}</div>` : ''}
     <div class="sc-hud">
       ${counted
         ? `<b><i class="sc-n${t && t.n ? '' : ' zero'}">${t && t.n ? t.n : 0}</i> 件</b>`
         : `<b class="sc-label">${esc(s.name)}</b>`}
       <span>${esc(s.note)}</span>
     </div>
+    <div class="sc-flash"></div>
     <div class="sc-prog"><i id="sceneProg"></i></div>
   </div>`;
 }
@@ -152,6 +152,10 @@ UI.renderScene = function(){
   if (!bar) return;
   const on = !(typeof Prefs !== 'undefined' && Prefs.sceneOn === false);
   const s = on ? sceneState() : null;
+  // 现场显示时，仪表带那根细进度条要收起来（v1.31.55）：
+  // 同一件事（挖到几分）在屏幕上下各画一根，是纯冗余。进度改由现场底部那根承担。
+  const sb = (typeof document !== 'undefined') ? document.getElementById('statusbar') : null;
+  if (sb && sb.classList) sb.classList.toggle('scene-on', !!s);
   if (!s){ bar.classList.add('hidden'); bar.innerHTML = ''; UI._sceneSig = 'none'; return; }
   bar.classList.remove('hidden');
   const sig = sceneSig(s);
@@ -185,6 +189,14 @@ UI.sceneBeat = function(itemId, qty, opts){
     }
   }
   if (typeof Prefs !== 'undefined' && Prefs.fxLevel === 'off') return;
+  // 产出时整条现场闪一下：这一层用 opacity，不依赖 SVG 动画。
+  // 万一某个内核对 <g> 的 CSS transform 支持不全，出货这件事仍然看得见。
+  const flash = bar.querySelector('.sc-flash');
+  if (flash){
+    flash.classList.remove('on');
+    void flash.offsetWidth;
+    flash.classList.add('on');
+  }
   // 土粒不用在这里驱动：它靠 CSS 与 --ai 同步（见 scDust 帧），
   // 若在这里再触发一次，两套时序会打架。
   // 收成浮起

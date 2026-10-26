@@ -7887,7 +7887,13 @@ section('行动现场');
   assert(swing.length > 0, 'scSwing 帧存在');
   assert(/9[0-9]%[^}]*rotate\(4deg\)/.test(swing), '落下（rotate 4deg）排在周期 90% 之后');
   const dust = (cssSrc145.match(/@keyframes scDust\{[\s\S]*?\n\}/) || [''])[0];
-  assert(/8[5-9]%,\s*9[0-9]%/.test(dust) || /88%[,{]/.test(dust), '土粒与挥落同时机');
+  assert(/93%/.test(dust), '土粒（第二锄那把）与挥落同时机');
+  // 一个周期挥两锄：第一锄松土、第二锄出土。只挥一下的话，两秒多的间隔里近乎静止，
+  // 盯着看的人会以为动画没跑——这正是 v1.31.54 上线的头一个反馈。
+  const swings = (swing.match(/rotate\(4deg\)/g) || []).length;
+  assert(swings >= 2, `一个周期挥两锄（实测 ${swings} 次落下）`);
+  assert(cssSrc145.includes('scRig'), '整个人随锄俯仰（不只锄头动）');
+  assert(sSrc145.includes('sc-rig'), '俯仰层包在人物外（div 上的 transform 兼容性最好）');
 
   // ---- 3. 版式：人、山、地、收成、记账，一个不少 ----
   const html145 = ST.sceneHtml(stA145);
@@ -7897,7 +7903,8 @@ section('行动现场');
   assert(html145.indexOf('sc-drops') >= 0, '有收成浮出的容器');
   assert(html145.indexOf('sc-hud') >= 0, '有记账');
   assert(html145.indexOf('sc-prog') >= 0, '底部有细进度');
-  assert(html145.indexOf(stA145.place) >= 0, '山名作为画中落款出现');
+  // 山名不再画在场景里：仪表带已写「樵采：桂（招摇之山）」，画上再落一次是重复
+  assert(html145.indexOf(stA145.place) < 0, '现场不复述山名');
 
   // 采集有计数，观象没有——摆一个永远为 0 的大数字比不摆更让人困惑
   assert(html145.indexOf('class="sc-n') >= 0, '采集给出「已采几件」的数字');
@@ -7941,7 +7948,13 @@ section('行动现场');
   assert(cSrc145.includes('activityLabelText()'), '行动全称仍由仪表带负责');
   assert(html145.indexOf('樵采') < 0, '现场不重复行动全称');
 
-  // ---- 9. 设置里能关掉（手机屏高宝贵）----
+  // ---- 9. 进度条不重复：现场显示时收起仪表带那根 ----
+  // 同一件事（挖到几分）在屏幕上下各画一根，是纯冗余（v1.31.55）。
+  assert(cssSrc145.includes('#statusbar.scene-on #actionProg'), '现场显示时收起仪表带的进度条');
+  assert(sSrc145.includes("classList.toggle('scene-on'"), '现场渲染时给仪表带打标记');
+  assert(cSrc145.includes('sceneProg'), '进度改由现场底部那根承担');
+
+  // ---- 10. 设置里能关掉（手机屏高宝贵）----
   assert(cSrc145.includes('Prefs.sceneOn'), '设置页有开关');
   assert(sSrc145.includes('Prefs.sceneOn === false'), '关掉后不渲染现场');
 
