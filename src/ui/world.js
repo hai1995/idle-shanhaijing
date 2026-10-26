@@ -601,7 +601,7 @@ UI.renderSkills = function(){
         <span class="tile-tag">${sk.name} ${r.lvl}</span>
         ${can?`<button class="tile-more" type="button" title="连作：做到材料用尽"
           onclick="event.stopPropagation();startActivity('craft','${r.type}::${r.out}')">连</button>`:''}
-        <span class="tip-body hidden"><div class="rc-cost">${costChips(r.cost)}</div><div class="rc-xp">经验 ${r.xp}</div>${!lvOk?`<div class="hint ${r.lvl - levelOf(mapRecipeSkill(r.type)) <= 2 ? 'near' : ''}">再升 ${r.lvl - levelOf(mapRecipeSkill(r.type))} 级（${sk.name} ${r.lvl}）</div>`:''}</span>
+        <span class="tip-body hidden"><div class="rc-cost">${costChips(r.cost)}</div>${specialCostLine(r.cost)}<div class="rc-xp">经验 ${r.xp}</div>${!lvOk?`<div class="hint ${r.lvl - levelOf(mapRecipeSkill(r.type)) <= 2 ? 'near' : ''}">再升 ${r.lvl - levelOf(mapRecipeSkill(r.type))} 级（${sk.name} ${r.lvl}）</div>`:''}</span>
       </div>`;
     }).join('')}
     </div>
@@ -713,6 +713,20 @@ function farmLevelText(){
   // 只写「等级 + 分子/分母」：手机上标题行很窄，写全整句会挤成三行竖排，
   // 反而看不出还差多少（百分比与「下一块田」在 skill tile / 开垦提示里已有）。
   return `Lv ${lv} · ${fmt(cur)}/${fmt(need)}`;
+}
+
+// 配方里含「系产」时，卡片悬停点一句：这几件不是随处可采，走遍该系才有。
+// 详情页会写完整指路（还差几山），这里只给一行——卡片浮层塞不下更多。
+function specialCostLine(cost){
+  if (typeof pilgrimGiftIndex !== 'function') return '';
+  const idx = pilgrimGiftIndex();
+  const bits = [];
+  for (const [id] of (cost || [])){
+    const reg = idx.get(id);
+    if (reg) bits.push(`${(Items[id] || {}).name || id}（${reg.regionName}）`);
+  }
+  if (!bits.length) return '';
+  return `<div class="rc-sub sp-cost">★ 系产：${bits.join('、')} · 走遍该系可得</div>`;
 }
 
 // 田地方块 HTML（整页渲染与就地补绘共用）

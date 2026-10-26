@@ -434,6 +434,7 @@ html.theme-anim, html.theme-anim *{
    否则三者在同一行里互相挤压（手机上会糊成一团）。 */
 .mat-wrap{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:5px; }
 .sp-hint{ line-height:1.5; }
+.sp-cost{ color:var(--zhu-d); }
 .sp-hint b{ color:var(--zhu-d); }
 .pilgrim{ font-family:var(--f-num); font-size:11px; font-weight:400; letter-spacing:0;
   color:var(--ink-4); white-space:nowrap; flex:0 0 auto; }
