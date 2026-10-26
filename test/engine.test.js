@@ -8023,6 +8023,28 @@ section('现场驱动自愈');
 
   // ---- 6. 单帧绘制独立成函数：启动与 watchdog 共用一份 ----
   assert(typeof ST.UI.paintSceneFrame === 'function', '单帧绘制独立成函数');
+
+  // ---- 7. 系统「减弱动态效果」时，锄头也该停 ----
+  // CSS 那条 @media 只管得着 CSS 动画；这把锄头是 JS 每帧写 d 画的，CSS 管不到。
+  // 于是开了减动效的机器上，装饰全停、只有锄头在挥，还费电。
+  const savedMM = ST.matchMedia, savedRaf = G.requestAnimationFrame;
+  let rafCalls = 0;
+  // rAF 是 vm 全局（context）上的，不是 window 桩上的——scene.js 里是裸调用。
+  G.requestAnimationFrame = () => { rafCalls++; return 9001; };
+  ST.matchMedia = (q) => ({ matches: /prefers-reduced-motion/.test(String(q)) });
+  assert(ST.sceneReduceMotion() === true, '减动效判据读得到系统设置');
+  ST.UI.stopSceneMotion();
+  ST.UI._sceneSig = 'test|reduce';
+  ST.UI._sceneLast = 0;
+  ST.UI.startSceneMotion();
+  assert(!ST.UI._sceneRaf && rafCalls === 0, '减动效时不起 rAF（保留静帧）');
+  ST.matchMedia = (q) => ({ matches: false });
+  assert(ST.sceneReduceMotion() === false, '减动效关掉后判据为假');
+  ST.UI.startSceneMotion();
+  assert(rafCalls === 1, '减动效关掉后照常起 rAF');
+  ST.UI.stopSceneMotion();
+  G.requestAnimationFrame = savedRaf; ST.matchMedia = savedMM;
+  ST.UI._sceneSig = 'none';
 }
 
 // ============ 147. 指引条不该是三等价（v1.31.60） ============

@@ -493,7 +493,7 @@ UI.paintProbe = function(){
   // 除了帧数/相位，还要写「距上一帧多久」与「谁在驱动」——
   // 前者一眼看出链是不是断了，后者说明此刻是 JS 还是 CSS 在画。
   const gap = UI._sceneCss ? '停' : (UI._sceneLast ? Math.round(sceneNow() - UI._sceneLast) + 'ms' : '—');
-  const drv = UI._sceneCss ? 'CSS（JS 停摆）' : 'JS';
+  const drv = sceneReduceMotion() ? '停（系统减动效）' : (UI._sceneCss ? 'CSS（JS 停摆）' : 'JS');
   const t = '帧 ' + (UI._sceneFrames || 0) + ' · 相位 ' + (UI._scenePhase || 0).toFixed(2)
           + ' · 间隔 ' + iv.toFixed(2) + 's · 迟 ' + gap + ' · ' + drv;
   if (el.textContent !== t) el.textContent = t;
@@ -525,8 +525,10 @@ UI.sceneCssFallback = function(on){
 
 UI.startSceneMotion = function(){
   if (typeof requestAnimationFrame !== 'function' || typeof document === 'undefined') return;
-  // 动效关掉时保留静帧：画面还在（知道在做什么），只是不动
+  // 动效关掉、或系统开了「减弱动态效果」时保留静帧：
+  // 画面还在（知道在做什么），只是不动。
   if (typeof Prefs !== 'undefined' && Prefs.fxLevel === 'off') return;
+  if (sceneReduceMotion()) return;
   // 已在跑且心跳新鲜 → 不叠加；心跳过期（id 还在、链其实断了）→ 重启。
   // v1.31.59 之前这里是 `if (UI._sceneRaf) return;`：只要 id 没清掉就永远不再启动，
   // 一旦某一帧被丢掉，这个现场就永久定住——iOS「添加到主屏幕」正是这么定住的。
@@ -619,12 +621,22 @@ UI.paintSceneFrame = function(){
 // 心跳监护：rAF 这条链在任何环境下都有可能被掐断（切后台、省电模式、
 // 独立 WebView 挂起）。断了不能就让它断着——每秒看一眼，停了就重启；
 // 连试三次都起不来，说明这个环境压根不给 rAF，降级给 CSS。
+// 系统级「减弱动态效果」。CSS 那边已经有一条 `@media (prefers-reduced-motion: reduce)`
+// 把所有 animation 收到 0.01s，可这把锄头是 JS 每帧算坐标写 d 的，CSS 管不到——
+// 于是开着「减弱动态效果」的机器上，静态装饰全停了，只有锄头还在挥（还费电）。
+// 判据收在这里一处：启动、watchdog、渲染三处都问它。
+function sceneReduceMotion(){
+  if (typeof window === 'undefined' || !window.matchMedia) return false;
+  try { return !!window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch(e){ return false; }
+}
+
 UI.startSceneWatch = function(){
   if (typeof setInterval !== 'function' || UI._sceneWatchId) return;
   UI._sceneWatchId = setInterval(function(){
     if (typeof document !== 'undefined' && document.hidden) return;
     if (!UI._sceneSig || UI._sceneSig === 'none') return;
     if (typeof Prefs !== 'undefined' && Prefs.fxLevel === 'off') return;
+    if (sceneReduceMotion()) return;      // 系统级停摆：不再拉起（否则每秒白跑一次 watchdog）
     if (sceneNow() - (UI._sceneLast || 0) < 1800){ UI._sceneMiss = 0; return; }
     UI._sceneMiss = (UI._sceneMiss || 0) + 1;
     if (UI._sceneMiss >= 3){
@@ -643,7 +655,7 @@ if (typeof document !== 'undefined' && document.addEventListener){
     if (typeof document !== 'undefined' && document.hidden) return;
     UI._sceneLast = 0; UI._sceneMiss = 0; UI._sceneRaf = 0;
     if (UI._sceneCss) UI.sceneCssFallback(false);
-    if (UI._sceneSig && UI._sceneSig !== 'none') UI.startSceneMotion();
+    if (UI._sceneSig && UI._sceneSig !== 'none' && !sceneReduceMotion()) UI.startSceneMotion();
   };
   document.addEventListener('visibilitychange', resume);
   if (typeof window !== 'undefined' && window.addEventListener){
@@ -659,6 +671,7 @@ if (typeof window !== 'undefined'){
   window.SCENE_KIT = SCENE_KIT;
   window.sceneInkOf = sceneInkOf;
   window.sceneNight = sceneNight;
+  window.sceneReduceMotion = sceneReduceMotion;
   window.sceneProps = sceneProps;
   window.sceneFoe = sceneFoe;
   window.sceneSky = sceneSky;
