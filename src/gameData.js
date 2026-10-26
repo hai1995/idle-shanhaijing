@@ -2231,32 +2231,46 @@ const NS_OBSERVE = Object.keys(OBSERVE_SITES).filter(k => OBSERVE_SITES[k].kind 
   && String(OBSERVE_SITES[k].nodeId).indexOf('nanshan-') === 0);
 
 const Milestones = [
-  { id:'rec_5',    name:'初识山川',   desc:'著录 5 种对象',     prog:()=>[recordedCount(), 5],    bonus:'经验 +2%',   xp:0.02 },
-  { id:'rec_30',   name:'簿录渐成',   desc:'著录 30 种对象',    prog:()=>[recordedCount(), 30],   bonus:'经验 +3%',   xp:0.03 },
+  { id:'rec_5',    name:'初识山川',   desc:'著录 5 种对象',     prog:()=>[recordedCount(), 5],    bonus:'经验 +2%',   xp:0.02,
+    how:'在舆地采集、征伐讨伐、观象谒见——凡是第一次接触的对象都会自动著录一条，不必手动记录。前五条最快：把南山首经走一遍。', go:{ tab:'yudi' } },
+  { id:'rec_30',   name:'簿录渐成',   desc:'著录 30 种对象',    prog:()=>[recordedCount(), 30],   bonus:'经验 +3%',   xp:0.03,
+    how:'著录只增不减，同一种只算一条。想快就多换几座山、多打几种怪——图鉴里能看每类还差多少。', go:{ tab:'codex' } },
   { id:'yudi_all', name:'南山舆图',   desc:`南山经 ${chapterNodes('nanshan-')} 山全部解锁`,
-    prog:()=>[chapterVisited('nanshan-'), chapterNodes('nanshan-')], bonus:'采集 +5%', gather:0.05 },
+    prog:()=>[chapterVisited('nanshan-'), chapterNodes('nanshan-')], bonus:'采集 +5%', gather:0.05,
+    how:'沿舆地一路向前，每座山第一次抵达即计入。门前写着所需等级——不够就先采采打打，舆地与履险会跟着涨。', go:{ tab:'yudi' } },
   { id:'boss_all', name:'六凶伏诛',   desc:'击败六凶全部',
-    prog:()=>[SIX_BEASTS.filter(bossKilled).length, SIX_BEASTS.length], bonus:'伤害 +10%', dmg:0.10 },
+    prog:()=>[SIX_BEASTS.filter(bossKilled).length, SIX_BEASTS.length], bonus:'伤害 +10%', dmg:0.10,
+    how:'六凶散在五章关底，图鉴·异兽里标着「凶神」。40 级后再去，带足吃食、穿甲，兵器淬到 +10 以上。', go:{ tab:'taofa' } },
   { id:'feng_omen',name:'凤皇来仪',   desc:'触发「天下安宁」吉兆',
-    prog:()=>[(Game.stats.omens && Game.stats.omens.fenghuang) ? 1 : 0, 1], bonus:'采获 +5%', yield:0.05 },
+    prog:()=>[(Game.stats.omens && Game.stats.omens.fenghuang) ? 1 : 0, 1], bonus:'采获 +5%', yield:0.05,
+    how:'丹穴之山的观瑞点，做完即触发。观瑞有冷却，异迹索引里能看哪些还没做、在哪个山系。', go:{ act:'UI.gotoHetero()', label:'看异迹' } },
   { id:'guan_all', name:'三谷观象',   desc:`南山 ${NS_OBSERVE.length} 处观象全部完成`,
     prog:()=>[NS_OBSERVE.filter(k => Game.observed && Game.observed[k]).length, NS_OBSERVE.length],
-    bonus:'离线上限 +1h', offlineCap:3600 },
+    bonus:'离线上限 +1h', offlineCap:3600,
+    how:'南山三谷各有一处观象，站到对应山头上点「观象」。异迹索引把三类一次性地点（观象 / 谒见 / 灌木）按山系列全了。', go:{ act:'UI.gotoHetero()', label:'看异迹' } },
   { id:'jingwei',  name:'精卫填海',   desc:'樵采累计 10000 次',
-    prog:()=>[Math.min(10000, (Game.stats.gathers && Game.stats.gathers.qiaocai) || 0), 10000], bonus:'采集速度 +8%', gather:0.08 },
+    prog:()=>[Math.min(10000, (Game.stats.gathers && Game.stats.gathers.qiaocai) || 0), 10000], bonus:'采集速度 +8%', gather:0.08,
+    how:'纯靠次数，只能挂着。把「樵采」排进巡历队列即可——「快速挂机」会自动选当前技能够得着的最高级木材。', go:{ tab:'queue' } },
   { id:'dayu',     name:'大禹治水',   desc:'全部营造完成',
     prog:()=>[Object.keys(BUILDINGS).filter(id => Game.buildings && Game.buildings[id]).length, Object.keys(BUILDINGS).length],
-    bonus:'离线效率 +5%', offlineEff:0.05 },
+    bonus:'离线效率 +5%', offlineEff:0.05,
+    how:'营造页每座建筑一块，浮层里写着所需材料与效用。缺料时先看「用途」那一行——多数材料自己采比买便宜。', go:{ tab:'ying' } },
   { id:'yushi_9',  name:'百兽率舞',   desc:'御使槽位全部启用',
     prog:()=>[Math.min(beastSlots(), Object.values(Game.deployed || {}).filter(Boolean).length), 9],
-    bonus:'全技能经验 +3%', xp:0.03 },
+    bonus:'全技能经验 +3%', xp:0.03,
+    how:'御使槽随著录条数一格格解锁；异兽要著录到「通形」才能派驻。没收到的那只，先去讨伐它几次。', go:{ tab:'yushi' } },
   // ---- 西山经长线成就 ----
   { id:'xs_yudi',  name:'西山舆图',   desc:`西山经 ${chapterNodes('xishan-')} 山全部解锁`,
-    prog:()=>[chapterVisited('xishan-'), chapterNodes('xishan-')], bonus:'采获 +8%', yield:0.08 },
-  { id:'xs_luwu',  name:'昆吾守关',   desc:'击败陆吾',          prog:()=>[bossKilled('luwu') ? 1 : 0, 1], bonus:'采集 +5%', gather:0.05 },
-  { id:'xs_xiwm',  name:'玉山谒母',   desc:'击败西王母',        prog:()=>[bossKilled('xiwangmu') ? 1 : 0, 1], bonus:'伤害 +10%', dmg:0.10 },
-  { id:'xs_dijiang',name:'天山混沌',  desc:'击败帝江',          prog:()=>[bossKilled('dijiang') ? 1 : 0, 1], bonus:'采获 +10%', yield:0.10 },
-  { id:'xs_danmu', name:'丹木五岁',   desc:'峚山养成完成一次',  prog:()=>[Math.min(1, (Game.danmu || {}).done || 0), 1], bonus:'采集速度 +15%', gather:0.15 },
+    prog:()=>[chapterVisited('xishan-'), chapterNodes('xishan-')], bonus:'采获 +8%', yield:0.08,
+    how:'与南山舆图同理，只是西山的门槛高一档（30–55 级）。一路走过去就行，不必刻意刷。', go:{ tab:'yudi' } },
+  { id:'xs_luwu',  name:'昆吾守关',   desc:'击败陆吾',          prog:()=>[bossKilled('luwu') ? 1 : 0, 1], bonus:'采集 +5%', gather:0.05,
+    how:'西次三经的关底，约 40 级。硬拼不过就先淬兵器、备镇物，再吃一份「固本散」提防。', go:{ tab:'taofa' } },
+  { id:'xs_xiwm',  name:'玉山谒母',   desc:'击败西王母',        prog:()=>[bossKilled('xiwangmu') ? 1 : 0, 1], bonus:'伤害 +10%', dmg:0.10,
+    how:'西次三经偏后，血与伤都比陆吾高一档。开战前看「承伤约 N 倍气血」，备够份数再去。', go:{ tab:'taofa' } },
+  { id:'xs_dijiang',name:'天山混沌',  desc:'击败帝江',          prog:()=>[bossKilled('dijiang') ? 1 : 0, 1], bonus:'采获 +10%', yield:0.10,
+    how:'西次三经最末一尊，55 级上下再来。身上的护甲至少要良品，兵器淬炼别偷懒。', go:{ tab:'taofa' } },
+  { id:'xs_danmu', name:'丹木五岁',   desc:'峚山养成完成一次',  prog:()=>[Math.min(1, (Game.danmu || {}).done || 0), 1], bonus:'采集速度 +15%', gather:0.15,
+    how:'峚山的灌木点，五阶，每阶耗玉膏一枚。玉膏在峚山可采，市廛也有卖。', go:{ tab:'yudi' } },
   // 原先数的是 records 里 deity_ 开头的键（那是祠礼的神祇，27 个），与「谒见」无关；
   // 达成口径与 desc 对不上，玩家谒见完全部西山神祇反而不亮。现在按谒见点实计。
   // ⚠️ 位数从 AUDIENCE_SITES 现算，不写死：以后给西山添一位神祇，门槛自动跟着涨。
@@ -2268,15 +2282,20 @@ const Milestones = [
     }
     return { id:'xs_deity', name:'西山百神', desc:`谒见西山全部 ${xsDeities.length} 位神祇`,
       prog:()=>[xsDeities.filter(id => ((Game.records || {})[id] || {}).count > 0).length, xsDeities.length],
-      bonus:'祭祀经验 +20%', jisi:0.20 };
+      bonus:'祭祀经验 +20%', jisi:0.20,
+      how:'西山各山有祠，一人可谒多位。走到山头点「谒见」逐位见过去——异迹索引里列着每处有哪几位。',
+      go:{ act:'UI.gotoHetero()', label:'看异迹' } };
   })(),
   // ---- 北山经长线成就 ----
   { id:'bs_yudi',  name:'北山舆图',   desc:`北山经 ${chapterNodes('beishan-')} 山全部解锁`,
-    prog:()=>[chapterVisited('beishan-'), chapterNodes('beishan-')], bonus:'采获 +10%', yield:0.10 },
+    prog:()=>[chapterVisited('beishan-'), chapterNodes('beishan-')], bonus:'采获 +10%', yield:0.10,
+    how:'北山门槛在 55 级以上，是三章里最长的一段。走到一半会经过发鸠山——那里的精卫填海值得顺手开起来。', go:{ tab:'yudi' } },
   { id:'bs_qisuan',name:'器酸三岁',   desc:'咸山器酸养成完成',
-    prog:()=>[(Game.grow && Game.grow.qisuan && Game.grow.qisuan.done) ? 1 : 0, 1], bonus:'采集速度 +10%', gather:0.10 },
+    prog:()=>[(Game.grow && Game.grow.qisuan && Game.grow.qisuan.done) ? 1 : 0, 1], bonus:'采集速度 +10%', gather:0.10,
+    how:'咸山的灌木点，三阶，每阶耗盐一份。盐在咸山可采——先备三份再点。', go:{ tab:'yudi' } },
   { id:'bs_jingwei',name:'东海渐浅',  desc:'发鸠山精卫填海养成完成',
-    prog:()=>[(Game.grow && Game.grow.jingwei && Game.grow.jingwei.done) ? 1 : 0, 1], bonus:'采集速度 +10%', gather:0.10 },
+    prog:()=>[(Game.grow && Game.grow.jingwei && Game.grow.jingwei.done) ? 1 : 0, 1], bonus:'采集速度 +10%', gather:0.10,
+    how:'发鸠山的灌木点，200 阶、每阶十分钟——全作最长的养成。每 25 阶有个路标（精卫之羽 + 贝），慢慢投就是。', go:{ tab:'yudi' } },
 ];
 // 达成判定一律从 prog 派生——只有一份数，界面进度与判定不可能走岔。
 Milestones.forEach(ms => {
@@ -2507,7 +2526,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.13',
+  version: '1.31.14',
   codename:'五臧 · 问神',
   updated: '2026-10-25',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',

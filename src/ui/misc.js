@@ -6,6 +6,47 @@
 // 进度数字用原样整数（不足一万不缩写）：10000 次写成「10.0K」反而不如「10000」直观
 const prNum = (v) => (v > 10000 ? fmt(v) : String(v));
 
+// 一条成就的渲染。抽成函数是因为它现在要用两次（未达成一段、已达成折条里一段），
+// 两处各写一遍必然走岔——进度条与判定都读同一份 ms.prog，不会出现「显示 38/39 却已点亮」。
+function msRowHtml(ms, i){
+  const done = ms.check();
+  const pr = (typeof ms.prog === 'function') ? ms.prog() : null;
+  const pct = pr ? Math.min(100, pr[0] / Math.max(1, pr[1]) * 100) : (done ? 100 : 0);
+  return `<span data-ms="${i}" class="${done?'done':''}" role="button" tabindex="0"
+    onclick="UI.msDetail(${i})" title="${esc(ms.desc)}　（点开看怎么做）">
+    <span class="ms-mark">${done?(typeof markIcon==='function'?markIcon('check',13):'✔'):'<span class="ms-open"></span>'}</span>
+    <span class="ms-name">${esc(ms.name)}</span>
+    ${pr?`<b class="ms-prog">${prNum(pr[0])}/${prNum(pr[1])}</b>`:''}
+    <i>${esc(ms.bonus)}</i>
+    ${pr?`<span class="ms-bar"><i style="width:${pct.toFixed(1)}%"></i></span>`:''}
+  </span>`;
+}
+
+// 长线成就详情：点一条就告诉玩家「这一步具体怎么走」。
+// 里程碑原先只有 title 里的 desc——手机没有 hover，等于没写；
+// 而且 desc 只说了条件（「著录 30 种对象」），没说去哪、做什么。
+UI.msDetail = function(idx){
+  const ms = (window.Milestones || [])[idx];
+  if (!ms) return;
+  const done = ms.check();
+  const pr = (typeof ms.prog === 'function') ? ms.prog() : null;
+  const pct = pr ? Math.min(100, pr[0] / Math.max(1, pr[1]) * 100) : (done ? 100 : 0);
+  const left = pr ? Math.max(0, pr[1] - pr[0]) : 0;
+  const go = ms.go || null;
+  UI.modal(`<h3><span class="mi-ic">${done ? (typeof markIcon === 'function' ? markIcon('check', 16) : '✔') : '◇'}</span> ${esc(ms.name)}
+      <span class="tier">${done ? '已达成' : '进行中'}</span></h3>
+    <div class="meta">${esc(ms.desc)}${pr ? ` · 当前 ${Math.round(pr[0])}/${Math.round(pr[1])}${left ? `（还差 ${Math.round(left)}）` : ''}` : ''}</div>
+    ${pr ? `<div class="ach-pro" style="margin:8px 0 12px"><i style="width:${pct.toFixed(1)}%"></i></div>` : ''}
+    <div class="reveal"><b>怎么做</b>${esc(ms.how || '（暂无说明）')}</div>
+    <div class="reveal"><b>回馈</b>${esc(ms.bonus)}　<span class="hint">达成即生效，不必领取</span></div>
+    <div class="modal-btns">
+      ${go ? (go.act
+        ? `<button class="btn primary" onclick="UI.closeModal();${go.act}">${esc(go.label || '去这里')}</button>`
+        : `<button class="btn primary" onclick="UI.closeModal();UI.switchTab('${go.tab}')">${esc(go.label || '去这里')}</button>`) : ''}
+      <button class="btn" onclick="UI.closeModal()">闭</button>
+    </div>`);
+};
+
 UI.renderStats = function(){
   const box = $('content');
   if (!box) return;
@@ -57,22 +98,27 @@ UI.renderStats = function(){
         })()}
         <span>营造 <b data-stat="buildings">${Object.keys(Game.buildings).length}/${Object.keys(BUILDINGS).length}</b></span>
       </div></div>
-    <div class="panel stat-panel ms-panel"><h3>长线成就<span class="hint ms-note">进度与达成同源</span></h3>
+    <div class="panel stat-panel ms-panel"><h3>长线成就<span class="hint ms-note">已达成 ${(window.Milestones||[]).filter(m=>m.check&&m.check()).length} / ${(window.Milestones||[]).length}　·　点一条看怎么做</span></h3>
       <div class="stat-rows ms-rows">
-        ${(window.Milestones||[]).map((ms,i)=>{
-          // 进度条与判定读同一份数（ms.prog），不会出现「显示 38/39 却已点亮」
-          const done = ms.check();
-          const pr = (typeof ms.prog === 'function') ? ms.prog() : null;
-          const pct = pr ? Math.min(100, pr[0] / Math.max(1, pr[1]) * 100) : (done ? 100 : 0);
-          return `<span data-ms="${i}" class="${done?'done':''}" title="${esc(ms.desc)}">
-            <span class="ms-mark">${done?(typeof markIcon==='function'?markIcon('check',13):'✔'):'<span class="ms-open"></span>'}</span>
-            <span class="ms-name">${esc(ms.name)}</span>
-            ${pr?`<b class="ms-prog">${prNum(pr[0])}/${prNum(pr[1])}</b>`:''}
-            <i>${esc(ms.bonus)}</i>
-            ${pr?`<span class="ms-bar"><i style="width:${pct.toFixed(1)}%"></i></span>`:''}
-          </span>`;
-        }).join('')}
-      </div></div>
+        ${(() => {
+          // 已达成的那几条沉底折叠：18 条里后期有十五六条是亮的，
+          // 想找「还差什么」得从头翻到尾。未达成的照原位显示，已达成的收进一个折条。
+          const all = (window.Milestones || []);
+          const open = [], shut = [];
+          all.forEach((ms, i) => (ms.check() ? shut : open).push(i));
+          return open.map(i => msRowHtml(all[i], i)).join('');
+        })()}
+      </div>
+      ${(() => {
+        const all = (window.Milestones || []);
+        const shut = [];
+        all.forEach((ms, i) => { if (ms.check()) shut.push(i); });
+        if (!shut.length) return '';
+        return `<details class="ms-done-box"><summary>已达成 <b>${shut.length}</b> 条（点开看详情）</summary>
+          <div class="stat-rows ms-rows">${shut.map(i => msRowHtml(all[i], i)).join('')}</div>
+        </details>`;
+      })()}
+    </div>
     <div class="panel stat-panel"><h3>时间 / 离线</h3>
       <div class="stat-rows">
         <span>在册时长 <b data-stat="time">${fmtTime(s.time)}</b></span>

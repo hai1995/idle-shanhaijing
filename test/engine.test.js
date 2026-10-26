@@ -5107,7 +5107,10 @@ section('长线成就进度');
   assert(html85.includes(`>${sixP[0]}/${sixP[1]}<`) || html85.includes(`>${sixP[0]}/${sixP[1]}</b>`),
     `六凶伏诛显示进度 ${sixP[0]}/${sixP[1]}`);
   assert((html85.match(/class="ms-bar"/g) || []).length === ST.Milestones.length, '每条都带进度条');
-  assert(html85.includes('title="击败六凶全部"'), '悬停可见达成条件（名字太短，光看「六凶伏诛」猜不出要几位）');
+  // v1.31.14：光有 title 不够——手机没有 hover。改成点得开，弹窗里写清「怎么做」。
+  assert(html85.includes('title="击败六凶全部'), '悬停可见达成条件（名字太短，光看「六凶伏诛」猜不出要几位）');
+  assert(/data-ms="\d+"[^>]*onclick="UI\.msDetail\(\d+\)"/.test(html85), '每条成就可以点开详情');
+  assert(html85.includes('点开看怎么做'), 'title 里点明可以点开');
 }
 
 // ============ 86. 同好：群号入介绍 + 复制降级 ============
@@ -6018,6 +6021,33 @@ section('快速挂机');
   assert(herbMid.length >= 3, '合药 30–66 之间有 ' + herbMid.length + ' 个方子');
   const jadeMid = ST.Recipes.filter(r => r.type === 'jade' && (r.lvl || 1) > 32 && (r.lvl || 1) < 68);
   assert(jadeMid.length >= 2, '琢玉 32–68 之间有 ' + jadeMid.length + ' 个方子');
+}
+
+// ============ 109. 长线成就能点开：每条都要说清「怎么做」 ============
+// 原先只有 title 里的 desc（「著录 30 种对象」）——手机没有 hover，且 desc 只说条件、
+// 不说去哪做什么。现在每条都带 how 与 go。
+{
+  const ms = ST.Milestones;
+  assert(ms.length >= 18, '里程碑 ' + ms.length + ' 条');
+  const noHow = ms.filter(m => !m.how || m.how.length < 10);
+  assert(noHow.length === 0, '每条都有「怎么做」（缺：' + (noHow.map(m => m.name).join('、') || '无') + '）');
+  const noGo = ms.filter(m => !m.go);
+  assert(noGo.length === 0, '每条都有去处（缺：' + (noGo.map(m => m.name).join('、') || '无') + '）');
+  // go.tab 必须是真实页签，否则点了会跳空白
+  const tabs = new Set(['yudi','skills','taofa','yushi','codex','jisi','shichan','ying','queue','pack','stats','about','settings']);
+  const badTab = ms.filter(m => m.go && m.go.tab && !tabs.has(m.go.tab));
+  assert(badTab.length === 0, 'go.tab 都是真实页签（越界：' + (badTab.map(m => m.name + ':' + m.go.tab).join('、') || '无') + '）');
+  // how 里不出现「TODO / 暂无」这类占位
+  const placeholder = ms.filter(m => /TODO|暂无|待补/.test(m.how));
+  assert(placeholder.length === 0, '没有占位文案');
+
+  // 点击入口：每条都带 data-ms + onclick，且 UI.msDetail 真的存在
+  assert(typeof ST.UI.msDetail === 'function', 'UI.msDetail 存在');
+  ST.UI.currentTab = 'stats'; ST.UI.renderStats();
+  const html = (renderTargets.content || {}).innerHTML || '';
+  const hits = (html.match(/data-ms="\d+"[^>]*onclick="UI\.msDetail\(\d+\)"/g) || []).length;
+  assert(hits === ms.length, `每条都挂了点击（${hits}/${ms.length}）`);
+  assert(/已达成 \d+ \/ \d+/.test(html), '标题报出已达成几条');
 }
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）

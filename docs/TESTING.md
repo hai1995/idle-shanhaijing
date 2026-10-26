@@ -4,7 +4,7 @@
 
 ```bash
 npm run check                   # 一键：版本一致 + 测试 + 审计 + 构建（约 1.6 秒）
-node test/engine.test.js        # 只跑测试：2005 条断言，108 节，约 1.5 秒
+node test/engine.test.js        # 只跑测试：2017 条断言，109 节，约 1.5 秒
 node scripts/audit-data.js      # 数据跨表审计，零悬空才算过（有问题退出码 1）
 ```
 
