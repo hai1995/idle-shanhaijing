@@ -19687,7 +19687,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.61',
+  version: '1.31.62',
   codename:'昼巡 · 近况',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -20802,6 +20802,20 @@ function applySave(d){
       if (!isFinite(f.remain) || f.remain < 0) f.remain = 0;
       if (!isFinite(f.grow) || f.grow <= 0) f.grow = Items[f.seedId].grow || 10;
     }
+    // 校正当前行动：行动里引用的技能 / 物品 / 配方必须还在。
+    // 一个缺 `skill` 的采集行动会让 `currentActivityLabel` 抛
+    // `Skills[a.skill].name` 的错——而它每次重绘都被调用，等于把舆地与技能两页彻底锁死。
+    // 宁可停掉这个行动，也不能让界面崩（2026-10-26 夜间：坏档实测可复现）。
+    if (Game.activity){
+      const a = Game.activity, kind = a && a.kind;
+      let ok = false;
+      if (kind === 'gather') ok = !!(Skills[a.skill] && Items[a.itemId]);
+      else if (kind === 'craft') ok = !!(a.recipe && a.recipe.out && Items[a.recipe.out] && RECIPE_SKILL && RECIPE_SKILL[a.recipe.type]);
+      else if (kind === 'observe') ok = !!OBSERVE_SITES[a.siteId];
+      else if (kind === 'audience') ok = !!AUDIENCE_SITES[a.nodeId];
+      else if (kind === 'grow') ok = !!GROW_SITES[a.siteId];
+      if (!ok) Game.activity = null;
+    }
     // 校正装备引用（装备槽存的是物品对象，其 id 必须仍存在）
     // 兼容两种历史形态：{id, ...} 对象（当前）与裸 id 字符串（早期档）。
     const lostGear = [];
@@ -21471,11 +21485,22 @@ function doRebirth(){
 // 也是将来排行榜要收的那几个字段——先把它们凑到一处，接口才好定。
 // 自带的两个小格式化：战绩文本不该依赖界面层（fmt / fmtTime 都定义在 ui.js，
 // 在 ui.js 加载之前调用就会抛 ReferenceError）。
+// 数字的唯一写法：万 / 亿。
+// 曾经有两套——界面层 fmt() 用的是 K/M/B，战绩与分享文本用这里——同一笔贝币
+// 在两个地方写着「12.3K」和「1.2 万」。中文游戏只该有一套，判据收在这里。
+// 边界也要收：9999.96 万不该写成「10000 万」，那是 1 亿。
 function fmtNum(v){
-  v = Math.round(v || 0);
-  if (v >= 1e8) return (v / 1e8).toFixed(2).replace(/\.?0+$/, '') + ' 亿';
-  if (v >= 1e4) return (v / 1e4).toFixed(1).replace(/\.0$/, '') + ' 万';
-  return String(v);
+  v = Math.round(Number(v) || 0);
+  const neg = v < 0;
+  v = Math.abs(v);
+  const trim = (str) => str.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+  let out;
+  if (v >= 1e8) out = trim((v / 1e8).toFixed(2)) + ' 亿';
+  else if (v >= 1e4){
+    const w = v / 1e4;
+    out = (w >= 9999.95) ? (trim((v / 1e8).toFixed(2)) + ' 亿') : (trim(w.toFixed(1)) + ' 万');
+  } else out = String(v);
+  return (neg ? '-' : '') + out;
 }
 function fmtDur(sec){
   sec = Math.max(0, Math.round(sec || 0));
@@ -27210,8 +27235,11 @@ function startActivity(kind, arg, opts){
 function currentActivityLabel(){
   const a = Game.activity;
   if (!a) return '空闲';
-  if (a.kind === 'gather') return `${Skills[a.skill].name}：${Items[a.itemId].name}`;
-  if (a.kind === 'craft') return `${Skills[mapRecipeSkill(a.recipe.type)].name}：${Items[a.recipe.out].name}`;
+  // 三处都做了兜底：读档校正会先把引用了不存在的技能/物品的行动清掉，
+  // 但渲染可能发生在校正之前（云端合并、调试注入）。这里再兜一层，
+  // 代价是一个 `||{}`，收益是界面不会因为一个字段缺失就整页白掉。
+  if (a.kind === 'gather') return `${(Skills[a.skill]||{}).name||'采集'}：${(Items[a.itemId]||{}).name||''}`;
+  if (a.kind === 'craft') return `${(Skills[mapRecipeSkill((a.recipe||{}).type)]||{}).name||'制作'}：${(Items[(a.recipe||{}).out]||{}).name||''}`;
   if (a.kind === 'observe') return `观象：${(OBSERVE_SITES[a.siteId]||{}).name||''}`;
   if (a.kind === 'audience') return `谒见：${(AUDIENCE_SITES[a.nodeId]||{}).name||''}`;
   if (a.kind === 'grow') return `灌木：${(GROW_SITES[a.siteId]||{}).name||''}`;
@@ -27851,12 +27879,11 @@ function markHtml(text, size){
 function esc(s){
   return String(s==null?'':s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
+// 界面上的数字一律走 fmtNum（万 / 亿）。这里只保留一个转交，
+// 免得「K/M/B」和「万/亿」两套写法又各长各的（2026-10-26 夜间统一）。
 function fmt(n){
-  n = Number(n)||0;
-  if (n >= 1e9) return (n/1e9).toFixed(1)+'B';
-  if (n >= 1e6) return (n/1e6).toFixed(1)+'M';
-  if (n >= 1e4) return (n/1e3).toFixed(1)+'K';
-  return String(Math.floor(n));
+  if (typeof fmtNum === 'function') return fmtNum(n);
+  return String(Math.floor(Number(n) || 0));   // 极端情况：game.js 未加载
 }
 // 上次离线结算的一句话摘要：多久以前 · 离线多长 · 得多少经验
 function lastOfflineText(){
@@ -29674,7 +29701,7 @@ UI.paintProbe = function(){
   // 除了帧数/相位，还要写「距上一帧多久」与「谁在驱动」——
   // 前者一眼看出链是不是断了，后者说明此刻是 JS 还是 CSS 在画。
   const gap = UI._sceneCss ? '停' : (UI._sceneLast ? Math.round(sceneNow() - UI._sceneLast) + 'ms' : '—');
-  const drv = UI._sceneCss ? 'CSS（JS 停摆）' : 'JS';
+  const drv = sceneReduceMotion() ? '停（系统减动效）' : (UI._sceneCss ? 'CSS（JS 停摆）' : 'JS');
   const t = '帧 ' + (UI._sceneFrames || 0) + ' · 相位 ' + (UI._scenePhase || 0).toFixed(2)
           + ' · 间隔 ' + iv.toFixed(2) + 's · 迟 ' + gap + ' · ' + drv;
   if (el.textContent !== t) el.textContent = t;
@@ -29706,8 +29733,10 @@ UI.sceneCssFallback = function(on){
 
 UI.startSceneMotion = function(){
   if (typeof requestAnimationFrame !== 'function' || typeof document === 'undefined') return;
-  // 动效关掉时保留静帧：画面还在（知道在做什么），只是不动
+  // 动效关掉、或系统开了「减弱动态效果」时保留静帧：
+  // 画面还在（知道在做什么），只是不动。
   if (typeof Prefs !== 'undefined' && Prefs.fxLevel === 'off') return;
+  if (sceneReduceMotion()) return;
   // 已在跑且心跳新鲜 → 不叠加；心跳过期（id 还在、链其实断了）→ 重启。
   // v1.31.59 之前这里是 `if (UI._sceneRaf) return;`：只要 id 没清掉就永远不再启动，
   // 一旦某一帧被丢掉，这个现场就永久定住——iOS「添加到主屏幕」正是这么定住的。
@@ -29800,12 +29829,22 @@ UI.paintSceneFrame = function(){
 // 心跳监护：rAF 这条链在任何环境下都有可能被掐断（切后台、省电模式、
 // 独立 WebView 挂起）。断了不能就让它断着——每秒看一眼，停了就重启；
 // 连试三次都起不来，说明这个环境压根不给 rAF，降级给 CSS。
+// 系统级「减弱动态效果」。CSS 那边已经有一条 `@media (prefers-reduced-motion: reduce)`
+// 把所有 animation 收到 0.01s，可这把锄头是 JS 每帧算坐标写 d 的，CSS 管不到——
+// 于是开着「减弱动态效果」的机器上，静态装饰全停了，只有锄头还在挥（还费电）。
+// 判据收在这里一处：启动、watchdog、渲染三处都问它。
+function sceneReduceMotion(){
+  if (typeof window === 'undefined' || !window.matchMedia) return false;
+  try { return !!window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch(e){ return false; }
+}
+
 UI.startSceneWatch = function(){
   if (typeof setInterval !== 'function' || UI._sceneWatchId) return;
   UI._sceneWatchId = setInterval(function(){
     if (typeof document !== 'undefined' && document.hidden) return;
     if (!UI._sceneSig || UI._sceneSig === 'none') return;
     if (typeof Prefs !== 'undefined' && Prefs.fxLevel === 'off') return;
+    if (sceneReduceMotion()) return;      // 系统级停摆：不再拉起（否则每秒白跑一次 watchdog）
     if (sceneNow() - (UI._sceneLast || 0) < 1800){ UI._sceneMiss = 0; return; }
     UI._sceneMiss = (UI._sceneMiss || 0) + 1;
     if (UI._sceneMiss >= 3){
@@ -29824,7 +29863,7 @@ if (typeof document !== 'undefined' && document.addEventListener){
     if (typeof document !== 'undefined' && document.hidden) return;
     UI._sceneLast = 0; UI._sceneMiss = 0; UI._sceneRaf = 0;
     if (UI._sceneCss) UI.sceneCssFallback(false);
-    if (UI._sceneSig && UI._sceneSig !== 'none') UI.startSceneMotion();
+    if (UI._sceneSig && UI._sceneSig !== 'none' && !sceneReduceMotion()) UI.startSceneMotion();
   };
   document.addEventListener('visibilitychange', resume);
   if (typeof window !== 'undefined' && window.addEventListener){
@@ -29840,6 +29879,7 @@ if (typeof window !== 'undefined'){
   window.SCENE_KIT = SCENE_KIT;
   window.sceneInkOf = sceneInkOf;
   window.sceneNight = sceneNight;
+  window.sceneReduceMotion = sceneReduceMotion;
   window.sceneProps = sceneProps;
   window.sceneFoe = sceneFoe;
   window.sceneSky = sceneSky;
