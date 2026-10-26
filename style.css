@@ -1099,6 +1099,20 @@ svg.bi.mk{ vertical-align:-2px; }
 .rec-ok{ color:var(--tai); font-size:10.5px; margin-left:3px; }
 .rec-no{ color:var(--ink-4); font-size:10.5px; margin-left:3px; }
 .loot-recent{ font-size:11.5px; color:var(--ink-3); margin-bottom:12px; }
+
+/* 卷二 · 难度带：九九之后山中另有一重。条子只在「九九 + 轮回」后出现，
+   开关就是退路——带里打不动时可以退回本卷，不必开新档。 */
+.band-bar{
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  margin:0 0 10px; padding:7px 10px; border-radius:6px;
+  border:1px solid var(--rule, rgba(0,0,0,.12)); background:rgba(0,0,0,.02);
+  font-size:12px; color:var(--ink-2, #666);
+}
+.band-bar.on{ border-color:var(--zhu); background:rgba(176,58,43,.06); }
+.band-bar .bb-tx{ flex:1; min-width:0; line-height:1.5; }
+.band-bar .bb-tx b{ color:var(--qing, #2E5C69); }
+.band-bar .bb-tx i{ font-style:normal; color:var(--ink-3, #888); margin-left:6px; }
+.band-line{ color:var(--zhu); }
 .beast-card .el-btn{ margin-left:2px; padding:1px 7px; font-size:10.5px; vertical-align:middle; }
 .beast-card .drop-line{ color:var(--ink-4); font-size:10.5px; }
 

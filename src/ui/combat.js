@@ -24,7 +24,7 @@ function momentumRowHtml(c){
 
 function taofaArenaHtml(){
   const c = Game.combat;
-  const m = c ? Monsters[c.monsterId] : null;
+  const m = c ? foeOf(Monsters[c.monsterId]) : null;
   const style = combatMode();
   const dps = playerDpsEstimate();
 
@@ -92,15 +92,18 @@ UI.rematch = function(){
 // 目标列表：316 只异兽分组平铺，只在切页或数据真变时重建
 // 单张异兽卡（组内共用）：宜讨标记、连杀衰减、宜用属性都在这里算一遍
 function beastCardHtml(x, pick){
+    // 卷二开着时，卡片要显示「带里的那一遍」：名号、带等级、气血攻防经验全换，
+    // 但 id、宜用属性、著录次数仍是原来那只——打死了也还是著录同一只。
+    const xb = (typeof foeOf === 'function') ? foeOf(x) : x;
     const node = nodeOf(x.nodeId);
     const un = node ? nodeUnlocked(node) : false;
     const lvOk = levelOf('taofa') >= (x.needLvl||1);
-    const th = threatOf(x);
+    const th = threatOf(xb);
     const rec = Game.records[x.id]||{count:0,tier:0};
     // 宜用属性 = 克敌方的属性。⚠️ 必须走 counterOf 反查：KE_MAP[敌方] 得到的是
     // 「敌方所克之物」——木敌会给出土，而克木的是金，正好反了。
     const counterEl = x.el ? (counterOf(x.el) || '') : '';
-    const dropList = (x.loot && x.loot.length) ? x.loot : (x.drop ? [[x.drop,1,1]] : []);
+    const dropList = (xb.loot && xb.loot.length) ? xb.loot : (xb.drop ? [[xb.drop,1,1]] : []);
     const drops = dropList.map(([iid])=> (Items[iid]||{}).name || iid).slice(0,3).join('、');
     // 连杀递减提示：本目标已连杀 n 次时，明示当前经验系数（换一只打即恢复）
     const streakN = (Game.mobStreak && Game.mobStreak[x.id]) || 0;
@@ -115,17 +118,18 @@ function beastCardHtml(x, pick){
     // 方块：图标 + 名 + 「录 n · Lv n」，五行与宜讨做角标，威胁改边框色；
     // 气血/攻防/经验/掉落/产地/形态全进浮层——一屏能扫过整片山系
     return `<div class="tile beast-tile ${th.level}${x===pick?' pick':''}${(!un||!lvOk)?' lock':''}"
-      data-bid="${x.id}" data-tip data-tip-title="${esc(x.name)}${x.py?`（${esc(x.py)}）`:''}"
+      data-bid="${x.id}" data-tip data-tip-title="${esc(xb.name)}${x.py?`（${esc(x.py)}）`:''}"
       role="button" tabindex="0" onclick="UI.openHuntModal('${x.id}')">
       ${x.el?`<span class="bt-el el-${x.el}">${x.el}</span>`:''}
       <span class="tile-ic bi-ic">${(typeof beastIcon==='function')?beastIcon(x):(CAT_EMOJI[x.category]||'🐾')}</span>
-      <span class="tile-nm">${esc(x.name)}</span>
-      <span class="tile-tag"><i class="bt-rec">录 ${rec.count}</i> · Lv ${x.needLvl||1}${counterEl?`<button class="bt-el-hint" type="button" title="一键切到${counterEl}属（${counterEl}克${x.el}，伤害 ×${TUNING.WUXING.KE}）"
+      <span class="tile-nm">${esc(xb.name)}</span>
+      <span class="tile-tag"><i class="bt-rec">录 ${rec.count}</i> · Lv ${xb.bandLv || x.needLvl || 1}${counterEl?`<button class="bt-el-hint" type="button" title="一键切到${counterEl}属（${counterEl}克${x.el}，伤害 ×${TUNING.WUXING.KE}）"
         onclick="event.stopPropagation();setCombatStyle('zhu');setZhuEl('${counterEl}');UI.renderTaofa()">宜${counterEl}</button>`:''}${decayTag?`<span class="bt-decay" title="连续讨伐 ${streakN} 次，经验递减；换一只异兽即恢复全额">×${mobStreakMult(x.id).toFixed(2)}</span>`:''}</span>
       ${x===pick?'<span class="bt-pick">宜讨</span>':''}
       <span class="tip-body hidden">
         ${x.form?`<div class="bc-sub">${esc(x.form)}</div>`:''}
-        <div class="bc-sub">气血 ${fmt(x.hp)} · 攻 ${fmt(x.atk)} · 防 ${fmt(x.def)} · 经验 ${fmt(x.xp)}</div>
+        ${xb.band ? `<div class="bc-sub band-line">卷二 · 难度带 Lv${xb.bandLv}（本卷 Lv${x.needLvl || 1}）：经验 ×${TUNING.CYCLE.XP}、掉落 ×${TUNING.CYCLE.LOOT}</div>` : ''}
+        <div class="bc-sub">气血 ${fmt(xb.hp)} · 攻 ${fmt(xb.atk)} · 防 ${fmt(xb.def)} · 经验 ${fmt(xb.xp)}</div>
         <div class="bc-sub drop-line">${typeof markIcon==='function'?markIcon('pin',13):'📍'} ${esc(node?node.name:'')}${drops?` · 掉落 ${esc(drops)}`:''}</div>
         ${counterEl?`<div class="bc-sub">宜用 ${counterEl} 属（${counterEl}克${x.el}，伤害 ×${TUNING.WUXING.KE}）</div>`:''}
         ${decayTag?`<div class="bc-sub">连续讨伐 ${streakN} 次，经验 ×${mobStreakMult(x.id).toFixed(2)}；换一只异兽即恢复全额</div>`:''}
@@ -165,7 +169,14 @@ function taofaListHtml(){
   const curRegion = ((typeof regionOf === 'function' && regionOf(Game.node)) || {}).regionId;
   const isOpen = g => !!(g.always || (g.regionId && g.regionId === curRegion) || (pick && g.list.indexOf(pick) >= 0));
   const foldedN = groups.filter(g => g.list.length && !isOpen(g)).length;
+  const band = (typeof bandUnlocked === 'function') && bandUnlocked();
+  const bandBar = band ? `<div class="band-bar${(typeof bandOn === 'function' && bandOn()) ? ' on' : ''}">
+      <span class="bb-tx">卷二 · 难度带 <b>Lv${TUNING.CYCLE.BASE}–${TUNING.CYCLE.BASE + TUNING.CYCLE.TIER - 1}</b>
+        <i>经验 ×${TUNING.CYCLE.XP} · 掉落 ×${TUNING.CYCLE.LOOT} · 三维随山势渐强</i></span>
+      <button class="chip-btn ${(typeof bandOn === 'function' && bandOn()) ? 'on' : ''}" type="button" onclick="UI.toggleBand()">${(typeof bandOn === 'function' && bandOn()) ? '已入卷二' : '回到本卷'}</button>
+    </div>` : '';
   let list = `<div class="panel beast-panel"><h3>讨伐目标</h3>
+    ${bandBar}
     <div class="loot-recent">最近所获：${(Game.recentLoot||[]).map(l=>`${typeof itemIc==='function'?itemIc(l.itemId,13):((Items[l.itemId]||{}).icon||'')}${esc((Items[l.itemId]||{}).name||l.itemId)}×${l.qty}`).join('　')||'无'}</div>
     ${foldedN ? `<div class="hint">已展开当前山系之目标；另 ${foldedN} 个山系折在下方，点开可见。</div>` : ''}`;
   for (let gi = 0; gi < groups.length; gi++){
@@ -204,6 +215,14 @@ UI.loadBeastGroup = function(det){
   const ordered = pick ? [pick, ...g.list.filter(x=>x!==pick)] : g.list;
   box.innerHTML = ordered.map(x=>beastCardHtml(x, pick)).join('');
   box.setAttribute('data-loaded', '1');
+};
+
+// 卷二开关：九九 + 轮回之后才出现。关掉即回本卷——带里打不过时还有退路。
+UI.toggleBand = function(){
+  Prefs.band = !bandOn();
+  this.toast(Prefs.band ? '⚔️ 已入卷二：山中另有一重' : '⏎ 已回本卷');
+  this.renderTaofa();
+  if (typeof saveGame === 'function') saveGame();
 };
 
 UI.renderTaofa = function(){
@@ -263,15 +282,18 @@ UI.tryHunt = function(id){
 UI.openHuntModal = function(id){
   const x = Monsters[id];
   if (!x) return;
+  // 卷二开着时，弹窗里展示的是带里的那一遍（名号、气血攻防经验），
+  // 但「录 n 次」「宜用属性」「神兵掉落」仍是原来那只的——打的是同一只兽的更强形态。
+  const xb = (typeof foeOf === 'function') ? foeOf(x) : x;
   const node = nodeOf(x.nodeId);
   const un = node ? nodeUnlocked(node) : false;
   const need = x.needLvl || 1;
   const taofa = levelOf('taofa');
   const lvOk = taofa >= need;
   const rec = Game.records[id] || { count:0, tier:0 };
-  const th = threatOf(x);
+  const th = threatOf(xb);
   const counterEl = x.el ? (counterOf(x.el) || '') : '';
-  const dropList2 = (x.loot && x.loot.length) ? x.loot : (x.drop ? [[x.drop,1,1]] : []);
+  const dropList2 = (xb.loot && xb.loot.length) ? xb.loot : (xb.drop ? [[xb.drop,1,1]] : []);
   const drops = dropList2.map(([iid]) => (Items[iid]||{}).name || iid).join('、');
   const streakN = (Game.mobStreak && Game.mobStreak[id]) || 0;
   const decay = (!x.boss && streakN > 0) ? mobStreakMult(id) : 1;
@@ -281,11 +303,12 @@ UI.openHuntModal = function(id){
     : !lvOk ? `需讨伐 ${need} 级（当前 ${taofa} 级）` : '';
   const rows = [
     x.form ? `<div class="hm-form">${esc(x.form)}</div>` : '',
+    xb.band ? `<div class="hm-line band-line">卷二 · 难度带 <b>Lv${xb.bandLv}</b>（本卷 Lv${x.needLvl || 1}）· 经验 ×${TUNING.CYCLE.XP} · 掉落 ×${TUNING.CYCLE.LOOT}</div>` : '',
     `<div class="hm-stats">
-       <span>气血 <b>${fmt(x.hp)}</b></span>
-       <span>攻击 <b>${fmt(x.atk)}</b></span>
-       <span>防御 <b>${fmt(x.def)}</b></span>
-       <span>经验 <b>${fmt(x.xp)}</b></span>
+       <span>气血 <b>${fmt(xb.hp)}</b></span>
+       <span>攻击 <b>${fmt(xb.atk)}</b></span>
+       <span>防御 <b>${fmt(xb.def)}</b></span>
+       <span>经验 <b>${fmt(xb.xp)}</b></span>
      </div>`,
     `<div class="hm-line">${esc(node ? node.name : '')}${drops ? ' · 掉落 ' + esc(drops) : ''}</div>`,
     `<div class="hm-line">五行 ${x.el || '—'}${counterEl ? ` · <b>宜用 ${counterEl} 属</b>（伤害 ×${TUNING.WUXING.KE}）` : ''}</div>`,
@@ -294,7 +317,7 @@ UI.openHuntModal = function(id){
     `<div class="hm-line">${th.label}${x.boss ? ' · BOSS' : ''}${x.pair ? ' · 成对（占两槽）' : ''}${(Game.stats.deathStreakOf===id && (Game.stats.deathStreak||0)>=2) ? ` · <span class="hm-warn">已连败 ${Game.stats.deathStreak} 阵</span>` : ''}</div>`,
     `<div class="hm-line">已录 <b>${rec.count}</b> 次（${TUNING.MASTERY.NAMES[rec.tier] || ''}）${decay < 1 ? ` · 连杀递减 ×${decay.toFixed(2)}` : ''}</div>`,
   ].filter(Boolean).join('');
-  this.modal(`<h3><span class="mi-ic">${typeof beastIcon==='function'?beastIcon(x):'🐾'}</span> ${esc(x.name)}${x.py?`<span class="hm-py">（${esc(x.py)}）</span>`:''}</h3>
+  this.modal(`<h3><span class="mi-ic">${typeof beastIcon==='function'?beastIcon(x):'🐾'}</span> ${esc(xb.name)}${x.py?`<span class="hm-py">（${esc(x.py)}）</span>`:''}</h3>
     ${rows}
     ${can ? `
     <div class="hm-times">

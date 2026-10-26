@@ -661,7 +661,7 @@ UI.openRebirth = function(){
       <div class="rb-col keep"><b>将保留</b>
         <ul><li>修为 ${fmt(Game.stats.totalXp || 0)}（终身累计）</li><li>著录 ${recordedCount()} 条 · 图鉴与成就</li><li>装备、贝币、营造、御使</li><li>舆地与履险（走过的路不忘）</li></ul></div>
       <div class="rb-col gain"><b>将得到</b>
-        <ul><li>第 ${cnt} 枚轮回印</li><li>修为 +${gain}%（终身）</li><li>采获 +${yl}%</li><li>起手 ${start} 级</li><li>本轮 ${fmtTime(Math.max(0, Math.round((Date.now() - ((Game.rebirth && Game.rebirth.startedAt) || Game.startedAt || Date.now())) / 1000)))} 入册</li></ul></div>
+        <ul><li>第 ${cnt} 枚轮回印</li><li>修为 +${gain}%（终身）</li><li>采获 +${yl}%</li><li>起手 ${start} 级</li><li>九九之后可入<b>卷二</b>（难度带 Lv${TUNING.CYCLE.BASE}–${TUNING.CYCLE.BASE + TUNING.CYCLE.TIER - 1}，经验 ×${TUNING.CYCLE.XP}）</li><li>本轮 ${fmtTime(Math.max(0, Math.round((Date.now() - ((Game.rebirth && Game.rebirth.startedAt) || Game.startedAt || Date.now())) / 1000)))} 入册</li></ul></div>
     </div>
     <div class="modal-btns">
       <button class="btn" onclick="UI.closeModal()">再想想</button>

@@ -61,6 +61,7 @@ const Prefs = {
   zhuEl: '火',           // 祝术主五行
   tactic: 'none',        // 战法姿态：none | swift | steady | breaker
   hideHint: false,       // 关闭常驻「下一步建议」指引条（可在设置中重新开启）
+  band: true,            // 卷二难度带：九九 + 轮回之后自动生效，可关掉回头打本卷
 };
 
 function cloneDefaultGame(){

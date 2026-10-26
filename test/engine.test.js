@@ -2355,7 +2355,7 @@ section('移动端缩放与不溢出');
   assert(/\.hint-close::after,\.btn-mini::after\{[^}]*width:34px; height:34px;/.test(cssM), '窄屏小控件命中区撑到 34px');
   assert(/\.beast-tile \.bt-el-hint\{ position:static;[^}]*min-height:16px;/.test(cssM), '窄屏「宜X」角标放大到可点高度');
   // 6) 生僻字兽（扩展 B 区，常见字体无字形）浮层标题补注音，便于辨认
-  assert(uiM.includes('data-tip-title="${esc(x.name)}${x.py?') && uiM.includes('（${esc(x.py)}）'), '浮层标题带注音（生僻字可辨）');
+  assert(uiM.includes('data-tip-title="${esc(xb.name)}${x.py?') && uiM.includes('（${esc(x.py)}）'), '浮层标题带注音（生僻字可辨）');
   // 7) 祠礼图标：二十八礼各有专属「礼器」图形，不再用名字首字的方章
   assert(typeof ST.riteIcon === 'function', 'riteIcon 已导出');
   assert(Array.isArray(ST.RITE_ICON_IDS) && ST.RITE_ICON_IDS.length === 28, '祠礼专属图标 28 枚（'+(ST.RITE_ICON_IDS||[]).length+'）');
@@ -6147,6 +6147,80 @@ section('快速挂机');
   for (const [a, b] of [['sijia', 'xijia'], ['xijia', 'xisihejia'], ['xisihejia', 'zhongxijia'], ['zhongxijia', 'yayujia']])
     assert(ST.Items[b].def > ST.Items[a].def && ST.Items[b].lvl > ST.Items[a].lvl,
       `甲胄一线递增：${ST.Items[a].name} → ${ST.Items[b].name}`);
+}
+
+// ============ 113. 卷二难度带（二周目） ============
+// 本卷止于九九、玩家战力到此封顶（轮回印只加修为与采获），所以卷二**不能**按「再来 81 级」排，
+// 而是一条固定高度 82–90 的带：同山同兽的更强一遍，不改 id、不进图鉴，经验掉落随带抬高。
+{
+  G.resetToDefault();
+  const base = ST.Monsters.baiyuan;                 // 白猿：本卷 1 级、气血 15——最容易把「按等级比放大」的错法暴露出来
+  assert(!ST.bandUnlocked(), '未轮回时卷二不开放');
+  assert(ST.foeOf(base) === base, '未开放时 foeOf 原样返回，不动任何既有逻辑');
+
+  for (const s of ST.ALL_SKILL_IDS) ST.Game.skills[s] = { level: 81, xp: 0 };
+  assert(!ST.bandUnlocked(), '只到九九、未轮回，仍未开放');
+  ST.Game.rebirth = { count: 1, at: 0, startedAt: 0, history: [] };
+  assert(ST.bandUnlocked() && ST.bandOn(), '九九 + 一轮轮回 → 卷二开放');
+
+  const band = ST.foeOf(base);
+  assert(band.band && band.name.indexOf('卷二·') === 0, '卷二形态带名号（' + band.name + '）');
+  assert(band.id === base.id, '卷二不改 id——著录、图鉴、御使仍认原来那一只');
+  assert(band.bandLv >= 82 && band.bandLv <= 90, '带等级落在 82–90（' + band.bandLv + '）');
+  assert(band.needLvl === 81, '门槛仍按九九算，不因带等级虚高而失准');
+
+  const targets = Object.values(ST.Monsters).filter(m => !m.boss && !m.unkillable && m.hp > 0);
+  const foes = targets.map(m => ST.foeOf(m));
+  assert(foes.every(f => f.band && f.bandLv >= 82 && f.bandLv <= 90),
+    '每只可讨者都有一遍卷二（' + foes.length + ' 只）');
+
+  // ① 不往 Monsters 里塞条目：图鉴分母、成就判据、御使池一概不受影响
+  assert(Object.keys(ST.Monsters).length === Object.keys(ST.Monsters).filter(id => !ST.Monsters[id].band).length,
+    '卷二不产生新条目（图鉴分母不变）');
+  const boss = Object.values(ST.Monsters).find(m => m.boss);
+  assert(ST.foeOf(boss) === boss, '六凶与神祇不套带（' + boss.name + '）');
+
+  // ② 数值按标准曲线折算：白猿若按 (82/1)^1.26 放大会是 3900 气血，正确做法是 1200 上下
+  const hps = foes.map(f => f.hp).sort((a, b) => a - b);
+  const med = hps[Math.floor(hps.length / 2)];
+  assert(band.hp < med * 2, '白猿在带里不被等级比放大（' + band.hp + ' vs 中位 ' + med + '）');
+  assert(Math.max(...hps) < med * 3.2, '带内最厚不超中位 3.2 倍（' + Math.max(...hps) + '）');
+
+  // ③ 带内坡：原山越靠后越硬，但只在一档之内渐变
+  const lo = ST.foeOf(Object.values(ST.Monsters).find(m => !m.boss && m.needLvl <= 9));
+  const hi = ST.foeOf(Object.values(ST.Monsters).find(m => !m.boss && m.needLvl >= 73));
+  assert(hi.bandLv > lo.bandLv && hi.hp > lo.hp, '带底 → 带顶：' + lo.bandLv + ' 级 ' + lo.hp + ' 血 / ' + hi.bandLv + ' 级 ' + hi.hp + ' 血');
+
+  // ④ 奖励随带抬高，否则卷二只是「更难」、没人愿意进去
+  assert(band.xp > base.xp * 10, '经验随带重算而非沿用原始经验（' + base.xp + ' → ' + band.xp + '）');
+  assert(band.loot.every(([id, p]) => p <= 0.95), '掉落权重封顶 0.95');
+
+  // ⑤ 软叠：三周目起同一只再硬 8%，五轮上下到顶
+  ST.Game.rebirth = { count: 2, at: 0, startedAt: 0, history: [] };
+  const b2 = ST.foeOf(base);
+  assert(b2.hp > band.hp && b2.xp > band.xp, '三周目软叠（气血 ' + band.hp + ' → ' + b2.hp + '，经验 ' + band.xp + ' → ' + b2.xp + '）');
+
+  // ⑥ 满装口径下带内节奏要平：中位 10–24 秒，最慢不越 32 秒（与本卷同一阈值）
+  ST.Game.rebirth = { count: 1, at: 0, startedAt: 0, history: [] };
+  ST.Game.gear.weapon = ST.Items.fenghuiyue;
+  ST.Game.gear.armor = ST.Items.baihujia;
+  ST.Game.gear.charm = null; ST.Game.gear.quiver = null; ST.Game.enhance = {}; ST.Game.buff = null;
+  const dps = ST.playerDpsEstimate();
+  const ttks = foes.map(f => f.hp / dps).sort((a, b) => a - b);
+  const tmed = ttks[Math.floor(ttks.length / 2)];
+  assert(tmed > 10 && tmed < 24, '卷二单杀中位 ' + tmed.toFixed(1) + ' 秒');
+  assert(ttks[ttks.length - 1] < 32, '卷二最慢 ' + ttks[ttks.length - 1].toFixed(1) + ' 秒，不越 32 秒');
+
+  // ⑦ 开关是退路：关掉即回本卷
+  ST.Prefs.band = false;
+  assert(!ST.bandOn() && ST.foeOf(base) === base, '关掉卷二即回本卷（打不动时有退路）');
+  ST.Prefs.band = true;
+
+  // ⑧ 接线（静态）：讨伐页有条子与开关，存档带偏好
+  assert(uiSrcAll.includes('UI.toggleBand') && /band-bar/.test(readText('style.css')), '讨伐页有卷二条子与开关');
+  assert(/band: true/.test(readText('src/engine.js')), 'Prefs.band 进偏好（随存档持久化）');
+  G.resetToDefault();
+  ST.Prefs.band = true;
 }
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）

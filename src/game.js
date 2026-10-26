@@ -228,6 +228,53 @@ function rebirthYield(){ return rebirthCount() * TUNING.REBIRTH.YIELD; } // 采�
 function rebirthStartLevel(){
   return Math.min(TUNING.REBIRTH.START_CAP, rebirthCount() * TUNING.REBIRTH.START_PER);
 }
+// ---------- 二周目难度带（卷二） ----------
+// 三条硬约束决定了它长这样：
+//   1. 玩家技艺止于九九，战力自此封顶——所以带是固定高度（82–90），不随轮次往上加级；
+//   2. 同一只异兽的更强一遍，**不改 id、不进图鉴**——著录、六凶、御使仍认原来那一只，
+//      否则 316 只异兽的分母与「著录 n 种」的成就全要重算；
+//   3. 轮回印只加修为与采获，不给伤害——所以奖励也要跟着带一起抬（经验 ×1.8、掉落 ×1.3），
+//      否则卷二只是「更难」，玩家没有理由踏进去。
+function bandUnlocked(){ return rebirthCount() >= 1 && levelOf('taofa') >= TUNING.MAX_LEVEL; }
+function bandOn(){ return bandUnlocked() && Prefs.band !== false; }
+function bandLevelOf(m){
+  const t = Math.floor(((m.needLvl || 1) - 1) / TUNING.CYCLE.TIER);
+  return TUNING.CYCLE.BASE + Math.max(0, Math.min(TUNING.CYCLE.TIER - 1, t));
+}
+function bandSoft(){ return 1 + TUNING.CYCLE.SOFT * Math.max(0, rebirthCount() - 1); }
+// 卷二形态：由原兽派生，缓存键里带轮次，转生后自然重算，不必手动失效。
+const _bandCache = new Map();
+function foeOf(m){
+  if (!m || !bandOn() || m.boss) return m;      // 六凶与神祇不套带：它们本是手调的关卡
+  const key = m.id + '@' + rebirthCount();
+  const hit = _bandCache.get(key);
+  if (hit) return hit;
+  const lv0 = Math.max(1, m.needLvl || 1), bl = bandLevelOf(m), soft = bandSoft();
+  // 三维与经验一律「先除回标准曲线、再乘回标准曲线」——保留这只兽自身的倍率，换掉它的等级。
+  // 不这么做就会出事：白猿原在 1 级、气血 15，若按 (82/1)^1.26 放大，到了带里是 3900 气血，
+  // 比 81 级的山还厚三倍；按标准曲线折算则为 1250，与带里其它兽齐平，该兽「皮厚」的部分仍保留。
+  const std = L => (typeof beastStat === 'function')
+    ? beastStat(L, 'normal')
+    : { hp: 10 + 4.6 * Math.pow(L, 1.26), atk: 2 + 0.62 * Math.pow(L, 1.02),
+        def: 0.5 + 0.4 * Math.pow(L, 1.1), xp: 6 + 4.4 * Math.pow(L, 1.36) };
+  const s0 = std(lv0), s1 = std(bl);
+  const keep = key => (m[key] || 1) / Math.max(1, s0[key]);
+  // 带内坡：原山越靠后，卷二里越硬——9 级带的等级差只值一成气血，不加坡就成了「走遍全书一个手感」
+  const ramp = 1 + TUNING.CYCLE.RAMP * Math.floor(((m.needLvl || 1) - 1) / TUNING.CYCLE.TIER);
+  const f = Object.assign({}, m, {
+    name: '卷二·' + m.name,
+    bandLv: bl,
+    needLvl: TUNING.MAX_LEVEL,     // 门槛与掉落公式仍按九九算，不因带等级虚高而失准
+    hp: Math.round(s1.hp * keep('hp') * soft * ramp),
+    atk: Math.round(s1.atk * keep('atk') * soft * ramp),
+    def: Math.round(s1.def * keep('def') * soft * ramp),
+    xp: Math.max(1, Math.round(s1.xp * keep('xp') * TUNING.CYCLE.XP * soft)),
+    loot: (m.loot || []).map(([id, p, q]) => [id, Math.min(0.95, p * TUNING.CYCLE.LOOT), q]),
+    band: true,
+  });
+  _bandCache.set(key, f);
+  return f;
+}
 // ---------- 前世遗物 ----------
 // 每转一件，由 rebirth.count 派生——**不新增存档字段**，旧档读进来转数是几就有几件。
 // 加成都很小（xp / yield 各 6%，def 4%，hp 3%），是「这一卷留下了什么」的凭证，不是数值台阶。
@@ -1752,7 +1799,7 @@ function playerDamageRange(){
   let dmg = playerWeaponDmg() + stat*1.2;
   dmg *= (1 + af.dmgPct/100);                     // 词条「锋」：伤害乘区
   dmg *= currentTactic().dmg;                     // 战法：疾攻薄、破军重
-  const beast = Game.combat ? Monsters[Game.combat.monsterId] : null;
+  const beast = Game.combat ? foeOf(Monsters[Game.combat.monsterId]) : null;
   if (beast){
     // 词条「引」只放大「克制关系带来的偏离」，不改基线：同属 ×1.00 仍是 ×1.00
     const fEl = foeElement(beast, Game.combat);
@@ -1817,7 +1864,7 @@ function monsterInterval(m, c){
 function combatTick(elapsed){
   if (!Game.combat) return;
   const c = Game.combat;
-  const m = Monsters[c.monsterId];
+  const m = foeOf(Monsters[c.monsterId]);
   if (!m){ Game.combat = null; return; }
   // 蛇毒：持续掉血
   if (c.poison && c.poison.until > gameTime()){
@@ -2211,7 +2258,7 @@ function onPlayerDeath(c, m){
 
 let autoAttack = false;
 function startCombat(monsterId, opts){
-  const m = Monsters[monsterId];
+  const m = foeOf(Monsters[monsterId]);
   if (!m) return false;
   const node = nodeOf(m.nodeId);
   if (!node || !nodeUnlocked(node)){ UI && UI.toast('🔒 ' + (node ? nodeLockReason(node) : '此地不明')); return false; }
@@ -2248,6 +2295,7 @@ function startCombat(monsterId, opts){
 window.startCombat = startCombat;
 window.doMonsterSpecial = doMonsterSpecial;
 window.ULTIMATE_NAMES = ULTIMATE_NAMES; window.ULTIMATE_MULT = ULTIMATE_MULT;
+window.foeOf = foeOf; window.bandOn = bandOn; window.bandUnlocked = bandUnlocked; window.bandLevelOf = bandLevelOf;
 window.doPlayerUltimate = doPlayerUltimate;
 window.healAmount = healAmount;
 window.autoEat = autoEat;
@@ -2887,7 +2935,7 @@ function stopActivity(){
   // 战斗也是一种「行动」：停战即结束当前这场，且不再自动接下一只。
   // （此前停止按钮在战斗中隐藏，理由是「点了也停不下战斗」——现在它真能停。）
   if (Game.combat){
-    const m = Monsters[Game.combat.monsterId];
+    const m = foeOf(Monsters[Game.combat.monsterId]);
     Game.combat = null;
     autoAttack = false;
     log('⏹ 已停止往讨', 'sys', 'combat');
