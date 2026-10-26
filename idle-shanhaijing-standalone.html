@@ -312,6 +312,164 @@ html.theme-anim, html.theme-anim *{
   border-radius:50%; background:var(--ink-4); }
 #statusbar.running #activityText::before{ background:var(--zhu); box-shadow:0 0 0 3px var(--zhu-w); }
 
+/* —— 现场：仪表带下方的行动画面（v1.31.54） ——
+   采集是这个游戏最核心的动作，此前全部视觉反馈只有仪表带上那根细进度条，
+   采到什么靠一行飘字闪一下。这块七十余像素的画面把「在做什么」画出来：
+   山、人、锄、土、收成。纯 SVG / CSS 手写，不引任何图片资源。
+   ⚠️ 挂在 index.html 的静态节点上、由 UI.renderScene 增量更新。
+      各页是 innerHTML 整块重绘，若现场也在重绘范围内，动画每渲染一次就归零。 */
+#sceneBar{ flex:0 0 auto; }
+#sceneBar.hidden{ display:none; }
+
+.sc-wrap{
+  position:relative; height:82px; overflow:hidden;
+  background:linear-gradient(180deg, #F5F2E8 0%, #EAE5D6 100%);
+  border-bottom:1px solid var(--rule);
+  color:#6B6659;                 /* 由内联 style 覆盖为该山系之色 */
+  --ai:3s;                       /* 一次行动的秒数，动画周期与之相同 */
+}
+.sc-sky{ position:absolute; inset:0; background:linear-gradient(180deg, rgba(255,255,255,.55), transparent 58%); }
+.sc-hills{ position:absolute; left:0; right:0; top:0; width:100%; height:52px; color:inherit; }
+/* 地面：一条起伏的土坡，不再是平直灰带——平带看着像「站在一块板子上」 */
+.sc-ground{
+  position:absolute; left:0; right:0; bottom:0; height:22px; width:100%;
+  color:inherit; display:block;
+}
+
+/* 劳动区：左对齐（宽屏时用百分比，窄屏给固定值兜底），始终踩在地面线上 */
+.sc-stage{
+  position:absolute; left:clamp(14px, 6%, 104px); bottom:18px; width:52px; height:60px;
+  color:inherit;
+}
+/* 52×60 是折中：人占场景高约七成，再大就顶到山线，再小就只剩一个符号。 */
+.sc-worker{ display:block; width:52px; height:60px; }
+/* 原点落在脚上：呼吸是「身子轻微起伏」，脚不动 */
+.sc-figure{ transform-origin:24px 68px; animation:scBreath 3.4s ease-in-out infinite; }
+/* 原点在手上：锄头绕握点旋转 */
+.sc-tool{ transform-origin:30px 38px; animation:scSwing var(--ai) ease-in-out infinite; }
+
+@keyframes scBreath{
+  0%,100%{ transform:translateY(0); }
+  50%    { transform:translateY(-1.4px); }
+}
+/* 落下排在周期末尾：引擎在 interval 走满时产出，此刻锄头正好砸到地上——
+   因果对齐，玩家看到的是「这一锄挖出来的」，而不是「先出东西再动一下」。 */
+@keyframes scSwing{
+  0%  { transform:rotate(6deg); }
+  46% { transform:rotate(-112deg); }  /* 举到竖直偏右 */
+  62% { transform:rotate(-106deg); }  /* 最高点略停，有「抡」的分量 */
+  92% { transform:rotate(4deg); }     /* 落下、插入土中 */
+  100%{ transform:rotate(6deg); }
+}
+/* 土粒：与挥锄同一周期，只在落下那一段可见 */
+.sc-pit{ position:absolute; left:31px; bottom:1px; width:20px; height:8px; }
+.sc-mound{ position:absolute; left:47px; bottom:1px; width:18px; height:7px; color:inherit; }
+.sc-pit i{
+  position:absolute; left:5px; bottom:0; width:3px; height:3px; border-radius:50%;
+  background:currentColor; opacity:0;
+  animation:scDust var(--ai) ease-out infinite;
+}
+.sc-pit i:nth-child(2){ left:9px; animation-delay:calc(var(--ai) * -.04); }
+.sc-pit i:nth-child(3){ left:2px; animation-delay:calc(var(--ai) * -.07); }
+@keyframes scDust{
+  0%, 88%{ opacity:0; transform:translate(0,0) scale(1); }
+  93%    { opacity:.5;  transform:translate(-2px,-6px) scale(1.15); }
+  99%    { opacity:0;   transform:translate(-6px,-13px) scale(.75); }
+  100%   { opacity:0; }
+}
+
+/* 收成：从土里蹦出来、向右上飘走 */
+.sc-drops{ position:absolute; left:clamp(14px, 6%, 104px); bottom:44px; width:70px; height:64px; pointer-events:none; }
+.sc-drop{
+  position:absolute; left:26px; bottom:0;
+  display:flex; align-items:center; gap:2px;
+  padding:1px 5px 1px 2px; border-radius:3px;
+  background:rgba(247,245,238,.94); border:1px solid rgba(107,102,89,.24);
+  font-family:var(--f-kai); font-size:10px; line-height:1.5; color:var(--ink-2);
+  white-space:nowrap; animation:scDrop 1.25s ease-out forwards;
+}
+.sc-drop em{ font-style:normal; font-family:var(--f-num); font-size:10px; color:#B08A34; }
+.sc-drop s{ text-decoration:none; margin-left:2px; font-size:9px; color:var(--zhu-d); }
+/* 初次著录：这一件是「图鉴里还没见过的」，值得比普通收成显眼一档 */
+.sc-drop.first{ border-color:rgba(176,58,43,.5); box-shadow:0 0 0 2px rgba(176,58,43,.1); }
+.sc-drop.up{ border-color:rgba(176,138,52,.55); }
+@keyframes scDrop{
+  0%  { opacity:0; transform:translate(0,7px) scale(.82); }
+  14% { opacity:1; transform:translate(2px,-5px) scale(1.05); }
+  70% { opacity:1; transform:translate(16px,-28px) scale(1); }
+  100%{ opacity:0; transform:translate(28px,-46px) scale(.92); }
+}
+
+/* 右侧记账：在采什么、在哪座山、这一回已经采了几件、多久一件 */
+.sc-hud{ position:absolute; right:14px; bottom:9px; text-align:right; line-height:1.4; pointer-events:none; }
+.sc-hud b{
+  display:block; font-family:var(--f-kai); font-size:11px; font-weight:400;
+  color:var(--ink-4); letter-spacing:.04em;
+}
+/* 这一回已经采了几件：数字要大、要朱，因为它是唯一在「涨」的东西 */
+.sc-hud b .sc-n{
+  font-family:var(--f-num); font-size:19px; font-weight:700; font-style:normal;
+  color:var(--zhu-d); letter-spacing:0; margin-right:3px;
+  display:inline-block; min-width:15px; text-align:right;
+}
+.sc-hud b .sc-n.zero{ color:var(--ink-4); opacity:.55; }
+.sc-hud b.sc-label{
+  font-family:var(--f-kai); font-size:13px; font-weight:700; color:var(--ink-2); letter-spacing:.06em;
+}
+.sc-hud b .sc-n.bump{ animation:scBump .42s cubic-bezier(.2,1.4,.5,1); }
+@keyframes scBump{
+  0%  { transform:scale(1);    color:var(--zhu-d); }
+  35% { transform:scale(1.32); color:var(--zhu); }
+  100%{ transform:scale(1);    color:var(--zhu-d); }
+}
+.sc-hud span{
+  display:block; font-family:var(--f-num); font-size:10px; color:var(--ink-4); letter-spacing:.02em;
+}
+
+/* 山名题字：仿古籍插图的墨书小字，放右上角——左上角是人物所在的，
+   题字压在人头上会糊成一团。仪表带已写全称，此处只作画中落款。 */
+.sc-cap{
+  position:absolute; right:14px; top:6px;
+  font-family:var(--f-kai); font-size:11px; letter-spacing:.14em;
+  color:var(--ink-3); opacity:.62;
+}
+
+/* 底部细进度：看画面时眼睛在现场，进度也该在那里 */
+.sc-prog{ position:absolute; left:0; right:0; bottom:0; height:3px; background:rgba(107,102,89,.08); }
+.sc-prog i{ display:block; height:100%; width:0; background:var(--zhu); opacity:.7; transition:width .18s linear; }
+
+/* 动效关掉时保留静帧：画面还在（知道在做什么），只是不动 */
+.sc-wrap.no-anim .sc-figure,
+.sc-wrap.no-anim .sc-tool,
+.sc-wrap.no-anim .sc-pit i{ animation:none; }
+.sc-wrap.no-anim .sc-drop{ animation-duration:.01s; }
+
+/* 宽屏：画面抬高、人物放大。82px 摊在 1080 宽的屏上像一条书签，
+   人只有指甲盖大，反而看不出在做什么。 */
+@media (min-width:1000px){
+  .sc-wrap{ height:96px; }
+  .sc-hills{ height:60px; }
+  .sc-stage{ bottom:20px; width:62px; height:72px; }
+  .sc-worker{ width:62px; height:72px; }
+  .sc-pit{ left:37px; }
+  .sc-mound{ left:56px; }
+  .sc-drops{ bottom:52px; }
+  .sc-hud{ bottom:12px; }
+  .sc-cap{ top:8px; }
+}
+
+/* 窄屏：压到 74px。手机上一屏要装书脊 + 仪表带 + 现场 + 页签 + 内容，
+   再高就奢侈了，但再压就看不清人了。 */
+@media (max-width:560px){
+  .sc-wrap{ height:74px; }
+  .sc-hills{ height:42px; }
+  .sc-stage{ transform:scale(.9); transform-origin:left bottom; bottom:18px; }
+  .sc-drops{ bottom:4px; }
+  .sc-hud{ right:10px; bottom:9px; }
+  .sc-hud b .sc-n{ font-size:17px; }
+  .sc-cap{ right:10px; top:4px; font-size:10px; }
+}
+
 /* 增益图标：书脊最右，一枚四角星。有增益时亮起、带朱色计数；没有时只是暗淡入口 */
 .buff-btn{
   flex:0 0 auto; position:relative; width:28px; height:28px; padding:0; margin-left:2px;
@@ -2828,6 +2986,9 @@ details.hetero-panel .hp-left{ margin-left:auto; font-style:normal; color:var(--
       <div id="actionProg" class="hidden"><div id="actionProgFill"></div></div>
       <button id="btnStop" class="btn-mini" type="button">停止</button>
     </div>
+    <!-- 现场：当前行动的小画面（v1.31.54）。静态节点 + 增量更新——
+         若随页面一起 innerHTML 重绘，动画每渲染一次就归零，等于没有动画。 -->
+    <div id="sceneBar" class="hidden"></div>
     <div id="guidance" class="hint-banner hidden"></div>
   </div>
 
@@ -19417,7 +19578,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.53',
+  version: '1.31.54',
   codename:'昼巡 · 近况',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -20269,6 +20430,7 @@ const Prefs = {
   recipeSkill: null,     // 制作配方停留的分类；null = 自动（按「能做的最高级配方」定）
   lastGatherTimes: null, // 上次手动设定的采集次数（null = 一直采）；下次弹出预填
   lastGatherId: null,    // 上次采的物（id）；舆地页「再采」据此一键接上
+  sceneOn: true,         // 仪表带下方的「现场」画面（v1.31.54）：关掉省一截屏高
 };
 
 function cloneDefaultGame(){
@@ -21953,7 +22115,8 @@ function doGather(itemId){
   giveItem(itemId, qty, false);
   Game.stats.gathers[skillId] = (Game.stats.gathers[skillId]||0) + 1;
   gainXp(skillId, it.xp * qty * (1 + bonus*0.5) * overEff);
-  recordObject(itemId, qty);
+  // 著录结果要往下传：现场画面里「初见」的反馈比普通收成重一档（v1.31.54）
+  const recRes = recordObject(itemId, qty);
   // 山系特产：该系已巡礼时，采集有小概率带出特产（1%）。
   // 巡礼领赏给 2 件是「一次性见面礼」，这里才是持续来源——
   // 否则特产只能当收藏，配方一旦消耗就绝版。
@@ -21989,7 +22152,7 @@ function doGather(itemId){
     UI && UI.toast(`🐝 ${special.gardenThreat.beast}蠚木则枯——一田焦枯`);
   }
   UI && UI.log(`${Skills[skillId].icon} 采得 ${it.name} ×${qty}${overEff < 1 ? `（越级 · 效 ${Math.round(overEff*100)}%）` : ''}`, skillId, 'skill');
-  UI && UI.actionFeedback(skillId, it.id, qty);
+  UI && UI.actionFeedback(skillId, it.id, qty, { first: !!(recRes && recRes.first), tierUp: !!(recRes && recRes.tierUp) });
 }
 // 著录一个对象（含阶位提升、异兽征兆触发、关联著录）
 function recordObject(objId, n){
@@ -27751,13 +27914,17 @@ const UI = {
     this.log(`🎉 ${sk.name} ${old} → ${lv} 级`, 'gold', 'skill');
   },
   // 产物浮字：传入物品 id（而非 emoji），此处取族形小图
-  actionFeedback(skillId, itemId, qty){
+  actionFeedback(skillId, itemId, qty, opts){
     const el = document.querySelector(`[data-skill="${skillId}"]`);
     if (el){
       FX.pop(el);
       const ic = (typeof itemIc === 'function') ? itemIc(itemId, 15) : '';
       this.floatText(el, `${ic}×${qty}`, '#D9A521');
     }
+    // 现场里同步「落地」（v1.31.54）：物品从土里蹦出来。
+    // 技能卡上的飘字只有玩家正看着那张卡时才有意义，挂机时多半在别的页面；
+    // 现场条挂在仪表带下方，哪一页都看得见。
+    if (this.sceneBeat) this.sceneBeat(itemId, qty, opts);
   },
   lootFloat(itemId, qty){
     const el = $('monsterFighter');
@@ -27804,6 +27971,9 @@ const UI = {
     const interval = currentActionInterval();
     const pct = Math.min(100, activityProgress / interval * 100);
     fill.style.width = pct.toFixed(1) + '%';
+    // 现场底部那根细线：看画面时眼睛在现场，进度也该在那儿。
+    const sp = $('sceneProg');
+    if (sp) sp.style.width = pct.toFixed(1) + '%';
     this.refreshCombatHud();
   },
   // 战斗中每帧就地刷新竞技场血量条/数值（不重渲染整个面板，避免滚动复位）
@@ -27897,6 +28067,7 @@ const UI = {
     const sb = $('statusbar');
     if (sb) sb.classList.toggle('running', !!(Game.activity || Game.combat));
     this.tickProgress();
+    if (this.renderScene) this.renderScene();
     refreshTabBadges();
     this.updateGuidance();
     // 不整页重建技能页：在技能页点一个配方开始制作，原先会把 26 技能卡 + 全部配方
@@ -28396,6 +28567,8 @@ UI.renderSettings = function(){
           <div class="form-row"><span>动效强度</span><span class="btn-group">${opts}</span></div>
           <div class="form-row"><span>常驻指引条</span>
             <button class="btn ${Prefs.hideHint?'':'on'}" onclick="Prefs.hideHint=!Prefs.hideHint;saveGame();UI.renderSettings();UI.refreshActivity()">${Prefs.hideHint?'关':'开'}</button></div>
+          <div class="form-row"><span>行动现场画面<span class="hint" style="display:block;margin-top:2px">仪表带下方那块小画面，关掉可省一截屏高</span></span>
+            <button class="btn ${Prefs.sceneOn===false?'':'on'}" onclick="Prefs.sceneOn=(Prefs.sceneOn===false);saveGame();UI.renderSettings();UI.refreshActivity()">${Prefs.sceneOn===false?'关':'开'}</button></div>
         </section>
         <section class="set-sec">
           <h4>偏好</h4>
@@ -28889,6 +29062,213 @@ UI.patchActivityCount = function(){
   const txt = activityLabelText();
   if (t.textContent !== txt) t.textContent = txt;
 };
+
+// ===== ui/scene.js =====
+// ===== 现场：把「此刻在做什么」画出来 =====
+// 采集是这个游戏最核心的动作——玩家九成时间在采——但此前的全部视觉反馈，
+// 只有仪表带上一根细进度条，采到什么靠一行飘字闪一下。
+// 这一层在仪表带下方给一块七十余像素高的现场：山、人、锄、土、收成。
+//
+// 三条约束（与前置讨论一致）：
+//   ① 全部手写 SVG / CSS，不引入任何图片资源（assets/ 至今只有一个字体文件）；
+//   ② 挂在 index.html 的静态节点上、只做增量更新——各页是 innerHTML 整块重绘，
+//      若现场也在重绘范围内，动画每渲染一次就归零，等于没有动画；
+//   ③ 不改变任何产出与节奏，纯视觉层（平衡零风险）。
+
+const SCENE_INK = {
+  nanshan:  '#2E5269',
+  xishan:   '#6B6659',
+  beishan:  '#1F3D5C',
+  dongshan: '#566E4C',
+  zhongshan:'#B03A2B',
+};
+
+// 当前行动 → 现场要画的东西。无行动 / 纯征伐时返回 null（征伐页自有战斗画面，
+// 在仪表带上再画一遍战场是重复）。
+function sceneState(){
+  const a = (typeof Game !== 'undefined') ? Game.activity : null;
+  if (!a) return null;
+  const node = (typeof nodeOf === 'function' && typeof Game.node === 'string') ? nodeOf(Game.node) : null;
+  const reg  = (typeof regionOf === 'function' && typeof Game.node === 'string') ? regionOf(Game.node) : null;
+  const ser  = reg ? String(reg.regionId).split('-')[0] : '';
+  const ink  = SCENE_INK[ser] || '#6B6659';
+  const iv   = (typeof currentActionInterval === 'function') ? currentActionInterval() : 3;
+  const place = node ? node.name : '';
+
+  if (a.kind === 'gather'){
+    const it = (typeof Items !== 'undefined') ? Items[a.itemId] : null;
+    return {
+      kind:'gather', ink, place, iv,
+      key: `gather:${a.itemId}:${Game.node||''}`,
+      verb:'采', name: (it && it.name) || '采集',
+      note: `每 ${iv.toFixed(1)} 秒一采`,
+    };
+  }
+  if (a.kind === 'craft'){
+    const out = (typeof Items !== 'undefined') ? Items[a.recipe && a.recipe.out] : null;
+    return {
+      kind:'craft', ink, place, iv,
+      key: `craft:${(a.recipe && a.recipe.out) || ''}`,
+      verb:'制', name: (out && out.name) || '制作',
+      note: `每 ${iv.toFixed(1)} 秒一成`,
+    };
+  }
+  if (a.kind === 'grow'){
+    return { kind:'grow', ink, place, iv, key:`grow:${a.siteId||''}`, verb:'莳', name:'莳植', note:'候其成熟' };
+  }
+  if (a.kind === 'observe'){
+    return { kind:'observe', ink, place, iv, key:'observe', verb:'观', name:'观象', note:'仰观天象' };
+  }
+  if (a.kind === 'audience'){
+    return { kind:'audience', ink, place, iv, key:'audience', verb:'谒', name:'谒见', note:'谨候阶下' };
+  }
+  return { kind:'other', ink, place, iv, key:`other:${a.kind}`, verb:'为', name:(typeof currentActivityLabel==='function'?currentActivityLabel():'行动'), note:'' };
+}
+
+// 场景里的小人：一具躬身劳作的水墨人形，面朝右侧的挖掘点。
+// 上一版画成直立举棍，看着像「站着拿根棍子」——人必须**弓着背、锄头落地**才像在干活，
+// 所以背是向右下弯的一道弧，锄柄从手 (30,38) 斜插到地面 (41,66)。
+function sceneWorker(kind){
+  const tool = (kind === 'gather')
+    ? `<g class="sc-tool">
+         <path d="M30 38 L41 66" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>
+         <path d="M36.4 67.6 L46.2 63.7" stroke="currentColor" stroke-width="3.6" stroke-linecap="round"/>
+         <path d="M37.2 67.3 L45.4 64" stroke="#B03A2B" stroke-width="1.6" stroke-linecap="round" opacity=".85"/>
+       </g>`
+    : (kind === 'craft')
+    ? `<g class="sc-tool">
+         <path d="M30 38 L38 48" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>
+         <rect x="34" y="44" width="10" height="7" rx="1.2" fill="currentColor" opacity=".9"/>
+       </g>`
+    : '';
+  return `<svg class="sc-worker" viewBox="0 0 60 70" aria-hidden="true">
+    <g class="sc-figure">
+      <path d="M16 20 Q24 25 26 41 L17 44 Q13 31 16 20 Z" fill="currentColor" opacity=".5"/>
+      <path d="M15 13.5 m-5.4 0 a5.4 5.4 0 1 0 10.8 0 a5.4 5.4 0 1 0 -10.8 0" fill="currentColor" opacity=".92"/>
+      <path d="M21 42 L18 56 L17 67" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" fill="none"/>
+      <path d="M23 42 L27 56 L29 67" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" fill="none"/>
+      <path d="M18 25 Q24 32 30 38" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/>
+      ${tool}
+    </g>
+  </svg>`;
+}
+
+// 远山：三层折线，最远最淡。宽度随容器拉伸（preserveAspectRatio=none），
+// 只作气氛，不表地形——本项目的地形数据是「里程 + 方位」，画不出等高线。
+function sceneHills(){
+  // viewBox 取 700×64（比例约 10.9）：手机 430×42 与宽屏 1080×52 都在附近，
+  // 拉伸或压缩都在一成上下。此前用 400×64（比例 6.25），宽屏要横向拉 2.7 倍，
+  // 山形被压成一条几乎笔直的波纹。
+  return `<svg class="sc-hills" viewBox="0 0 700 64" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M-6 54 C 60 54, 84 14, 152 14 C 214 14, 236 46, 300 46
+             C 352 46, 380 24, 434 28 C 486 32, 520 50, 572 48 C 618 46, 648 52, 706 50"
+      fill="none" stroke="currentColor" stroke-opacity=".22" stroke-width="1.4" vector-effect="non-scaling-stroke"/>
+    <path d="M-6 62 C 74 62, 104 38, 168 38 C 226 38, 254 58, 316 58
+             C 370 58, 400 44, 452 46 C 504 48, 540 60, 590 58 C 634 56, 664 60, 706 58"
+      fill="none" stroke="currentColor" stroke-opacity=".13" stroke-width="1.1" vector-effect="non-scaling-stroke"/>
+    <g stroke="currentColor" stroke-opacity=".24" stroke-width="1" fill="none" stroke-linecap="round">
+      <path d="M344 20 q5 -4 10.4 0 M359 16 q4.2 -3.6 8.6 0"/>
+    </g>
+  </svg>`;
+}
+
+// 整块现场。只在与上一次的签名不同时才重建（见 UI.renderScene）。
+function sceneHtml(s){
+  const anim = (typeof Prefs !== 'undefined' && Prefs.fxLevel === 'off') ? ' no-anim' : '';
+  const t = (UI._tally && UI._tally.key === s.key) ? UI._tally : null;
+  // 只有采集与制作会「一件一件出东西」；观象、谒见、莳植没有计数可言，
+  // 硬摆一个永远是 0 的大数字，比不摆更让人困惑。
+  const counted = (s.kind === 'gather' || s.kind === 'craft');
+  return `<div class="sc-wrap${anim}" data-kind="${s.kind}" style="--ai:${s.iv.toFixed(2)}s;color:${s.ink}">
+    <div class="sc-sky"></div>
+    ${sceneHills()}
+    <svg class="sc-ground" viewBox="0 0 700 26" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M0 9 Q 150 4 300 8 T 700 6 L700 26 L0 26 Z" fill="currentColor" fill-opacity=".11"/>
+      <path d="M0 9 Q 150 4 300 8 T 700 6" fill="none" stroke="currentColor" stroke-opacity=".3"
+        stroke-width="1" vector-effect="non-scaling-stroke"/>
+    </svg>
+    <div class="sc-stage">
+      ${sceneWorker(s.kind)}
+      <div class="sc-pit"><i></i><i></i><i></i></div>
+      <svg class="sc-mound" viewBox="0 0 18 7" aria-hidden="true">
+        <path d="M1 6 Q9 0 17 6 Z" fill="currentColor" fill-opacity=".2"/>
+      </svg>
+    </div>
+    <div class="sc-drops"></div>
+    ${s.place ? `<div class="sc-cap">${esc(s.place)}</div>` : ''}
+    <div class="sc-hud">
+      ${counted
+        ? `<b><i class="sc-n${t && t.n ? '' : ' zero'}">${t && t.n ? t.n : 0}</i> 件</b>`
+        : `<b class="sc-label">${esc(s.name)}</b>`}
+      <span>${esc(s.note)}</span>
+    </div>
+    <div class="sc-prog"><i id="sceneProg"></i></div>
+  </div>`;
+}
+
+// 重建判定用的签名：只含「换一个场景就该重画」的字段。
+// 数字（已采几件）不进签名——那由 sceneBeat 就地改文字，重建会把动画打断。
+function sceneSig(s){
+  if (!s) return 'none';
+  return [s.kind, s.key, s.ink, s.iv.toFixed(2), s.name, s.place].join('|');
+}
+
+UI.renderScene = function(){
+  const bar = (typeof document !== 'undefined') ? document.getElementById('sceneBar') : null;
+  if (!bar) return;
+  const on = !(typeof Prefs !== 'undefined' && Prefs.sceneOn === false);
+  const s = on ? sceneState() : null;
+  if (!s){ bar.classList.add('hidden'); bar.innerHTML = ''; UI._sceneSig = 'none'; return; }
+  bar.classList.remove('hidden');
+  const sig = sceneSig(s);
+  if (sig !== UI._sceneSig){
+    UI._sceneSig = sig;
+    bar.innerHTML = sceneHtml(s);
+  }
+};
+
+// 采集 / 制作完成一次时的「落地」：物品从土里蹦出来、锄头复位、土粒迸开。
+// 与 UI.actionFeedback 同一触发点——采到的一刻正好是锄头落下的一刻，因果对齐。
+UI.sceneBeat = function(itemId, qty, opts){
+  const bar = (typeof document !== 'undefined') ? document.getElementById('sceneBar') : null;
+  // 是否显示不用 classList 判断（无头环境的 DOM stub 只实现了 add/remove）：
+  // 签名是 'none' 就说明此刻没有现场可画。
+  if (!bar || !UI._sceneSig || UI._sceneSig === 'none') return;
+  const o = opts || {};
+  // 记账：本回已采几件（换物 / 换山 / 换行动即归零）
+  const s = sceneState();
+  if (s){
+    if (!UI._tally || UI._tally.key !== s.key) UI._tally = { key: s.key, n: 0 };
+    UI._tally.n += qty || 1;
+    const nEl = bar.querySelector('.sc-n');
+    if (nEl){
+      nEl.textContent = String(UI._tally.n);
+      nEl.classList.remove('zero');
+      // 数字是唯一在「涨」的东西，跳一下比不动更容易被看见
+      nEl.classList.remove('bump');
+      void nEl.offsetWidth;
+      nEl.classList.add('bump');
+    }
+  }
+  if (typeof Prefs !== 'undefined' && Prefs.fxLevel === 'off') return;
+  // 土粒不用在这里驱动：它靠 CSS 与 --ai 同步（见 scDust 帧），
+  // 若在这里再触发一次，两套时序会打架。
+  // 收成浮起
+  const drops = bar.querySelector('.sc-drops');
+  if (drops && itemId && typeof itemIc === 'function'){
+    const d = document.createElement('div');
+    d.className = 'sc-drop' + (o.first ? ' first' : '') + (o.tierUp ? ' up' : '');
+    d.innerHTML = `${itemIc(itemId, 17)}<em>×${qty || 1}</em>${o.first ? '<s>初见</s>' : ''}`;
+    drops.appendChild(d);
+    setTimeout(()=>d.remove(), 1300);
+  }
+};
+
+if (typeof window !== 'undefined'){
+  window.sceneState = sceneState;
+  window.sceneHtml = sceneHtml;
+  window.sceneSig = sceneSig;
+}
 
 // ===== ui/world.js =====
 // ===== ui/world.js — 舆地（区域 / 节点 / 异迹索引）与技能页（技能卡 / 配方 / 田地 / 三签） =====

@@ -1134,7 +1134,8 @@ function doGather(itemId){
   giveItem(itemId, qty, false);
   Game.stats.gathers[skillId] = (Game.stats.gathers[skillId]||0) + 1;
   gainXp(skillId, it.xp * qty * (1 + bonus*0.5) * overEff);
-  recordObject(itemId, qty);
+  // 著录结果要往下传：现场画面里「初见」的反馈比普通收成重一档（v1.31.54）
+  const recRes = recordObject(itemId, qty);
   // 山系特产：该系已巡礼时，采集有小概率带出特产（1%）。
   // 巡礼领赏给 2 件是「一次性见面礼」，这里才是持续来源——
   // 否则特产只能当收藏，配方一旦消耗就绝版。
@@ -1170,7 +1171,7 @@ function doGather(itemId){
     UI && UI.toast(`🐝 ${special.gardenThreat.beast}蠚木则枯——一田焦枯`);
   }
   UI && UI.log(`${Skills[skillId].icon} 采得 ${it.name} ×${qty}${overEff < 1 ? `（越级 · 效 ${Math.round(overEff*100)}%）` : ''}`, skillId, 'skill');
-  UI && UI.actionFeedback(skillId, it.id, qty);
+  UI && UI.actionFeedback(skillId, it.id, qty, { first: !!(recRes && recRes.first), tierUp: !!(recRes && recRes.tierUp) });
 }
 // 著录一个对象（含阶位提升、异兽征兆触发、关联著录）
 function recordObject(objId, n){

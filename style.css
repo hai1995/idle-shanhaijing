@@ -285,6 +285,164 @@ html.theme-anim, html.theme-anim *{
   border-radius:50%; background:var(--ink-4); }
 #statusbar.running #activityText::before{ background:var(--zhu); box-shadow:0 0 0 3px var(--zhu-w); }
 
+/* —— 现场：仪表带下方的行动画面（v1.31.54） ——
+   采集是这个游戏最核心的动作，此前全部视觉反馈只有仪表带上那根细进度条，
+   采到什么靠一行飘字闪一下。这块七十余像素的画面把「在做什么」画出来：
+   山、人、锄、土、收成。纯 SVG / CSS 手写，不引任何图片资源。
+   ⚠️ 挂在 index.html 的静态节点上、由 UI.renderScene 增量更新。
+      各页是 innerHTML 整块重绘，若现场也在重绘范围内，动画每渲染一次就归零。 */
+#sceneBar{ flex:0 0 auto; }
+#sceneBar.hidden{ display:none; }
+
+.sc-wrap{
+  position:relative; height:82px; overflow:hidden;
+  background:linear-gradient(180deg, #F5F2E8 0%, #EAE5D6 100%);
+  border-bottom:1px solid var(--rule);
+  color:#6B6659;                 /* 由内联 style 覆盖为该山系之色 */
+  --ai:3s;                       /* 一次行动的秒数，动画周期与之相同 */
+}
+.sc-sky{ position:absolute; inset:0; background:linear-gradient(180deg, rgba(255,255,255,.55), transparent 58%); }
+.sc-hills{ position:absolute; left:0; right:0; top:0; width:100%; height:52px; color:inherit; }
+/* 地面：一条起伏的土坡，不再是平直灰带——平带看着像「站在一块板子上」 */
+.sc-ground{
+  position:absolute; left:0; right:0; bottom:0; height:22px; width:100%;
+  color:inherit; display:block;
+}
+
+/* 劳动区：左对齐（宽屏时用百分比，窄屏给固定值兜底），始终踩在地面线上 */
+.sc-stage{
+  position:absolute; left:clamp(14px, 6%, 104px); bottom:18px; width:52px; height:60px;
+  color:inherit;
+}
+/* 52×60 是折中：人占场景高约七成，再大就顶到山线，再小就只剩一个符号。 */
+.sc-worker{ display:block; width:52px; height:60px; }
+/* 原点落在脚上：呼吸是「身子轻微起伏」，脚不动 */
+.sc-figure{ transform-origin:24px 68px; animation:scBreath 3.4s ease-in-out infinite; }
+/* 原点在手上：锄头绕握点旋转 */
+.sc-tool{ transform-origin:30px 38px; animation:scSwing var(--ai) ease-in-out infinite; }
+
+@keyframes scBreath{
+  0%,100%{ transform:translateY(0); }
+  50%    { transform:translateY(-1.4px); }
+}
+/* 落下排在周期末尾：引擎在 interval 走满时产出，此刻锄头正好砸到地上——
+   因果对齐，玩家看到的是「这一锄挖出来的」，而不是「先出东西再动一下」。 */
+@keyframes scSwing{
+  0%  { transform:rotate(6deg); }
+  46% { transform:rotate(-112deg); }  /* 举到竖直偏右 */
+  62% { transform:rotate(-106deg); }  /* 最高点略停，有「抡」的分量 */
+  92% { transform:rotate(4deg); }     /* 落下、插入土中 */
+  100%{ transform:rotate(6deg); }
+}
+/* 土粒：与挥锄同一周期，只在落下那一段可见 */
+.sc-pit{ position:absolute; left:31px; bottom:1px; width:20px; height:8px; }
+.sc-mound{ position:absolute; left:47px; bottom:1px; width:18px; height:7px; color:inherit; }
+.sc-pit i{
+  position:absolute; left:5px; bottom:0; width:3px; height:3px; border-radius:50%;
+  background:currentColor; opacity:0;
+  animation:scDust var(--ai) ease-out infinite;
+}
+.sc-pit i:nth-child(2){ left:9px; animation-delay:calc(var(--ai) * -.04); }
+.sc-pit i:nth-child(3){ left:2px; animation-delay:calc(var(--ai) * -.07); }
+@keyframes scDust{
+  0%, 88%{ opacity:0; transform:translate(0,0) scale(1); }
+  93%    { opacity:.5;  transform:translate(-2px,-6px) scale(1.15); }
+  99%    { opacity:0;   transform:translate(-6px,-13px) scale(.75); }
+  100%   { opacity:0; }
+}
+
+/* 收成：从土里蹦出来、向右上飘走 */
+.sc-drops{ position:absolute; left:clamp(14px, 6%, 104px); bottom:44px; width:70px; height:64px; pointer-events:none; }
+.sc-drop{
+  position:absolute; left:26px; bottom:0;
+  display:flex; align-items:center; gap:2px;
+  padding:1px 5px 1px 2px; border-radius:3px;
+  background:rgba(247,245,238,.94); border:1px solid rgba(107,102,89,.24);
+  font-family:var(--f-kai); font-size:10px; line-height:1.5; color:var(--ink-2);
+  white-space:nowrap; animation:scDrop 1.25s ease-out forwards;
+}
+.sc-drop em{ font-style:normal; font-family:var(--f-num); font-size:10px; color:#B08A34; }
+.sc-drop s{ text-decoration:none; margin-left:2px; font-size:9px; color:var(--zhu-d); }
+/* 初次著录：这一件是「图鉴里还没见过的」，值得比普通收成显眼一档 */
+.sc-drop.first{ border-color:rgba(176,58,43,.5); box-shadow:0 0 0 2px rgba(176,58,43,.1); }
+.sc-drop.up{ border-color:rgba(176,138,52,.55); }
+@keyframes scDrop{
+  0%  { opacity:0; transform:translate(0,7px) scale(.82); }
+  14% { opacity:1; transform:translate(2px,-5px) scale(1.05); }
+  70% { opacity:1; transform:translate(16px,-28px) scale(1); }
+  100%{ opacity:0; transform:translate(28px,-46px) scale(.92); }
+}
+
+/* 右侧记账：在采什么、在哪座山、这一回已经采了几件、多久一件 */
+.sc-hud{ position:absolute; right:14px; bottom:9px; text-align:right; line-height:1.4; pointer-events:none; }
+.sc-hud b{
+  display:block; font-family:var(--f-kai); font-size:11px; font-weight:400;
+  color:var(--ink-4); letter-spacing:.04em;
+}
+/* 这一回已经采了几件：数字要大、要朱，因为它是唯一在「涨」的东西 */
+.sc-hud b .sc-n{
+  font-family:var(--f-num); font-size:19px; font-weight:700; font-style:normal;
+  color:var(--zhu-d); letter-spacing:0; margin-right:3px;
+  display:inline-block; min-width:15px; text-align:right;
+}
+.sc-hud b .sc-n.zero{ color:var(--ink-4); opacity:.55; }
+.sc-hud b.sc-label{
+  font-family:var(--f-kai); font-size:13px; font-weight:700; color:var(--ink-2); letter-spacing:.06em;
+}
+.sc-hud b .sc-n.bump{ animation:scBump .42s cubic-bezier(.2,1.4,.5,1); }
+@keyframes scBump{
+  0%  { transform:scale(1);    color:var(--zhu-d); }
+  35% { transform:scale(1.32); color:var(--zhu); }
+  100%{ transform:scale(1);    color:var(--zhu-d); }
+}
+.sc-hud span{
+  display:block; font-family:var(--f-num); font-size:10px; color:var(--ink-4); letter-spacing:.02em;
+}
+
+/* 山名题字：仿古籍插图的墨书小字，放右上角——左上角是人物所在的，
+   题字压在人头上会糊成一团。仪表带已写全称，此处只作画中落款。 */
+.sc-cap{
+  position:absolute; right:14px; top:6px;
+  font-family:var(--f-kai); font-size:11px; letter-spacing:.14em;
+  color:var(--ink-3); opacity:.62;
+}
+
+/* 底部细进度：看画面时眼睛在现场，进度也该在那里 */
+.sc-prog{ position:absolute; left:0; right:0; bottom:0; height:3px; background:rgba(107,102,89,.08); }
+.sc-prog i{ display:block; height:100%; width:0; background:var(--zhu); opacity:.7; transition:width .18s linear; }
+
+/* 动效关掉时保留静帧：画面还在（知道在做什么），只是不动 */
+.sc-wrap.no-anim .sc-figure,
+.sc-wrap.no-anim .sc-tool,
+.sc-wrap.no-anim .sc-pit i{ animation:none; }
+.sc-wrap.no-anim .sc-drop{ animation-duration:.01s; }
+
+/* 宽屏：画面抬高、人物放大。82px 摊在 1080 宽的屏上像一条书签，
+   人只有指甲盖大，反而看不出在做什么。 */
+@media (min-width:1000px){
+  .sc-wrap{ height:96px; }
+  .sc-hills{ height:60px; }
+  .sc-stage{ bottom:20px; width:62px; height:72px; }
+  .sc-worker{ width:62px; height:72px; }
+  .sc-pit{ left:37px; }
+  .sc-mound{ left:56px; }
+  .sc-drops{ bottom:52px; }
+  .sc-hud{ bottom:12px; }
+  .sc-cap{ top:8px; }
+}
+
+/* 窄屏：压到 74px。手机上一屏要装书脊 + 仪表带 + 现场 + 页签 + 内容，
+   再高就奢侈了，但再压就看不清人了。 */
+@media (max-width:560px){
+  .sc-wrap{ height:74px; }
+  .sc-hills{ height:42px; }
+  .sc-stage{ transform:scale(.9); transform-origin:left bottom; bottom:18px; }
+  .sc-drops{ bottom:4px; }
+  .sc-hud{ right:10px; bottom:9px; }
+  .sc-hud b .sc-n{ font-size:17px; }
+  .sc-cap{ right:10px; top:4px; font-size:10px; }
+}
+
 /* 增益图标：书脊最右，一枚四角星。有增益时亮起、带朱色计数；没有时只是暗淡入口 */
 .buff-btn{
   flex:0 0 auto; position:relative; width:28px; height:28px; padding:0; margin-left:2px;

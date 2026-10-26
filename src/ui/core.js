@@ -229,13 +229,17 @@ const UI = {
     this.log(`🎉 ${sk.name} ${old} → ${lv} 级`, 'gold', 'skill');
   },
   // 产物浮字：传入物品 id（而非 emoji），此处取族形小图
-  actionFeedback(skillId, itemId, qty){
+  actionFeedback(skillId, itemId, qty, opts){
     const el = document.querySelector(`[data-skill="${skillId}"]`);
     if (el){
       FX.pop(el);
       const ic = (typeof itemIc === 'function') ? itemIc(itemId, 15) : '';
       this.floatText(el, `${ic}×${qty}`, '#D9A521');
     }
+    // 现场里同步「落地」（v1.31.54）：物品从土里蹦出来。
+    // 技能卡上的飘字只有玩家正看着那张卡时才有意义，挂机时多半在别的页面；
+    // 现场条挂在仪表带下方，哪一页都看得见。
+    if (this.sceneBeat) this.sceneBeat(itemId, qty, opts);
   },
   lootFloat(itemId, qty){
     const el = $('monsterFighter');
@@ -282,6 +286,9 @@ const UI = {
     const interval = currentActionInterval();
     const pct = Math.min(100, activityProgress / interval * 100);
     fill.style.width = pct.toFixed(1) + '%';
+    // 现场底部那根细线：看画面时眼睛在现场，进度也该在那儿。
+    const sp = $('sceneProg');
+    if (sp) sp.style.width = pct.toFixed(1) + '%';
     this.refreshCombatHud();
   },
   // 战斗中每帧就地刷新竞技场血量条/数值（不重渲染整个面板，避免滚动复位）
@@ -375,6 +382,7 @@ const UI = {
     const sb = $('statusbar');
     if (sb) sb.classList.toggle('running', !!(Game.activity || Game.combat));
     this.tickProgress();
+    if (this.renderScene) this.renderScene();
     refreshTabBadges();
     this.updateGuidance();
     // 不整页重建技能页：在技能页点一个配方开始制作，原先会把 26 技能卡 + 全部配方
@@ -874,6 +882,8 @@ UI.renderSettings = function(){
           <div class="form-row"><span>动效强度</span><span class="btn-group">${opts}</span></div>
           <div class="form-row"><span>常驻指引条</span>
             <button class="btn ${Prefs.hideHint?'':'on'}" onclick="Prefs.hideHint=!Prefs.hideHint;saveGame();UI.renderSettings();UI.refreshActivity()">${Prefs.hideHint?'关':'开'}</button></div>
+          <div class="form-row"><span>行动现场画面<span class="hint" style="display:block;margin-top:2px">仪表带下方那块小画面，关掉可省一截屏高</span></span>
+            <button class="btn ${Prefs.sceneOn===false?'':'on'}" onclick="Prefs.sceneOn=(Prefs.sceneOn===false);saveGame();UI.renderSettings();UI.refreshActivity()">${Prefs.sceneOn===false?'关':'开'}</button></div>
         </section>
         <section class="set-sec">
           <h4>偏好</h4>

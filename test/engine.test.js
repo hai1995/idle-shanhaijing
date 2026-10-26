@@ -40,7 +40,7 @@ vm.createContext(context);
 const base = path.join(__dirname, '..', 'src');
 function loadJS(file){ vm.runInContext(fs.readFileSync(path.join(base, file), 'utf8'), context, {filename:file}); }
 // ui.js 已按页拆成 7 个文件（v1.31.8），顺序与 index.html 一致；core 必须最先。
-const UI_FILES = ['ui/core.js','ui/world.js','ui/combat.js','ui/codex.js','ui/trade.js','ui/pack.js','ui/misc.js'];
+const UI_FILES = ['ui/core.js','ui/scene.js','ui/world.js','ui/combat.js','ui/codex.js','ui/trade.js','ui/pack.js','ui/misc.js'];
 const uiSrcAll = UI_FILES.map(f => fs.readFileSync(path.join(base, f), 'utf8')).join('\n');
 ['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','zhongshanData.js','gameData.js','affix.js','save.js','engine.js','game.js','queue.js','interact.js','fx.js','beastIcon.js','riteIcon.js','structureIcon.js','skillIcon.js','itemIcon.js','markIcon.js'].forEach(loadJS);
 const G = context;
@@ -7823,6 +7823,127 @@ section('道里数据');
   assert(!cSrc.includes('mapMode') && !cSrc.includes('mapSeries'), 'UI 状态里的地图字段已移除');
   assert(!fs.existsSync(path.join(base,'src/ui/map.js')), 'src/ui/map.js 已删除');
   assert(!gSrc.includes('regionGeometry'), '为绘图服务的几何判据已移除');
+
+  G.resetToDefault();
+}
+
+// ============ 145. 行动现场：把「在做什么」画出来（v1.31.54） ============
+// 采集是本作最核心的动作——玩家九成时间在采——但此前的全部视觉反馈，
+// 只有仪表带上一根细进度条，采到什么靠一行飘字闪一下。
+// 本节钉住三件事：① 现场是纯视觉层，不动任何产出与节奏；
+// ② 动画周期必须等于行动间隔（否则「一锄一收」的因果会错位）；
+// ③ 不引入任何图片资源（assets/ 至今只有一个字体文件）。
+section('行动现场');
+{
+  const gSrc145 = readText('src/game.js');
+  const cSrc145 = readText('src/ui/core.js');
+  const sSrc145 = readText('src/ui/scene.js');
+  const hSrc145 = readText('index.html');
+  const cssSrc145 = readText('style.css');
+
+  // ---- 0. 现场是独立一层，且挂在静态节点上 ----
+  assert(typeof ST.sceneState === 'function', '现场判据在 UI 层可调用');
+  assert(typeof ST.sceneHtml === 'function' && typeof ST.sceneSig === 'function', '拆成「取状态 / 出版式 / 取签名」三段');
+  assert(hSrc145.includes('id="sceneBar"'), 'index.html 有静态的现场节点');
+  assert(hSrc145.includes('src/ui/scene.js'), 'scene.js 已被加载');
+  // 现场若随页面一起 innerHTML 重绘，动画每渲染一次就归零——等于没有动画
+  assert(sSrc145.includes("getElementById('sceneBar')"), '现场按 id 取静态节点，不随页面重绘');
+  assert(cSrc145.includes('this.renderScene()'), '核心刷新时只通知现场做增量，不重建它');
+  assert(typeof ST.Prefs.sceneOn === 'boolean', 'Prefs 上有 sceneOn 开关');
+
+  // ---- 1. 状态判据：无行动 → null；采集 → 齐备的字段 ----
+  G.resetToDefault();
+  ST.Game.activity = null;
+  assert(ST.sceneState() === null, '空闲时没有现场');
+
+  ST.Game.node = 'nanshan-1-01';
+  ST.Game.skills.qiaocai.level = 12;
+  ST.Game.activity = { kind:'gather', skill:'qiaocai', itemId:'gui', src:'manual', remain:null };
+  const st145 = ST.sceneState();
+  assert(!!st145, '采集时给出场景状态');
+  assert(st145.kind === 'gather', '种类为 gather');
+  assert(st145.place === (ST.nodeOf('nanshan-1-01')||{}).name, '带山名（画上落款用）');
+  assert(typeof st145.iv === 'number' && st145.iv > 0, '带行动间隔（动画周期用）');
+  assert(/^#[0-9A-Fa-f]{6}$/.test(st145.ink), '带山系墨色');
+  assert(st145.key.indexOf('gather:gui') === 0, '签名键含「种类 + 物」');
+
+  // 换一座山 → 墨色应随之变（五系各有其色）
+  ST.Game.node = 'xishan-1-01';
+  const stX145 = ST.sceneState();
+  if (stX145) assert(stX145.ink !== st145.ink || !st145.ink, '换山系则换墨色');
+
+  // ---- 2. 动画周期 = 行动间隔（因果对齐的前提）----
+  ST.Game.node = 'nanshan-1-01';
+  ST.Game.activity = { kind:'gather', skill:'qiaocai', itemId:'gui', src:'manual', remain:null };
+  const stA145 = ST.sceneState();
+  assert(Math.abs(stA145.iv - ST.currentActionInterval()) < 1e-9, '场景间隔取自 currentActionInterval（不另算一套）');
+  assert(ST.sceneHtml(stA145).indexOf(`--ai:${stA145.iv.toFixed(2)}s`) >= 0, '间隔写进 CSS 变量 --ai');
+  assert(cssSrc145.includes('animation:scSwing var(--ai)'), '挥锄动画的时长用 --ai');
+  assert(cssSrc145.includes('animation:scDust var(--ai)'), '土粒与挥锄同一周期');
+
+  // 挥落时刻必须落在周期的后段：引擎在 interval 走满时产出，
+  // 若锄头在 30% 就落下，玩家看到的是「先出东西、后动一下」。
+  const swing = (cssSrc145.match(/@keyframes scSwing\{[\s\S]*?\n\}/) || [''])[0];
+  assert(swing.length > 0, 'scSwing 帧存在');
+  assert(/9[0-9]%[^}]*rotate\(4deg\)/.test(swing), '落下（rotate 4deg）排在周期 90% 之后');
+  const dust = (cssSrc145.match(/@keyframes scDust\{[\s\S]*?\n\}/) || [''])[0];
+  assert(/8[5-9]%,\s*9[0-9]%/.test(dust) || /88%[,{]/.test(dust), '土粒与挥落同时机');
+
+  // ---- 3. 版式：人、山、地、收成、记账，一个不少 ----
+  const html145 = ST.sceneHtml(stA145);
+  assert(html145.indexOf('sc-worker') >= 0, '有劳作的人');
+  assert(html145.indexOf('sc-hills') >= 0, '有远山');
+  assert(html145.indexOf('sc-ground') >= 0, '有地面');
+  assert(html145.indexOf('sc-drops') >= 0, '有收成浮出的容器');
+  assert(html145.indexOf('sc-hud') >= 0, '有记账');
+  assert(html145.indexOf('sc-prog') >= 0, '底部有细进度');
+  assert(html145.indexOf(stA145.place) >= 0, '山名作为画中落款出现');
+
+  // 采集有计数，观象没有——摆一个永远为 0 的大数字比不摆更让人困惑
+  assert(html145.indexOf('class="sc-n') >= 0, '采集给出「已采几件」的数字');
+  ST.Game.activity = { kind:'observe' };
+  const stObs145 = ST.sceneState();
+  assert(ST.sceneHtml(stObs145).indexOf('sc-label') >= 0, '观象不摆计数，只写名号');
+  assert(ST.sceneHtml(stObs145).indexOf('class="sc-n') < 0, '观象没有「0 件」');
+
+  // ---- 4. 重建签名不含计数（含了就每次采集都重建，动画被打断）----
+  ST.Game.activity = { kind:'gather', skill:'qiaocai', itemId:'gui', src:'manual', remain:null };
+  const sig1 = ST.sceneSig(ST.sceneState());
+  ST.UI._tally = { key: 'gather:gui:nanshan-1-01', n: 37 };
+  const sig2 = ST.sceneSig(ST.sceneState());
+  assert(sig1 === sig2, '签名与「已采几件」无关');
+  assert(sig1.indexOf('37') < 0, '签名里没有计数');
+  ST.UI._tally = null;
+
+  // ---- 5. 纯视觉：不碰产出、不碰经验、不碰存档 ----
+  assert(sSrc145.indexOf('giveItem') < 0, '现场不发放物品');
+  assert(sSrc145.indexOf('gainXp') < 0, '现场不发放经验');
+  assert(sSrc145.indexOf('addRecord') < 0 && sSrc145.indexOf('recordObject') < 0, '现场不改著录');
+  assert(sSrc145.indexOf('Game.shells') < 0, '现场不碰贝币');
+
+  // ---- 6. 采集一次 → 现场「落地」一次，且与技能卡飘字同一触发点 ----
+  assert(gSrc145.includes('const recRes = recordObject(itemId, qty);'), '采集把著录结果留了下来');
+  assert(gSrc145.includes('{ first: !!(recRes && recRes.first), tierUp: !!(recRes && recRes.tierUp) }'),
+    '「初见 / 进阶」传给了反馈层');
+  assert(cSrc145.includes('actionFeedback(skillId, itemId, qty, opts)'), 'feedback 接受附加信息');
+  assert(cSrc145.includes('if (this.sceneBeat) this.sceneBeat(itemId, qty, opts)'), 'feedback 转交现场');
+  assert(sSrc145.includes("o.first ? '<s>初见</s>'"), '初见在收成上单独标记');
+  // 关掉动效时保留静帧：知道在做什么，只是不动
+  assert(sSrc145.includes("Prefs.fxLevel === 'off'") && cssSrc145.includes('.sc-wrap.no-anim'), '动效关闭时留静帧');
+
+  // ---- 7. 不引图片：整块现场是手写 SVG + CSS ----
+  assert(sSrc145.indexOf('<img') < 0 && sSrc145.indexOf('.png') < 0 && sSrc145.indexOf('.jpg') < 0,
+    '现场不引用任何位图');
+  assert((html145.match(/<svg/g) || []).length >= 3, '画面由多个手写 SVG 组成（山 / 地 / 人）');
+
+  // ---- 8. 仪表带与现场不重复报同一件事 ----
+  // 仪表带已写「樵采：桂（招摇之山）」，现场只给山名落款与计数，不再复述行动全称
+  assert(cSrc145.includes('activityLabelText()'), '行动全称仍由仪表带负责');
+  assert(html145.indexOf('樵采') < 0, '现场不重复行动全称');
+
+  // ---- 9. 设置里能关掉（手机屏高宝贵）----
+  assert(cSrc145.includes('Prefs.sceneOn'), '设置页有开关');
+  assert(sSrc145.includes('Prefs.sceneOn === false'), '关掉后不渲染现场');
 
   G.resetToDefault();
 }

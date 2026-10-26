@@ -63,6 +63,9 @@
       <div id="actionProg" class="hidden"><div id="actionProgFill"></div></div>
       <button id="btnStop" class="btn-mini" type="button">停止</button>
     </div>
+    <!-- 现场：当前行动的小画面（v1.31.54）。静态节点 + 增量更新——
+         若随页面一起 innerHTML 重绘，动画每渲染一次就归零，等于没有动画。 -->
+    <div id="sceneBar" class="hidden"></div>
     <div id="guidance" class="hint-banner hidden"></div>
   </div>
 
@@ -110,6 +113,7 @@
 <script src="src/interact.js"></script>
 <script src="src/fx.js"></script>
 <script src="src/ui/core.js"></script>
+<script src="src/ui/scene.js"></script>
 <script src="src/ui/world.js"></script>
 <script src="src/ui/combat.js"></script>
 <script src="src/ui/codex.js"></script>
