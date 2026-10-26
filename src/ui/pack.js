@@ -162,7 +162,14 @@ UI.patchPackList = function(){
 UI.renderPack = function(){
   const box = $('content');
   if (!box) return;
-  const slots = Object.keys(GearSlotLabels);
+  const allSlots = Object.keys(GearSlotLabels);
+  // 次要槽（斧 / 镐 / 网 / 矢）平时用不上，全空时收成一格。
+  // 手机上一屏本就窄，七格空槽排三行，把「装备在上」省下的位置又吃回去了。
+  const MINOR = ['axe','pick','net','quiver'];
+  const minorFilled = MINOR.filter(s => Game.gear[s]);
+  const minorEmpty = MINOR.filter(s => !Game.gear[s]);
+  const showMinor = UI.gearMinorOpen || minorFilled.length > 0 || minorEmpty.length === 0;
+  const slots = allSlots.filter(s => MINOR.indexOf(s) < 0 || showMinor);
   let html = `<div class="pack-wrap">
     <div class="panel gear-panel">
       <h3>装备<button class="btn small gear-best" type="button" onclick="UI.autoEquipBest()">一键最优装</button></h3>
@@ -179,6 +186,13 @@ UI.renderPack = function(){
              :`<span class="gt-empty">空</span>`}
         </div>`;
       }).join('')}
+      ${(!showMinor && minorEmpty.length) ? `<div class="tile gear-tile empty gear-minor" role="button" tabindex="0"
+         title="斧 / 镐 / 网 / 矢：采伐与射猎之用"
+         onclick="UI.gearMinorOpen=true;UI.renderPack()">
+        <span class="gt-label">工具</span>
+        <span class="tile-nm">斧镐网矢</span>
+        <span class="gt-empty">皆空 · 点开</span>
+      </div>` : ''}
       </div>
     </div>
     <div class="panel inv-panel">

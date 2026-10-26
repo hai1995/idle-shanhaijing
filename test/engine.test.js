@@ -6079,6 +6079,36 @@ section('快速挂机');
   G.resetToDefault();
 }
 
+// ============ 111. 行囊页：空工具槽折叠 ============
+// 斧 / 镐 / 网 / 矢四个槽平时空着，手机上一屏窄，七格排三行把「装备在上」省下的位置又吃回去。
+{
+  G.resetToDefault();
+  ST.UI.gearMinorOpen = false;
+  ST.UI.currentTab = 'pack'; ST.UI.renderPack();
+  let html = (renderTargets.content || {}).innerHTML || '';
+  assert(html.includes('gear-minor'), '四个工具槽全空时合并成一格');
+  assert((html.match(/class="tile gear-tile/g) || []).length <= 4,
+    '装备格不超过 4 个（兵器/甲胄/玉符 + 工具），实为 ' +
+    (html.match(/class="tile gear-tile/g) || []).length);
+
+  ST.UI.gearMinorOpen = true;
+  ST.UI.renderPack();
+  html = (renderTargets.content || {}).innerHTML || '';
+  assert(!html.includes('gear-minor'), '点开后不再合并');
+  assert((html.match(/class="tile gear-tile/g) || []).length === 7, '点开后七个槽都在');
+
+  // 一旦某个工具槽有装备，就不再折叠（不然玩家看不见那把斧）
+  G.resetToDefault();
+  ST.UI.gearMinorOpen = false;
+  ST.Game.gear.axe = Object.assign({}, ST.Items.axe || ST.Items.shifu || {}, { id:'axe' });
+  ST.UI.currentTab = 'pack'; ST.UI.renderPack();
+  html = (renderTargets.content || {}).innerHTML || '';
+  if (ST.Game.gear.axe && ST.Game.gear.axe.name){
+    assert(!html.includes('gear-minor'), '工具槽有货时不折叠');
+  }
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
