@@ -6605,6 +6605,29 @@ section('山系巡礼');
   G.resetToDefault();
 }
 
+// ============ 121. 巡礼里程碑：走遍五系 / 十三系 ============
+section('巡礼里程碑');
+{
+  G.resetToDefault();
+  const ms = ST.Milestones.find(m => m.id === 'pilgrim_5');
+  assert(!!ms && ms.yield === 0.03, '「五系巡礼」在册，采获 +3%');
+  assert(ms.prog()[1] === 5 && ms.prog()[0] === 0, '初始 0/5');
+
+  // 走完五系（取前五系，节点全标记）
+  const regs = ST.WORLD.regions.slice(0, 5);
+  regs.forEach(r => r.nodes.forEach(n => { ST.Game.map[n.id] = true; }));
+  assert(ST.pilgrimFullCount() === 5, '已走遍 5 系（' + ST.pilgrimFullCount() + '）');
+  assert(ms.prog()[0] === 5 && ms.check(), '里程碑达成（不依赖有没有点「领赏」）');
+  assert(Math.abs(ST.globalYieldBonus() - 0.03) < 1e-9, '采获加成实际生效（' + ST.globalYieldBonus() + '）');
+
+  const ms13 = ST.Milestones.find(m => m.id === 'pilgrim_13');
+  assert(!!ms13 && ms13.prog()[1] === 13, '「半壁山河」在册（13 系）');
+  assert(!ms13.check(), '只走五系时未达成十三系');
+
+  G.resetToDefault();
+  assert(ST.pilgrimFullCount() === 0, '重开归零');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

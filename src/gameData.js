@@ -2350,6 +2350,16 @@ const bossKilled = (id) => !!((Game.stats.bossKills || {})[id]);
 const NS_OBSERVE = Object.keys(OBSERVE_SITES).filter(k => OBSERVE_SITES[k].kind === '观象'
   && String(OBSERVE_SITES[k].nodeId).indexOf('nanshan-') === 0);
 
+// 走遍（诸山皆涉）的山系数：巡礼里程碑与舆地页的印记同口径
+function pilgrimFullCount(){
+  let n = 0;
+  for (const r of (typeof WORLD !== 'undefined' ? WORLD.regions : [])){
+    if (!r.nodes || !r.nodes.length) continue;
+    if (r.nodes.every(nd => (Game.map || {})[nd.id])) n++;
+  }
+  return n;
+}
+window.pilgrimFullCount = pilgrimFullCount;
 const Milestones = [
   { id:'rec_5',    name:'初识山川',   desc:'著录 5 种对象',     prog:()=>[recordedCount(), 5],    bonus:'经验 +2%',   xp:0.02,
     how:'在舆地采集、征伐讨伐、观象谒见——凡是第一次接触的对象都会自动著录一条，不必手动记录。前五条最快：把南山首经走一遍。', go:{ tab:'yudi' } },
@@ -2416,6 +2426,14 @@ const Milestones = [
   { id:'bs_jingwei',name:'东海渐浅',  desc:'发鸠山精卫填海养成完成',
     prog:()=>[(Game.grow && Game.grow.jingwei && Game.grow.jingwei.done) ? 1 : 0, 1], bonus:'采集速度 +10%', gather:0.10,
     how:'发鸠山的灌木点，200 阶、每阶十分钟——全作最长的养成。每 25 阶有个路标（精卫之羽 + 贝），慢慢投就是。', go:{ tab:'yudi' } },
+  // ---- 巡礼（v1.31.25）：走遍一系诸山 ----
+  // 口径按「已走遍」现算，不看有没有领赏——否则玩家走完了却没点「领赏」，成就一直不亮。
+  { id:'pilgrim_5', name:'五系巡礼', desc:'走遍五个山系的诸山',
+    prog:()=>[pilgrimFullCount(), 5], bonus:'采获 +3%', yield:0.03,
+    how:'山系进度在舆地页每个山系方块上，诸山皆涉即满。满额那系右上角会亮一枚「赏」。', go:{ tab:'yudi' } },
+  { id:'pilgrim_13', name:'半壁山河', desc:'走遍十三个山系的诸山',
+    prog:()=>[pilgrimFullCount(), 13], bonus:'采集速度 +5%', gather:0.05,
+    how:'全书二十六系，走完一半。北山三系与东山四系各有一条长线，正好凑够十三。', go:{ tab:'yudi' } },
 ];
 // 达成判定一律从 prog 派生——只有一份数，界面进度与判定不可能走岔。
 Milestones.forEach(ms => {
@@ -2646,8 +2664,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.25',
-  codename:'昼巡 · 收束',
+  version: '1.31.26',
+  codename:'昼巡 · 山河',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
