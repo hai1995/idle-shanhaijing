@@ -6680,6 +6680,39 @@ section('卷二旧地重游');
   G.resetToDefault();
 }
 
+// ============ 123. 巡礼特产：每系一件代表物 ============
+// 「特产」不另造 26 件新物品，而是取该系产出里价值最高的**独有**一件——
+// 走遍这一系，换来的是「别处拿不到的东西」，才算回报。
+section('巡礼特产');
+{
+  G.resetToDefault();
+  let missing = [];
+  const names = [];
+  for (const r of ST.WORLD.regions){
+    const g = ST.pilgrimGiftOf(r.regionId);
+    if (!g) missing.push(r.regionId); else names.push(`${r.regionId}=${g.name}`);
+  }
+  assert(missing.length === 0, '26 系都有特产' + (missing.length ? '（缺 ' + missing.join('、') + '）' : ''));
+  assert(new Set(names.map(x => x.split('=')[1])).size >= 20, '各系特产基本不重样（' + new Set(names.map(x => x.split('=')[1])).size + ' 种）');
+  const mg = ST.pilgrimGiftOf('nanshan-1');
+  assert(mg && mg.name === '迷榖', '南次一经特产取『迷榖』（现 ' + (mg || {}).name + '）');
+
+  // 领赏实发：贝 + 特产×2
+  const reg = 'nanshan-1';
+  const R = ST.WORLD.regions.find(x => x.regionId === reg);
+  R.nodes.forEach(n => { ST.Game.map[n.id] = true; });
+  const q0 = ST.bagQty(mg.id);
+  const s0 = ST.Game.shells;
+  ST.claimPilgrim(reg);
+  assert(ST.bagQty(mg.id) - q0 === 2, '领赏得特产 ×2（现 ' + (ST.bagQty(mg.id) - q0) + '）');
+  assert(ST.Game.shells - s0 === 800 + R.unlockLevel * 80, '贝币照旧');
+
+  // 只发一次
+  assert(ST.claimPilgrim(reg) === 0 && ST.bagQty(mg.id) - q0 === 2, '重复领赏不再给特产');
+
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

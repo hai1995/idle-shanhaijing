@@ -367,6 +367,11 @@ function itemSources(id){
     out.push({ kind:'谒见', where:`${d.name}（初谒得赐）` });
     break;
   }
+  // 巡礼特产：走遍该系领赏可得 2 件（别处拿不到）
+  if (typeof pilgrimGiftIndex === 'function'){
+    const r = pilgrimGiftIndex().get(id);
+    if (r) out.push({ kind:'巡礼', where:`走遍${r.regionName}（领赏得 2 件）` });
+  }
   // 养成点：丹木、器酸一类三五年一熟的奇产，既非采集也非掉落
   for (const g of Object.values(typeof GROW_SITES !== 'undefined' ? GROW_SITES : {})){
     if (!g.reward || !g.reward[id]) continue;

@@ -19234,8 +19234,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.30',
-  codename:'昼巡 · 拾遗',
+  version: '1.31.31',
+  codename:'昼巡 · 特产',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
@@ -21874,6 +21874,36 @@ function regionPilgrim(regionId){
   return { regionId, total, done, full: total > 0 && done >= total,
            claimed: !!(Game.pilgrim && Game.pilgrim[regionId]) };
 }
+// 山系特产：该系产出里价值最高的一件非装备物（26 系天然各不相同）。
+// 不另造 26 件新物品——「特产」的意义是「这一系的代表」，而不是再加一层库存。
+function pilgrimGiftOf(regionId){
+  const prefix = regionId + '-';
+  let unique = null, anyIn = null;
+  for (const it of Object.values(Items)){
+    if (!it || it.equip || !(it.value > 0)) continue;
+    const nodes = it.nodes || (it.node ? [it.node] : []);
+    if (!nodes.length || !nodes.some(n => String(n).indexOf(prefix) === 0)) continue;
+    if (!anyIn || (it.value || 0) > (anyIn.value || 0)) anyIn = it;
+    // 「特产」优先取只产在这一系的：金玉、竹箭这类遍地都有的泛称
+    // 写在领赏 toast 里只会让人以为给错了东西。
+    const onlyHere = nodes.every(n => String(n).indexOf(prefix) === 0);
+    if (onlyHere && (!unique || (it.value || 0) > (unique.value || 0))) unique = it;
+  }
+  return unique || anyIn;
+}
+// 反查表：物品 → 它是哪个山系的特产（26×700 只算一次；详情页与统计页会反复问）
+let _pilgrimGiftRev = null;
+function pilgrimGiftIndex(){
+  if (_pilgrimGiftRev) return _pilgrimGiftRev;
+  _pilgrimGiftRev = new Map();
+  for (const r of (typeof WORLD !== 'undefined' ? WORLD.regions : [])){
+    const g = pilgrimGiftOf(r.regionId);
+    if (g) _pilgrimGiftRev.set(g.id, r);
+  }
+  return _pilgrimGiftRev;
+}
+window.pilgrimGiftOf = pilgrimGiftOf; window.pilgrimGiftIndex = pilgrimGiftIndex;
+
 function claimPilgrim(regionId){
   const p = regionPilgrim(regionId);
   if (!p || !p.total){ return 0; }
@@ -21888,8 +21918,12 @@ function claimPilgrim(regionId){
   Game.stats.totalEarned += shells;
   gainXp('yudi', 300 + lvl * 30);
   gainXp('zhulu', 120 + lvl * 10);
-  log(`🗺️ 山系巡礼·${r.regionName}：${p.total} 山皆涉，得贝 ${shells}`, 'gold', 'sys');
-  UI && UI.toast(`🗺️ ${r.regionName} 巡礼已成\n${p.total} 山皆涉 · 得贝 ${shells}`);
+  // 特产：该系价值最高的一件产出 ×2（不可合成、只能靠走遍这一系换来）
+  const gift = pilgrimGiftOf(regionId);
+  if (gift) giveItem(gift.id, 2, false);
+  const giftTx = gift ? ` · 另得 ${gift.name}×2` : '';
+  log(`🗺️ 山系巡礼·${r.regionName}：${p.total} 山皆涉，得贝 ${shells}${giftTx}`, 'gold', 'sys');
+  UI && UI.toast(`🗺️ ${r.regionName} 巡礼已成\n${p.total} 山皆涉 · 得贝 ${shells}${giftTx}`);
   saveGame();
   return shells;
 }
@@ -30739,6 +30773,11 @@ function itemSources(id){
     if (!d) continue;
     out.push({ kind:'谒见', where:`${d.name}（初谒得赐）` });
     break;
+  }
+  // 巡礼特产：走遍该系领赏可得 2 件（别处拿不到）
+  if (typeof pilgrimGiftIndex === 'function'){
+    const r = pilgrimGiftIndex().get(id);
+    if (r) out.push({ kind:'巡礼', where:`走遍${r.regionName}（领赏得 2 件）` });
   }
   // 养成点：丹木、器酸一类三五年一熟的奇产，既非采集也非掉落
   for (const g of Object.values(typeof GROW_SITES !== 'undefined' ? GROW_SITES : {})){
