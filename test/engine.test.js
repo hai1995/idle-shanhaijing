@@ -6795,6 +6795,27 @@ section('图鉴系产标记');
   G.resetToDefault();
 }
 
+// ============ 128. 山海图卷两条路线：走遍哪一片都有路 ============
+section('图卷双配方');
+{
+  G.resetToDefault();
+  const both = ST.Recipes.filter(r => r.out === 'shanhaitujuan');
+  assert(both.length === 2, '两条配方（现 ' + both.length + '）');
+  const [a, b] = both;
+  assert(a.type !== b.type, '分属不同技艺（' + a.type + ' / ' + b.type + '）');
+  const ma = a.cost.map(([id]) => id), mb = b.cost.map(([id]) => id);
+  assert(ma.filter(x => mb.includes(x)).length === 0, '两条路线不共用材料');
+  // 八件材料都应是某系特产（最后一件是玉/菅这类通用料除外）
+  const idx = ST.pilgrimGiftIndex();
+  const spA = ma.filter(id => idx.get(id)).length;
+  const spB = mb.filter(id => idx.get(id)).length;
+  assert(spA === 4 && spB === 4, '两条各耗四系特产（' + spA + ' / ' + spB + '）');
+  // 两条的产出一致，等级一致
+  assert(a.lvl === 72 && b.lvl === 72 && a.out === b.out, '同产出、同级要求');
+
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
