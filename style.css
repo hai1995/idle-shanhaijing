@@ -1379,7 +1379,28 @@ svg.bi.mk{ vertical-align:-2px; }
 .shop-head{ display:flex; gap:20px; flex-wrap:wrap; align-items:center; font-size:12.5px; color:var(--ink-3); }
 .shop-head b{ font-family:var(--f-num); color:var(--ink); font-size:14px; margin-left:4px; }
 .shop-head b.gold{ color:var(--jin); }
-/* 墟市：商品方块（点按买一份，右上 ×10） */
+/* 市廛分类条：六个货架的目录。宽屏是一排小签，窄屏横滑。 */
+.shop-nav{ display:flex; align-items:center; gap:6px; margin-bottom:10px; padding-bottom:8px;
+  border-bottom:1px dashed var(--rule); overflow-x:auto; scrollbar-width:none; }
+.shop-nav::-webkit-scrollbar{ display:none; }
+.shop-nav .nav-lbl{ flex:none; font-family:var(--f-kai); font-size:12.5px; letter-spacing:.14em; color:var(--ink-3); margin-right:2px; }
+.shop-chip{ flex:none; display:inline-flex; align-items:baseline; gap:4px; padding:3px 10px;
+  font-size:12px; color:var(--ink-2); background:transparent; border:1px solid var(--rule-2);
+  border-radius:2px; cursor:pointer; transition:border-color .12s, color .12s, background .12s; }
+.shop-chip:hover{ border-color:var(--ink-4); color:var(--ink); }
+.shop-chip.on{ background:var(--paper-3); border-color:rgba(156,118,40,.5); color:var(--jin); }
+.shop-chip i{ font-style:normal; font-family:var(--f-num); font-size:10px; color:var(--ink-4); }
+.shop-chip.on i{ color:var(--jin); opacity:.8; }
+
+/* 货架：一个分类一块底板。只有两三个方块时也不至于「孤零零浮在页面上」。 */
+.shop-shelf{ margin-bottom:12px; padding:10px 12px 12px; background:var(--paper-2);
+  border:1px solid var(--rule); border-radius:var(--r); scroll-margin-top:12px; }
+.shop-shelf .shelf-hd{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:8px; }
+.shop-shelf h4{ margin:0; }
+.shelf-desc{ font-size:11px; color:var(--ink-4); }
+.shelf-desc b{ font-family:var(--f-num); color:var(--jin); font-weight:400; }
+.shop-shelf .tile{ background:var(--paper); }
+/* 墟市：商品方块（点按开详情，右上批量键按贝币算份数） */
 .shop-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(92px,1fr)); gap:6px; }
 /* 营造：建筑方块（点按营造，右上 ✓ 表已成；材料与效用进浮层） */
 .build-tile.done{ border-color:rgba(86,110,76,.5); }
@@ -1841,6 +1862,20 @@ body.no-scroll{ overflow:hidden; }
   /* 提高特异性：后面那组 .inv-grid/.codex-grid 的 minmax(140px) 会覆盖同权重规则 */
   .panel .inv-grid, .panel .codex-grid,
   .panel .rite-grid, .panel .shop-grid{ grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
+  .shop-shelf{ padding:9px 8px 10px; }
+  .shelf-desc{ display:none; }
+  /* 手机首屏：商旅卡 + 推荐 + 求购三块把商品挤到 1000px 以下，进市廛要先滑两屏才看得到东西。
+     求购改横滑（省约 300px）、推荐只留两条、分类条吸顶——滑到哪儿都能跳档。 */
+  .order-board .ob-grid{ display:flex; gap:8px; overflow-x:auto; scroll-snap-type:x mandatory;
+    padding-bottom:4px; margin:0 -2px; scrollbar-width:none; }
+  .order-board .ob-grid::-webkit-scrollbar{ display:none; }
+  .order-board .ob-card{ flex:0 0 84%; scroll-snap-align:start; }
+  .order-board .hint{ margin-top:6px; }
+  .trade-tip ul li:nth-child(n+3){ display:none; }
+  .shop-nav{ position:sticky; top:0; z-index:6; background:var(--paper);
+    padding-top:6px; margin:0 -2px 8px; }
+  /* 吸顶条高约 40px，货架跳过来时标题不能被它盖住 */
+  .shop-shelf{ scroll-margin-top:50px; }
   /* 舆地：山系三列、诸山三列；装备 / 行囊 / 廛市出售 / 征兆 / 营造 / 田地同宽 */
   .panel .region-grid, .panel .node-grid,
   .panel .gear-grid, .panel .inv-grid, .panel .sell-grid,

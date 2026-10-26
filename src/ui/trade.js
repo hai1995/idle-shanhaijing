@@ -3,38 +3,68 @@
 // 其余按页顺序；跨文件调用的函数与常量都在全局词法环境里，运行时才求值，先后不影响调用。
 
 // ================= 墟市 =================
+// 分类条：滚到对应货架，并把当前档点亮。移动端一屏装不下六个货架，
+// 这条就是「目录」——省得一路滑到底再滑回来。
+UI.shopJump = function(catId){
+  const el = document.getElementById('shop-' + catId);
+  if (!el) return;
+  UI._shopCat = catId;
+  if (el.scrollIntoView) el.scrollIntoView({ behavior:'smooth', block:'start' });
+  document.querySelectorAll('.shop-chip').forEach(c => {
+    const on = c.getAttribute('onclick') === `UI.shopJump('${catId}')`;
+    if (c.classList.contains('on') !== on) c.classList.toggle('on', on);
+  });
+};
 UI.renderShichan = function(){
   const box = $('content');
   if (!box) return;
   const sellMult = tradeMult();   // 售价走势由 onSecond 采样，此处只读（渲染无副作用）
-  let buy = '';
-  for (const cat of SHOP_CATS){
+  // 采购区：分类导航 + 货架。
+  // 原先六个分类平铺下去，1280 宽下每档只有两三个方块、右边一大片空白，
+  // 整页看着像「几个互不相干的小岛」；加一层货架底板 + 一条分类条，成组之后就顺眼了。
+  const cats = SHOP_CATS.filter(c => ShopStock.some(s => s.cat === c.id));
+  const lv = levelOf('shanglv');
+  const nav = cats.map(c => {
+    const all = ShopStock.filter(s => s.cat === c.id);
+    const ok = all.filter(s => lv >= s.lvl).length;
+    return `<button class="shop-chip" type="button" onclick="UI.shopJump('${c.id}')">`
+      + `${c.name}<i>${ok}/${all.length}</i></button>`;
+  }).join('');
+  let buy = `<div class="shop-nav"><span class="nav-lbl">市廛</span>${nav}</div>`;
+  for (const cat of cats){
     const items = ShopStock.filter(s=>s.cat===cat.id);
-    if (!items.length) continue;
-    buy += `<h4><span class="cat-ic">${typeof itemIc==='function'?itemIc({ icon:cat.icon, name:cat.name, type:'material' },16):cat.icon}</span> ${cat.name}</h4><div class="shop-grid">`;
-    buy += items.map((s,i)=>{
+    const okN = items.filter(s=>lv>=s.lvl).length;
+    buy += `<section class="shop-shelf" id="shop-${cat.id}">
+      <header class="shelf-hd">
+        <h4><span class="cat-ic">${typeof itemIc==='function'?itemIc({ icon:cat.icon, name:cat.name, type:'material' },16):cat.icon}</span> ${cat.name}</h4>
+        <span class="shelf-desc">${esc(cat.desc||'')}${okN<items.length?` · <b>${items.length-okN}</b> 样待商旅高升`:''}</span>
+      </header>
+      <div class="shop-grid">`;
+    buy += items.map((s)=>{
       const it = Items[s.itemId];
       const idx = ShopStock.indexOf(s);
-      const lvOk = levelOf('shanglv') >= s.lvl;
+      const lvOk = lv >= s.lvl;
       const afford = Game.shells >= s.cost;
       const can = lvOk && afford;
-      // 方块：点按开详情（数量自填），右上「×10」仍作快捷；详情里再做等级与贝币校验
+      // 批量键：原先写死 ×10，一只白鸡 1,200 贝就是「一下花一万二」。
+      // 改成按手头贝币算份数——最多花掉一半，最多十份；不足两份就不显示。
+      const bulk = Math.max(0, Math.min(10, Math.floor(Game.shells * 0.5 / s.cost)));
       return `<div class="tile shop-tile ${can?'':'lock'}" data-tip data-tip-title="${esc(it?it.name:s.itemId)}"
         role="button" tabindex="0" onclick="showShopItem(${idx})">
         <span class="tile-ic bi-ic">${typeof itemIc==='function'?itemIc(it):(it?it.icon:'📦')}</span>
         <span class="tile-nm">${esc(it?it.name:s.itemId)}</span>
-        <span class="tile-tag">${s.cost} 贝</span>
-        ${can?`<button class="tile-more" type="button" title="买十份（${s.cost*10} 贝）"
-          onclick="event.stopPropagation();buyItem(${idx},10)">×10</button>`:''}
+        <span class="tile-tag">${fmt(s.cost)} 贝</span>
+        ${can && bulk >= 2 ? `<button class="tile-more" type="button" title="买 ${bulk} 份 · ${s.qty*bulk} 件 · ${fmt(s.cost*bulk)} 贝"
+          onclick="event.stopPropagation();buyItem(${idx},${bulk})">×${bulk}</button>` : ''}
         <span class="tip-body hidden">
-          <div class="bc-sub">${s.qty} 件 / 份 · 单价 ${s.cost} 贝</div>
-          ${!lvOk?`<div class="hint">需商旅 ${s.lvl} 级</div>`:''}
+          <div class="bc-sub">${s.qty} 件 / 份 · 单价 ${fmt(s.cost)} 贝</div>
+          ${!lvOk?`<div class="hint">需商旅 ${s.lvl} 级（现 ${lv}）</div>`:''}
           ${s.note?`<div class="hint">${esc(s.note)}</div>`:''}
           ${it&&it.note?`<div class="rc-sub">${esc(it.note)}</div>`:''}
         </span>
       </div>`;
     }).join('');
-    buy += `</div>`;
+    buy += `</div></section>`;
   }
   // 出售
   const inv = Object.entries(Game.inventory).filter(([id,q])=>q>0 && (Items[id]||{}).value);
@@ -66,14 +96,27 @@ UI.renderShichan = function(){
   const plainValue = inv.filter(([id])=>(Items[id].value||0)<30).reduce((s,[id,q])=>s+sellValue(id,q),0);
   // 推荐买卖：低买高卖 / 购入即录 / 清仓凡品
   const tips = [];
-  (typeof ShopStock!=='undefined'?ShopStock:[]).forEach(s=>{
-    const it = Items[s.itemId]; if (!it) return;
-    const profit = sellValue(s.itemId, s.qty) - s.cost;
-    if (profit > 0 && Game.shells >= s.cost)
-      tips.push(`低买高卖：<b>${esc(it.name)}</b>（转售约 +${fmt(profit)} 贝）`);
-    else if (!Game.records[s.itemId])
-      tips.push(`购入即录：<b>${esc(it.name)}</b>（增进著录度）`);
-  });
+  // 推荐原先对每个在售之物都写一条，于是「购入即录：火种 / 清水瓶 / 稌籽」常年霸占前三条——
+  // 那几样玩家早就买腻了，卡片一开就看见三行废话。改成：
+  //   等级不够的不推、买不起的不推、「低买高卖」只推真有利差的、
+  //   「购入即录」按价格从低到高取两条，其余汇总成一句。
+  {
+    const lvNow = levelOf('shanglv');
+    const recordable = [];
+    (typeof ShopStock!=='undefined'?ShopStock:[]).forEach(s=>{
+      const it = Items[s.itemId]; if (!it) return;
+      if (s.lvl > lvNow) return;
+      const profit = sellValue(s.itemId, s.qty) - s.cost;
+      if (profit > 0 && Game.shells >= s.cost){
+        tips.push(`低买高卖：<b>${esc(it.name)}</b>（转售约 +${fmt(profit)} 贝）`);
+      } else if (!Game.records[s.itemId]){
+        recordable.push({ it, s });
+      }
+    });
+    recordable.sort((a,b)=>a.s.cost-b.s.cost);
+    recordable.slice(0,2).forEach(({it, s}) => tips.push(`购入即录：<b>${esc(it.name)}</b>（${fmt(s.cost)} 贝 · 增进著录度）`));
+    if (recordable.length > 2) tips.push(`另有 <b>${recordable.length-2}</b> 样在售之物尚未著录`);
+  }
   if (plainValue > 0) tips.push(`行囊有凡/良品，可一键售出得 <b>${fmt(plainValue)}</b> 贝`);
   // 方国求购：可交付的单进入推荐（贝币的第二出口）
   (Game.orders||[]).forEach(o=>{

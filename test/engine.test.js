@@ -2056,7 +2056,10 @@ section('方块语言：技能 / 祠礼 / 墟市');
   // v1.31.6：点一下不再直接买 1 份（想买 37 份要点四次），改为开详情、数量自填
   assert(uiSrc.includes('class="tile shop-tile') && uiSrc.includes('onclick="showShopItem(${idx})"'), '商品方块点按开详情');
   assert(uiSrc.includes('id="buyQty"') && uiSrc.includes('function buyN('), '详情里可填数量购入');
-  assert(uiSrc.includes("event.stopPropagation();buyItem(${idx},10)"), '商品方块右上 ×10 买十份');
+  // v1.31.11：批量键不再写死 ×10（一只白鸡 1,200 贝＝一下花一万二），
+  // 改为按手头贝币算份数，最多花掉一半、最多十份，不足两份就不显示。
+  assert(uiSrc.includes("event.stopPropagation();buyItem(${idx},${bulk})") && uiSrc.includes("Game.shells * 0.5 / s.cost"),
+    '商品方块的批量键按贝币算份数（×N）');
   assert(/\.shop-grid\{[^}]*minmax\(92px,1fr\)/.test(css), '墟市方格 92px');
   assert(/\.panel \.inv-grid, \.panel \.codex-grid,[\s\S]{0,80}\.panel \.rite-grid, \.panel \.shop-grid\{ grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/.test(css), '窄屏行装/图鉴/祠礼/墟市统一三列');
 }
@@ -5684,6 +5687,65 @@ section('离线结算与线上同口径');
 
   const dm = G.growButtonForNode(ST.nodeOf(ST.GROW_SITES.mishan.nodeId));
   assert(/4\/5/.test(dm), '丹木仍读 Game.danmu（4/5）');
+}
+
+// ============ 103. 市廛：品类齐全、无套利、不卖采集增幅 ============
+// 市廛原先只有 12 个 SKU，70 级打开只剩三五样——中后期的贝币没有出口，
+// 也没有「打 BOSS 前忘了备干粮」这种补救。v1.31.11 补了熟食与药散两档。
+{
+  const ids = ST.ShopStock.map(s => s.itemId);
+  assert(ST.ShopStock.length >= 20, '在售之物 ≥ 20 样（现 ' + ST.ShopStock.length + ' 样）');
+
+  // 103.1 六个分类都要有货、都要有一句话说明（分类条上就靠它）
+  for (const cat of ST.SHOP_CATS){
+    const n = ST.ShopStock.filter(s => s.cat === cat.id).length;
+    assert(n > 0, `分类「${cat.name}」有 ${n} 样在售`);
+    assert(!!cat.desc, `分类「${cat.name}」有说明`);
+  }
+  // 不许有游离档位：ShopStock 里的 cat 必须在 SHOP_CATS 里
+  const catIds = new Set(ST.SHOP_CATS.map(c => c.id));
+  const stray = ST.ShopStock.filter(s => !catIds.has(s.cat));
+  assert(stray.length === 0, '没有游离分类（' + (stray.map(s => s.itemId).join(',') || '无') + '）');
+
+  // 103.2 70 级打开时能买的样数（ROADMAP 记的「只剩三五样」）
+  const lv = 70;
+  const buyable = ST.ShopStock.filter(s => s.lvl <= lv).length;
+  assert(buyable >= 12, `70 级可买 ${buyable} 样（原 12 样里只有 7 样解锁）`);
+
+  // 103.3 熟食覆盖各段：每 10 级至少有一款能买（打不动时总有东西吃）
+  const food = ST.ShopStock.filter(s => s.cat === 'food');
+  assert(food.length >= 5, '熟食 ≥ 5 款（现 ' + food.length + '）');
+  for (let L = 10; L <= 50; L += 10){
+    const n = food.filter(s => s.lvl <= L).length;
+    assert(n >= 1, `${L} 级时至少有一款熟食可买`);
+  }
+  // 熟食必须真能回血——卖一个不能吃的「熟食」是纯摆设
+  const noHeal = food.filter(s => !(ST.Items[s.itemId] || {}).heal);
+  assert(noHeal.length === 0, '熟食都能回血（' + (noHeal.map(s => s.itemId).join(',') || '无') + '）');
+
+  // 103.4 药散只卖「折不成贝币」的：经验 / 防御可以卖，采获增幅不能卖。
+  // 一小时采 50 万贝时，释劳散（+35% 四分钟）的边际收益约 1.1 万贝，
+  // 卖多少钱都小于它——上架等于送一个刷钱按钮。
+  const herb = ST.ShopStock.filter(s => s.cat === 'herb');
+  assert(herb.length >= 2, '药散 ≥ 2 款');
+  for (const s of herb){
+    const it = ST.Items[s.itemId];
+    assert(!!it && !!it.buff, `药散 ${s.itemId} 是限时增益品`);
+    const b = it.buff || {};
+    assert(!(b.gather > 0) && !(b.yield > 0),
+      `${it.name} 不得含采获/产量增幅（那是可折现的，上架即可套利）`);
+  }
+  assert(!ids.includes('shilaisan'), '释劳散（+35% 采获）不在售——见 docs/BALANCE.md 八');
+
+  // 103.5 套利：整批买再整批卖，不能净赚
+  const deals = [];
+  for (const s of ST.ShopStock){
+    const it = ST.Items[s.itemId];
+    if (!it) continue;
+    const back = ST.sellValue(s.itemId, s.qty);
+    if (back >= s.cost) deals.push(`${it.name}：买 ${s.cost} 卖回 ${back}`);
+  }
+  assert(deals.length === 0, '整批买再卖不赚（' + (deals.join('；') || '无') + '）');
 }
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）

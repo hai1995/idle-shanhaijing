@@ -183,10 +183,29 @@ for (const m of Object.values(W.Monsters)){
   if (n < 50) bad('经济', `只查了 ${n} 条配方溢价——检查本身失效`);
 }
 
-// ---------- 5.4 墟市：在售之物必须存在 ----------
-for (const s of (W.ShopStock || [])){
-  if (!I[s.itemId]) bad('墟市', `在售 ${s.itemId} 不存在`);
-  if (!(s.cost > 0) || !(s.qty > 0)) bad('墟市', `${(I[s.itemId] || {}).name || s.itemId} 的价或量非正`);
+// ---------- 5.4 墟市：在售之物必须存在、分类必须落地、单价不得低于价值 ----------
+// 单价低于价值 = 「买一份再卖回」白赚，而且能循环。测试里也钉了一条，
+// 但那段用的是运行时 sellValue；这里只用静态 value，改数据时能立刻发现。
+{
+  const catIds = new Set((W.SHOP_CATS || []).map(c => c.id));
+  let n = 0;
+  for (const s of (W.ShopStock || [])){
+    n++;
+    const it = I[s.itemId];
+    if (!it) { bad('墟市', `在售 ${s.itemId} 不存在`); continue; }
+    if (!(s.cost > 0) || !(s.qty > 0)) bad('墟市', `${it.name} 的价或量非正`);
+    if (!catIds.has(s.cat)) bad('墟市', `${it.name} 的分类「${s.cat}」不在 SHOP_CATS 里（分类条上会整档消失）`);
+    if (it.value && s.cost / s.qty < it.value)
+      bad('墟市', `${it.name} 单价 ${(s.cost / s.qty).toFixed(1)} 低于价值 ${it.value}——买回再卖可白赚`);
+    if (s.cat === 'herb' && it.buff && (it.buff.gather > 0 || it.buff.yield > 0))
+      bad('墟市', `${it.name} 是采获/产量增幅品，不得上架（可折现 → 无限套利）`);
+  }
+  // 每个分类都要有货，否则分类条上会出现一个永远 0/N 的死档
+  for (const c of (W.SHOP_CATS || [])){
+    if (!(W.ShopStock || []).some(s => s.cat === c.id)) bad('墟市', `分类「${c.name}」一件在售都没有`);
+    if (!c.desc) bad('墟市', `分类「${c.name}」没有说明文字`);
+  }
+  if (n < 20) bad('墟市', `在售之物只有 ${n} 样——检查本身可能失效`);
 }
 
 // ---------- 6. 地点 ----------

@@ -1342,8 +1342,10 @@ const BUILDINGS = {
 const SHOP_CATS = [
   { id:'kindling', icon:'🔥', name:'火种',   desc:'冶铸炊爨之用' },
   { id:'seed',      icon:'🌾', name:'嘉种',   desc:'圃艺之种' },
+  { id:'food',      icon:'🍖', name:'熟食',   desc:'行路干粮，即刻回血' },
   { id:'beast',     icon:'🐕', name:'方国',   desc:'远方贸易之畜' },
   { id:'rite',      icon:'🕯️', name:'祭具',   desc:'祠礼之衣物与礼器' },
+  { id:'herb',      icon:'🧪', name:'药散',   desc:'一时之效，力竭时可济' },
 ];
 const ShopStock = [
   { itemId:'huozhong', qty:10, cost:60,  lvl:1,  cat:'kindling' },
@@ -1358,6 +1360,29 @@ const ShopStock = [
   { itemId:'xiongji',   qty:1, cost:400, lvl:32, cat:'beast', note:'西次二经十辈神「毛一雄鸡」' },
   { itemId:'baiji',     qty:1, cost:1200,lvl:41, cat:'beast', note:'西次四经「用一白鸡祈」所需' },
   { itemId:'caiyi',     qty:1, cost:900, lvl:74, cat:'rite',  note:'中次四经祠礼「以彩衣之」所需' },
+
+  // ---------- 熟食（v1.31.11） ----------
+  // 40 级以后「70 级打开市廛只剩三五样」——补一档战斗补给。
+  // 定价 = 材料市价 × 2.5：买来吃很顺手，但拿去转卖是亏的（卖价只有市价的 ~1/3），
+  // 所以不构成「买了再卖」的循环。实测 60 级挂机一小时只吃 2 份，
+  // 它是「打 BOSS 前忘了备干粮」的补救，不是主力补给。
+  // 定价 = 价值 × 件数 × 1.15。**必须 ≥ 价值**：回收价是「价值 × 售价系数(≤1.25) × 0.7」，
+  // 只要单价低于价值，「买三份再卖回」就白赚几贝——第一版按 2.5 倍「原料价」定，正好落进这个坑。
+  { itemId:'jiagufan',   qty:3, cost:50,  lvl:1,  cat:'food' },
+  { itemId:'zhishengrou',qty:3, cost:90,  lvl:3,  cat:'food' },
+  { itemId:'daofan',     qty:3, cost:105, lvl:5,  cat:'food' },
+  { itemId:'piluogeng',  qty:2, cost:120, lvl:13, cat:'food' },
+  { itemId:'kaijiyu',    qty:2, cost:165, lvl:30, cat:'food' },
+  { itemId:'zhixipu',    qty:1, cost:175, lvl:52, cat:'food' },
+  { itemId:'zhisipu',    qty:1, cost:230, lvl:52, cat:'food' },
+
+  // ---------- 药散（v1.31.11） ----------
+  // 只卖**不能折算成贝币**的那两种：
+  //   益脑散 +20% 经验、御水散 +25 防御——它们换的是「时间」与「稳」，无法套利。
+  // 释劳散（+35% 采获 4 分钟）刻意不卖：一小时采 50 万贝时，4 分钟的边际收益是 1.1 万贝，
+  // 卖多少钱都小于它，等于白送一个刷钱按钮。见 docs/BALANCE.md 八。
+  { itemId:'yinaosan',   qty:1, cost:1800, lvl:68, cat:'herb', note:'益脑：经验 +20%，五分钟' },
+  { itemId:'yushuisan',  qty:1, cost:2100, lvl:70, cat:'herb', note:'御水：防御 +25，五分钟' },
 ];
 
 // ---------- 采集目标池（按技能；仅限标注了产地的可采物，种子不进池） ----------
@@ -2453,7 +2478,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.10',
+  version: '1.31.11',
   codename:'五臧 · 问神',
   updated: '2026-10-25',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
