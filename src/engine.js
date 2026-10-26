@@ -327,6 +327,20 @@ function applySave(d){
       if (!isFinite(f.remain) || f.remain < 0) f.remain = 0;
       if (!isFinite(f.grow) || f.grow <= 0) f.grow = Items[f.seedId].grow || 10;
     }
+    // 校正当前行动：行动里引用的技能 / 物品 / 配方必须还在。
+    // 一个缺 `skill` 的采集行动会让 `currentActivityLabel` 抛
+    // `Skills[a.skill].name` 的错——而它每次重绘都被调用，等于把舆地与技能两页彻底锁死。
+    // 宁可停掉这个行动，也不能让界面崩（2026-10-26 夜间：坏档实测可复现）。
+    if (Game.activity){
+      const a = Game.activity, kind = a && a.kind;
+      let ok = false;
+      if (kind === 'gather') ok = !!(Skills[a.skill] && Items[a.itemId]);
+      else if (kind === 'craft') ok = !!(a.recipe && a.recipe.out && Items[a.recipe.out] && RECIPE_SKILL && RECIPE_SKILL[a.recipe.type]);
+      else if (kind === 'observe') ok = !!OBSERVE_SITES[a.siteId];
+      else if (kind === 'audience') ok = !!AUDIENCE_SITES[a.nodeId];
+      else if (kind === 'grow') ok = !!GROW_SITES[a.siteId];
+      if (!ok) Game.activity = null;
+    }
     // 校正装备引用（装备槽存的是物品对象，其 id 必须仍存在）
     // 兼容两种历史形态：{id, ...} 对象（当前）与裸 id 字符串（早期档）。
     const lostGear = [];

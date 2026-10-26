@@ -72,8 +72,11 @@ function startActivity(kind, arg, opts){
 function currentActivityLabel(){
   const a = Game.activity;
   if (!a) return '空闲';
-  if (a.kind === 'gather') return `${Skills[a.skill].name}：${Items[a.itemId].name}`;
-  if (a.kind === 'craft') return `${Skills[mapRecipeSkill(a.recipe.type)].name}：${Items[a.recipe.out].name}`;
+  // 三处都做了兜底：读档校正会先把引用了不存在的技能/物品的行动清掉，
+  // 但渲染可能发生在校正之前（云端合并、调试注入）。这里再兜一层，
+  // 代价是一个 `||{}`，收益是界面不会因为一个字段缺失就整页白掉。
+  if (a.kind === 'gather') return `${(Skills[a.skill]||{}).name||'采集'}：${(Items[a.itemId]||{}).name||''}`;
+  if (a.kind === 'craft') return `${(Skills[mapRecipeSkill((a.recipe||{}).type)]||{}).name||'制作'}：${(Items[(a.recipe||{}).out]||{}).name||''}`;
   if (a.kind === 'observe') return `观象：${(OBSERVE_SITES[a.siteId]||{}).name||''}`;
   if (a.kind === 'audience') return `谒见：${(AUDIENCE_SITES[a.nodeId]||{}).name||''}`;
   if (a.kind === 'grow') return `灌木：${(GROW_SITES[a.siteId]||{}).name||''}`;

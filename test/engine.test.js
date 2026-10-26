@@ -8158,6 +8158,32 @@ section('数字写法');
   assert(!/toFixed\(1\)\+'[KMB]'/.test(cSrc149), '界面层不再自造 K/M/B');
 }
 
+// ============ 150. 一个坏字段不该把整页锁死（2026-10-26 夜间） ============
+// 实测：存档里放一条 {kind:'gather'}（缺 skill），启动后
+// `currentActivityLabel()` 抛 `Skills[a.skill].name`，而它每次重绘都被调用——
+// 舆地与技能两页从此每次渲染都抛，等于整页白掉。
+// 两层修：读档时把引用不全的行动清掉；取标签时再兜一层。
+section('坏档不锁界面');
+{
+  const eSrc150 = readText('src/engine.js');
+  const saved150 = ST.Game.activity;
+
+  const tryLabel = (a) => { ST.Game.activity = a; try { return G.currentActivityLabel(); } catch(e){ return 'THROW'; } };
+
+  assert(tryLabel({ kind:'gather' }) !== 'THROW', '缺 skill 的采集行动不再抛错');
+  assert(tryLabel({ kind:'gather' }) === '采集：', '兜底文案给「采集」');
+  const okLabel = `樵采：${ST.Items.migu.name}`;   // Skills 是 const，取不到；技能名固定为「樵采」
+  assert(tryLabel({ kind:'gather', skill:'qiaocai', itemId:'migu' }) === okLabel, '正常行动文案按表里的名称拼，不变');
+  assert(tryLabel({ kind:'craft' }) !== 'THROW', '缺配方不抛错');
+  assert(tryLabel({ kind:'craft', recipe:{} }) !== 'THROW', '空配方不抛错');
+  assert(tryLabel(null) === '空闲', '没有行动时仍是「空闲」');
+
+  ST.Game.activity = saved150;
+  assert(eSrc150.includes('校正当前行动'), '读档时清理引用不全的行动');
+  assert(/kind === 'gather'\) ok = !!\(Skills\[a\.skill\] && Items\[a\.itemId\]\)/.test(eSrc150),
+    '采集行动要求技能与物品都在表里');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
