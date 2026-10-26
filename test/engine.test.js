@@ -7283,6 +7283,10 @@ section('效率采样');
   assert(ST.fmtTime(75600) === '21 小时', '75600 秒 = 21 小时（' + ST.fmtTime(75600) + '）');
   assert(ST.fmtTime(3660) === '1 小时 1 分', '有零头才写分（' + ST.fmtTime(3660) + '）');
   assert(ST.fmtTime(60) === '1 分', '60 秒 = 1 分（' + ST.fmtTime(60) + '）');
+  assert(ST.fmtTime(90000) === '1 天 1 小时', '跨天写「天」，不再写「25 小时」（' + ST.fmtTime(90000) + '）');
+  assert(ST.fmtTime(86400) === '1 天', '整天的零头不写（' + ST.fmtTime(86400) + '）');
+  assert(ST.fmtTime(3661) === '1 小时 1 分', '秒不参与小时档（' + ST.fmtTime(3661) + '）');
+  assert(G.fmtDur(90000) === ST.fmtTime(90000), '界面与战绩共用同一实现');
 
   G.resetToDefault();
 }

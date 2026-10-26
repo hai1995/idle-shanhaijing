@@ -397,13 +397,18 @@ function fmtNum(v){
   } else out = String(v);
   return (neg ? '-' : '') + out;
 }
+// 时长只有这一种写法（界面与战绩共用；ui 层的 fmtTime 转交到这里）。
+// 取「两个最大单位」，整点不写零头：3600 → 「1 小时」，3660 → 「1 小时 1 分」，
+// 90000 → 「1 天 1 小时」。曾经界面层没有「天」这一档，30 小时会写成「30 小时」，
+// 而分享文本写「1 天 6 小时」——同一段时长两个说法。
 function fmtDur(sec){
   sec = Math.max(0, Math.round(sec || 0));
-  const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60);
-  if (h >= 24) return Math.floor(h / 24) + ' 天 ' + (h % 24) + ' 小时';
-  if (h > 0) return h + ' 小时 ' + m + ' 分';
-  if (m > 0) return m + ' 分';
-  return sec + ' 秒';
+  const d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600);
+  const m = Math.floor(sec % 3600 / 60), s = sec % 60;
+  if (d) return h ? `${d} 天 ${h} 小时` : `${d} 天`;
+  if (h) return m ? `${h} 小时 ${m} 分` : `${h} 小时`;
+  if (m) return s ? `${m} 分 ${s} 秒` : `${m} 分`;
+  return `${s} 秒`;
 }
 
 // 最高强化：既要看行囊里那一档，也要看**身上穿着的实例**。

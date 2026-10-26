@@ -76,14 +76,13 @@ function fmtClock(sec){
   if (h > 0) return `${h}:${String(m).padStart(2,'0')}`;
   return `${m}:${String(s2).padStart(2,'0')}`;
 }
+// 时长只有一种写法，实现在 game.js 的 fmtDur（界面与战绩共用一份）。
+// 这里保留 fmtTime 这个名字：30 处调用都在界面层，改名只能制造噪音。
+// 与 fmtClock 的区别要留住：fmtClock 是「钟面上的读数」（H:MM，不写单位、
+// 不跨天），给方块角标用；fmtTime 是「话里的时长」（1 天 2 小时）。
 function fmtTime(sec){
-  sec = Math.max(0, Math.floor(sec||0));
-  const h = Math.floor(sec/3600), m = Math.floor(sec%3600/60), s = sec%60;
-  // 整点 / 整分不写零头：「再离山 21 小时 0 分 到顶」比「21 小时」难读，
-  // 而「1 分 0 秒」这种在队列 ETA 里满屏都是。
-  if (h > 0) return m ? `${h} 小时 ${m} 分` : `${h} 小时`;
-  if (m > 0) return s ? `${m} 分 ${s} 秒` : `${m} 分`;
-  return `${s} 秒`;
+  if (typeof fmtDur === 'function') return fmtDur(sec);
+  return Math.max(0, Math.floor(sec || 0)) + ' 秒';
 }
 // ---------- 增益口径（顶栏「增益一览」与御使页「当前增益」共用） ----------
 // 御使增益分两类：一类是「点数」（防御 +1、回血 +3），一类是「倍率」（采集速度 +10%）。
