@@ -723,7 +723,7 @@ function showRecipeDetail(key){
   UI.modal(`<h3><span class="mi-ic">${typeof itemIc==='function'?itemIc(r.out,18):(it.icon||'📦')}</span> ${esc(it.name)}
       ${it.equip?gradeBadge(it):`<span class="tier">${rarityName(it)}</span>`}</h3>
     <div class="meta">每次出 ${per} 件 · ${esc(sk.name)} ${r.lvl} 级 · 经验 ${r.xp || 0}</div>
-    <div class="reveal"><b>材料</b><span class="mat-inv">${rows}</span>${spHints}</div>
+    <div class="reveal"><b>材料</b><div class="mat-wrap"><span class="mat-inv">${rows}</span>${spHints}</div></div>
     ${it.note?`<div class="reveal"><b>出处</b>${esc(it.note)}</div>`:''}
     ${it.effect?`<div class="reveal"><b>效果</b>${esc(it.effect)}</div>`:''}
     <div class="reveal trade-block">

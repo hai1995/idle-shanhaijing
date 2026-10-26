@@ -430,7 +430,10 @@ html.theme-anim, html.theme-anim *{
 .farm-panel h3 .gear-best{ margin-left:auto; flex:0 0 auto; }
 /* 山系巡礼：标题行上的进度；满额转朱色并给按钮 */
 /* 配方缺特产时的指路行：比武断的「缺 1 件」多给一条去路 */
-.sp-hint{ margin-top:4px; line-height:1.5; }
+/* 材料块：.reveal 是 flex，材料与指路行必须各占一层纵向排列，
+   否则三者在同一行里互相挤压（手机上会糊成一团）。 */
+.mat-wrap{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:5px; }
+.sp-hint{ line-height:1.5; }
 .sp-hint b{ color:var(--zhu-d); }
 .pilgrim{ font-family:var(--f-num); font-size:11px; font-weight:400; letter-spacing:0;
   color:var(--ink-4); white-space:nowrap; flex:0 0 auto; }

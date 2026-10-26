@@ -457,7 +457,10 @@ html.theme-anim, html.theme-anim *{
 .farm-panel h3 .gear-best{ margin-left:auto; flex:0 0 auto; }
 /* 山系巡礼：标题行上的进度；满额转朱色并给按钮 */
 /* 配方缺特产时的指路行：比武断的「缺 1 件」多给一条去路 */
-.sp-hint{ margin-top:4px; line-height:1.5; }
+/* 材料块：.reveal 是 flex，材料与指路行必须各占一层纵向排列，
+   否则三者在同一行里互相挤压（手机上会糊成一团）。 */
+.mat-wrap{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:5px; }
+.sp-hint{ line-height:1.5; }
 .sp-hint b{ color:var(--zhu-d); }
 .pilgrim{ font-family:var(--f-num); font-size:11px; font-weight:400; letter-spacing:0;
   color:var(--ink-4); white-space:nowrap; flex:0 0 auto; }
@@ -19244,8 +19247,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.34',
-  codename:'昼巡 · 手气',
+  version: '1.31.35',
+  codename:'昼巡 · 排布',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
@@ -31167,7 +31170,7 @@ function showRecipeDetail(key){
   UI.modal(`<h3><span class="mi-ic">${typeof itemIc==='function'?itemIc(r.out,18):(it.icon||'📦')}</span> ${esc(it.name)}
       ${it.equip?gradeBadge(it):`<span class="tier">${rarityName(it)}</span>`}</h3>
     <div class="meta">每次出 ${per} 件 · ${esc(sk.name)} ${r.lvl} 级 · 经验 ${r.xp || 0}</div>
-    <div class="reveal"><b>材料</b><span class="mat-inv">${rows}</span>${spHints}</div>
+    <div class="reveal"><b>材料</b><div class="mat-wrap"><span class="mat-inv">${rows}</span>${spHints}</div></div>
     ${it.note?`<div class="reveal"><b>出处</b>${esc(it.note)}</div>`:''}
     ${it.effect?`<div class="reveal"><b>效果</b>${esc(it.effect)}</div>`:''}
     <div class="reveal trade-block">
