@@ -4,18 +4,21 @@
 
 ```bash
 npm run check                   # 一键：版本一致 + 测试 + 审计 + 构建（约 1.6 秒）
-node test/engine.test.js        # 只跑测试：2027 条断言，111 节，约 1.5 秒
+node test/engine.test.js        # 只跑测试：约 2 秒，末行打印「N 通过 / M 失败」
 node scripts/audit-data.js      # 数据跨表审计，零悬空才算过（有问题退出码 1）
 ```
 
 两者分工：**测试**管行为与口径（跑真引擎），**审计**管数据（不跑引擎，只看表）。改动涉及数据时两个都要跑。
+
+> 这里**故意不写断言条数**。早先写过具体数字，加了两百条后就没人再更新它——读的人看到过期的数字，反而会觉得整篇文档都不用看了。条数以脚本末行打印的为准。
+
 
 ## 二、测试怎么组织
 
 `test/engine.test.js` 用 `vm` 起一个假浏览器上下文，按 `index.html` 的顺序加载全部脚本，然后一节一节断言：
 
 ```js
-loadJS('nanshanData.js'); … UI_FILES.forEach(loadJS);   // ui/ 下 7 个文件，顺序同 index.html
+loadJS('nanshanData.js'); … UI_FILES.forEach(loadJS);   // ui/ 下 8 个文件，顺序同 index.html
 section('问神');
 {
   G.resetToDefault();
