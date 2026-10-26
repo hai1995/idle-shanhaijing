@@ -283,6 +283,10 @@ html.theme-anim, html.theme-anim *{
   box-shadow:0 0 0 1.5px var(--chrome);
 }
 .buff-btn .bb-n.hidden{ display:none; }
+/* 单项临时增益时角标改成「时长」：加宽一点、圆角放平，别挤成圆点 */
+.buff-btn .bb-n.bb-time{
+  min-width:22px; border-radius:4px; padding:0 4px; font-size:8.5px; letter-spacing:-.02em;
+}
 
 /* 增益浮层：贴图标下沿弹出的窄面板（桌面浮在书脊下，手机同） */
 .buff-pop{

@@ -310,6 +310,10 @@ html.theme-anim, html.theme-anim *{
   box-shadow:0 0 0 1.5px var(--chrome);
 }
 .buff-btn .bb-n.hidden{ display:none; }
+/* 单项临时增益时角标改成「时长」：加宽一点、圆角放平，别挤成圆点 */
+.buff-btn .bb-n.bb-time{
+  min-width:22px; border-radius:4px; padding:0 4px; font-size:8.5px; letter-spacing:-.02em;
+}
 
 /* 增益浮层：贴图标下沿弹出的窄面板（桌面浮在书脊下，手机同） */
 .buff-pop{
@@ -19257,8 +19261,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.38',
-  codename:'昼巡 · 悬注',
+  version: '1.31.39',
+  codename:'昼巡 · 计时',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
@@ -21371,6 +21375,14 @@ function useConsumable(itemId){
   if (it.buff){ // 药剂：限时增益
     Game.inventory[itemId]--;
     if (Game.inventory[itemId]<=0) delete Game.inventory[itemId];
+    // 药剂只有一格：新药直接盖掉旧药。原先静默覆盖，玩家吃了图卷再随手吃一瓶，
+    // 图卷就白费了还看不出来——这里至少先说一声。
+    const prev = Game.buff && Game.buff.def && (Game.buff.remaining || 0) > 0 ? Game.buff : null;
+    if (prev && prev.itemId !== itemId){
+      const pn = (Items[prev.itemId] || prev.def || {}).name || '前一种药';
+      log(`⚠ ${pn} 的效果被 ${it.name} 取代`, 'sys', 'sys');
+      UI && UI.toast(`⚠ 覆盖了「${pn}」剩余 ${Math.round(prev.remaining/60)} 分`);
+    }
     Game.buff = { itemId, def: it.buff, remaining: it.buff.dur, dur: it.buff.dur };
     log(`🧪 服${it.name}：${it.effect||''}`, 'good', 'sys');
     UI && UI.toast(`🧪 ${it.name} 生效（${it.buff.dur}s）`);
@@ -26937,6 +26949,14 @@ function elBadge(el){
 }
 
 // ---------- UI 主体 ----------
+// 角标用的极短时长：15′ / 3h / 40s。完整倒计时仍在浮层里。
+// 必须定义在 UI 对象之外——UI 是对象字面量，里面只能放方法，不能 function 声明。
+function shortLeft(sec){
+  sec = Math.max(0, Math.round(sec || 0));
+  if (sec >= 3600) return Math.round(sec / 3600) + 'h';
+  if (sec >= 60) return Math.ceil(sec / 60) + '′';
+  return sec + 's';
+}
 const UI = {
   currentTab: 'yudi',
   logEntries: [],
@@ -27496,8 +27516,13 @@ const UI = {
     // 这里每 500ms 被调一次（顶栏刷新）。同值写 textContent / title / classList
     // 都会触发一次属性变更与样式重算，挂机一晚毫无意义——先比后写。
     if (n){
-      const txt = s.count > 99 ? '99+' : String(s.count);
+      // 只有一项临时增益时，角标直接报剩余时间——否则玩家得点开浮层才知道「窥山」还剩多久，
+      // 900 秒的增益等于白吃。多于一项目才退回计数（时间塞不下）。
+      const one = s.temp.length === 1 && s.count === 1 && s.temp[0].left > 0;
+      const txt = one ? shortLeft(s.temp[0].left) : (s.count > 99 ? '99+' : String(s.count));
       if (n.textContent !== txt) n.textContent = txt;
+      const wide = n.classList.contains('bb-time') !== one;
+      if (wide) n.classList.toggle('bb-time', one);
       const hide = s.count === 0;
       if (n.classList.contains('hidden') !== hide) n.classList.toggle('hidden', hide);
     }

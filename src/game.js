@@ -714,6 +714,14 @@ function useConsumable(itemId){
   if (it.buff){ // 药剂：限时增益
     Game.inventory[itemId]--;
     if (Game.inventory[itemId]<=0) delete Game.inventory[itemId];
+    // 药剂只有一格：新药直接盖掉旧药。原先静默覆盖，玩家吃了图卷再随手吃一瓶，
+    // 图卷就白费了还看不出来——这里至少先说一声。
+    const prev = Game.buff && Game.buff.def && (Game.buff.remaining || 0) > 0 ? Game.buff : null;
+    if (prev && prev.itemId !== itemId){
+      const pn = (Items[prev.itemId] || prev.def || {}).name || '前一种药';
+      log(`⚠ ${pn} 的效果被 ${it.name} 取代`, 'sys', 'sys');
+      UI && UI.toast(`⚠ 覆盖了「${pn}」剩余 ${Math.round(prev.remaining/60)} 分`);
+    }
     Game.buff = { itemId, def: it.buff, remaining: it.buff.dur, dur: it.buff.dur };
     log(`🧪 服${it.name}：${it.effect||''}`, 'good', 'sys');
     UI && UI.toast(`🧪 ${it.name} 生效（${it.buff.dur}s）`);

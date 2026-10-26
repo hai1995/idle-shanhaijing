@@ -152,6 +152,14 @@ function elBadge(el){
 }
 
 // ---------- UI 主体 ----------
+// 角标用的极短时长：15′ / 3h / 40s。完整倒计时仍在浮层里。
+// 必须定义在 UI 对象之外——UI 是对象字面量，里面只能放方法，不能 function 声明。
+function shortLeft(sec){
+  sec = Math.max(0, Math.round(sec || 0));
+  if (sec >= 3600) return Math.round(sec / 3600) + 'h';
+  if (sec >= 60) return Math.ceil(sec / 60) + '′';
+  return sec + 's';
+}
 const UI = {
   currentTab: 'yudi',
   logEntries: [],
@@ -711,8 +719,13 @@ const UI = {
     // 这里每 500ms 被调一次（顶栏刷新）。同值写 textContent / title / classList
     // 都会触发一次属性变更与样式重算，挂机一晚毫无意义——先比后写。
     if (n){
-      const txt = s.count > 99 ? '99+' : String(s.count);
+      // 只有一项临时增益时，角标直接报剩余时间——否则玩家得点开浮层才知道「窥山」还剩多久，
+      // 900 秒的增益等于白吃。多于一项目才退回计数（时间塞不下）。
+      const one = s.temp.length === 1 && s.count === 1 && s.temp[0].left > 0;
+      const txt = one ? shortLeft(s.temp[0].left) : (s.count > 99 ? '99+' : String(s.count));
       if (n.textContent !== txt) n.textContent = txt;
+      const wide = n.classList.contains('bb-time') !== one;
+      if (wide) n.classList.toggle('bb-time', one);
       const hide = s.count === 0;
       if (n.classList.contains('hidden') !== hide) n.classList.toggle('hidden', hide);
     }

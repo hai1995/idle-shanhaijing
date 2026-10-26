@@ -6816,6 +6816,37 @@ section('图卷双配方');
   G.resetToDefault();
 }
 
+// ============ 129. 顶栏角标：单项增益显示倒计时；药剂覆盖要说一声 ============
+section('增益角标与药剂覆盖');
+{
+  G.resetToDefault();
+  const src = readText('src/ui/core.js');
+  assert(src.includes('bb-time'), '角标有「时长」形态');
+  assert(/const one = s\.temp\.length === 1 && s\.count === 1/.test(src), '只在单项临时增益时显示时长');
+
+  // 服用图卷：角标应为 15′（900 秒）
+  ST.giveItem('shanhaitujuan', 1, false);
+  ST.useConsumable('shanhaitujuan');
+  assert(ST.Game.buff && ST.Game.buff.remaining === 900, '窥山 900 秒在身');
+  const sum = ST.UI.buffSummary();
+  assert(sum.temp.length === 1 && sum.count === 1, '临时增益 1 项');
+
+  // 再服不惑散：覆盖要有提示（原先静默）
+  const logs = [];
+  const oldLog = ST.UI.log;
+  ST.UI.log = (m) => logs.push(String(m));
+  const oldToast = ST.UI.toast;
+  ST.UI.toast = (m) => logs.push(String(m));
+  ST.giveItem('buhuosan', 1, false);
+  ST.useConsumable('buhuosan');
+  ST.UI.log = oldLog; ST.UI.toast = oldToast;
+  assert(logs.some(x => x.includes('被') && x.includes('取代')) || logs.some(x => x.includes('覆盖')),
+    '覆盖时说一声：' + (logs.find(x => x.includes('覆盖') || x.includes('取代')) || '（无）'));
+  assert(ST.Game.buff.itemId === 'buhuosan', '新药生效');
+
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
