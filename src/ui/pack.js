@@ -482,7 +482,7 @@ UI.itemDetailHtml = function(itemId){
     ${it.buff?`<div class="reveal"><b>服用</b>${esc(it.buff.name)}（${it.buff.dur}s）</div>`:''}
     ${it.heal?`<div class="reveal"><b>食用</b>回血 ${it.heal}</div>`:''}
     ${(it.value && qty > 0) ? `<div class="reveal trade-block">
-      <b>售出</b>
+      <b>售出${gearInst ? '（行囊中的那一件）' : ''}</b>
       <div class="qty-line">
         <button class="btn tiny" type="button" title="减一件" onclick="qtyStep('sellQty',-1)">−</button>
         <input id="sellQty" class="qty-input" type="number" inputmode="numeric" min="1" max="${qty}" value="1"
@@ -492,6 +492,8 @@ UI.itemDetailHtml = function(itemId){
         <button class="btn primary" onclick="sellN('${itemId}')">售出</button>
       </div>
       <div class="hint">可得 <b class="qty-gain" id="sellGain">${fmt(sellValue(itemId, 1))} 贝</b> · 单价 ${fmt(sellValue(itemId,1))} 贝 · 持有 ×${qty}</div>
+      ${(it.equip && enhanceLevel(itemId) > 0) ? `<div class="hint danger">⚠ 行囊这批已淬炼到 +${enhanceLevel(itemId)}，售出后阶数与投入一并失去</div>` : ''}
+      ${gearInst ? '<div class="hint">身上的那一件不受影响</div>' : ''}
     </div>` : ''}
     <div class="modal-btns">${actions.join('')}<button class="btn" onclick="UI.closeModal()">闭</button></div>`;
 };

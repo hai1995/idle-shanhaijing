@@ -320,11 +320,16 @@ function fmtDur(sec){
   return sec + ' 秒';
 }
 
+// 最高强化：既要看行囊里那一档，也要看**身上穿着的实例**。
+// 曾只扫 Game.enhance（行囊表），于是「身上一把 +25、行囊空」的玩家在统计页
+// 与战绩卡上看到的是「最高强化 +0」——装备按件强化之后这里必须跟着改。
 function bestEnhance(){
   let best = { id:null, lv:0 };
-  for (const id in (Game.enhance || {})){
-    const lv = Game.enhance[id] || 0;
-    if (lv > best.lv) best = { id, lv };
+  const consider = (id, lv) => { if (lv > best.lv) best = { id, lv }; };
+  for (const id in (Game.enhance || {})) consider(id, Game.enhance[id] || 0);
+  for (const slot in (Game.gear || {})){
+    const g = Game.gear[slot];
+    if (g && (g.enh | 0) > 0) consider(g.id || slot, g.enh | 0);
   }
   return best;
 }

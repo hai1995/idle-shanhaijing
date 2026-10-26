@@ -5890,6 +5890,28 @@ section('装备实例独立');
   G.resetToDefault();
 }
 
+// 105.3 最高强化要看得见身上那件
+// 曾只扫 Game.enhance（行囊表），「身上 +25、行囊空」的玩家在统计页看到的是 +0。
+{
+  G.resetToDefault();
+  for (const k in ST.Skills) ST.Game.skills[k] = { level: 20, xp: ST.xpForLevel(20) + 1 };
+  ST.Game.inventory = { muge: 1, tan: 999 }; ST.Game.shells = 99999;
+  ST.equipItem('muge');
+  const onBody = ST.Game.gear.weapon;
+  Math.random = () => 0.01;
+  const cap = ST.enhanceCapOf(ST.Items.muge);
+  for (let i = 0; i < cap; i++) ST.enhanceItem(onBody);
+  const best = ST.bestEnhance();
+  assert(best.lv === cap, `最高强化读到身上那件的 +${cap}（现 +${best.lv}）`);
+
+  // 重开新档必须把装备槽清空（cloneDefaultGame 是「深拷贝当前状态再覆盖字段」，
+  // 漏了 gear 就会把上一局那件连淬炼一起带进新档）
+  G.resetToDefault();
+  assert(!ST.Game.gear.weapon && !ST.Game.gear.armor, '重开后身上是空的');
+  assert(ST.bestEnhance().lv === 0, '重开后最高强化归零');
+  G.resetToDefault();
+}
+
 // ============ 106. 田地：随圃艺开垦、种子「全种」 ============
 // 原先写死 6 块，练到 81 级还是 6 块——圃艺是唯一「越练越没变化」的技艺。
 section('田地与圃艺');

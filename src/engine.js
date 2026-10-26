@@ -78,6 +78,10 @@ function cloneDefaultGame(){
   g.queue = []; g.queueIdx = 0; g.queueRound = 0; g.queueRunning = false; g.queueLoop = true; g.fallback = null;
   g.mobStreak = {};
   g.enhance = {}; g.enhanceHeat = {};
+  // 装备槽必须显式清空：cloneDefaultGame 是「深拷贝当前状态再覆盖字段」，
+  // 漏了这一项的话，重开新档时身上还穿着上一局那件（连淬炼阶数一起）——
+  // 装备改成按件存实例之后，这个漏洞才看得出来。
+  g.gear = { weapon:null, armor:null, charm:null, axe:null, pick:null, net:null, quiver:null };
   g.orders = []; g.ordersAt = 0;
   g.rebirth = { count:0, at:0, best:0 };      // 转生：新档即零转
   g.bounties = [];                            // 三签：抽签在首次 tick 时惰性补满

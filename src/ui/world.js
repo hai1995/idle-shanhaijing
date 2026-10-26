@@ -761,7 +761,7 @@ UI.plantAllOf = function(seedId){
     if (plantSeed('p'+i, seedId, true)) n++;
   }
   this.closeModal();
-  this.renderSkills();
+  if (this.currentTab === 'skills') this.renderSkills();   // 别在别的页上重绘技能页
   this.toast(n ? `🌱 ${seed.name} 种下 ${n} 田` : '没有空田，或种子已用尽');
 };
 UI.pickSeed = function(slot, id){
