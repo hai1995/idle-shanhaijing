@@ -127,9 +127,17 @@ UI.renderCodex = function(keepFocus){
   const q = String(this.codexQuery||'').trim().toLowerCase();
   // 「仅未录」：收集到后期，满屏已录的卡里找剩下那几条实在费眼
   const onlyMiss = !!this.codexOnlyMiss;
-  let shown = q
-    ? entries.filter(e=> (e.name||'').toLowerCase().includes(q) || String(e.py||'').toLowerCase().includes(q))
-    : entries;
+  const matchQ = e => (e.name||'').toLowerCase().includes(q) || String(e.py||'').toLowerCase().includes(q);
+  let shown = q ? entries.filter(matchQ) : entries;
+  // 搜索只在本类里过滤，于是「搜蛊雕却停在百物页」时一片空白，玩家以为图鉴里没有。
+  // 有检索词时把各分类的命中数挂到分类按钮上，一眼看出该切去哪一页。
+  const qHit = {};
+  if (q){
+    for (const [k, c] of Object.entries(catMap)){
+      const list = Object.values(CODEX).filter(e => Array.isArray(c) ? c.includes(e.cat) : e.cat === c);
+      qHit[k] = list.filter(matchQ).length;
+    }
+  }
   if (onlyMiss) shown = shown.filter(e => !(((Game.records||{})[e.id]||{}).count > 0));
   // 收集成就：把奖励闭环挂在收集线自己的入口上，不必另开一页
   const achAll = (window.CODEX_ACHIEVEMENTS || []);
@@ -142,7 +150,11 @@ UI.renderCodex = function(keepFocus){
     <button class="btn small" onclick="UI.openAchModal()">${achClaim ? '领取' : '查看'}</button>
   </div>
   <div class="filter-row">
-    ${Object.entries(tabs).map(([k,v])=>`<button class="chip-btn ${this.codexTab===k?'on':''}" onclick="UI.codexTab='${k}';UI.codexQuery='';UI.renderCodex()">${v}</button>`).join('')}
+    ${Object.entries(tabs).map(([k,v])=>{
+      const hit = q ? (qHit[k] || 0) : 0;
+      const badge = (q && hit > 0 && k !== this.codexTab) ? `<i class="q-hit" title="本类命中 ${hit} 条">${hit}</i>` : '';
+      return `<button class="chip-btn ${this.codexTab===k?'on':''}" onclick="UI.codexTab='${k}';UI.renderCodex()">${v}${badge}</button>`;
+    }).join('')}
     <button class="chip-btn ${onlyMiss?'on':''}" title="只列本类尚未著录的条目"
       onclick="UI.codexOnlyMiss=!UI.codexOnlyMiss;UI.renderCodex()">仅未录 ${tabTotal-tabDone}</button>
     <label class="search-box" title="按名称或注音检索">
@@ -192,7 +204,14 @@ UI.renderCodex = function(keepFocus){
       </div>`;
     }).join('') : `<div class="empty-note">${onlyMiss
       ? (q ? '未录条目里没有匹配的。' : '本类已尽收——没有未著录的条目了。')
-      : `${esc(this.codexQuery||'')} —— 无此条目。换个字或注音试试，例如「鸟」「yú」。`}</div>`}
+      : (()=>{
+          // 本类没有、别类有时，直接说清在哪一类——这比让玩家自己看角标更省事
+          const other = Object.entries(qHit || {}).filter(([k, v]) => k !== this.codexTab && v > 0)
+            .map(([k, v]) => `${tabs[k]} ${v} 条`).join('、');
+          return other
+            ? `${esc(this.codexQuery||'')} —— 本类无此条目；${esc(other)}，点上面的分类去看。`
+            : `${esc(this.codexQuery||'')} —— 无此条目。换个字或注音试试，例如「鸟」「yú」。`;
+        })()}</div>`}
   </div>`;
   box.innerHTML = html;
   // 输入时重渲染会丢焦点：把光标放回检索框末尾，保持连续输入

@@ -1249,6 +1249,33 @@ window.riteAutoCount = riteAutoCount; window.activeRiteOf = activeRiteOf;
 window.riteRealYield = riteRealYield;
 window.riteWorth = riteWorth; window.regionGatherVps = regionGatherVps;
 
+// ---------- 制作配方的默认分类（v1.31.40） ----------
+// 原先 UI 里写死停在「燔燎」：练到 70 级，每次进技能页都得先点三四下才找到要做的配方。
+// 口径：能做的最高级配方在哪一栏就停在哪栏。判定放在引擎层，便于测试，
+// 也让「默认」只有一处定义（UI 只负责记住玩家手动选过的分类）。
+function defaultRecipeKind(){
+  const kinds = Object.entries(ActionKinds).filter(([, d]) => d.mode === 'recipe');
+  let byLvl = kinds.length ? kinds[0][0] : 'burn', byLvlLv = -1;
+  let craftable = null, craftableLv = -1;   // 等级够 + 材料够
+  let unlocked = null, unlockedLv = -1;     // 只要求等级够
+  for (const [k, d] of kinds){
+    const lv = levelOf(d.skill);
+    if (lv > byLvlLv){ byLvlLv = lv; byLvl = k; }
+    for (const r of Recipes){
+      if (r.type !== k || r.lvl > lv) continue;
+      if (r.lvl > unlockedLv){ unlockedLv = r.lvl; unlocked = k; }
+      if (r.lvl > craftableLv && canAfford(r.cost)){ craftableLv = r.lvl; craftable = k; }
+    }
+  }
+  // 三级兜底，顺序有讲究：
+  //   1) 材料也够的最高级配方——点进去就能做，最省事；
+  //   2) 等级够但材料不够——正是玩家「要去做的那件」，停在这儿才对
+  //      （满级玩家背包常年缺一两味料，若因此退回第一栏，等于这个功能没做）；
+  //   3) 一件都不解锁，取技艺等级最高的一栏。
+  return craftable || unlocked || byLvl;
+}
+window.defaultRecipeKind = defaultRecipeKind;
+
 // ---------- 山系巡礼（v1.31.24） ----------
 // 41–60 级这一段只有北山三系与东山首经，既没有谒见点（原文里这几系「有神无祠」），
 // 观象也稀——玩家走完新山之后没有可对齐的目标。这里给「走遍一系诸山」一个明确终点：

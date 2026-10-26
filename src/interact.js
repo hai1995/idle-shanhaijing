@@ -383,13 +383,18 @@ function refreshOrders(silent){
   return true;
 }
 // 交付：数量足则扣物品、得贝币与商旅经验；已交付的单保留（划掉）至整批轮换
-function deliverOrder(idx){
+// quiet=true 时不写盘、不刷新、不逐条 toast——留给「一键交割」批量收尾，
+// 免得五张单写五次档、弹五条 toast 叠在一起。
+function _deliverOne(idx, quiet){
   const o = Game.orders[idx];
-  if (!o) return false;
+  if (!o || o.done) return null;
   const it = Items[o.itemId];
-  if (!it){ Game.orders.splice(idx, 1); return false; }
+  if (!it){ Game.orders.splice(idx, 1); return null; }
   const have = (typeof bagQty === 'function') ? bagQty(o.itemId) : (Game.inventory[o.itemId]||0);
-  if (have < o.qty){ UI && UI.toast(`🔒 ${it.name} 还差 ${o.qty - have} 件`); return false; }
+  if (have < o.qty){
+    if (!quiet) UI && UI.toast(`🔒 ${it.name} 还差 ${o.qty - have} 件`);
+    return null;
+  }
   takeItem(o.itemId, o.qty, false);
   Game.shells += o.total;
   Game.stats.sold += o.total;
@@ -398,13 +403,40 @@ function deliverOrder(idx){
   gainXp('shanglv', o.xp);
   o.done = true;                             // 划掉留存，整批轮换时清除
   const region = window.regionById(o.regionId);
-  log(`⚖️ 应方国之求，售 ${it.name} ×${o.qty} 得贝 ${o.total}`, 'gold', 'trade');
-  UI && UI.toast(`⚖️ 成交！${it.name} ×${o.qty} → ${o.total} 贝${region?'（'+region.regionAlias+'）':''}`);
+  if (!quiet){
+    log(`⚖️ 应方国之求，售 ${it.name} ×${o.qty} 得贝 ${o.total}`, 'gold', 'trade');
+    UI && UI.toast(`⚖️ 成交！${it.name} ×${o.qty} → ${o.total} 贝${region?'（'+region.regionAlias+'）':''}`);
+  }
+  return { name: it.name, qty: o.qty, total: o.total, alias: region ? region.regionAlias : '' };
+}
+function deliverOrder(idx){
+  const r = _deliverOne(idx, false);
+  if (!r) return false;
   saveGame();
   UI && UI.refreshShop && UI.refreshShop();
   UI && UI.refreshInventory && UI.refreshInventory();
   return true;
 }
+// 一键交割：一次把能交的全交掉。订单板一次五张，逐张点等于点五次——
+// 而这件事每天要做很多轮，是「每用一次烦一次」的典型。
+function deliverAllOrders(){
+  const list = (Game.orders || []);
+  const got = [];
+  let shells = 0;
+  for (let i = 0; i < list.length; i++){
+    const r = _deliverOne(i, true);
+    if (r){ got.push(r); shells += r.total; }
+  }
+  if (!got.length){ UI && UI.toast('🔒 暂无可交割的订单'); return 0; }
+  const brief = got.map(r => `${r.name}×${r.qty}`).join('、');
+  log(`⚖️ 一并应方国之求：${brief}，共得贝 ${shells}`, 'gold', 'trade');
+  UI && UI.toast(`⚖️ 交割 ${got.length} 单 · 共得 ${shells} 贝`);
+  saveGame();
+  UI && UI.refreshShop && UI.refreshShop();
+  UI && UI.refreshInventory && UI.refreshInventory();
+  return got.length;
+}
+window.deliverAllOrders = deliverAllOrders;
 // 手动换批（与定时轮换共享冷却，避免反复重roll刷单）
 function rerollOrders(){
   const T = window.TUNING.ORDERS;

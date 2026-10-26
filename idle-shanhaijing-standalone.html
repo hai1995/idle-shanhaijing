@@ -1254,7 +1254,21 @@ svg.bi.mk{ vertical-align:-2px; }
 .codex-card:hover{ border-color:var(--zhu); background:var(--paper-3); }
 /* 未见：保留可读的名字，只以虚线框与淡墨区分——不把名字压到看不清 */
 .codex-card.unseen{ background:transparent; border-style:dashed; }
-.codex-card.unseen /* 图鉴「系产」小印：朱底细字，与「已录/阶位」不抢眼但看得出来 */
+.codex-card.unseen /* 装备详情的「较身上」一行：好为朱、差为绿（中式涨跌色），持平时不抢眼 */
+.cmp-line{
+  margin:-2px 0 8px; font-size:11.5px; line-height:1.5; color:var(--ink-3);
+  font-family:var(--f-num); letter-spacing:0;
+}
+.cmp-line.up b, .cmp-line.up{ color:var(--zhu-d); }
+.cmp-line.down b, .cmp-line.down{ color:#3f7a52; }
+.cmp-line.same{ color:var(--ink-4); }
+/* 图鉴检索：他类命中数挂在分类按钮上（搜蛊雕时停在百物页也能看见该去哪） */
+.q-hit{
+  margin-left:3px; padding:0 3px; border-radius:7px;
+  font-family:var(--f-num); font-size:9px; font-style:normal; font-weight:700;
+  color:#fff; background:var(--zhu); vertical-align:1px;
+}
+/* 图鉴「系产」小印：朱底细字，与「已录/阶位」不抢眼但看得出来 */
 .cc-sp{
   display:inline-block; margin-left:3px; padding:0 2px; border-radius:2px;
   font-family:var(--f-kai); font-size:8.5px; line-height:1.5; letter-spacing:0;
@@ -1609,6 +1623,8 @@ details.bulk-sell .bs-preview, details.bulk-sell .bs-act{ margin-left:11px; marg
 .ic-enh{ margin-left:2px; font-family:var(--f-num); font-size:9.5px; font-weight:700;
   color:var(--zhu); background:rgba(176,58,43,.10); border-radius:3px; padding:0 2px; }
 .inv-card.enhanced, .sell-tile.enhanced{ border-left-color:var(--zhu); }
+/* 行囊里「比身上强」的箭头：朱色小三角，只在该换的时候出现 */
+.ic-up{ margin-left:2px; font-size:8.5px; color:var(--zhu); vertical-align:1px; }
 .hd-enh{ font-family:var(--f-num); font-size:13px; font-weight:700; color:var(--zhu); }
 
 /* ==========================================================================
@@ -19261,8 +19277,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.39',
-  codename:'昼巡 · 计时',
+  version: '1.31.40',
+  codename:'昼巡 · 顺手',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
@@ -20111,6 +20127,7 @@ const Prefs = {
   tactic: 'none',        // 战法姿态：none | swift | steady | breaker
   hideHint: false,       // 关闭常驻「下一步建议」指引条（可在设置中重新开启）
   band: true,            // 卷二难度带：九九 + 轮回之后自动生效，可关掉回头打本卷
+  recipeSkill: null,     // 制作配方停留的分类；null = 自动（按「能做的最高级配方」定）
 };
 
 function cloneDefaultGame(){
@@ -21909,6 +21926,33 @@ window.tickAutoRites = tickAutoRites; window.riteAutoOn = riteAutoOn;
 window.riteAutoCount = riteAutoCount; window.activeRiteOf = activeRiteOf;
 window.riteRealYield = riteRealYield;
 window.riteWorth = riteWorth; window.regionGatherVps = regionGatherVps;
+
+// ---------- 制作配方的默认分类（v1.31.40） ----------
+// 原先 UI 里写死停在「燔燎」：练到 70 级，每次进技能页都得先点三四下才找到要做的配方。
+// 口径：能做的最高级配方在哪一栏就停在哪栏。判定放在引擎层，便于测试，
+// 也让「默认」只有一处定义（UI 只负责记住玩家手动选过的分类）。
+function defaultRecipeKind(){
+  const kinds = Object.entries(ActionKinds).filter(([, d]) => d.mode === 'recipe');
+  let byLvl = kinds.length ? kinds[0][0] : 'burn', byLvlLv = -1;
+  let craftable = null, craftableLv = -1;   // 等级够 + 材料够
+  let unlocked = null, unlockedLv = -1;     // 只要求等级够
+  for (const [k, d] of kinds){
+    const lv = levelOf(d.skill);
+    if (lv > byLvlLv){ byLvlLv = lv; byLvl = k; }
+    for (const r of Recipes){
+      if (r.type !== k || r.lvl > lv) continue;
+      if (r.lvl > unlockedLv){ unlockedLv = r.lvl; unlocked = k; }
+      if (r.lvl > craftableLv && canAfford(r.cost)){ craftableLv = r.lvl; craftable = k; }
+    }
+  }
+  // 三级兜底，顺序有讲究：
+  //   1) 材料也够的最高级配方——点进去就能做，最省事；
+  //   2) 等级够但材料不够——正是玩家「要去做的那件」，停在这儿才对
+  //      （满级玩家背包常年缺一两味料，若因此退回第一栏，等于这个功能没做）；
+  //   3) 一件都不解锁，取技艺等级最高的一栏。
+  return craftable || unlocked || byLvl;
+}
+window.defaultRecipeKind = defaultRecipeKind;
 
 // ---------- 山系巡礼（v1.31.24） ----------
 // 41–60 级这一段只有北山三系与东山首经，既没有谒见点（原文里这几系「有神无祠」），
@@ -26579,13 +26623,18 @@ function refreshOrders(silent){
   return true;
 }
 // 交付：数量足则扣物品、得贝币与商旅经验；已交付的单保留（划掉）至整批轮换
-function deliverOrder(idx){
+// quiet=true 时不写盘、不刷新、不逐条 toast——留给「一键交割」批量收尾，
+// 免得五张单写五次档、弹五条 toast 叠在一起。
+function _deliverOne(idx, quiet){
   const o = Game.orders[idx];
-  if (!o) return false;
+  if (!o || o.done) return null;
   const it = Items[o.itemId];
-  if (!it){ Game.orders.splice(idx, 1); return false; }
+  if (!it){ Game.orders.splice(idx, 1); return null; }
   const have = (typeof bagQty === 'function') ? bagQty(o.itemId) : (Game.inventory[o.itemId]||0);
-  if (have < o.qty){ UI && UI.toast(`🔒 ${it.name} 还差 ${o.qty - have} 件`); return false; }
+  if (have < o.qty){
+    if (!quiet) UI && UI.toast(`🔒 ${it.name} 还差 ${o.qty - have} 件`);
+    return null;
+  }
   takeItem(o.itemId, o.qty, false);
   Game.shells += o.total;
   Game.stats.sold += o.total;
@@ -26594,13 +26643,40 @@ function deliverOrder(idx){
   gainXp('shanglv', o.xp);
   o.done = true;                             // 划掉留存，整批轮换时清除
   const region = window.regionById(o.regionId);
-  log(`⚖️ 应方国之求，售 ${it.name} ×${o.qty} 得贝 ${o.total}`, 'gold', 'trade');
-  UI && UI.toast(`⚖️ 成交！${it.name} ×${o.qty} → ${o.total} 贝${region?'（'+region.regionAlias+'）':''}`);
+  if (!quiet){
+    log(`⚖️ 应方国之求，售 ${it.name} ×${o.qty} 得贝 ${o.total}`, 'gold', 'trade');
+    UI && UI.toast(`⚖️ 成交！${it.name} ×${o.qty} → ${o.total} 贝${region?'（'+region.regionAlias+'）':''}`);
+  }
+  return { name: it.name, qty: o.qty, total: o.total, alias: region ? region.regionAlias : '' };
+}
+function deliverOrder(idx){
+  const r = _deliverOne(idx, false);
+  if (!r) return false;
   saveGame();
   UI && UI.refreshShop && UI.refreshShop();
   UI && UI.refreshInventory && UI.refreshInventory();
   return true;
 }
+// 一键交割：一次把能交的全交掉。订单板一次五张，逐张点等于点五次——
+// 而这件事每天要做很多轮，是「每用一次烦一次」的典型。
+function deliverAllOrders(){
+  const list = (Game.orders || []);
+  const got = [];
+  let shells = 0;
+  for (let i = 0; i < list.length; i++){
+    const r = _deliverOne(i, true);
+    if (r){ got.push(r); shells += r.total; }
+  }
+  if (!got.length){ UI && UI.toast('🔒 暂无可交割的订单'); return 0; }
+  const brief = got.map(r => `${r.name}×${r.qty}`).join('、');
+  log(`⚖️ 一并应方国之求：${brief}，共得贝 ${shells}`, 'gold', 'trade');
+  UI && UI.toast(`⚖️ 交割 ${got.length} 单 · 共得 ${shells} 贝`);
+  saveGame();
+  UI && UI.refreshShop && UI.refreshShop();
+  UI && UI.refreshInventory && UI.refreshInventory();
+  return got.length;
+}
+window.deliverAllOrders = deliverAllOrders;
 // 手动换批（与定时轮换共享冷却，避免反复重roll刷单）
 function rerollOrders(){
   const T = window.TUNING.ORDERS;
@@ -26969,6 +27045,9 @@ const UI = {
   recipeSkill: 'burn',
   queueKind: 'qiaocai',
   invSort: 'default',
+  packFilter: 'all',        // 行囊类别筛选：all | mat | gear | food | sp
+  packQuery: '',            // 行囊检索词（原先只在 pack.js 里隐式用 this.packQuery）
+  recipeQuery: '',          // 配方检索词；有词时跨全部技艺搜索
   packSellTier: 'COMMON',   // 廛市清整的稀有度阈值（凡品 → 瑰宝）
   omenFilter: 'all',
   lastDivine: null,
@@ -27291,9 +27370,13 @@ const UI = {
     const ACT_NAMES = { gather:'采集', craft:'制作', observe:'观象', audience:'朝觐', grow:'养成', combat:'往讨' };
     const acts = Object.entries(rec.acts||{}).filter(([,n])=>n>0)
       .map(([k,n])=>`${ACT_NAMES[k]||k} ${n} 次`).join(' · ');
+    // 离线上限这件事，玩家最想知道的是「晚上睡八小时会不会浪费」。
+    // 所以除了「超了多少」，未溢满时也明说「还能攒多久到顶」。
+    const capH = offlineCapHours();
+    const capSec = capH * 3600;
     const capLine = rec.capped
-      ? `<p class="hint off-cap">离山 ${fmtTime(rec.rawSeconds || rec.seconds)}，其中 ${fmtTime((rec.rawSeconds||0)-(rec.seconds||0))} 超出 ${offlineCapHours()} 小时上限，未计入。</p>`
-      : '';
+      ? `<p class="hint off-cap">离山 ${fmtTime(rec.rawSeconds || rec.seconds)}，其中 ${fmtTime((rec.rawSeconds||0)-(rec.seconds||0))} 超出 ${capH} 小时上限，未计入。想多攒些，可去观象、修仓廪与土窟。</p>`
+      : `<p class="hint off-cap">离线上限 ${capH} 小时，本次只用了 ${Math.round((rec.seconds||0)/capSec*100)}% · 再离山 ${fmtTime(Math.max(0, capSec - (rec.seconds||0)))} 到顶。</p>`;
     const harvest = (rec.harvests||0) > 0 ? `<div class="form-row"><span>圃艺收成</span><b>🌾 ${rec.harvests} 次</b></div>` : '';
     const recLine = (rec.records||0) > 0 ? `<div class="form-row"><span>新著录</span><b>${rec.records} 条</b></div>` : '';
     // 续祭：离山期间门人代你续了几次、耗去什么，都要交代清楚（材料是实扣的）
@@ -27368,6 +27451,13 @@ const UI = {
       b.classList.toggle('active', b.dataset.tab === tab);
     });
     this.renderCurrent();
+    // 切页回顶：整块内容重建后浏览器会沿用旧的滚动位置，切到较短的页面就会停在半空，
+    // 得自己往上拖——换页本就该从头读。同一页内的局部重绘不走这里（那边另有保滚动）。
+    if (changed){
+      try { window.scrollTo(0, 0); } catch (e) {}
+      const cc = $('content');
+      if (cc) cc.scrollTop = 0;
+    }
     // 切页入场：整块内容一次性归位，取代逐元素延迟造成的拖沓
     const c = $('content');
     if (c && changed && c.classList){
@@ -28618,6 +28708,52 @@ function relicText(r){
 }
 
 // ================= 技能 =================
+// ---------- 制作配方的「默认分类」（v1.31.40） ----------
+// 原先写死停在「燔燎」：玩家练到 70 级，每次进技能页都得先点三四下才找到要做的配方。
+// 现在的口径是「能做的最高级配方在哪一栏，就停在哪一栏」——这一栏几乎总是玩家想要的；
+// 手动选过之后则记住那次选择（Prefs.recipeSkill），不再自动跳。
+function pickRecipeKind(){
+  // 判定在引擎层（game.js 的 defaultRecipeKind）：只有一处定义，测试也能直接跑
+  if (typeof defaultRecipeKind === 'function') return defaultRecipeKind();
+  return 'burn';
+}
+
+// 整块重绘会丢滚动位置：配方面板在技能页下半部，点一次分类就弹回顶部，
+// 得重新往下翻——这是最典型的「每用一次烦一次」。重绘前后把纵向位置搬回去。
+function keepScroll(fn){
+  const c = (typeof document !== 'undefined') ? document.getElementById('content') : null;
+  const w = (typeof window !== 'undefined' && window.pageYOffset) ? window.pageYOffset : 0;
+  const cy = c ? c.scrollTop : 0;
+  try { fn(); } finally {
+    const c2 = (typeof document !== 'undefined') ? document.getElementById('content') : null;
+    if (c2) c2.scrollTop = cy;
+    if (w && typeof window !== 'undefined' && window.scrollTo) window.scrollTo(0, w);
+  }
+}
+
+UI.setRecipeKind = function(k){
+  if (!ActionKinds[k] || ActionKinds[k].mode !== 'recipe') return;
+  this.recipeSkill = k;
+  if (typeof Prefs !== 'undefined' && Prefs) Prefs.recipeSkill = k;   // 记住这次选择
+  keepScroll(() => this.renderSkills());
+};
+
+// 只重建配方面板会丢输入焦点：每敲一个字就 renderSkills() 会把输入框整个换掉。
+// 重绘后把焦点与光标位置搬回去，滚动位置也一并保持。
+UI.patchRecipeList = function(){
+  const el = (typeof document !== 'undefined') ? document.activeElement : null;
+  const typed = el && el.id === 'recipeQ';
+  const pos = typed && el.selectionStart != null ? el.selectionStart : null;
+  keepScroll(() => this.renderSkills());
+  if (typed){
+    const n = (typeof document !== 'undefined') ? document.getElementById('recipeQ') : null;
+    if (n && n.focus){
+      n.focus();
+      if (pos != null && n.setSelectionRange) { try { n.setSelectionRange(pos, pos); } catch (e) {} }
+    }
+  }
+};
+
 UI.renderSkills = function(){
   const box = $('content');
   if (!box) return;
@@ -28626,6 +28762,10 @@ UI.renderSkills = function(){
   let ids = [];
   for (const g in SKILL_GROUPS){
     if (filter === 'all' || filter === g) ids = ids.concat(SKILL_GROUPS[g].ids);
+  }
+  // 分类：手动选过就留住，没选过按「能做的最高级配方」自动定
+  if (!this.recipeSkill || !ActionKinds[this.recipeSkill] || ActionKinds[this.recipeSkill].mode !== 'recipe'){
+    this.recipeSkill = (Prefs && Prefs.recipeSkill && ActionKinds[Prefs.recipeSkill]) ? Prefs.recipeSkill : pickRecipeKind();
   }
   const cur = Game.activity;
   let html = `<div class="panel stats-bar">
@@ -28701,10 +28841,46 @@ UI.renderSkills = function(){
     <h3>制作配方</h3>
     <div class="filter-row">
       ${Object.entries(ActionKinds).filter(([k,d])=>d.mode==='recipe').map(([k,d])=>
-        `<button class="chip-btn ${this.recipeSkill===k?'on':''}" onclick="UI.recipeSkill='${k}';UI.renderSkills()">${typeof skillIcon==='function'?skillIcon(k,15):d.icon} ${d.label}</button>`).join('')}
+        `<button class="chip-btn ${this.recipeSkill===k?'on':''}" onclick="UI.setRecipeKind('${k}')">${typeof skillIcon==='function'?skillIcon(k,15):d.icon} ${d.label}</button>`).join('')}
+      <label class="search-box" title="按产物名 / 注音检索 · 跨全部技艺">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4 4"/></svg>
+        <input id="recipeQ" type="search" placeholder="检索配方" value="${esc(this.recipeQuery||'')}"
+          oninput="UI.recipeQuery=this.value;UI.patchRecipeList()"
+          onkeydown="if(event.key==='Escape'){this.value='';UI.recipeQuery='';UI.patchRecipeList()}">
+      </label>
     </div>
     <div class="tile-grid recipe-grid">
-    ${Recipes.filter(r=>r.type===this.recipeSkill).sort((a,b)=>a.lvl-b.lvl).map(r=>{
+    ${(()=>{
+      // 有检索词时跨全部分类找：玩家常记得「山海图卷」却忘了它在琢玉还是炼药。
+      // 无检索词时仍只听分类——分类是主浏览方式，不该被搜索框的存在感稀释。
+      const q = String(this.recipeQuery || '').trim().toLowerCase();
+      let list;
+      if (q){
+        list = Recipes.filter(r=>{
+          const it = Items[r.out] || {};
+          return String(it.name || r.out).toLowerCase().includes(q)
+            || String(it.py || '').toLowerCase().includes(q)
+            || String(r.out).toLowerCase().includes(q);
+        });
+      } else {
+        list = Recipes.filter(r=>r.type===this.recipeSkill);
+      }
+      // 排序分两段：先「已解锁」按等级降序（现在能做的高级货在前），再「未解锁」按升序
+      // （离解锁最近的在未解锁段顶部）。原先一律升序，玩家每次想做高阶配方都要滚到底。
+      // 排序分三段，按「玩家此刻的处境」排，而不是按等级一刀切：
+      //   0 级够料够 → 点开就能做，等级降序（手头最高级的先在手边）
+      //   1 级够料缺 → 正是要去凑料的那件，仍排前段（等级降序）
+      //   2 级不够   → 等级升序，离解锁最近的在前
+      // 原先一律升序，做高阶配方每次都要滚到底；一刀切两段又会把「缺料的 1 级木戈」
+      // 顶到第一行，挡住真正要做的 26 级赤金钺。
+      const lvOf = r => levelOf(mapRecipeSkill(r.type));
+      const grp = r => (lvOf(r) < r.lvl ? 2 : (canAfford(r.cost) ? 0 : 1));
+      list.sort((a, b) => {
+        const ga = grp(a), gb = grp(b);
+        if (ga !== gb) return ga - gb;
+        return ga === 2 ? a.lvl - b.lvl : b.lvl - a.lvl;
+      });
+      return list.map(r=>{
       const it = Items[r.out];
       const sk = Skills[mapRecipeSkill(r.type)];
       const lvOk = levelOf(mapRecipeSkill(r.type)) >= r.lvl;
@@ -28720,7 +28896,9 @@ UI.renderSkills = function(){
           onclick="event.stopPropagation();startActivity('craft','${r.type}::${r.out}')">连</button>`:''}
         <span class="tip-body hidden"><div class="rc-cost">${costChips(r.cost)}</div>${specialCostLine(r.cost)}<div class="rc-xp">经验 ${r.xp}</div>${!lvOk?`<div class="hint ${r.lvl - levelOf(mapRecipeSkill(r.type)) <= 2 ? 'near' : ''}">再升 ${r.lvl - levelOf(mapRecipeSkill(r.type))} 级（${sk.name} ${r.lvl}）</div>`:''}</span>
       </div>`;
-    }).join('')}
+        }).join('') || `<div class="hint">${q ? '没有对上的配方' : '此栏暂无配方'}</div>`;
+    })()}
+  </div>
     </div>
   </div>
 
@@ -29752,9 +29930,17 @@ UI.renderCodex = function(keepFocus){
   const q = String(this.codexQuery||'').trim().toLowerCase();
   // 「仅未录」：收集到后期，满屏已录的卡里找剩下那几条实在费眼
   const onlyMiss = !!this.codexOnlyMiss;
-  let shown = q
-    ? entries.filter(e=> (e.name||'').toLowerCase().includes(q) || String(e.py||'').toLowerCase().includes(q))
-    : entries;
+  const matchQ = e => (e.name||'').toLowerCase().includes(q) || String(e.py||'').toLowerCase().includes(q);
+  let shown = q ? entries.filter(matchQ) : entries;
+  // 搜索只在本类里过滤，于是「搜蛊雕却停在百物页」时一片空白，玩家以为图鉴里没有。
+  // 有检索词时把各分类的命中数挂到分类按钮上，一眼看出该切去哪一页。
+  const qHit = {};
+  if (q){
+    for (const [k, c] of Object.entries(catMap)){
+      const list = Object.values(CODEX).filter(e => Array.isArray(c) ? c.includes(e.cat) : e.cat === c);
+      qHit[k] = list.filter(matchQ).length;
+    }
+  }
   if (onlyMiss) shown = shown.filter(e => !(((Game.records||{})[e.id]||{}).count > 0));
   // 收集成就：把奖励闭环挂在收集线自己的入口上，不必另开一页
   const achAll = (window.CODEX_ACHIEVEMENTS || []);
@@ -29767,7 +29953,11 @@ UI.renderCodex = function(keepFocus){
     <button class="btn small" onclick="UI.openAchModal()">${achClaim ? '领取' : '查看'}</button>
   </div>
   <div class="filter-row">
-    ${Object.entries(tabs).map(([k,v])=>`<button class="chip-btn ${this.codexTab===k?'on':''}" onclick="UI.codexTab='${k}';UI.codexQuery='';UI.renderCodex()">${v}</button>`).join('')}
+    ${Object.entries(tabs).map(([k,v])=>{
+      const hit = q ? (qHit[k] || 0) : 0;
+      const badge = (q && hit > 0 && k !== this.codexTab) ? `<i class="q-hit" title="本类命中 ${hit} 条">${hit}</i>` : '';
+      return `<button class="chip-btn ${this.codexTab===k?'on':''}" onclick="UI.codexTab='${k}';UI.renderCodex()">${v}${badge}</button>`;
+    }).join('')}
     <button class="chip-btn ${onlyMiss?'on':''}" title="只列本类尚未著录的条目"
       onclick="UI.codexOnlyMiss=!UI.codexOnlyMiss;UI.renderCodex()">仅未录 ${tabTotal-tabDone}</button>
     <label class="search-box" title="按名称或注音检索">
@@ -29817,7 +30007,14 @@ UI.renderCodex = function(keepFocus){
       </div>`;
     }).join('') : `<div class="empty-note">${onlyMiss
       ? (q ? '未录条目里没有匹配的。' : '本类已尽收——没有未著录的条目了。')
-      : `${esc(this.codexQuery||'')} —— 无此条目。换个字或注音试试，例如「鸟」「yú」。`}</div>`}
+      : (()=>{
+          // 本类没有、别类有时，直接说清在哪一类——这比让玩家自己看角标更省事
+          const other = Object.entries(qHit || {}).filter(([k, v]) => k !== this.codexTab && v > 0)
+            .map(([k, v]) => `${tabs[k]} ${v} 条`).join('、');
+          return other
+            ? `${esc(this.codexQuery||'')} —— 本类无此条目；${esc(other)}，点上面的分类去看。`
+            : `${esc(this.codexQuery||'')} —— 无此条目。换个字或注音试试，例如「鸟」「yú」。`;
+        })()}</div>`}
   </div>`;
   box.innerHTML = html;
   // 输入时重渲染会丢焦点：把光标放回检索框末尾，保持连续输入
@@ -30319,6 +30516,11 @@ UI.renderShichan = function(){
   const orderBoard = `<div class="panel order-board">
       <div class="ob-head"><h3><span class="mi-ic">${typeof markIcon==='function'?markIcon('scale',17):'⚖️'}</span> 方国求购</h3>
         <span class="ob-refresh">整批轮换 <b>${mm}:${ss}</b> 后
+          ${(()=>{
+            // 一键交割：只在「有可交割的单」时出现，否则按钮常驻反而碍眼
+            const n = (Game.orders||[]).filter(o=>!o.done && ((typeof bagQty==='function')?bagQty(o.itemId):(Game.inventory[o.itemId]||0)) >= o.qty).length;
+            return n > 1 ? `<button class="btn small primary" onclick="deliverAllOrders();UI.renderShichan()">一并交割 ${n}</button>` : '';
+          })()}
           <button class="btn small" onclick="rerollOrders();UI.renderShichan()">另访方国</button></span></div>
       <div class="ob-grid">${board}</div>
       <div class="hint">只求购已解锁山川出产的原材料；整批 30 分钟轮换，交割一单少一单</div>
@@ -30635,6 +30837,22 @@ UI.packListHtml = function(){
   for (const id of [...new Set((Game.packGear || []).map(g => g.id))]){
     for (const st of (typeof gearStacks === 'function' ? gearStacks(id) : [])) rows.push({ id, enh: st.enh, qty: st.qty });
   }
+  // 类别筛选：材料 / 装备 / 药食 / 系产。行囊常年两三百格，
+  // 找一株药要往下翻很久——按类别一收，通常只剩十来个。
+  const pf = this.packFilter || 'all';
+  if (pf !== 'all'){
+    rows = rows.filter(({ id }) => {
+      const it = Items[id] || {};
+      if (pf === 'gear') return !!it.equip;
+      if (pf === 'food') return it.equip ? false : (it.type === 'potion' || it.type === 'food');
+      if (pf === 'sp'){
+        const idx = (typeof pilgrimGiftIndex === 'function') ? pilgrimGiftIndex() : null;
+        return !!(idx && idx.get(id));
+      }
+      // 材料：既不是装备也不是药食
+      return !it.equip && it.type !== 'potion' && it.type !== 'food';
+    });
+  }
   if (q){
     rows = rows.filter(({ id }) => {
       const it = Items[id] || {};
@@ -30652,10 +30870,21 @@ UI.packListHtml = function(){
   return rows.map(({ id, enh, qty }) => {
     const it = Items[id] || {};
     const enhTag = (enh != null && enh > 0) ? `<span class="ic-enh" title="淬炼 +${enh}">+${enh}</span>` : '';
+    // 「比身上强」角标：不标的话，玩家得逐件点开看详情里的对比才知道该换哪件。
+    // 只在确实更强时出现（持平或更差都不标），否则满屏都是箭头反而没信息。
+    let upTag = '';
+    if (it.equip && typeof gearPower === 'function' && typeof equipSlotOf === 'function'){
+      const slot = equipSlotOf(it);
+      const cur = slot ? Game.gear[slot] : null;
+      const inst = Object.assign({}, it, { enh: (enh | 0) });
+      if (!cur || gearPower(inst) > gearPower(cur)){
+        upTag = `<span class="ic-up" title="优于身上的${cur ? '「' + esc(cur.name || '') + '」' : '空槽'}">▲</span>`;
+      }
+    }
     const enhArg = (enh != null) ? `,'',${enh}` : '';
     return `<div class="inv-card ${rarityClass(it)}${(enh|0) > 0 ? ' enhanced' : ''}" onclick="showItemDetail('${id}'${enhArg})">
       <span class="ic-icon">${typeof itemIc==='function'?itemIc(id,20):(it.icon||'⬜')}</span>
-      <span class="ic-name">${nameTag(it.name || id, it.py)}${enhTag}${it.equip?gradeBadge(it):''}</span>
+      <span class="ic-name">${nameTag(it.name || id, it.py)}${enhTag}${upTag}${it.equip?gradeBadge(it):''}</span>
       <span class="ic-qty">×${qty}</span>
       <span class="ic-val">${(it.value||0)*qty} 贝</span>
     </div>`;
@@ -30706,6 +30935,10 @@ UI.renderPack = function(){
     </div>
     <div class="panel inv-panel">
       <h3>行囊</h3>
+      <div class="filter-row">
+        ${[['all','全部'],['mat','材料'],['gear','装备'],['food','药食'],['sp','系产']].map(([k,lab])=>
+          `<button class="chip-btn ${(this.packFilter||'all')===k?'on':''}" onclick="UI.packFilter='${k}';UI.patchPackList()">${lab}</button>`).join('')}
+      </div>
       <div class="filter-row">
         <button class="chip-btn ${this.invSort==='default'?'on':''}" onclick="UI.invSort='default';UI.renderPack()">默认</button>
         <button class="chip-btn ${this.invSort==='value'?'on':''}" onclick="UI.invSort='value';UI.renderPack()">价值↓</button>
@@ -30992,7 +31225,27 @@ UI.itemDetailHtml = function(itemId){
   const afCost = hasAffix ? affixReforgeCost(itemId) : null;
   const afOk = afCost ? ((Game.inventory.tan || 0) >= afCost.tan && Game.shells >= afCost.shells) : false;
 
+  // 与身上同槽那件对比：点开一件兵器只见「伤害 15」，玩家不知道比身上的 12 好在哪，
+  // 只能退出去看装备栏、再回来——「一键最优」能替他决定，但不能替他判断。
+  let cmpLine = '';
+  if (it.equip && !gearInst && typeof gearPower === 'function' && typeof equipSlotOf === 'function'){
+    const slot = equipSlotOf(it);
+    const cur = slot ? Game.gear[slot] : null;
+    const inst = Object.assign({}, it, { enh: enhLv });
+    const pw = gearPower(inst);
+    if (cur && (cur.id !== itemId || (cur.enh | 0) !== enhLv)){
+      const cw = gearPower(cur);
+      const d = pw - cw;
+      const cls = d > 0 ? 'up' : (d < 0 ? 'down' : 'same');
+      const cname = (cur.name || '') + ((cur.enh | 0) ? ' +' + (cur.enh | 0) : '');
+      const arrow = d > 0 ? `▲ +${Math.round(d)}` : (d < 0 ? `▼ ${Math.round(d)}` : '持平');
+      cmpLine = `<div class="cmp-line ${cls}">较身上「${esc(cname)}」：战力 ${Math.round(cw)} → <b>${Math.round(pw)}</b>　${arrow}</div>`;
+    } else if (!cur){
+      cmpLine = `<div class="cmp-line">此槽尚空 · 战力 ${Math.round(pw)}</div>`;
+    }
+  }
   return `<h3><span class="mi-ic">${typeof itemIc==='function'?itemIc(itemId,18):it.icon}</span> ${esc(it.name)}${enhShow ? ` <span class="hd-enh">+${enhShow}</span>` : ''} ${it.equip?gradeBadge(it):`<span class="tier">${rarityName(it)}</span>`}</h3>
+    ${cmpLine}
     <div class="meta">${it.equip
       ? `行囊 ${bagAll} 件${qty ? ` · 本档 ${enhShow ? '+' + enhShow : '+0'} ×${qty}` : ''}`
       : `行囊 ${qty} 件`}${rec?` · 著录 ${rec.count} 次（${TUNING.MASTERY.NAMES[rec.tier]}）`:''}</div>

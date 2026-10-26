@@ -177,6 +177,11 @@ UI.renderShichan = function(){
   const orderBoard = `<div class="panel order-board">
       <div class="ob-head"><h3><span class="mi-ic">${typeof markIcon==='function'?markIcon('scale',17):'⚖️'}</span> 方国求购</h3>
         <span class="ob-refresh">整批轮换 <b>${mm}:${ss}</b> 后
+          ${(()=>{
+            // 一键交割：只在「有可交割的单」时出现，否则按钮常驻反而碍眼
+            const n = (Game.orders||[]).filter(o=>!o.done && ((typeof bagQty==='function')?bagQty(o.itemId):(Game.inventory[o.itemId]||0)) >= o.qty).length;
+            return n > 1 ? `<button class="btn small primary" onclick="deliverAllOrders();UI.renderShichan()">一并交割 ${n}</button>` : '';
+          })()}
           <button class="btn small" onclick="rerollOrders();UI.renderShichan()">另访方国</button></span></div>
       <div class="ob-grid">${board}</div>
       <div class="hint">只求购已解锁山川出产的原材料；整批 30 分钟轮换，交割一单少一单</div>

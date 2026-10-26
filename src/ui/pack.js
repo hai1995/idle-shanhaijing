@@ -135,6 +135,22 @@ UI.packListHtml = function(){
   for (const id of [...new Set((Game.packGear || []).map(g => g.id))]){
     for (const st of (typeof gearStacks === 'function' ? gearStacks(id) : [])) rows.push({ id, enh: st.enh, qty: st.qty });
   }
+  // 类别筛选：材料 / 装备 / 药食 / 系产。行囊常年两三百格，
+  // 找一株药要往下翻很久——按类别一收，通常只剩十来个。
+  const pf = this.packFilter || 'all';
+  if (pf !== 'all'){
+    rows = rows.filter(({ id }) => {
+      const it = Items[id] || {};
+      if (pf === 'gear') return !!it.equip;
+      if (pf === 'food') return it.equip ? false : (it.type === 'potion' || it.type === 'food');
+      if (pf === 'sp'){
+        const idx = (typeof pilgrimGiftIndex === 'function') ? pilgrimGiftIndex() : null;
+        return !!(idx && idx.get(id));
+      }
+      // 材料：既不是装备也不是药食
+      return !it.equip && it.type !== 'potion' && it.type !== 'food';
+    });
+  }
   if (q){
     rows = rows.filter(({ id }) => {
       const it = Items[id] || {};
@@ -152,10 +168,21 @@ UI.packListHtml = function(){
   return rows.map(({ id, enh, qty }) => {
     const it = Items[id] || {};
     const enhTag = (enh != null && enh > 0) ? `<span class="ic-enh" title="淬炼 +${enh}">+${enh}</span>` : '';
+    // 「比身上强」角标：不标的话，玩家得逐件点开看详情里的对比才知道该换哪件。
+    // 只在确实更强时出现（持平或更差都不标），否则满屏都是箭头反而没信息。
+    let upTag = '';
+    if (it.equip && typeof gearPower === 'function' && typeof equipSlotOf === 'function'){
+      const slot = equipSlotOf(it);
+      const cur = slot ? Game.gear[slot] : null;
+      const inst = Object.assign({}, it, { enh: (enh | 0) });
+      if (!cur || gearPower(inst) > gearPower(cur)){
+        upTag = `<span class="ic-up" title="优于身上的${cur ? '「' + esc(cur.name || '') + '」' : '空槽'}">▲</span>`;
+      }
+    }
     const enhArg = (enh != null) ? `,'',${enh}` : '';
     return `<div class="inv-card ${rarityClass(it)}${(enh|0) > 0 ? ' enhanced' : ''}" onclick="showItemDetail('${id}'${enhArg})">
       <span class="ic-icon">${typeof itemIc==='function'?itemIc(id,20):(it.icon||'⬜')}</span>
-      <span class="ic-name">${nameTag(it.name || id, it.py)}${enhTag}${it.equip?gradeBadge(it):''}</span>
+      <span class="ic-name">${nameTag(it.name || id, it.py)}${enhTag}${upTag}${it.equip?gradeBadge(it):''}</span>
       <span class="ic-qty">×${qty}</span>
       <span class="ic-val">${(it.value||0)*qty} 贝</span>
     </div>`;
@@ -206,6 +233,10 @@ UI.renderPack = function(){
     </div>
     <div class="panel inv-panel">
       <h3>行囊</h3>
+      <div class="filter-row">
+        ${[['all','全部'],['mat','材料'],['gear','装备'],['food','药食'],['sp','系产']].map(([k,lab])=>
+          `<button class="chip-btn ${(this.packFilter||'all')===k?'on':''}" onclick="UI.packFilter='${k}';UI.patchPackList()">${lab}</button>`).join('')}
+      </div>
       <div class="filter-row">
         <button class="chip-btn ${this.invSort==='default'?'on':''}" onclick="UI.invSort='default';UI.renderPack()">默认</button>
         <button class="chip-btn ${this.invSort==='value'?'on':''}" onclick="UI.invSort='value';UI.renderPack()">价值↓</button>
@@ -492,7 +523,27 @@ UI.itemDetailHtml = function(itemId){
   const afCost = hasAffix ? affixReforgeCost(itemId) : null;
   const afOk = afCost ? ((Game.inventory.tan || 0) >= afCost.tan && Game.shells >= afCost.shells) : false;
 
+  // 与身上同槽那件对比：点开一件兵器只见「伤害 15」，玩家不知道比身上的 12 好在哪，
+  // 只能退出去看装备栏、再回来——「一键最优」能替他决定，但不能替他判断。
+  let cmpLine = '';
+  if (it.equip && !gearInst && typeof gearPower === 'function' && typeof equipSlotOf === 'function'){
+    const slot = equipSlotOf(it);
+    const cur = slot ? Game.gear[slot] : null;
+    const inst = Object.assign({}, it, { enh: enhLv });
+    const pw = gearPower(inst);
+    if (cur && (cur.id !== itemId || (cur.enh | 0) !== enhLv)){
+      const cw = gearPower(cur);
+      const d = pw - cw;
+      const cls = d > 0 ? 'up' : (d < 0 ? 'down' : 'same');
+      const cname = (cur.name || '') + ((cur.enh | 0) ? ' +' + (cur.enh | 0) : '');
+      const arrow = d > 0 ? `▲ +${Math.round(d)}` : (d < 0 ? `▼ ${Math.round(d)}` : '持平');
+      cmpLine = `<div class="cmp-line ${cls}">较身上「${esc(cname)}」：战力 ${Math.round(cw)} → <b>${Math.round(pw)}</b>　${arrow}</div>`;
+    } else if (!cur){
+      cmpLine = `<div class="cmp-line">此槽尚空 · 战力 ${Math.round(pw)}</div>`;
+    }
+  }
   return `<h3><span class="mi-ic">${typeof itemIc==='function'?itemIc(itemId,18):it.icon}</span> ${esc(it.name)}${enhShow ? ` <span class="hd-enh">+${enhShow}</span>` : ''} ${it.equip?gradeBadge(it):`<span class="tier">${rarityName(it)}</span>`}</h3>
+    ${cmpLine}
     <div class="meta">${it.equip
       ? `行囊 ${bagAll} 件${qty ? ` · 本档 ${enhShow ? '+' + enhShow : '+0'} ×${qty}` : ''}`
       : `行囊 ${qty} 件`}${rec?` · 著录 ${rec.count} 次（${TUNING.MASTERY.NAMES[rec.tier]}）`:''}</div>

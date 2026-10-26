@@ -501,6 +501,52 @@ function relicText(r){
 }
 
 // ================= 技能 =================
+// ---------- 制作配方的「默认分类」（v1.31.40） ----------
+// 原先写死停在「燔燎」：玩家练到 70 级，每次进技能页都得先点三四下才找到要做的配方。
+// 现在的口径是「能做的最高级配方在哪一栏，就停在哪一栏」——这一栏几乎总是玩家想要的；
+// 手动选过之后则记住那次选择（Prefs.recipeSkill），不再自动跳。
+function pickRecipeKind(){
+  // 判定在引擎层（game.js 的 defaultRecipeKind）：只有一处定义，测试也能直接跑
+  if (typeof defaultRecipeKind === 'function') return defaultRecipeKind();
+  return 'burn';
+}
+
+// 整块重绘会丢滚动位置：配方面板在技能页下半部，点一次分类就弹回顶部，
+// 得重新往下翻——这是最典型的「每用一次烦一次」。重绘前后把纵向位置搬回去。
+function keepScroll(fn){
+  const c = (typeof document !== 'undefined') ? document.getElementById('content') : null;
+  const w = (typeof window !== 'undefined' && window.pageYOffset) ? window.pageYOffset : 0;
+  const cy = c ? c.scrollTop : 0;
+  try { fn(); } finally {
+    const c2 = (typeof document !== 'undefined') ? document.getElementById('content') : null;
+    if (c2) c2.scrollTop = cy;
+    if (w && typeof window !== 'undefined' && window.scrollTo) window.scrollTo(0, w);
+  }
+}
+
+UI.setRecipeKind = function(k){
+  if (!ActionKinds[k] || ActionKinds[k].mode !== 'recipe') return;
+  this.recipeSkill = k;
+  if (typeof Prefs !== 'undefined' && Prefs) Prefs.recipeSkill = k;   // 记住这次选择
+  keepScroll(() => this.renderSkills());
+};
+
+// 只重建配方面板会丢输入焦点：每敲一个字就 renderSkills() 会把输入框整个换掉。
+// 重绘后把焦点与光标位置搬回去，滚动位置也一并保持。
+UI.patchRecipeList = function(){
+  const el = (typeof document !== 'undefined') ? document.activeElement : null;
+  const typed = el && el.id === 'recipeQ';
+  const pos = typed && el.selectionStart != null ? el.selectionStart : null;
+  keepScroll(() => this.renderSkills());
+  if (typed){
+    const n = (typeof document !== 'undefined') ? document.getElementById('recipeQ') : null;
+    if (n && n.focus){
+      n.focus();
+      if (pos != null && n.setSelectionRange) { try { n.setSelectionRange(pos, pos); } catch (e) {} }
+    }
+  }
+};
+
 UI.renderSkills = function(){
   const box = $('content');
   if (!box) return;
@@ -509,6 +555,10 @@ UI.renderSkills = function(){
   let ids = [];
   for (const g in SKILL_GROUPS){
     if (filter === 'all' || filter === g) ids = ids.concat(SKILL_GROUPS[g].ids);
+  }
+  // 分类：手动选过就留住，没选过按「能做的最高级配方」自动定
+  if (!this.recipeSkill || !ActionKinds[this.recipeSkill] || ActionKinds[this.recipeSkill].mode !== 'recipe'){
+    this.recipeSkill = (Prefs && Prefs.recipeSkill && ActionKinds[Prefs.recipeSkill]) ? Prefs.recipeSkill : pickRecipeKind();
   }
   const cur = Game.activity;
   let html = `<div class="panel stats-bar">
@@ -584,10 +634,46 @@ UI.renderSkills = function(){
     <h3>制作配方</h3>
     <div class="filter-row">
       ${Object.entries(ActionKinds).filter(([k,d])=>d.mode==='recipe').map(([k,d])=>
-        `<button class="chip-btn ${this.recipeSkill===k?'on':''}" onclick="UI.recipeSkill='${k}';UI.renderSkills()">${typeof skillIcon==='function'?skillIcon(k,15):d.icon} ${d.label}</button>`).join('')}
+        `<button class="chip-btn ${this.recipeSkill===k?'on':''}" onclick="UI.setRecipeKind('${k}')">${typeof skillIcon==='function'?skillIcon(k,15):d.icon} ${d.label}</button>`).join('')}
+      <label class="search-box" title="按产物名 / 注音检索 · 跨全部技艺">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4 4"/></svg>
+        <input id="recipeQ" type="search" placeholder="检索配方" value="${esc(this.recipeQuery||'')}"
+          oninput="UI.recipeQuery=this.value;UI.patchRecipeList()"
+          onkeydown="if(event.key==='Escape'){this.value='';UI.recipeQuery='';UI.patchRecipeList()}">
+      </label>
     </div>
     <div class="tile-grid recipe-grid">
-    ${Recipes.filter(r=>r.type===this.recipeSkill).sort((a,b)=>a.lvl-b.lvl).map(r=>{
+    ${(()=>{
+      // 有检索词时跨全部分类找：玩家常记得「山海图卷」却忘了它在琢玉还是炼药。
+      // 无检索词时仍只听分类——分类是主浏览方式，不该被搜索框的存在感稀释。
+      const q = String(this.recipeQuery || '').trim().toLowerCase();
+      let list;
+      if (q){
+        list = Recipes.filter(r=>{
+          const it = Items[r.out] || {};
+          return String(it.name || r.out).toLowerCase().includes(q)
+            || String(it.py || '').toLowerCase().includes(q)
+            || String(r.out).toLowerCase().includes(q);
+        });
+      } else {
+        list = Recipes.filter(r=>r.type===this.recipeSkill);
+      }
+      // 排序分两段：先「已解锁」按等级降序（现在能做的高级货在前），再「未解锁」按升序
+      // （离解锁最近的在未解锁段顶部）。原先一律升序，玩家每次想做高阶配方都要滚到底。
+      // 排序分三段，按「玩家此刻的处境」排，而不是按等级一刀切：
+      //   0 级够料够 → 点开就能做，等级降序（手头最高级的先在手边）
+      //   1 级够料缺 → 正是要去凑料的那件，仍排前段（等级降序）
+      //   2 级不够   → 等级升序，离解锁最近的在前
+      // 原先一律升序，做高阶配方每次都要滚到底；一刀切两段又会把「缺料的 1 级木戈」
+      // 顶到第一行，挡住真正要做的 26 级赤金钺。
+      const lvOf = r => levelOf(mapRecipeSkill(r.type));
+      const grp = r => (lvOf(r) < r.lvl ? 2 : (canAfford(r.cost) ? 0 : 1));
+      list.sort((a, b) => {
+        const ga = grp(a), gb = grp(b);
+        if (ga !== gb) return ga - gb;
+        return ga === 2 ? a.lvl - b.lvl : b.lvl - a.lvl;
+      });
+      return list.map(r=>{
       const it = Items[r.out];
       const sk = Skills[mapRecipeSkill(r.type)];
       const lvOk = levelOf(mapRecipeSkill(r.type)) >= r.lvl;
@@ -603,7 +689,9 @@ UI.renderSkills = function(){
           onclick="event.stopPropagation();startActivity('craft','${r.type}::${r.out}')">连</button>`:''}
         <span class="tip-body hidden"><div class="rc-cost">${costChips(r.cost)}</div>${specialCostLine(r.cost)}<div class="rc-xp">经验 ${r.xp}</div>${!lvOk?`<div class="hint ${r.lvl - levelOf(mapRecipeSkill(r.type)) <= 2 ? 'near' : ''}">再升 ${r.lvl - levelOf(mapRecipeSkill(r.type))} 级（${sk.name} ${r.lvl}）</div>`:''}</span>
       </div>`;
-    }).join('')}
+        }).join('') || `<div class="hint">${q ? '没有对上的配方' : '此栏暂无配方'}</div>`;
+    })()}
+  </div>
     </div>
   </div>
 

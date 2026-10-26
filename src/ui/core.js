@@ -172,6 +172,9 @@ const UI = {
   recipeSkill: 'burn',
   queueKind: 'qiaocai',
   invSort: 'default',
+  packFilter: 'all',        // 行囊类别筛选：all | mat | gear | food | sp
+  packQuery: '',            // 行囊检索词（原先只在 pack.js 里隐式用 this.packQuery）
+  recipeQuery: '',          // 配方检索词；有词时跨全部技艺搜索
   packSellTier: 'COMMON',   // 廛市清整的稀有度阈值（凡品 → 瑰宝）
   omenFilter: 'all',
   lastDivine: null,
@@ -494,9 +497,13 @@ const UI = {
     const ACT_NAMES = { gather:'采集', craft:'制作', observe:'观象', audience:'朝觐', grow:'养成', combat:'往讨' };
     const acts = Object.entries(rec.acts||{}).filter(([,n])=>n>0)
       .map(([k,n])=>`${ACT_NAMES[k]||k} ${n} 次`).join(' · ');
+    // 离线上限这件事，玩家最想知道的是「晚上睡八小时会不会浪费」。
+    // 所以除了「超了多少」，未溢满时也明说「还能攒多久到顶」。
+    const capH = offlineCapHours();
+    const capSec = capH * 3600;
     const capLine = rec.capped
-      ? `<p class="hint off-cap">离山 ${fmtTime(rec.rawSeconds || rec.seconds)}，其中 ${fmtTime((rec.rawSeconds||0)-(rec.seconds||0))} 超出 ${offlineCapHours()} 小时上限，未计入。</p>`
-      : '';
+      ? `<p class="hint off-cap">离山 ${fmtTime(rec.rawSeconds || rec.seconds)}，其中 ${fmtTime((rec.rawSeconds||0)-(rec.seconds||0))} 超出 ${capH} 小时上限，未计入。想多攒些，可去观象、修仓廪与土窟。</p>`
+      : `<p class="hint off-cap">离线上限 ${capH} 小时，本次只用了 ${Math.round((rec.seconds||0)/capSec*100)}% · 再离山 ${fmtTime(Math.max(0, capSec - (rec.seconds||0)))} 到顶。</p>`;
     const harvest = (rec.harvests||0) > 0 ? `<div class="form-row"><span>圃艺收成</span><b>🌾 ${rec.harvests} 次</b></div>` : '';
     const recLine = (rec.records||0) > 0 ? `<div class="form-row"><span>新著录</span><b>${rec.records} 条</b></div>` : '';
     // 续祭：离山期间门人代你续了几次、耗去什么，都要交代清楚（材料是实扣的）
@@ -571,6 +578,13 @@ const UI = {
       b.classList.toggle('active', b.dataset.tab === tab);
     });
     this.renderCurrent();
+    // 切页回顶：整块内容重建后浏览器会沿用旧的滚动位置，切到较短的页面就会停在半空，
+    // 得自己往上拖——换页本就该从头读。同一页内的局部重绘不走这里（那边另有保滚动）。
+    if (changed){
+      try { window.scrollTo(0, 0); } catch (e) {}
+      const cc = $('content');
+      if (cc) cc.scrollTop = 0;
+    }
     // 切页入场：整块内容一次性归位，取代逐元素延迟造成的拖沓
     const c = $('content');
     if (c && changed && c.classList){

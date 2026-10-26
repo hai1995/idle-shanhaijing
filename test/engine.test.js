@@ -3341,9 +3341,12 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   ST.UI.codexOnlyMiss = false;
   ST.UI.renderCodex();
 
-  // 切分类时不该把筛选状态清掉（清的是检索词）
-  const tabBtn = /onclick="UI\.codexTab='\$\{k\}';UI\.codexQuery='';UI\.renderCodex\(\)"/;
-  assert(tabBtn.test(uiSrc58), '切分类只清检索词，保留「仅未录」');
+  // 切分类只换分类，不动筛选状态：
+  //   · 检索词要留着——分类按钮上带「本类命中 N」，点过去就是为了看那 N 条，
+  //     若顺手清空搜索词，点过去又是一片空白；
+  //   · 「仅未录」也留着，那是全局偏好。
+  const tabBtn = /onclick="UI\.codexTab='\$\{k\}';UI\.renderCodex\(\)"/;
+  assert(tabBtn.test(uiSrc58), '切分类只换分类，保留检索词与「仅未录」');
 }
 
 // ============ 59. 装备梯度不断档、不倒退（v1.15.9） ============
@@ -6843,6 +6846,83 @@ section('增益角标与药剂覆盖');
   assert(logs.some(x => x.includes('被') && x.includes('取代')) || logs.some(x => x.includes('覆盖')),
     '覆盖时说一声：' + (logs.find(x => x.includes('覆盖') || x.includes('取代')) || '（无）'));
   assert(ST.Game.buff.itemId === 'buhuosan', '新药生效');
+
+  G.resetToDefault();
+}
+
+// ============ 130. 便利性：默认分类 / 分段排序 / 一键交割 / 装备对比 ============
+section('便利性优化');
+{
+  G.resetToDefault();
+  // ---- 配方默认分类：三级兜底 ----
+  // 新号：只有燔燎能做，就该停在燔燎
+  assert(typeof ST.defaultRecipeKind === 'function', '引擎层导出 defaultRecipeKind');
+  assert(ST.defaultRecipeKind() === 'burn', '新号停在燔燎（' + ST.defaultRecipeKind() + '）');
+
+  // 满级满料：应停在「有材料可做的最高级配方」那一栏
+  for (const k in ST.Game.skills) ST.Game.skills[k] = { level: 99, xp: 0 };
+  for (const it of Object.values(ST.Items)){
+    if (!it || !it.id && !it.name) continue;
+  }
+  // 把所有配方材料塞满，保证 canAfford 全真
+  for (const r of ST.Recipes) for (const [id] of r.cost) ST.Game.inventory[id] = 999;
+  const kFull = ST.defaultRecipeKind();
+  assert(kFull === 'rite', '满级满料停在祠祀（最高级配方所在栏）：' + kFull);
+
+  // 满级但清空材料：仍应停在「等级够的最高级配方」那栏，而不是退回第一栏
+  const saved = JSON.parse(JSON.stringify(ST.Game.inventory));
+  ST.Game.inventory = {};
+  assert(ST.defaultRecipeKind() === 'rite', '缺料时仍停在最高级配方那栏（不退回燔燎）：' + ST.defaultRecipeKind());
+  ST.Game.inventory = saved;
+
+  // ---- 配方分段排序：源码层钉住三段口径 ----
+  const uiSrcW = readText('src/ui/world.js');
+  assert(uiSrcW.includes("const grp = r => (lvOf(r) < r.lvl ? 2 : (canAfford(r.cost) ? 0 : 1))"),
+    '配方按「可做 / 缺料 / 未解锁」三段排序');
+  assert(/return ga === 2 \? a\.lvl - b\.lvl : b\.lvl - a\.lvl/.test(uiSrcW), '前两段等级降序、未解锁段升序');
+  assert(uiSrcW.includes('UI.setRecipeKind'), '分类切换走统一入口（记住选择 + 保滚动）');
+  assert(uiSrcW.includes('recipeQuery'), '配方检索框存在');
+  assert(uiSrcW.includes('跨全部分类找') || uiSrcW.includes('跨全部技艺'), '有检索词时跨分类搜索');
+
+  // ---- 一键交割：多单一次交完 ----
+  G.resetToDefault();
+  ST.refreshOrders(true);
+  const orders = (ST.Game.orders || []).filter(o => o && !o.done).slice(0, 3);
+  assert(orders.length >= 2, '订单板至少 2 单可测（' + orders.length + '）');
+  for (const o of orders) ST.giveItem(o.itemId, o.qty, false);
+  const s0 = ST.Game.shells, sales0 = ST.Game.stats.sales;
+  const want = orders.reduce((a, o) => a + o.total, 0);
+  const n = ST.deliverAllOrders();
+  assert(n === orders.length, '一并交割 ' + orders.length + ' 单（实 ' + n + '）');
+  assert(ST.Game.shells - s0 === want, '贝币一次到账 ' + want + '（实 ' + (ST.Game.shells - s0) + '）');
+  assert(ST.Game.stats.sales - sales0 === orders.length, '成交计数逐单累加');
+  assert(ST.deliverAllOrders() === 0, '没有可交割的单时返回 0（不重复算）');
+
+  // ---- 装备详情对比 + 行囊更优角标：源码与几何口径 ----
+  const uiSrcP = readText('src/ui/pack.js');
+  assert(uiSrcP.includes('cmp-line'), '装备详情有「较身上」对比行');
+  assert(uiSrcP.includes('此槽尚空'), '空槽时写「此槽尚空」而非与空比');
+  assert(uiSrcP.includes('ic-up'), '行囊标出「比身上强」的装备');
+
+  // 对比口径：战力确由 gearPower 算，带淬炼档
+  G.resetToDefault();
+  ST.Game.gear.weapon = null;
+  ST.packGearAdd('muge', 0, 1); ST.packGearAdd('bailianjian', 0, 1);
+  // gearPower 读的是实例（模板 + 自己的 enh），不是行囊里的 {id, enh} 记账对象
+  const asInst = id => Object.assign({}, ST.Items[id], { enh: 0 });
+  const pm = ST.gearPower(asInst('muge'));
+  const pb = ST.gearPower(asInst('bailianjian'));
+  assert(pb > pm, '百炼剑战力高于木戈（' + pm + ' < ' + pb + '）');
+
+  // ---- 行囊类别筛选：五档口径 ----
+  assert(uiSrcP.includes("['all','全部'],['mat','材料'],['gear','装备'],['food','药食'],['sp','系产']"), '行囊五档类别筛选');
+  G.resetToDefault();
+  ST.giveItem('tan', 3, false); ST.packGearAdd('muge', 0, 1); ST.giveItem('shanhaitujuan', 1, false);
+  const isFood = id => !(ST.Items[id].equip) && (ST.Items[id].type === 'potion' || ST.Items[id].type === 'food');
+  assert(isFood('shanhaitujuan') && !isFood('tan') && !isFood('muge'), '药食判定不误伤材料与装备');
+
+  // ---- 切页回顶 ----
+  assert(readText('src/ui/core.js').includes('切页回顶'), '切换页签回到顶部');
 
   G.resetToDefault();
 }
