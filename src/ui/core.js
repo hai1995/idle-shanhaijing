@@ -170,6 +170,8 @@ const UI = {
   selNode: 'nanshan-1-01',
   codexTab: 'beast',
   codexQuery: '',
+  codexOnlyMiss: false,   // 只列未著录的条目
+  codexReachOnly: false,  // 只列此刻能前往的条目（与仅未录可叠加，v1.31.49）
   skillFilter: 'all',
   recipeSkill: 'burn',
   queueKind: 'qiaocai',

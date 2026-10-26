@@ -109,14 +109,36 @@ UI.codexAchDetail = function(id){
     </div>`);
 };
 
-// 未录条目的产地线索：异兽看它在哪座山，物品看第一处采集点。
+// 未录条目的产地线索：异兽看它在哪座山，物品看采集点。
 // 只给「一處地」，不是攻略——目的是让「仅未录」这张待办清单能直接照着走。
+// ⚠️ v1.31.49：物品类此前取 itemSources 的第一处（往往是主产地），
+// 于是「金」只写「招摇之山」——可它有 42 处产地，另有 41 处已开通的山。
+// 现在多产地时给一句「招摇之山 等 42 山」，并让**已解锁的那处排在最前**。
 function codexWhereOf(e){
   if (!e) return '';
   const m = (typeof Monsters !== 'undefined') ? Monsters[e.id] : null;
   if (m && m.nodeId){
     const nd = (typeof nodeOf === 'function') ? nodeOf(m.nodeId) : null;
     if (nd) return nd.name;
+  }
+  // 采集物：认 nodes[] 全集（引擎的产地判据），已解锁的优先
+  if (typeof codexSourceNodes === 'function' && typeof isGatherSkill === 'function'){
+    const it = (typeof Items !== 'undefined') ? Items[e.id] : null;
+    if (it && isGatherSkill(it.skill)){
+      const ids = codexSourceNodes(e) || [];
+      const names = [];
+      for (const id of ids){
+        const nd = nodeOf(id);
+        if (!nd || !nd.name) continue;
+        const ok = (typeof nodeUnlocked === 'function') ? nodeUnlocked(nd) : true;
+        names.push({ name: nd.name, ok });
+      }
+      if (names.length){
+        // 已解锁的排前面：清单要照着走，先说走得通的那处
+        names.sort((a,b)=> (b.ok?1:0) - (a.ok?1:0));
+        return names.length > 1 ? `${names[0].name} 等 ${names.length} 山` : names[0].name;
+      }
+    }
   }
   if (typeof itemSources === 'function'){
     const src = itemSources(e.id).find(x => x.nodeId);
@@ -161,11 +183,20 @@ function codexView(){
     }
   }
   if (onlyMiss) shown = shown.filter(e => !(((Game.records||{})[e.id]||{}).count > 0));
+  // 「可往」（v1.31.49）：只列**现在就能前往**的条目。
+  // 「仅未录」是一张待办清单，但清单里 445 条山川全都锁着时，它就只是一张锁的清单。
+  // 玩家真正要的是「此刻能去的地方里，还有哪些没录」——那才是下一步能做的事。
+  // 判据取自引擎的 codexReachInfo（与采集的产地判据同源，v1.31.48）。
+  const reachOnly = !!UI.codexReachOnly;
+  if (reachOnly) shown = shown.filter(e => {
+    const info = (typeof codexReachInfo === 'function') ? codexReachInfo(e) : null;
+    return !!(info && info.unlocked);
+  });
   // 收集成就：把奖励闭环挂在收集线自己的入口上，不必另开一页
   const achAll = (window.CODEX_ACHIEVEMENTS || []);
   let achClaim = 0, achDone = 0;
   achAll.forEach(a => { const st = codexAchState(a); if (st === 'claimable') achClaim++; else if (st === 'claimed') achDone++; });
-  return { tabs, catMap, entries, total, done, tabTotal, tabDone, tabPct, q, onlyMiss, shown, qHit, achAll, achClaim, achDone };
+  return { tabs, catMap, entries, total, done, tabTotal, tabDone, tabPct, q, onlyMiss, reachOnly, shown, qHit, achAll, achClaim, achDone };
 }
 
 function codexAchBarHtml(v){
@@ -184,7 +215,16 @@ function codexTabsInner(v){
     return `<button class="chip-btn ${UI.codexTab===k?'on':''}" onclick="UI.codexTab='${k}';UI.renderCodex()">${label}${badge}</button>`;
   }).join('')
   + `<button class="chip-btn ${v.onlyMiss?'on':''}" title="只列本类尚未著录的条目"
-      onclick="UI.codexOnlyMiss=!UI.codexOnlyMiss;UI.renderCodex()">仅未录 ${v.tabTotal-v.tabDone}</button>`;
+      onclick="UI.codexOnlyMiss=!UI.codexOnlyMiss;UI.renderCodex()">仅未录 ${v.tabTotal-v.tabDone}</button>`
+  // 「可往」：只列此刻就能前往的条目（与「仅未录」可叠加，成为「此刻能去且还没录」的待办）
+  + (()=>{
+      const n = v.entries.filter(e => {
+        const info = (typeof codexReachInfo === 'function') ? codexReachInfo(e) : null;
+        return !!(info && info.unlocked);
+      }).length;
+      return `<button class="chip-btn ${v.reachOnly?'on':''}" title="只列此刻就能前往的条目（与「仅未录」可叠加）"
+        onclick="UI.codexReachOnly=!UI.codexReachOnly;UI.renderCodex()">可往 ${n}</button>`;
+    })();
 }
 // 检索框。⚠️ 中文输入法：拼音在输入框里是「组合中」的临时文本，
 // 每敲一个字母就重建整个页面（旧实现 oninput → 整页 innerHTML）会把 input 连同
@@ -216,7 +256,13 @@ function bindCodexSearch(){
   });
 }
 function codexHintText(v){
-  return `本类 ${v.tabDone}/${v.tabTotal}${v.q?` · 命中 ${v.shown.length}`:''}${v.onlyMiss?` · 未录 ${v.shown.length}`:''} · 总录 ${v.done}/${v.total}`;
+  const parts = [`本类 ${v.tabDone}/${v.tabTotal}`];
+  if (v.q) parts.push(`命中 ${v.shown.length}`);
+  if (v.onlyMiss) parts.push(`未录 ${v.shown.length}`);
+  // 「可往」与「仅未录」叠加时，「未录 N」说的是筛选后的数，会误导——分开说清
+  if (v.reachOnly) parts.push(`可往 ${v.shown.length}`);
+  parts.push(`总录 ${v.done}/${v.total}`);
+  return parts.join(' · ');
 }
 // 完成度总览：1121 条散在四类里，只看当前类的分母不知道「其余三类还剩多少」，
 // 每切一次页签才看一眼，等于没有全局概念。四格并排，点哪格进哪类。
@@ -238,13 +284,19 @@ function codexOverviewHtml(v){
     <span class="cx-ov-sum">总 ${v.done}/${v.total}（${v.total ? Math.round(v.done/v.total*100) : 0}%）</span></div>`;
 }
 // 未录条目的「前往」：能定位到节点就给一枚按钮，节点还锁着就写明要多少级。
+// ⚠️ v1.31.49：门槛取「所有候选产地里最省的那个」（codexReachInfo），不是主产地那一个。
+// 「雄黄」主产地是西山十六（需 41 级），可它在南山五号山就采得到 —— 报 41 级会把人吓回去。
+// ⚠️ 样式：锁着的签改成**无边框的淡字**。此前 445 枚虚线框签在「仅未录」下铺满整屏，
+// 真正想找的是「现在能去的那几条」，一堆边框签反而把重点埋了。信息不减，只降噪。
 function codexGoBtn(e){
   const cn = (typeof codexNode === 'function') ? codexNode(e) : null;
   if (!cn) return '';
   const n = (typeof nodeOf === 'function') ? nodeOf(cn.nodeId) : null;
-  if (n && typeof nodeUnlocked === 'function' && !nodeUnlocked(n)){
-    const why = (typeof nodeLockReason === 'function') ? nodeLockReason(n) : '未解锁';
-    return `<span class="cc-lock" title="${esc(why)}">需 ${n.unlockLevel} 级</span>`;
+  const info = (typeof codexReachInfo === 'function') ? codexReachInfo(e) : null;
+  if (info && !info.unlocked){
+    const why = info.why || '未解锁';
+    const gapTxt = (info.gap !== null && info.gap !== undefined) ? `需 ${info.gap} 级` : '暂不可往';
+    return `<span class="cc-lock" title="${esc(why)}">${esc(gapTxt)}</span>`;
   }
   return `<button class="cc-go" type="button" title="前往 ${esc(n ? n.name : '')}"
     onclick="event.stopPropagation();UI.gotoCodexNode('${cn.nodeId}','${cn.regionId}')">前往</button>`;
@@ -267,12 +319,14 @@ function codexGridInner(v){
       : nameTag(e.name, e.py);
     if (!seen){
       // 未著录：只留名字与虚线框，整片图鉴才读得出「哪些还没见过」。
-      // 但筛到「仅未录」时，玩家就是在找这些东西去哪打／去哪采——那时才给一行产地，
+      // 但筛到「仅未录」或「可往」时，玩家就是在找这些东西去哪打／去哪采——那时才给一行产地，
       // 平时仍留白（未知本身是收藏的乐趣）。
-      const where = v.onlyMiss ? codexWhereOf(e) : '';
+      const wantAction = v.onlyMiss || v.reachOnly;
+      const where = wantAction ? codexWhereOf(e) : '';
       // 前往：山川类（447 条，占全图鉴四成）此前既无产地也无入口——它的条目 id 就是
       // nodeId，codexNode 现已认得。未录的山就在那儿，给一枚「前往」比让人自己翻舆地强。
-      const goBtn = v.onlyMiss ? codexGoBtn(e) : '';
+      // 「可往」筛选下同样要给：这轮筛出来的正是「此刻能去的那几条」，入口是这轮的重点。
+      const goBtn = wantAction ? codexGoBtn(e) : '';
       return `<div class="codex-card unseen" onclick="showCodexDetail('${e.id}')" title="${esc(e.name)} · 未见${where ? ' · ' + esc(where) : ''}">
         <div class="cc-name">${nmHtml}</div>
         ${where ? `<div class="cc-where">${esc(where)}</div>` : ''}
@@ -347,6 +401,45 @@ UI.patchCodexList = function(){
     if (hint.textContent !== t) hint.textContent = t;
   }
 };
+// 图鉴详情页的「产地清单」（v1.31.49）
+// 此前进这页只给一枚「前往产出节点」——点进去才知道是哪座山。
+// 而多产地的物有几十处产地（金 42 处），玩家真正要问的是「哪几处我现在能去」。
+// 产地候选集取自引擎的 codexSourceNodes（与采集判据同源），已解锁的排在前面。
+function codexSourceListHtml(e){
+  const ids = (typeof codexSourceNodes === 'function') ? codexSourceNodes(e) : [];
+  if (!ids.length) return '';
+  // 已解锁的排前面：清单是照着走的清单，走得通的那几处要先看见
+  const ordered = ids.slice().sort((a, b) => {
+    const na = nodeOf(a), nb = nodeOf(b);
+    const oa = (na && (typeof nodeUnlocked === 'function')) ? (nodeUnlocked(na) ? 0 : 1) : 1;
+    const ob = (nb && (typeof nodeUnlocked === 'function')) ? (nodeUnlocked(nb) ? 0 : 1) : 1;
+    if (oa !== ob) return oa - ob;
+    const la = (na && typeof na.unlockLevel === 'number') ? na.unlockLevel : 99;
+    const lb = (nb && typeof nb.unlockLevel === 'number') ? nb.unlockLevel : 99;
+    return la - lb;
+  });
+  const rows = ordered.map(id => {
+    const nd = nodeOf(id);
+    if (!nd) return '';
+    const ok = (typeof nodeUnlocked === 'function') ? nodeUnlocked(nd) : true;
+    const rg = regionOf(id);
+    const why = ok ? '' : ((typeof nodeLockReason === 'function') ? nodeLockReason(nd) : '未解锁');
+    return `<div class="cx-src ${ok?'ok':''}"${ok ? ` onclick="UI.selRegion='${rg?rg.regionId:''}';UI.selNode='${id}';UI.switchTab('yudi');UI.closeModal()"` : ` title="${esc(why)}"`}>
+      <span class="cx-src-n">${esc(nd.name)}</span>
+      <span class="cx-src-t">${ok ? '可往' : esc(why)}</span>
+    </div>`;
+  }).filter(Boolean);
+  if (!rows.length) return '';
+  // 产地太多时只列前 12 处，其余给个总数——「金」有 42 处，铺开就没法看了
+  const SHOWN = 12;
+  const shown = rows.slice(0, SHOWN);
+  const more = rows.length - shown.length;
+  return `<div class="cx-srcs">
+    <b>产地 ${rows.length} 处</b>
+    ${shown.join('')}
+    ${more > 0 ? `<div class="hint">…另有 ${more} 处</div>` : ''}
+  </div>`;
+}
 function showCodexDetail(id){
   const e = CODEX[id];
   if (!e) return;
@@ -361,10 +454,11 @@ function showCodexDetail(id){
   // 异兽 / 神祇详情：绘形大像置顶（未著录也画——详情本就是「书中先有其名」）
   const icHtml = (typeof beastIcon === 'function' && (e.cat === '异兽' || e.cat === '神祇'))
     ? `<div class="cd-ic">${beastIcon(e.id)}</div>` : '';
-  UI.modal(`<h3>${esc(e.name)} <span class="tier">${e.cat}</span></h3>
+  UI.modal(`<h3>${esc(e.name)} <span class="tier">${esc(e.cat)}</span></h3>
     ${icHtml}
     <div class="meta">著录 ${rec.count} 次 · ${rec.count>0?TUNING.MASTERY.NAMES[rec.tier]:'未见'}</div>
     ${rows}
+    ${codexSourceListHtml(e)}
     ${e.source?`<div class="source">${esc(e.source)}</div>`:''}
     <div class="modal-btns">${cnBtn}<button class="btn" onclick="UI.closeModal()">闭</button></div>`);
 }

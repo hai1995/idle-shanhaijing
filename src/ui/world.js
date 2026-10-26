@@ -619,12 +619,14 @@ function materialStatusForSkill(skillId){
 // 原先只按「异兽取 monster.nodeId、其余取 Items[id].node」找节点——山川这一类
 // Items 里根本没有同名物品，于是 447 条山川永远查不到节点，详情页也就没有「前往」，
 // 图鉴里的山川类（占全图鉴四成）成了唯一指不了路的分类。
+//
+// ⚠️ v1.31.49：百物类此前只认 Items[id].node（主产地），而采集那边（v1.31.48）
+// 已经改成认 nodes[] 全集 —— 同一件事两个口径。46 件物的主产地锁着、别的山已开着，
+// 图鉴却指着主产地说「需 41 级」，玩家以为要练到 41 级。
+// 现在产地候选集统一由引擎的 codexSourceNodes 给，这里只负责挑一处并补上 regionId。
 function codexNode(e){
   if (!e) return null;
-  let nodeId = null;
-  if (e.cat === '异兽'){ const m = Monsters[e.id]; if (m) nodeId = m.nodeId; }
-  else if (e.cat === '山川'){ if (nodeOf(e.id)) nodeId = e.id; }
-  else { const it = Items[e.id]; if (it) nodeId = it.node; }
+  const nodeId = (typeof codexReachableNode === 'function') ? codexReachableNode(e) : null;
   if (!nodeId) return null;
   for (const r of (WORLD.regions||[])){
     const n = (r.nodes||[]).find(nn=>nn.id===nodeId);

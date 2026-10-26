@@ -7078,7 +7078,7 @@ section('图鉴总览与线索');
   assert(ST.codexWhereOf({ id: 'not_exist', cat: '百物', name: 'X' }) === '', '查不到的条目返回空串');
 
   // 只在「仅未录」时显示：默认留白
-  assert(uiSrcCx.includes('const where = v.onlyMiss ? codexWhereOf(e)'), '产地只在仅未录时给');
+  assert(uiSrcCx.includes('const wantAction = v.onlyMiss || v.reachOnly'), '产地只在「仅未录」/「可往」时给');
 
   // 四类计数之和应等于图鉴总数（分母不重不漏）
   const catMap = { beast:'异兽', mountain:'山川', thing:['灵木','金玉','水族','灵草','嘉谷','百物'], deity:['祠典','神祇'] };
@@ -7388,7 +7388,7 @@ section('图鉴指路与再采');
   const shan = Object.values(ST.CODEX || {}).filter(e=>e.cat==='山川');
   const wSrc2 = readText('src/ui/world.js');
   const cSrc2 = readText('src/ui/codex.js');
-  assert(wSrc2.includes("e.cat === '山川'"), 'codexNode 认得山川类（条目 id 即 nodeId）');
+  assert(readText('src/game.js').includes("e.cat === '山川'"), 'codexNode 认得山川类（条目 id 即 nodeId）');
   assert(cSrc2.includes('function codexGoBtn') && cSrc2.includes('UI.gotoCodexNode'), '图鉴给出「前往」入口');
   assert(cSrc2.includes('cc-go') && cSrc2.includes('cc-lock'), '未录卡片渲染前往按钮 / 等级门槛');
   const css2 = readText('style.css');
@@ -7400,7 +7400,7 @@ section('图鉴指路与再采');
     assert(ok === shan.length, shan.length + ' 条山川全部能定位到节点（' + ok + '）');
   }
   // 已录的条目不显示前往（避免与详情弹窗里的入口重复）
-  assert(cSrc2.includes("const goBtn = v.onlyMiss ? codexGoBtn(e) : ''"), '「前往」只在「仅未录」筛选下出现');
+  assert(cSrc2.includes("const goBtn = wantAction ? codexGoBtn(e) : ''"), '「前往」只在「仅未录」/「可往」筛选下出现');
 
   // ---- 2. 舆地「再采」条 ----
   assert(readText('src/engine.js').includes('lastGatherId: null'), 'Prefs 里有「上次采的物」这一位（默认空）');
@@ -7538,6 +7538,108 @@ section('采集判据统一');
   assert(gSrc.indexOf('function gatherAllowedAt') < gSrc.indexOf('function nodeUnlocked') + 1 || true, '产地判据不依赖解锁（解锁在前往层处理）');
   assert(!/function gatherAllowedAt\([^)]*\)\{[^}]*nodeUnlocked/.test(gSrc), 'gatherAllowedAt 内不含解锁检查');
   assert(iSrc.includes('nodeUnlocked') && qSrc.includes('nodeUnlocked'), '解锁检查留在开始采集这一层');
+
+  G.resetToDefault();
+}
+
+
+// ============ 142. 图鉴产地口径统一 · 「可往」筛选（v1.31.49） ============
+// v1.31.48 把采集的判据收成单一来源，图鉴这一层却还停在旧口径——只认主产地。
+// 于是 46 件物明明在别的山上已经能采，图鉴却指着主产地说「需 41 级」。
+// 此节把图鉴的产地判据接上引擎，并钉住「可往」筛选与门槛降噪。
+section('图鉴产地口径');
+{
+  const gSrc149 = readText('src/game.js');
+  const cSrc149 = readText('src/ui/codex.js');
+  const wSrc149 = readText('src/ui/world.js');
+  const css149  = readText('style.css');
+
+  // ---- 0. 判据在引擎层，且三类条目各有来源 ----
+  assert(typeof ST.codexSourceNodes === 'function', '图鉴产地候选集是引擎判据（单一来源）');
+  assert(typeof ST.codexReachInfo === 'function', '图鉴可达性判据在引擎层');
+  assert(gSrc149.includes('function codexSourceNodes') && gSrc149.includes('window.codexSourceNodes = codexSourceNodes'), '候选集已导出到全局');
+  assert(gSrc149.includes("e.cat === '异兽'") && gSrc149.includes("e.cat === '山川'"), '异兽 / 山川各有产地来源');
+  assert(gSrc149.includes('isGatherSkill(it.skill)) return gatherSources(it)'), '百物认采集物的 nodes[] 全集');
+  assert(wSrc149.includes('codexReachableNode(e)'), 'codexNode 改用引擎候选集，不再只认主产地');
+
+  // ---- 1. 主产地锁着、次产地开着时，图鉴要指对地方 ----
+  G.resetToDefault();
+  const xh = ST.Items.xionghuang;
+  assert(!!xh && xh.nodes && xh.nodes.length > 1, '样本「雄黄」是多产地的物');
+  if (xh){
+    const home = ST.gatherHomeNode(xh);
+    const homeNd = G.nodeOf(home);
+    // 找一处「已解锁」的次产地
+    const openAlt = (xh.nodes||[]).find(n => {
+      const nd = G.nodeOf(n);
+      return nd && n !== home && G.nodeUnlocked(nd);
+    });
+    if (openAlt && homeNd){
+      const info = ST.codexReachInfo({ id: xh.id, name: xh.name, cat: '金玉' });
+      assert(info.unlocked === true, '次产地已解锁时判为「可往」');
+      assert(ST.codexReachableNode({ id: xh.id, cat: '金玉' }) === openAlt, '指向已解锁的次产地而非主产地');
+      const cn = G.codexNode({ id: xh.id, cat: '金玉' });
+      assert(cn && cn.nodeId === openAlt, 'codexNode 也指次产地');
+    }
+  }
+
+  // ---- 2. 全都锁着时，报的是**最低**门槛，不是主产地那个虚高的数 ----
+  G.resetToDefault();
+  ST.Game.skills.yudi.level = 1;
+  const lockedItem = Object.values(ST.Items).find(it =>
+    it.skill && ST.isGatherSkill(it.skill) && (it.nodes||[]).length > 1 &&
+    (it.nodes||[]).some(n => { const nd = G.nodeOf(n); return nd && nd.unlockLevel > 1; }));
+  if (lockedItem){
+    const e = { id: lockedItem.id, name: lockedItem.name, cat: '金玉' };
+    const info = ST.codexReachInfo(e);
+    assert(info.unlocked === false, '全锁时判为不可往');
+    // 最低门槛应等于所有候选产地里最小的 unlockLevel
+    const minLv = Math.min.apply(null, (lockedItem.nodes||[])
+      .map(n => (G.nodeOf(n)||{}).unlockLevel || 99));
+    assert(info.gap === minLv, '报的是最低门槛（' + info.gap + ' 级），不是主产地那个数');
+    assert(/需舆地|需履险/.test(info.why), '给出人话理由');
+    const cn = G.codexNode(e);
+    assert(cn && cn.nodeId, '全锁时仍给出一个节点（玩家知道去哪，只是还没开通）');
+  }
+
+  // ---- 3. 「可往」筛选存在，且与「仅未录」可叠加 ----
+  assert(cSrc149.includes('UI.codexReachOnly'), '「可往」筛选状态存在');
+  assert(cSrc149.includes('可达') === false || cSrc149.includes('codexReachInfo'), '筛选用引擎判据');
+  assert(cSrc149.includes('codexReachInfo(e)') , '列表过滤走 codexReachInfo');
+  assert(cSrc149.includes('可往 ${n}'), '筛选 chip 上带可达条数');
+  assert(readText('src/ui/core.js').includes('codexReachOnly'), 'UI 状态里登记了 codexReachOnly');
+  // 筛选确实生效：舆地 1 级时能往的条目数远少于总数
+  const shan = Object.values(ST.CODEX).filter(e=>e.cat==='山川');
+  const reachShan = shan.filter(e => { const i = ST.codexReachInfo(e); return i && i.unlocked; });
+  assert(reachShan.length < shan.length, '可往的少于全部（' + reachShan.length + ' / ' + shan.length + '）');
+  assert(reachShan.length > 0, '开局的招摇之山等地是可往的（不为零才有意义）');
+
+  // ---- 4. 门槛签降噪：不再是 445 枚虚线框 ----
+  assert(css149.includes('.cc-lock{'), '门槛签有样式');
+  const lockBlock = css149.slice(css149.indexOf('.cc-lock{'), css149.indexOf('.cc-lock{') + 220);
+  assert(!/border:1px dashed/.test(lockBlock), '门槛签不再用虚线框（445 枚并排时满屏是框）');
+  assert(cSrc149.includes("cc-lock") && cSrc149.includes('需 ${info.gap} 级') || cSrc149.includes('info.gap'), '门槛签写的是最低门槛');
+
+  // ---- 5. 详情页给产地清单 ----
+  assert(cSrc149.includes('function codexSourceListHtml'), '详情页有产地清单');
+  assert(cSrc149.includes('产地 ${rows.length} 处'), '清单报产地总数');
+  assert(css149.includes('.cx-srcs') && css149.includes('.cx-src'), '产地清单有样式');
+  // 多产地的物，清单列出的处数应等于候选集
+  const jin = ST.Items.jin;
+  if (jin && (jin.nodes||[]).length > 1){
+    const html = G.codexSourceListHtml ? G.codexSourceListHtml({ id:'jin', cat:'金玉' }) : '';
+    assert(html.includes('产地 ' + (jin.nodes||[]).length + ' 处'), '「金」的产地清单报出全部 ' + (jin.nodes||[]).length + ' 处');
+  }
+
+  // ---- 5b. 「可往」筛选下的卡片要有「前往」入口 ----
+  // 这轮筛出来的正是「此刻能去的那几条」，没入口这轮筛选就白做了
+  assert(cSrc149.includes('const wantAction = v.onlyMiss || v.reachOnly'), '待办态由两个筛选共同决定');
+  assert(cSrc149.includes('const goBtn = wantAction ? codexGoBtn(e)'), '「可往」下也给前往按钮');
+  assert(cSrc149.includes('const where = wantAction ? codexWhereOf(e)'), '「可往」下也给产地线索');
+
+  // ---- 6. 产地线索认多产地 ----
+  const jinWhere = G.codexWhereOf ? G.codexWhereOf({ id:'jin', cat:'金玉' }) : '';
+  assert(/等 \d+ 山/.test(jinWhere) || jinWhere.indexOf('山') >= 0, '多产地的物给出「…等 N 山」');
 
   G.resetToDefault();
 }

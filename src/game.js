@@ -865,6 +865,68 @@ window.gatherSources = gatherSources; window.gatherHomeNode = gatherHomeNode;
 window.gatherReachableNode = gatherReachableNode;
 window.gatherAllowedAt = gatherAllowedAt; window.gatherAllowed = gatherAllowed;
 
+// ---------- 图鉴条目的产地（判据与采集同源，v1.31.49） ----------
+// 图鉴「这条没录的东西去哪拿」此前只认 Items[id].node（主产地），于是 46 件物
+// 明明在别的山上已经能采，图鉴却指着主产地说「需 41 级」——主产地锁着、次产地开着。
+// 采集那边已经改成认 nodes[] 全集（v1.31.48），图鉴这边还停在旧口径，
+// 于是同一件事在两个页面上给出两个答案。此处把口径接上：**候选产地集**。
+//
+// 三类条目各自的产地来源不同：
+//   异兽  → 它的出没之山（Monsters[id].nodeId）
+//   山川  → 条目 id 本身就是 nodeId
+//   百物  → 采集物的 nodes[] 全集；非采集物（异兽素材等）退回 node
+function codexSourceNodes(e){
+  if (!e) return [];
+  if (e.cat === '异兽'){
+    const m = Monsters[e.id];
+    return (m && m.nodeId) ? [m.nodeId] : [];
+  }
+  if (e.cat === '山川'){
+    return nodeOf(e.id) ? [e.id] : [];
+  }
+  const it = Items[e.id];
+  if (!it) return [];
+  if (isGatherSkill(it.skill)) return gatherSources(it);
+  return it.node ? [it.node] : [];
+}
+// 在候选产地里挑一处「现在能去的」：已解锁的优先，其次解锁级最低的。
+// 找不到就返回 null（此物暂时无处可去）。
+function codexReachableNode(e){
+  const cands = codexSourceNodes(e);
+  if (!cands.length) return null;
+  let best = null, bestLv = Infinity;
+  for (const id of cands){
+    const nd = nodeOf(id);
+    if (!nd) continue;
+    if (nodeUnlocked(nd)) return id;
+    const lv = (typeof nd.unlockLevel === 'number') ? nd.unlockLevel : 99;
+    if (lv < bestLv){ bestLv = lv; best = id; }
+  }
+  return best;
+}
+// 图鉴里这条未录物「差几级才能去」：
+//   unlocked —— 现在就能去
+//   gap      —— 还差几级（取所有候选产地里最省的那个）
+//   why      —— 人话理由（需舆地 N 级 / 不可上需履险 N 级）
+// 面板要靠它写「需 N 级」——只报最低门槛，不报主产地那个虚高的数。
+function codexReachInfo(e){
+  const cands = codexSourceNodes(e);
+  if (!cands.length) return { unlocked:false, gap:null, why:'暂无去处' };
+  let best = null, bestNd = null;
+  for (const id of cands){
+    const nd = nodeOf(id);
+    if (!nd) continue;
+    if (nodeUnlocked(nd)) return { unlocked:true, gap:0, why:'' };
+    const lv = (typeof nd.unlockLevel === 'number') ? nd.unlockLevel : 99;
+    if (best === null || lv < best){ best = lv; bestNd = nd; }
+  }
+  if (best === null) return { unlocked:false, gap:null, why:'暂无去处' };
+  return { unlocked:false, gap:best, why:(typeof nodeLockReason === 'function') ? nodeLockReason(bestNd) : `需 ${best} 级` };
+}
+window.codexSourceNodes = codexSourceNodes;
+window.codexReachableNode = codexReachableNode;
+window.codexReachInfo = codexReachInfo;
+
 function doGather(itemId){
   const it = Items[itemId];
   if (!it || !it.skill) return;
