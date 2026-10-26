@@ -174,7 +174,7 @@ UI.renderPack = function(){
           <span class="gt-label">${GearSlotLabels[slot]}</span>
           ${g?`<span class="tile-ic bi-ic">${typeof itemIc==='function'?itemIc(g.id||g):g.icon}</span>
                <span class="tile-nm">${esc(g.name)}</span>
-               ${gradeBadge(g)}${(typeof enhanceLevel==='function'&&enhanceLevel(g.id||g)>0)?`<span class="gt-enh">+${enhanceLevel(g.id||g)}</span>`:''}
+               ${gradeBadge(g)}${(typeof enhanceLevel==='function'&&enhanceLevel(g)>0)?`<span class="gt-enh">+${enhanceLevel(g)}</span>`:''}
                <button class="tile-more" type="button" title="卸下" onclick="event.stopPropagation();unequip('${slot}',false);UI.renderPack()">脱</button>`
              :`<span class="gt-empty">空</span>`}
         </div>`;

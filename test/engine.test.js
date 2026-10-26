@@ -5904,6 +5904,14 @@ section('装备实例独立');
   const best = ST.bestEnhance();
   assert(best.lv === cap, `最高强化读到身上那件的 +${cap}（现 +${best.lv}）`);
 
+  // 装备格上的 +N 徽章：渲染必须把实例整个传进 enhanceLevel，
+  // 写成 enhanceLevel(g.id || g) 会退化成按 itemId 读行囊档（=0），徽章永远不出现。
+  const packSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'ui', 'pack.js'), 'utf8');
+  assert(packSrc.includes('enhanceLevel(g)>0') && packSrc.includes('+${enhanceLevel(g)}</span>'),
+    '装备格按实例读强化等级（不是 g.id || g）');
+  assert(!packSrc.includes('enhanceLevel(g.id||g)') && !packSrc.includes('enhanceLevel(g.id || g)'),
+    '不再残留 enhanceLevel(g.id || g) 的写法');
+
   // 重开新档必须把装备槽清空（cloneDefaultGame 是「深拷贝当前状态再覆盖字段」，
   // 漏了 gear 就会把上一局那件连淬炼一起带进新档）
   G.resetToDefault();
