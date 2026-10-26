@@ -2014,16 +2014,29 @@ function doMonsterSpecial(c, m){
 // 自动进食：血量掉到 Prefs.autoEat 以下时吃一份回血最多的食物。
 // 导出供测试与调试——它只在攻击/受击之后被调用，一旦条件写错就会静默失效
 // （带着一包食物却永远不吃，玩家会以为食物没用）。
+// 自动进食的两条规矩（v1.31.12）：
+//   1. 普通食物优先。丹木之实 heal 500 是全场最高，若只按「回血最多」排序它永远第一，
+//      挂机一晚能把峚山五年一结的存货吃空——它是急救品，不该当干粮。
+//   2. 够用就好。同为普通食物时，选「刚好补满」的那个，别拿 heal 520 的炙兕脯
+//      去补 120 点的缺口。不够补满时才用最大的。
+const RARE_FOOD = { RARE:1, EPIC:1, LEGENDARY:1, MYTH:1 };
 function autoEat(c){
-  const candidates = [];
+  const pool = [[], []];
   for (const id in Game.inventory){
     const it = Items[id];
     if (!it || !it.heal || Game.inventory[id] <= 0) continue;
-    candidates.push([id, it.heal]);
+    pool[RARE_FOOD[it.rarity] ? 1 : 0].push([id, it.heal]);
   }
-  if (!candidates.length) return;
-  candidates.sort((a,b)=>b[1]-a[1]);
-  const [id] = candidates[0];
+  const need = Math.max(0, playerMaxHp() - c.playerHp);
+  const choose = (list) => {
+    if (!list.length) return null;
+    const enough = list.filter(x => x[1] >= need).sort((a,b) => a[1] - b[1]);
+    if (enough.length) return enough[0];                       // 够补满的里面挑最小的
+    return list.slice().sort((a,b) => b[1] - a[1])[0];         // 都补不满就挑最大的
+  };
+  const pick = choose(pool[0]) || choose(pool[1]);             // 普通吃完才动珍稀
+  if (!pick) return;
+  const [id] = pick;
   const heal = healAmount(Items[id]);
   Game.inventory[id]--;
   if (Game.inventory[id] <= 0) delete Game.inventory[id];

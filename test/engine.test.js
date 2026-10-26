@@ -5748,6 +5748,66 @@ section('离线结算与线上同口径');
   assert(deals.length === 0, '整批买再卖不赚（' + (deals.join('；') || '无') + '）');
 }
 
+// ============ 104. 自动进食：普通优先、够用就好 ============
+// 丹木之实 heal 500 是全场最高。原先 autoEat 按「回血最多」排序，它永远排第一，
+// 挂机一晚能把峚山五年一结的存货吃空——而它是急救品，不该当干粮。
+// 另有浪费问题：拿 heal 520 的炙兕脯去补 120 点的缺口。
+{
+  const mkCombat = (ratio) => ({ monsterId:'x', monsterHp:1, playerHp: Math.round(ST.playerMaxHp() * ratio),
+    timer:0, maxtimer:0, spec:0, style:'attack', dmgOut:0, dmgIn:0, round:0, flee:0, repeat:1, el:'土', momentum:0, combo:0, ults:0 });
+
+  // 104.1 有普通食物时不动珍稀
+  G.resetToDefault();
+  ST.Game.inventory = { danmushi: 20, kaijiyu: 5 };
+  let c = mkCombat(0.30);
+  ST.Game.combat = c;
+  ST.autoEat(c);
+  assert(ST.totalOf('danmushi') === 20, '丹木之实一个没动（现 ' + ST.totalOf('danmushi') + '）');
+  assert(ST.totalOf('kaijiyu') === 4, '吃的是炙鮆鱼');
+
+  // 104.2 只剩珍稀时照吃（不然会饿死）
+  G.resetToDefault();
+  ST.Game.inventory = { danmushi: 2 };
+  c = mkCombat(0.30);
+  ST.Game.combat = c;
+  ST.autoEat(c);
+  assert(ST.totalOf('danmushi') === 1, '没有普通食物时，珍稀的照吃');
+
+  // 104.3 够用就好：缺口 120，手上有 220 与 520，应当吃 220 的
+  G.resetToDefault();
+  ST.Game.inventory = { kaijiyu: 5, zhisipu: 5 };       // heal 220 / 520
+  const maxHp = ST.playerMaxHp();
+  c = mkCombat(0);
+  c.playerHp = maxHp - 120;                              // 缺口正好 120
+  ST.Game.combat = c;
+  ST.autoEat(c);
+  assert(ST.totalOf('kaijiyu') === 4, '缺口小时吃小份（炙鮆鱼）');
+  assert(ST.totalOf('zhisipu') === 5, '没动大份（炙兕脯）');
+
+  // 104.4 缺口大时反过来挑大的：先把气血抬到 440（明 60 级），缺口 352 > 炙鮆鱼 220
+  G.resetToDefault();
+  ST.Game.skills.ming = { level: 60, xp: ST.xpForLevel(60) + 1 };
+  ST.Game.inventory = { kaijiyu: 5, zhisipu: 5 };
+  const bigHp = ST.playerMaxHp();
+  assert(bigHp >= 400, '气血抬到了 ' + bigHp);
+  c = mkCombat(0);
+  c.playerHp = Math.round(bigHp * 0.2);                  // 缺口 80%
+  ST.Game.combat = c;
+  ST.autoEat(c);
+  assert(ST.totalOf('kaijiyu') === 5, '小份补不满时不浪费它');
+  assert(ST.totalOf('zhisipu') === 4, '改吃大份（炙兕脯 520 ≥ 缺口 ' + Math.round(bigHp * 0.8) + '）');
+
+  // 104.5 什么都没有时安静返回，不抛错
+  G.resetToDefault();
+  ST.Game.inventory = {};
+  c = mkCombat(0.1);
+  ST.Game.combat = c;
+  let ok = true;
+  try { ST.autoEat(c); } catch(e){ ok = false; }
+  assert(ok, '行囊空时 autoEat 不抛错');
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
