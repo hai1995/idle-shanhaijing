@@ -81,6 +81,12 @@ const SAVE_MIGRATIONS = {
 function migrateSave(d){
   if (!d || typeof d !== 'object' || Array.isArray(d)) return d;
   let v = (isFinite(d.version) && d.version > 0) ? Math.floor(d.version) : 1;
+  // 存档比当前代码新：只可能发生在一端用着旧缓存（主屏幕里的旧版最常见）。
+  // 不迁移、不丢字段，但要说一声——否则以后排查「这个字段怎么不生效」时，
+  // 会以为是逻辑问题，其实是这一端根本不认识它。
+  if (v > SAVE_VERSION && typeof console !== 'undefined' && console.warn){
+    console.warn('存档版本 v' + v + ' 高于本端支持的 v' + SAVE_VERSION + '：按原样读取，未知字段保留但不生效');
+  }
   let guard = 0;
   while (v < SAVE_VERSION && guard++ < 32){
     const fn = SAVE_MIGRATIONS[v];
@@ -554,6 +560,8 @@ if (typeof window !== 'undefined'){
   window.LocalSaveStore = LocalSaveStore;
   window.createCloudStore = createCloudStore;
   window.migrateSave = migrateSave;
+  // 版本号也挂出来：测试要拿它走迁移链，控制台里排查「这档是哪一代」也要用。
+  window.SAVE_VERSION = SAVE_VERSION;
   window.serializeSave = serializeSave;
   window.mergeSaveData = mergeSaveData;
   // 给 ui.js 初始化用的薄封装（不抛错）。

@@ -8211,6 +8211,44 @@ section('坏档不锁界面');
     '采集行动要求技能与物品都在表里');
 }
 
+// ============ 151. 存档迁移链：v1 一路升到当前（2026-10-26 夜间） ============
+// 迁移链最容易「写的时候对、半年后没人敢碰」：每一版只补了几个字段，
+// 但从没测过「最老的那一档能不能一路走上来」。这里拿一份 v1 存档走完整条链。
+section('存档迁移链');
+{
+  const V = ST.SAVE_VERSION;   // 版本号挂在 window 上（save.js 末尾导出）。
+  assert(V >= 6, '当前存档版本 ≥ 6（实测 ' + V + '）');
+  // 一份「像 v1」的最小存档：只有钱、行囊、技能
+  const v1 = { version: 1, shells: 10, inventory: { migu: 3 }, skills: { qiaocai: { level: 2, xp: 0 } } };
+  const up = G.migrateSave(JSON.parse(JSON.stringify(v1)));
+
+  assert(up.version === V, 'v1 升到 v' + V);
+  assert(typeof up.mobStreak === 'object' && Array.isArray(up.orders), 'v1→v2：补连续讨伐与订单');
+  assert(typeof up.grow === 'object' && up.danmu && typeof up.omenImmune === 'object', 'v2→v3：补养成/丹木/征兆免疫');
+  assert(up.rebirth && isFinite(up.rebirth.count), 'v3→v4：补轮回记录');
+  assert(up.member && typeof up.member.tier === 'string' && isFinite(up.member.until), 'v4→v5：补会员快照');
+  assert(Array.isArray(up.packGear), 'v5→v6：行囊装备拆成按件');
+  assert(up.inventory.migu === 3, '非装备不会被搬进装备表');
+  assert(up.shells === 10 && up.skills.qiaocai.level === 2, '迁移不动业务数值');
+
+  // 幂等：同一份档再迁一次，结果必须一模一样（否则每次读档都在悄悄改档）
+  const again = G.migrateSave(JSON.parse(JSON.stringify(up)));
+  assert(again.version === up.version, '再迁一次版本不变');
+  assert(JSON.stringify(again) === JSON.stringify(up), '再迁一次结果完全一致（幂等）');
+
+  // 未来版本：不迁移、不丢字段，只提醒（主屏幕里的旧缓存会遇到）
+  const future = G.migrateSave({ version: V + 3, shells: 5, futureOnly: { a: 1 } });
+  assert(future.version === V + 3, '未来版本号原样保留，不被强行改写');
+  assert(future.futureOnly && future.futureOnly.a === 1, '不认识的字段原样留着');
+
+  // 脏输入：不是对象就当没读到，别抛
+  for (const bad of [null, 42, 'x', []]){
+    let err = null;
+    try { G.migrateSave(bad); } catch(e){ err = e.message; }
+    assert(!err, '脏输入不抛：' + JSON.stringify(bad));
+  }
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
