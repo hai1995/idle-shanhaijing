@@ -9438,6 +9438,51 @@ section('存档体积守卫');
   G.resetToDefault();
 }
 
+// ============ 176. 长列表分页：墟市卖出区 / 御使列表（2026-10-27） ============
+// 这两个页面是全站最后两处「一次画完全部」：墟市把行囊 644 件铺在卖出区
+// （7486 节点 / 592KB / 稳态 155ms），御使把 316 只异兽全平铺（6619 节点 / 132ms）。
+// 分页到 60 / 40 之后，两页稳态都降到 30ms 内。
+section('长列表分页');
+{
+  G.resetToDefault();
+  // 塞满行囊：300 种材料，每种 5 件
+  const ids = Object.keys(ST.Items).filter(id => (ST.Items[id].type === 'material' || ST.Items[id].value) && ST.Items[id].value);
+  ids.slice(0, 300).forEach(id => { ST.Game.inventory[id] = 5; });
+  ST.UI.currentTab = 'shichan';
+  ST.UI.sellLimit = 0;
+  ST.UI.renderShichan();
+  const html = renderTargets.content.innerHTML;
+  const tiles = (html.match(/class="tile sell-tile/g) || []).length;
+  assert(tiles > 0 && tiles <= 60, '卖出区首屏不超过 60 条（实测 ' + tiles + '）');
+  assert(/还有 \d+ 条 · 展开/.test(html), '有「还有 N 条 · 展开」');
+
+  // 展开后条数变多
+  ST.UI.sellLimit = 120;
+  ST.UI.renderShichan();
+  const tiles2 = (renderTargets.content.innerHTML.match(/class="tile sell-tile/g) || []).length;
+  assert(tiles2 > tiles, '展开后条目变多（' + tiles + ' → ' + tiles2 + '）');
+  ST.UI.sellLimit = 0;
+
+  // 换排序重置分页（否则「换了个排序还是只有 60 条」会让人以为丢了东西）
+  const tSrc = readText('src/ui/trade.js');
+  assert(/UI\.invSort='value';UI\.sellLimit=60/.test(tSrc), '换排序时重置分页');
+  assert(/\.sell-more\{/.test(readText('style.css')), '展开键有样式（与 codex-more / pack-more 同一套）');
+
+  // 御使：分页常量与展开键
+  const cSrc = readText('src/ui/combat.js');
+  assert(/const PAGE = 40;/.test(cSrc), '御使列表每页 40');
+  assert(/UI\.yushiLimit=\$\{lim \+ PAGE\}/.test(cSrc), '御使有「展开」按钮');
+  assert(/\.yushi-more\{/.test(readText('style.css')), '御使展开键有样式');
+
+  // 空行囊不崩（分页 + 「行囊空空」并存）
+  G.resetToDefault();
+  ST.UI.renderShichan();
+  assert(renderTargets.content.innerHTML.indexOf('行囊空空') >= 0 || renderTargets.content.innerHTML.length > 100,
+    '空行囊时墟市照常渲染');
+
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

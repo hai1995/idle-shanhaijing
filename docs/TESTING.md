@@ -91,3 +91,59 @@ assert(riteChecked >= 27, '确实逐套查过 ' + riteChecked + ' 套礼的配�
 ```
 
 > 涉及存档结构时，再加一步：**导出旧档 → 导入 → 关键字段仍在**（`SAVE_VERSION` +1，`MIGRATIONS` 补一条）。
+
+## 九、性能基线（2026-10-27 实测，iPhone 尺寸 390×844 / WebKit）
+
+改渲染逻辑前先量一次，改完再量——**但一定要分清「首次」与「稳态」**。
+这一轮为此白改了一处：技能页初测 197ms，以为是 26 份隐藏浮层造成的，
+改完只降到 177；再测才发现稳态切页本来只有 36ms，197 是首次进页的初始化成本。
+
+在浏览器控制台跑这一段即可复测（不用起服务、不用装依赖）：
+
+```js
+(async () => {
+  tutSkip?.();
+  devSim?.('lv40'); devSim?.('mat'); devSim?.('map'); devSim?.('codex');
+  const tabs = TABS.map(t => t.id);
+  const out = {};
+  for (const t of tabs) {                       // 首次
+    const s = performance.now(); UI.switchTab(t); void document.body.offsetHeight;
+    out[t] = { first: Math.round(performance.now() - s) };
+  }
+  for (const t of tabs) {                       // 稳态（预热后再量）
+    const runs = [];
+    for (let i = 0; i < 3; i++) {
+      UI.switchTab('yudi');
+      const s = performance.now(); UI.switchTab(t); void document.body.offsetHeight;
+      runs.push(performance.now() - s);
+    }
+    out[t].steady = Math.round(Math.min(...runs.slice(1)));
+  }
+  console.table(out);
+})();
+```
+
+本次基线（首次 / 稳态，ms；数据为「玩了一阵」的档：644 件行囊、306 张图鉴、316 只异兽）：
+
+| 页面 | 首次 | 稳态 | 备注 |
+|---|---|---|---|
+| 舆地 yudi | 9 | 9 | 最轻 |
+| 技能 skills | 152 | 17 | 26 张卡 + 三签 + 配方；浮层已改延迟生成 |
+| 征伐 taofa | 85 | 19 | 异兽列表 |
+| 御使 yushi | 24 | 20 | **原 145 / 132，316 只全铺 → 每页 40** |
+| 图鉴 codex | 109 | 26 | 306 张，已分页（首屏 48） |
+| 祠祀 jisi | 52 | 28 | |
+| 墟市 shichan | 93 | 23 | **原 233 / 155，卖出区 644 件全铺 → 每页 60** |
+| 营造 ying | 13 | 7 | |
+| 队列 queue | 17 | 8 | |
+| 行装 pack | 76 | 18 | 644 件，已分页（首屏 60） |
+| 统计 stats | 59 | 10 | 日志 300 条单独重画仅 4ms |
+| 叙录 about | 106 | 6 | 典型的一次性初始化成本 |
+
+要动的只有「稳态」那一列。首次成本主要来自首次布局与 SVG 首次解析，改页面结构收效很小。
+
+**这一轮的教训**：我第一次量只看了「首次」，于是把 197ms 归因到技能页的隐藏浮层——
+改完只降到 177。补量稳态才发现真正的两处瓶颈是墟市（155）与御使（132），
+它们都是「把整个背包 / 整本图鉴平铺一页」，与首次成本毫无关系。
+**先量稳态，再谈优化**；首次那一列只用来判断「第一次打开会不会卡」。
+

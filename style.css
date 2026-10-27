@@ -1602,6 +1602,9 @@ svg.bi.mk{ vertical-align:-2px; }
 .codex-more{ grid-column:1 / -1; justify-self:center; margin:4px 0 2px; }
 /* 行囊的「还有 N 件」同理：横跨整行，否则会挤进某一格里 */
 .pack-more{ grid-column:1 / -1; justify-self:center; margin:6px 0 2px; }
+/* 墟市卖出区的展开键（v1.31.97）：与 codex-more / pack-more 同一套位置约定 */
+.sell-more{ grid-column:1 / -1; justify-self:center; margin:6px 0 2px; }
+.yushi-more{ grid-column:1 / -1; justify-self:center; margin:6px 0 2px; }
 .codex-card{
   text-align:center; cursor:pointer; padding:8px 6px; background:var(--paper-2);
   aspect-ratio:1/1; display:flex; flex-direction:column; align-items:center; justify-content:center;

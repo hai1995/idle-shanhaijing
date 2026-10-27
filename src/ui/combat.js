@@ -431,7 +431,17 @@ UI.renderYushi = function(){
   <div class="panel deploy-panel"><h3>可御使之异兽（著录至「通形」）
       <button class="btn small gear-best" type="button" onclick="UI.autoDeployBest()">一键最优</button></h3>
     <div class="tile-grid beast-grid">
-    ${deployableBeasts().slice().sort((a,b)=>deployScore(b.id)-deployScore(a.id)).map(b=>{
+    ${(function(){
+      // 316 只异兽全列 → 6619 个节点、474KB、稳态重绘 132ms（v1.31.97 分页到 40）。
+      // 与图鉴 / 行囊 / 墟市卖出区同一套手法：首屏 N 条 + 「展开」。
+      const PAGE = 40;
+      const all = deployableBeasts().slice().sort((a,b)=>deployScore(b.id)-deployScore(a.id));
+      const lim = UI.yushiLimit || PAGE;
+      const shown = all.slice(0, lim);
+      const more = all.length > shown.length
+        ? `<button class="btn yushi-more" type="button" onclick="UI.yushiLimit=${lim + PAGE};UI.renderYushi()">还有 ${all.length - shown.length} 只 · 展开</button>`
+        : '';
+      return shown.map(b=>{
       const rec = Game.records[b.id];
       const def = BEAST_BUFFS[b.id]||{};
       const scale = 0.6 + 0.1*rec.tier;
@@ -449,7 +459,8 @@ UI.renderYushi = function(){
           <div class="bc-sub">按著录阶 ×${scale.toFixed(1)}　·　著录 ${rec.count} 次${Monsters[b.id]&&Monsters[b.id].pair?' · 成对，占两槽':''}</div>
         </span>
       </div>`;
-    }).join('') || `<div class="hint">尚无达标异兽——往讨异兽并累积著录度<br><button class="btn small" style="margin-top:10px" onclick="UI.switchTab('taofa')">${typeof markIcon==='function'?markIcon('bolt',14):'⚔️'} 去征伐</button></div>`}
+    }).join('') + more || `<div class="hint">尚无达标异兽——往讨异兽并累积著录度<br><button class="btn small" style="margin-top:10px" onclick="UI.switchTab('taofa')">${typeof markIcon==='function'?markIcon('bolt',14):'⚔️'} 去征伐</button></div>`;
+    })()}
     </div>
   </div></div>
   <div class="panel lock-panel"><h3>未达标</h3>

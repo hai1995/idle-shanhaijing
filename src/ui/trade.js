@@ -87,8 +87,13 @@ UI.renderShichan = function(){
     if (this.invSort === 'qty') return b.q - a.q;
     return 0;
   });
+  // 卖出区此前把行囊 644 件全列一遍：7486 个节点、592KB HTML，稳态重绘 155ms。
+  // 分页到首屏 60 条 + 「展开」（与图鉴、行囊同一套手法，v1.31.97）。
+  const SELL_PAGE = 60;
+  const sellLimit = this.sellLimit || SELL_PAGE;
+  const shownRows = rows.slice(0, sellLimit);
   let sell = `<div class="tile-grid sell-grid">`;
-  sell += rows.map(({ id, enh, q })=>{
+  sell += shownRows.map(({ id, enh, q })=>{
     const it = Items[id];
     const v = sellValue(id, q);
     const unit = sellValue(id, 1);
@@ -110,6 +115,10 @@ UI.renderShichan = function(){
     </div>`;
   }).join('') || '<div class="hint">行囊空空</div>';
   sell += `</div>`;
+  if (rows.length > shownRows.length){
+    sell += `<button class="btn sell-more" type="button"
+      onclick="UI.sellLimit=${sellLimit + SELL_PAGE};UI.renderShichan()">还有 ${rows.length - shownRows.length} 条 · 展开</button></div>`;
+  }
   // 「清仓凡品」估的是低价材料的总值；装备不进这个口径（一件旧兵器不该被算成杂物）
   const plainValue = rows.filter(r => r.enh == null && (Items[r.id].value || 0) < 30)
     .reduce((s, r) => s + sellValue(r.id, r.q), 0);
@@ -192,9 +201,9 @@ UI.renderShichan = function(){
       <span>商旅等级 <b>${levelOf('shanglv')}</b></span>
       <span>售价加成 <b>×${sellMult.toFixed(2)}</b></span>
       <span class="filter-row">
-        <button class="chip-btn ${this.invSort==='default'?'on':''}" onclick="UI.invSort='default';UI.renderShichan()">默认</button>
-        <button class="chip-btn ${this.invSort==='value'?'on':''}" onclick="UI.invSort='value';UI.renderShichan()">价值↓</button>
-        <button class="chip-btn ${this.invSort==='qty'?'on':''}" onclick="UI.invSort='qty';UI.renderShichan()">数量↓</button>
+        <button class="chip-btn ${this.invSort==='default'?'on':''}" onclick="UI.invSort='default';UI.sellLimit=60;UI.renderShichan()">默认</button>
+        <button class="chip-btn ${this.invSort==='value'?'on':''}" onclick="UI.invSort='value';UI.sellLimit=60;UI.renderShichan()">价值↓</button>
+        <button class="chip-btn ${this.invSort==='qty'?'on':''}" onclick="UI.invSort='qty';UI.sellLimit=60;UI.renderShichan()">数量↓</button>
       </span>
     </div>
     ${tips.length?`<div class="panel trade-tip"><h3><span class="mi-ic">${typeof markIcon==='function'?markIcon('lamp',17):'💡'}</span> 推荐买卖</h3><ul>${tips.slice(0,3).map(t=>`<li>${t}</li>`).join('')}</ul></div>`:''}
