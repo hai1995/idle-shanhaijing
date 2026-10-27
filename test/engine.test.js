@@ -9754,6 +9754,54 @@ section('异迹专属见闻');
   ST.__eventsMuted = true;
 }
 
+
+// ============ 180. 见闻 ↔ 异迹 ↔ 节点：三处同源（v1.31.116） ============
+// 同一个事实（「这处地方能遇见闻 X」）现在出现在三个地方：统计页的线索、异迹索引的 ✦、
+// 节点详情的提示。三处的数据源必须是同一份（HETERO_EVENT + 见闻表 + Game.events.seen），
+// 否则迟早出现「一处说有、一处说没有」——这一节把「同源」本身钉住。
+section('见闻与异迹三处同源');
+{
+  ST.__eventsMuted = true;
+  G.resetToDefault();
+  ST.Game.events = ST.Game.events || {};
+  ST.Game.events.seen = { yiji_ling: 1, yiji_zhu: 2 };   // 一条已遇、一条未遇
+
+  const sites = ST.heteroSites();
+  const map = ST.HETERO_EVENT;
+
+  // ① 每类异迹都映射到一条真实存在的见闻
+  const evIds = ST.TRAVEL_EVENTS.concat(ST.AWAY_EVENTS).map(e => e.id);
+  for (const [kind, id] of Object.entries(map)){
+    assert(evIds.includes(id), `${kind} → ${id} 是真见闻`);
+  }
+
+  // ② 索引侧：每个异迹点的 kind 都能在表里查到（查不到的会没有 ✦）
+  const noTag = sites.filter(s => !map[s.kind]);
+  assert(noTag.length === 0, '每处异迹都查得到对应见闻（无 ✦ 的点：' + noTag.length + '）');
+
+  // ③ 计数口径一致：索引 ✦ 的「已遇」判据与统计页的 seen 是同一个对象
+  const seen = ST.Game.events.seen;
+  const lingSites = sites.filter(s => map[s.kind] === 'yiji_ling');
+  const zhuSites  = sites.filter(s => map[s.kind] === 'yiji_zhu');
+  assert(lingSites.length > 0 && zhuSites.length > 0, '两类异迹都有实际地点');
+  assert(seen[map['观象']] === 1, '已遇计数来自 Game.events.seen（不另存一份）');
+
+  // ④ 名字来源唯一：evNameOf 与见闻表同名同源
+  if (typeof ST.evNameOf === 'function'){
+    const e = ST.TRAVEL_EVENTS.find(x => x.id === 'yiji_zhu');
+    assert(ST.evNameOf('yiji_zhu') === e.name, '索引 / 详情取名字都走 evNameOf（与表一致）');
+  }
+
+  // ⑤ 三处渲染都在用同一张表（静态钉住，防止有人图省事又内联一份）
+  const ySrc180 = readText('src/ui/yudi.js');
+  assert((ySrc180.match(/HETERO_EVENT/g) || []).length >= 2, '索引与详情两处都查表');
+  const mSrc180 = readText('src/ui/misc.js');
+  assert(mSrc180.includes('TRAVEL_EVENTS') && mSrc180.includes('AWAY_EVENTS'), '统计页遍历两张见闻表');
+
+  G.resetToDefault();
+  ST.__eventsMuted = true;
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
