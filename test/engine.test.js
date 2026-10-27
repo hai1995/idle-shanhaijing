@@ -9374,13 +9374,31 @@ section('加载清单守卫');
   // 审计脚本只加载「算数据用得上的」一撮（图标族、存档不需要），所以判据是**子集**：
   // 不许出现 index.html 里已经没有的文件名（那种漏是删文件后忘改清单）。
   // 「漏了必需模块」由审计自己兜——prog 抛错会被它记成「发现 N 处问题」（本次就是这么抓到的）。
-  const audit = readText('scripts/audit-data.js');
-  const listBlock = (audit.match(/for \(const f of \[([\s\S]*?)\]\)/) || ['',''])[1];
-  const auditFiles = (listBlock.match(/'([^']+\.js)'/g) || []).map(x => x.replace(/'/g, ''));
-  assert(auditFiles.length > 5, '读得到审计的加载清单（' + auditFiles.length + ' 个）');
-  const ghosts = auditFiles.filter(f => nonUi.indexOf(f) < 0);
-  assert(ghosts.length === 0, '审计清单里没有 index.html 之外的文件（多余：' + (ghosts.join(',') || '无') + '）');
-  assert(auditFiles.indexOf('events.js') >= 0, '审计清单含 events.js（成就判据住在那里）');
+  // 逐脚本查：scripts/ 下每个自带加载清单的（审计、压测）都必须
+  //   ① 是 index.html 的子集（没有已删文件名的残留）
+  //   ② 含 events.js（成就判据住在那里——这条被踩了两次，才写成显式断言）
+  const fs2 = require('fs');
+  const scriptFiles = fs2.readdirSync(path.join(__dirname, '..', 'scripts'))
+    .filter(f => f.endsWith('.js') && f !== 'check.js' && f !== 'build-standalone.js');
+  let checkedLists = 0;
+  scriptFiles.forEach(sf => {
+    const src = readText('scripts/' + sf);
+    const m2 = src.match(/for \(const f of \[([\s\S]*?)\]\)/);
+    if (!m2) return;                              // 没有清单的脚本（gen-world / measure-*）跳过
+    checkedLists++;
+    const list = (m2[1].match(/'([^']+\.js)'/g) || []).map(x => x.replace(/'/g, ''));
+    // ui/* 由 UI_FILES 管，这里只查引擎层；两边都算「index.html 里有的文件」
+    const known = nonUi.concat(UI_FILES.map(f => f.replace(/^ui\//, 'ui/')));
+    const ghosts = list.filter(f => known.indexOf(f) < 0);
+    assert(ghosts.length === 0, 'scripts/' + sf + ' 的清单里没有 index.html 之外的文件（多余：' +
+      (ghosts.join(',') || '无') + '）');
+    // 只有「跑业务逻辑」的脚本（清单里有 game.js）才需要 events.js；
+    // measure-* 只算数值曲线，不该被这条守卫绑住。
+    if (list.indexOf('game.js') >= 0){
+      assert(list.indexOf('events.js') >= 0, 'scripts/' + sf + ' 跑业务逻辑，清单须含 events.js');
+    }
+  });
+  assert(checkedLists >= 2, '至少检查了两份脚本清单（实测 ' + checkedLists + '）');
 
   // 测试自己的加载清单也要覆盖（否则「测试里能跑、页面里不跑」）
   const testSrc = readText('test/engine.test.js');

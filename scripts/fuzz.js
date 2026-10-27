@@ -44,7 +44,7 @@ const ctx = {
 ctx.window.UI = UIstub;
 vm.createContext(ctx);
 for (const f of ['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','zhongshanData.js',
-  'gameData.js','affix.js','save.js','engine.js','game.js','queue.js','interact.js','fx.js',
+  'gameData.js','affix.js','save.js','engine.js','game.js','queue.js','interact.js','events.js','fx.js',
   'beastIcon.js','riteIcon.js','structureIcon.js','skillIcon.js','itemIcon.js','markIcon.js',
   'ui/core.js','ui/world.js','ui/combat.js','ui/codex.js','ui/trade.js','ui/pack.js','ui/misc.js']){
   vm.runInContext(fs.readFileSync(path.join(root, 'src', f), 'utf8'), ctx, { filename: f });

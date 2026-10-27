@@ -22,7 +22,7 @@ const ctx = { window, document, localStorage:window.localStorage, console, Math,
   setInterval:()=>0, setTimeout:()=>0, clearTimeout:()=>{}, clearInterval:()=>{}, getComputedStyle:()=>({}), UI:UIstub };
 ctx.window.UI = UIstub; vm.createContext(ctx);
 for (const f of ['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','zhongshanData.js',
-  'gameData.js','affix.js','save.js','engine.js','game.js','queue.js','interact.js','fx.js'])
+  'gameData.js','affix.js','save.js','engine.js','game.js','queue.js','interact.js','events.js','fx.js'])
   vm.runInContext(fs.readFileSync(path.join(root,'src',f),'utf8'), ctx, { filename:f });
 const W = ctx.window;
 const argCycle = (() => { const i = process.argv.indexOf('--cycle'); return i>0 ? +process.argv[i+1] : 0; })();
