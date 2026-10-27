@@ -158,6 +158,27 @@ CONTRAST_PROBE = """() => {
 }"""
 
 
+# 坏数据不该被印给玩家：把统计数值全变 NaN / Infinity，逐页渲染后看有没有
+# 「NaN」「Infinity」「undefined」漏到文本里。真实游戏里这些值不该出现，
+# 但存档损坏 / 计算溢出都可能产生，而玩家看到 NaN 只会以为整档废了。
+BAD_DATA_SETUP = """() => {
+  Game.shells = NaN; Game.xp = NaN;
+  Object.keys(Game.stats).forEach(k => { if (typeof Game.stats[k] === 'number') Game.stats[k] = NaN; });
+  Game.stats.time = Infinity;
+  for (const k in Game.skills) Game.skills[k].level = NaN;
+}"""
+BAD_DATA_PROBE = """() => {
+  const bad = [];
+  const txt = ((document.getElementById('content') || {}).innerText || '');
+  const top = ((document.querySelector('#topbar') || {}).innerText || '');
+  for (const w of ['NaN', 'Infinity', 'undefined']){
+    const n = txt.split(w).length - 1 + (top.split(w).length - 1);
+    if (n) bad.push(w + '×' + n);
+  }
+  return bad;
+}"""
+
+
 async def main():
     results, bad_state = [], []
     async with async_playwright() as p:
@@ -202,6 +223,29 @@ async def main():
             # 数据联动（每个视口跑一次）：统计页的数字真的跟着数据走吗
             live = await pg.evaluate(LIVE_PROBE)
             results.append({"vp": vname, "live": live})
+
+            # 坏数据兜底（放在最后：它会把状态污染成 NaN，之后不再用这个 page）
+            await pg.evaluate(BAD_DATA_SETUP)
+            bad_data = []
+            for t in TABS:
+                try:
+                    await pg.evaluate(f"UI.switchTab('{t}')")
+                    await pg.wait_for_timeout(180)
+                    hits = await pg.evaluate(BAD_DATA_PROBE)
+                    if hits:
+                        bad_data.append(t + ':' + ','.join(hits))
+                except Exception as e:
+                    bad_data.append(t + ':渲染抛错 ' + str(e)[:40])
+            # 刷新一次顶栏，它也走同一批数值
+            try:
+                await pg.evaluate("UI.renderTopbar()")
+                hits = await pg.evaluate(BAD_DATA_PROBE)
+                if hits:
+                    bad_data.append("顶栏:" + ','.join(hits))
+            except Exception as e:
+                bad_data.append("顶栏:抛错 " + str(e)[:40])
+            results.append({"vp": vname, "badData": bad_data})
+
             results.append({"vp": vname, "errors": list(errs)})
             await pg.close()
         await b.close()
@@ -217,6 +261,11 @@ async def main():
             if lv["stuck"]:
                 bad.append(f"[{r['vp']}] 统计页有 {len(lv['stuck'])} 个字段改数据后不更新："
                            + "、".join(lv["stuck"][:5]))
+            continue
+        if "badData" in r:
+            n += 1
+            if r["badData"]:
+                bad.append(f"[{r['vp']}] 坏数据漏到界面：{'；'.join(r['badData'][:3])}")
             continue
         if "errors" in r:
             if r["errors"]:

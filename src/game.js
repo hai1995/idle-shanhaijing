@@ -440,12 +440,40 @@ function doRebirth(){
 // 也是将来排行榜要收的那几个字段——先把它们凑到一处，接口才好定。
 // 自带的两个小格式化：战绩文本不该依赖界面层（fmt / fmtTime 都定义在 ui.js，
 // 在 ui.js 加载之前调用就会抛 ReferenceError）。
+// 显示用的数值归一（v1.31.137）：把 NaN / Infinity 变成 0。
+// 为什么需要：`String(NaN)` 就是 "NaN"，会原样出现在统计页上——玩家看到 11 个 NaN
+// 只会以为游戏坏了。`fmtDur(Infinity)` 更离谱，会写出「Infinity 天」。
+// 为什么放在显示层而不是写入处：数值来自几十处计算结果，逐个加守卫既啰嗦又必然漏；
+// 显示是最后一道关口，在这里统一归一最省事，也不会掩盖存档里的真实值。
+// 注意用 Number.isFinite 而不是 `Number(v) || 0`：后者对 Infinity 返回 Infinity（真值），漏网。
+function safeNum(v){
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+// 统计对象整份归一：一层数值 + 一层嵌套对象（gathers / bossKills 这类计数表）。
+// 只读不改：返回浅拷贝，Game.stats 本体不动。
+function sanitizeStats(src){
+  const out = {};
+  if (!src || typeof src !== 'object') return out;
+  for (const k in src){
+    const v = src[k];
+    if (typeof v === 'number') out[k] = safeNum(v);
+    else if (v && typeof v === 'object' && !Array.isArray(v)){
+      const o = {};
+      for (const k2 in v) o[k2] = (typeof v[k2] === 'number') ? safeNum(v[k2]) : v[k2];
+      out[k] = o;
+    } else out[k] = v;
+  }
+  return out;
+}
 // 数字的唯一写法：万 / 亿。
 // 曾经有两套——界面层 fmt() 用的是 K/M/B，战绩与分享文本用这里——同一笔贝币
 // 在两个地方写着「12.3K」和「1.2 万」。中文游戏只该有一套，判据收在这里。
 // 边界也要收：9999.96 万不该写成「10000 万」，那是 1 亿。
 function fmtNum(v){
-  v = Math.round(Number(v) || 0);
+  // 用 safeNum 而不是 `Number(v) || 0`：后者对 Infinity 返回 Infinity（真值），
+  // 会一路算到「Infinity 亿」印在界面上。
+  v = Math.round(safeNum(v));
   const neg = v < 0;
   v = Math.abs(v);
   const trim = (str) => str.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
@@ -462,7 +490,7 @@ function fmtNum(v){
 // 90000 → 「1 天 1 小时」。曾经界面层没有「天」这一档，30 小时会写成「30 小时」，
 // 而分享文本写「1 天 6 小时」——同一段时长两个说法。
 function fmtDur(sec){
-  sec = Math.max(0, Math.round(sec || 0));
+  sec = Math.max(0, Math.round(safeNum(sec)));   // 同上：`sec || 0` 挡不住 Infinity
   const d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600);
   const m = Math.floor(sec % 3600 / 60), s = sec % 60;
   if (d) return h ? `${d} 天 ${h} 小时` : `${d} 天`;
@@ -846,7 +874,9 @@ function seasonName(){ return seasonPhase() ? '雨季' : '旱季'; }
 // 只说周期、不说进度，这个周期信息就没法用来做计划。
 // 归一到 [0, SEC]：time 可能为负（旧档 / 读档归零前），负偏移会让剩余时间超过一候。
 function seasonRemainSec(){
-  const t = gameTime();
+  // time 若被污染成 NaN / Infinity（存档损坏、或某处计算溢出），取模会得到 NaN，
+  // 一路传到界面上就是「NaN 分」甚至「Infinity 天」。这里直接回到「还有一整候」。
+  const t = (typeof safeNum === 'function') ? safeNum(gameTime()) : gameTime();
   const off = ((t % SEASON_SEC) + SEASON_SEC) % SEASON_SEC;   // 候内已过的秒数
   return SEASON_SEC - off;
 }
@@ -891,6 +921,8 @@ function seasonRiverBonus(){
 window.seasonPhase = seasonPhase; window.seasonName = seasonName;
 window.seasonRemainSec = seasonRemainSec; window.seasonRemainText = seasonRemainText;
 window.seasonLineText = seasonLineText;
+// 显示层归一（sanitizeStats / safeNum）：界面与测试都要用，挂出去。
+window.sanitizeStats = sanitizeStats; window.safeNum = safeNum;
 // checkSeasonFlip 定义在文件后段（onSecond 旁边）。函数声明会提升，这里能直接挂。
 window.checkSeasonFlip = checkSeasonFlip;
 window.seasonRiverBonus = seasonRiverBonus;

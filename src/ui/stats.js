@@ -52,7 +52,8 @@ UI.msDetail = function(idx){
 UI.renderStats = function(){
   const box = $('content');
   if (!box) return;
-  const s = Game.stats;
+  // 数值统一归一：NaN / Infinity 会原样印成「NaN」「Infinity 天」，见 game.js 的 sanitizeStats
+  const s = (typeof sanitizeStats === 'function') ? sanitizeStats(Game.stats) : Game.stats;
   const gatherRows = Object.entries(s.gathers||{}).map(([k,v])=>`<span>${Skills[k]?Skills[k].name:k} <b data-gather="${k}">${v}</b></span>`).join('') || '<span class="hint">未采</span>';
   // 六凶与全部凶神分开算：分子分母必须同一口径，否则「杀过刑天」会被算进六凶
   const bossList = Object.values(Monsters).filter(m => m.boss);

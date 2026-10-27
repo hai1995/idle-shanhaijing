@@ -10477,6 +10477,70 @@ section('征兆专属见闻');
   ST.__eventsMuted = true;
 }
 
+// ============ 192. 坏数据不该被原样印给玩家 ============
+// 起因：给统计页塞 NaN，界面直接写出 11 个「NaN」和一个「Infinity 天」。
+// 正常游戏里这些值不该出现，但存档损坏、某处计算溢出、Future 的数值改动都可能产生，
+// 而玩家看到「NaN」只会以为整个档坏了。显示层是最后一道关口，必须挡住。
+{
+  assert(typeof ST.sanitizeStats === 'function', 'sanitizeStats 已导出');
+  assert(typeof ST.safeNum === 'function', 'safeNum 已导出');
+
+  // ---- ① safeNum：三种坏值都归零 ----
+  assert(ST.safeNum(NaN) === 0, 'NaN → 0');
+  assert(ST.safeNum(Infinity) === 0, 'Infinity → 0');
+  assert(ST.safeNum(-Infinity) === 0, '-Infinity → 0');
+  assert(ST.safeNum(undefined) === 0, 'undefined → 0');
+  assert(ST.safeNum('abc') === 0, '非数字字符串 → 0');
+  // 好值原样保留（不能误伤）
+  assert(ST.safeNum(0) === 0 && ST.safeNum(42) === 42 && ST.safeNum(-7) === -7, '正常数字原样保留');
+  assert(ST.safeNum('12') === 12, '数字字符串转成数字');
+  // 这条是关键：`Number(v) || 0` 这种常见写法对 Infinity 返回 Infinity（真值），漏网
+  assert(Math.abs(ST.safeNum(Infinity)) !== Infinity, '没有用 `Number(v) || 0` 那种漏 Infinity 的写法');
+
+  // ---- ② sanitizeStats：一层数值 + 一层嵌套计数表 ----
+  const dirty = { kills: NaN, deaths: Infinity, harvests: 12,
+                  gathers: { gui: NaN, yu: 8 }, bossKills: { x: Infinity },
+                  seenMilestones: { m1: true }, lastSeason: 1, name: 'x' };
+  const clean = ST.sanitizeStats(dirty);
+  assert(clean.kills === 0 && clean.deaths === 0 && clean.harvests === 12, '一层数值已归一');
+  assert(clean.gathers.gui === 0 && clean.gathers.yu === 8, '嵌套计数表已归一');
+  assert(clean.bossKills.x === 0, '嵌套 bossKills 已归一');
+  assert(clean.seenMilestones.m1 === true, '非数值字段原样保留');
+  assert(clean.lastSeason === 1 && clean.name === 'x', '季相 / 字符串不受影响');
+  // 只读不改：原对象必须保持脏，否则会掩盖存档里的真实值
+  assert(Number.isNaN(dirty.kills) && dirty.gathers.gui !== dirty.gathers.gui,
+    'sanitizeStats 不修改入参（Game.stats 本体不动）');
+
+  // ---- ③ 数字格式化：Infinity / NaN 不能印出来 ----
+  // 这两条最初都是失败的：fmtNum 用 `Number(v) || 0`（Infinity 是真值，漏网），
+  // fmtDur 用 `sec || 0`（同样漏）。`Math.round(Infinity)` → Infinity → 「Infinity 亿」/「Infinity 天」。
+  assert(!/Infinity|NaN/.test(G.fmtDur(Infinity)), 'fmtDur(Infinity) 不输出坏值：' + G.fmtDur(Infinity));
+  assert(!/Infinity|NaN/.test(G.fmtDur(NaN)), 'fmtDur(NaN) 不输出坏值：' + G.fmtDur(NaN));
+  assert(!/Infinity|NaN/.test(G.fmtNum(Infinity)), 'fmtNum(Infinity) 不输出坏值：' + G.fmtNum(Infinity));
+  assert(!/Infinity|NaN/.test(G.fmtNum(NaN)), 'fmtNum(NaN) 不输出坏值：' + G.fmtNum(NaN));
+  // 好值不能被误伤
+  assert(G.fmtNum(1234) === '1234' || G.fmtNum(1234).indexOf('1234') >= 0, 'fmtNum(1234) 正常：' + G.fmtNum(1234));
+  assert(/秒/.test(G.fmtDur(90)), 'fmtDur(90) 正常：' + G.fmtDur(90));
+
+  // ---- ④ 季候剩余：time 被污染时仍回到合法值 ----
+  const keepT192 = ST.Game.stats.time;
+  ST.Game.stats.time = Infinity;
+  const rem = ST.seasonRemainSec();
+  assert(Number.isFinite(rem) && rem > 0 && rem <= ST.TUNING.SEASON.SEC,
+    'time=Infinity 时剩余换季时间仍合法：' + rem);
+  const txt = ST.seasonRemainText();
+  assert(!/NaN|Infinity/.test(txt), '文案不出现 NaN / Infinity：' + txt);
+  ST.Game.stats.time = NaN;
+  assert(Number.isFinite(ST.seasonRemainSec()), 'time=NaN 时剩余仍合法');
+  ST.Game.stats.time = keepT192;
+
+  // ---- ⑤ 统计页两处入口都过归一（静态渲染 + 800ms 的 patch） ----
+  const statsSrc192 = readText('src/ui/stats.js');
+  const miscSrc192 = readText('src/ui/misc.js');
+  assert(/sanitizeStats\(Game\.stats\)/.test(statsSrc192), '统计页静态渲染走归一');
+  assert(/sanitizeStats\(Game\.stats\)/.test(miscSrc192), 'patchStats 走同一份归一');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

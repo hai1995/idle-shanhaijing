@@ -151,7 +151,9 @@ UI.renderAbout = function(){
 // 逐项改写统计数值；只在值真的变了才碰 DOM，避免无谓重排
 UI.patchStats = function(){
   if (this.currentTab !== 'stats') return;
-  const s = Game.stats;
+  // 与静态渲染同一份归一（见 game.js sanitizeStats）：patchStats 里有 `String(s.kills)` 这类
+  // 直转，NaN 会原样写成 "NaN"，而 patch 每 800ms 覆盖一次，比静态渲染更容易让人看到。
+  const s = (typeof sanitizeStats === 'function') ? sanitizeStats(Game.stats) : Game.stats;
   const totalNodes = WORLD.regions.reduce((a, r) => a + r.nodes.length, 0);
   // ⚠️ 这一处曾把「凶神」写成 `keys(bossKills).length + '/7'`：静态渲染修好之后，
   // 统计页开着每秒一次的 patch 又把它改回错的那个数。两处的口径必须一起改。
