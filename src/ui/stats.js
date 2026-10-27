@@ -226,6 +226,7 @@ UI.renderStats = function(){
     </div>
     <div class="panel stat-panel"><h3>时间 / 离线</h3>
       <div class="stat-rows">
+        <span class="season-row"><i class="stat-k">季候</i> <b data-stat="season">${seasonLineText()}</b></span>
         <span>在册时长 <b data-stat="time">${fmtTime(s.time)}</b></span>
         <span>本次会话 <b data-stat="session">${fmtTime((Date.now()-Game.startedAt)/1000)}</b></span>
         <span>离线上限 <b>${offlineCapHours()} 小时</b></span>

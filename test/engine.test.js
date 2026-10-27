@@ -10061,15 +10061,21 @@ section('征兆专属见闻');
   assert(typeof ST.seasonRiverBonus === 'function', '季节加成已导出给界面用');
   assert(ST.seasonRiverBonus() === ST.TUNING.SEASON.RIVER, '导出值就是 TUNING 里那一个');
 
-  // ---- 界面两处不许再写死百分比 ----
+  // ---- 界面各处的季节文案必须同源 ----
+  // v1.31.131：三处显示（顶栏 title / 山志节点标签 / 统计页季候行）改为共用 seasonLineText()。
+  // 判据从「各自调 seasonRiverBonus()」升成「都调 seasonLineText()」——后者更强：
+  // 各自调虽然数值一致，文案措辞仍会走岔（一处说「还有 2 时」、一处说「六小时一转」）。
   const hud186 = readText('src/ui/hud.js');
   const yudi186 = readText('src/ui/yudi.js');
-  assert(/seasonRiverBonus\(\)/.test(hud186), '顶栏 title 读统一数值');
-  assert(/seasonRiverBonus\(\)/.test(yudi186), '山志节点标签读统一数值');
+  const stats186 = readText('src/ui/stats.js');
+  assert(/seasonLineText\(\)/.test(hud186), '顶栏 title 用统一文案');
+  assert(/seasonLineText\(\)/.test(yudi186), '山志节点标签用统一文案');
+  assert(/seasonLineText\(\)/.test(stats186), '统计页季候行用统一文案');
   // 反例：不许出现 `+30%` / `−30%` 这类写死的百分比（注释里可以提，代码字符串里不行）
   const codeOf = (src) => src.replace(/^\s*\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
   assert(!/[+−]30%/.test(codeOf(hud186)), '顶栏不再写死 ±30%');
   assert(!/[+−]30%/.test(codeOf(yudi186)), '山志不再写死 ±30%');
+  assert(!/[+−]30%/.test(codeOf(stats186)), '统计页不写死 ±30%');
 
   // ---- 引擎里也不许再有一份 ----
   const g186 = codeOf(readText('src/game.js'));
@@ -10207,6 +10213,78 @@ section('征兆专属见闻');
   // 反向锚点：真推进时间就一定会换季——这条保证上面的结论不是「季节坏了」而是「时间没动」
   ST.Game.stats.time = SEC188 + 100;
   assert(ST.seasonPhase() !== phase0, '时间真跨过一候时季相确实会变（季节本身没坏）');
+
+  ST.Game.stats.time = keepT;
+}
+
+// ============ 189. 距换季还有多久（时间类计算最容易在边界上错） ============
+// 三处界面都要显示「还有多久换季」，玩家会拿这个数去卡点（「再等 2 小时就雨季了」）。
+// 所以这个数必须：① 永远在 (0, SEC] 内，不能出 0 或负数；② 取整方向不能夸大。
+{
+  const SEC189 = ST.TUNING.SEASON.SEC;
+  const keepT = ST.Game.stats.time;
+
+  assert(typeof ST.seasonRemainSec === 'function', 'seasonRemainSec 已导出');
+  assert(typeof ST.seasonRemainText === 'function', 'seasonRemainText 已导出');
+  assert(typeof ST.seasonLineText === 'function', 'seasonLineText 已导出');
+
+  // ---- ① 候内各点：剩余 = SEC - 已过，且永远 > 0、<= SEC ----
+  const cases = [
+    [0, SEC189],                 // 刚进旱季
+    [1, SEC189 - 1],
+    [SEC189 - 1, 1],
+    [SEC189, SEC189],            // 正好换季：是新一候的起点，剩余满一候
+    [SEC189 + 100, SEC189 - 100],
+    [3 * SEC189, SEC189],        // 第三个起点
+  ];
+  let ok189 = 0;
+  for (const [t, want] of cases){
+    ST.Game.stats.time = t;
+    const got = ST.seasonRemainSec();
+    assert(got === want, 't=' + t + ' 剩余 ' + got + '（应为 ' + want + '）');
+    assert(got > 0 && got <= SEC189, 't=' + t + ' 的剩余在 (0, SEC] 内');
+    ok189++;
+  }
+  assert(ok189 === cases.length, '确实逐点验过 ' + ok189 + ' 个时刻（不是空转）');
+
+  // ---- ② 负数时间（旧档 / 读档归零前）：不能算出「剩余超过一候」----
+  for (const t of [-1, -SEC189, -SEC189 - 1, -10 * SEC189]){
+    ST.Game.stats.time = t;
+    const got = ST.seasonRemainSec();
+    assert(got > 0 && got <= SEC189, 't=' + t + ' 负时间下剩余仍在 (0, SEC]：' + got);
+    assert(got === Math.floor(got), 't=' + t + ' 剩余是整数');
+  }
+
+  // ---- ③ 文案取整方向：向下取整，绝不夸大 ----
+  ST.Game.stats.time = 0;
+  assert(ST.seasonRemainText() === '6 时', '整候显示「6 时」：' + ST.seasonRemainText());
+  ST.Game.stats.time = 1;                       // 剩 6h-1s
+  assert(ST.seasonRemainText() === '5 时 59 分', '少 1 秒不能说成 6 时：' + ST.seasonRemainText());
+  ST.Game.stats.time = SEC189 - 120;            // 剩 2 分钟
+  assert(ST.seasonRemainText() === '2 分', '剩 2 分：' + ST.seasonRemainText());
+  ST.Game.stats.time = SEC189 - 30;             // 剩 30 秒
+  assert(ST.seasonRemainText() === '不足 1 分', '剩 30 秒说「不足 1 分」：' + ST.seasonRemainText());
+
+  // ---- ④ 季名与季相严格对应（文案里的季名不能和 phase 走岔）----
+  ST.Game.stats.time = 0;
+  const dryLine = ST.seasonLineText();
+  ST.Game.stats.time = SEC189;
+  const wetLine = ST.seasonLineText();
+  assert(/旱季/.test(dryLine) && /转雨季/.test(dryLine), '旱季文案说「转雨季」：' + dryLine);
+  assert(/雨季/.test(wetLine) && /转旱季/.test(wetLine), '雨季文案说「转旱季」：' + wetLine);
+  assert(/−/.test(dryLine) && /\+/.test(wetLine), '旱季用减号、雨季用加号');
+  assert(dryLine.includes(String(Math.round(ST.TUNING.SEASON.RIVER * 100))),
+    '文案里的百分比来自 TUNING（' + Math.round(ST.TUNING.SEASON.RIVER * 100) + '）');
+
+  // ---- ⑤ 传导性：改 TUNING 后文案跟着变（证明不是抄了一份数）----
+  {
+    const keepR = ST.TUNING.SEASON.RIVER;
+    ST.TUNING.SEASON.RIVER = 0.45;
+    ST.Game.stats.time = 0;
+    assert(/−45/.test(ST.seasonLineText()), '改成 0.45 后文案同步变 −45%：' + ST.seasonLineText());
+    ST.TUNING.SEASON.RIVER = keepR;
+    assert(/−30/.test(ST.seasonLineText()), '复原后回到 −30%');
+  }
 
   ST.Game.stats.time = keepT;
 }

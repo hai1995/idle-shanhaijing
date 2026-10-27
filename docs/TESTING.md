@@ -91,6 +91,19 @@ if st["tag"] != ("雨季" if st["phase"] == 1 else "旱季"): bad.append("状态
 
 - **造等级必须同时给 `xp`**：`Game.skills.x = { level: 40, xp: xpForLevel(40) }`。只改 `level` 的话，`gainXp` 会按 `xp` 反算等级——第一刀砍出去就掉回 1 级，之前所有「BOSS 必败」的结论都是这么来的。
 - **`vm` 上下文里 `window` 只是普通对象**：脚本末尾的 `window.UI = UI` 不会让 `context.UI` 自动指向真 UI，需手动对齐（测试第 19 节做了）。
+  这条还有个更隐蔽的后代（v1.31.131 踩的）：**文件内部的裸引用也取不到**。
+  ```js
+  window.seasonRiverBonus = function(){ return TUNING.SEASON.RIVER || 0.30; };
+  // 同一文件里后面写：
+  const rb = (typeof seasonRiverBonus === 'function') ? seasonRiverBonus() : 0.30;
+  ```
+  浏览器里没问题（`window` 就是全局对象，`window.x =` 等于 `var x =`）；
+  但 vm 里 `window` 只是普通对象，裸写的 `seasonRiverBonus` 查不到 → `typeof` 得 `'undefined'`
+  → 静默走进 `else` 分支用**硬编码的 0.30**。后果是改 `TUNING` 后文案纹丝不动，
+  而全局变量看着一切正常（`ST.seasonRiverBonus()` 调得到、返回也对）。
+  **修法：要跨文件共享的函数，先写成函数声明再挂 window**（`function f(){}; window.f = f;`），
+  文件内与文件外都能拿到，没有第二份硬编码兜底。
+  验收靠传导性测试：改 `TUNING.SEASON.RIVER = 0.45`，断言文案同步变 `−45`。
 - **`navigator` 是 Node 自带的**：测「剪贴板不可用」时要把 `context.navigator` 整个换掉，不能只改 `navigator.clipboard`（只读）。
 - **固定随机种子**：涉及伤害浮动的用例用 `Math.random` 替换成 LCG，避免「时过时不过」。
 - **跑真引擎优于算期望**：稳态估算（DPS = 平均伤害 ÷ 间隔）看不出绝技、连击、特殊技、进食；「打不打得过」只有逐 tick 跑完一场能证明。

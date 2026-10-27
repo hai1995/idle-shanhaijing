@@ -825,6 +825,15 @@ window.useConsumable = useConsumable;
 // 此前只有 note 文案、没有机制。此处各给一个轻量效果，山志上也会标出来。
 // 一候六小时（数值在 TUNING.SEASON，别在这里再写一份）
 const SEASON_SEC = (typeof TUNING !== 'undefined' && TUNING.SEASON && TUNING.SEASON.SEC) || 6 * 3600;
+// 「雨季 · 还有 2 时 13 分转旱季」。三处显示（顶栏 title / 山志节点标签 / 统计页季候行）
+// 都调这一个函数：季节相关的文案只有一个来源，改一次三处同时跟上，不会有「顶栏说 2 时、山志说 3 时」。
+function seasonLineText(){
+  const wet = seasonPhase() === 1;
+  const rb = Math.round(((typeof seasonRiverBonus === 'function') ? seasonRiverBonus() : 0.30) * 100);
+  return (wet ? '雨季' : '旱季') + ' · 教山渔获 ' + (wet ? '+' : '−') + rb
+    + '% · 还有 ' + seasonRemainText() + '转' + (wet ? '旱季' : '雨季');
+}
+
 // 季节（v1.31.124 修）：原来直接 `Math.floor(t/SEC) % 2`，而 JS 的 % 对负数返回负值——
 // 读档把 time 归零之前（或旧档里 time 极小、被扣成负数时）会得到 **-1**。
 // 旧消费方写的是 `seasonPhase() ? A : B`，-1 是真值 → 错判成雨季；新消费方写
@@ -832,6 +841,24 @@ const SEASON_SEC = (typeof TUNING !== 'undefined' && TUNING.SEASON && TUNING.SEA
 // 归一到 0/1 是 helper 的责任，不该让每个消费方各写一遍防负。
 function seasonPhase(){ const n = Math.floor(gameTime() / SEASON_SEC); return ((n % 2) + 2) % 2; }   // 0 旱 1 雨
 function seasonName(){ return seasonPhase() ? '雨季' : '旱季'; }
+// 距下次换季还有多久（秒）。界面上只说「六小时一转」是不够的——
+// 玩家要去教山收渔获，正需要判断「现在出发算不算雨季」「要不要等两小时」。
+// 只说周期、不说进度，这个周期信息就没法用来做计划。
+// 归一到 [0, SEC]：time 可能为负（旧档 / 读档归零前），负偏移会让剩余时间超过一候。
+function seasonRemainSec(){
+  const t = gameTime();
+  const off = ((t % SEASON_SEC) + SEASON_SEC) % SEASON_SEC;   // 候内已过的秒数
+  return SEASON_SEC - off;
+}
+// 「2 时 13 分」/「47 分」/「不足 1 分」。分钟向下取整：说「还有 2 小时」时绝不能夸大，
+// 宁可少说几秒，也不要让玩家按这个数去卡点却迟到。
+function seasonRemainText(){
+  const s = seasonRemainSec();
+  if (s < 60) return '不足 1 分';
+  const m = Math.floor(s / 60), h = Math.floor(m / 60);
+  if (h > 0) return h + ' 时' + (m % 60 ? ' ' + (m % 60) + ' 分' : '');
+  return m + ' 分';
+}
 function geoOf(nodeId){ return (window.SPECIAL_NODES || {})[nodeId] || null; }
 function hasBeast(id){ return Object.values(Game.deployed || {}).indexOf(id) >= 0; }
 function geoGatherMul(nodeId){
@@ -854,10 +881,19 @@ function geoGatherBonus(nodeId){
   }
   return b;
 }
+// 河川季节加成。写成**函数声明**而不是 `window.seasonRiverBonus = function(){}`：
+// 后者在浏览器里没问题（window 就是全局对象），但在 vm 测试上下文里 window 只是普通对象，
+// 于是 game.js 内部的裸引用 `seasonRiverBonus()` 取不到，守卫 `typeof ... === 'function'`
+// 静默落到硬编码的 0.30 —— 改 TUNING 后文案不变，还查不出为什么。函数声明则在文件内必然可见。
+function seasonRiverBonus(){
+  return (typeof TUNING !== 'undefined' && TUNING.SEASON && TUNING.SEASON.RIVER) || 0.30;
+}
 window.seasonPhase = seasonPhase; window.seasonName = seasonName;
+window.seasonRemainSec = seasonRemainSec; window.seasonRemainText = seasonRemainText;
+window.seasonLineText = seasonLineText;
 // checkSeasonFlip 定义在文件后段（onSecond 旁边）。函数声明会提升，这里能直接挂。
 window.checkSeasonFlip = checkSeasonFlip;
-window.seasonRiverBonus = function(){ return (typeof TUNING !== 'undefined' && TUNING.SEASON && TUNING.SEASON.RIVER) || 0.30; };
+window.seasonRiverBonus = seasonRiverBonus;
 window.geoGatherMul = geoGatherMul; window.geoGatherBonus = geoGatherBonus; window.hasBeast = hasBeast;
 
 // ---------- 采集 ----------

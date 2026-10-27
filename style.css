@@ -2132,6 +2132,12 @@ details.bulk-sell .bs-preview, details.bulk-sell .bs-act{ margin-left:11px; marg
 }
 .stat-rows > span:last-child{ border-bottom:none; }
 .stat-rows > span > b{ margin-left:auto; color:var(--ink); font-family:var(--f-num); font-size:12.5px; }
+/* 季候行（v1.31.131）：值是整句（「旱季 · 教山渔获 −30% · 还有 3 时 47 分转雨季」），
+   320px 下比其余条目长一倍。flex 默认会让值挤压标签，把「季候」压成「季」「候」两行——
+   所以标签固定不收缩、不许折行，值自己换行（整体落到下一行，仍靠右）。 */
+.stat-rows > span.season-row{ flex-wrap:wrap; }
+.stat-rows > span.season-row > .stat-k{ flex:0 0 auto; white-space:nowrap; font-style:normal; }
+.stat-rows > span.season-row > b{ min-width:0; text-align:right; line-height:1.5; }
 /* 见闻录的「未见 · 线索」：线索独占一行、缩进一点，不与条目名挤在一起
    （390px 下「祠前老祝 · 未见（在有山祠（谒见）的山头做事才遇）」会折成两行半） */
 .stat-rows > span.ev-unseen{ display:block; }

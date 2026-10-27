@@ -184,10 +184,12 @@ UI.renderTopbar = function(){
     const name = (typeof seasonName === 'function') ? seasonName() : (wet ? '雨季' : '旱季');
     if (sn.textContent !== name) sn.textContent = name;
     sn.classList.toggle('wet', !!wet);
-    // 百分比也只有一个来源：seasonRiverBonus() 读 TUNING.SEASON.RIVER。
-    // 原先这里写死「+30%」，改数值时顶栏会说谎。
-    const rb = Math.round(((typeof seasonRiverBonus === 'function') ? seasonRiverBonus() : 0.30) * 100);
-    sn.title = (wet ? '雨季' : '旱季') + '：教山渔获 ' + (wet ? '+' : '−') + rb + '%（六小时一转）';
+    // 百分比与「还有多久换季」都来自 seasonLineText()，它内部读 TUNING.SEASON.RIVER。
+    // 原先这里写死「+30%」，改数值时顶栏会说谎；v1.31.131 起连措辞也统一了，
+    // 顶栏 / 山志 / 统计页三处说的是同一句话，不会「一处说还有 2 时、一处说六小时一转」。
+    sn.title = (typeof seasonLineText === 'function')
+      ? seasonLineText()
+      : (wet ? '雨季' : '旱季') + '（六小时一转）';
   }
   // 增益图标处于书脊最右：这里只更新计数与明暗，内容在点开浮层时才生成。
   this.renderBuffBtn();

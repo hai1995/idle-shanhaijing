@@ -615,10 +615,9 @@ function specialNodeNote(node){
   }
   if (sp.climb) tags.push('百仞：采集迟缓 ×1.18，所得更丰 +10%');
   if (sp.seasonalRiver){
-    const wet = typeof seasonPhase === 'function' && seasonPhase();
-    // 百分比不在此处写死：读 TUNING.SEASON.RIVER（经 seasonRiverBonus 暴露）
-    const rb = Math.round(((typeof seasonRiverBonus === 'function') ? seasonRiverBonus() : 0.30) * 100);
-    tags.push(`${typeof seasonName === 'function' ? seasonName() : '旱季'}：渔获 ${wet ? '+' : '−'}${rb}%（六小时一转）`);
+    // 「六小时一转」只说周期不说进度，玩家到了教山才发现正赶上旱季就晚了。
+    // 文案统一由 seasonLineText 生成（顶栏 / 山志 / 统计页共用一份）。
+    tags.push((typeof seasonLineText === 'function') ? seasonLineText() : '渔获随旱雨涨落（六小时一转）');
   }
   return `<div class="special-note">★ ${esc(sp.note||'')}${tags.length
     ? `<div class="geo-tags">${tags.map(t=>`<span class="geo-tag">${esc(t)}</span>`).join('')}</div>` : ''}</div>`;
