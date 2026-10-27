@@ -345,7 +345,7 @@ html.theme-anim, html.theme-anim *{
 
 /* 已录进度：胶囊底部一道 2px 细线 */
 #topbar .stat .meter{
-  display:block; width:60px; height:2px; margin-top:3px; border-radius:1px;
+  display:block; width:60px; height:2px; margin-top:3px; border-radius:4px;
   background:rgba(232,228,216,.16); overflow:hidden;
 }
 #topbar .stat .meter > i{ display:block; height:100%; width:0; background:var(--zhu); transition:width .4s ease-out; }
@@ -1006,9 +1006,9 @@ html.theme-anim, html.theme-anim *{
 
 .tier{
   font-size:10px; letter-spacing:.08em; color:var(--qing); border:1px solid rgba(46,82,105,.32);
-  border-radius:1px; padding:0 5px; margin-left:4px; white-space:nowrap; line-height:1.6;
+  border-radius:4px; padding:0 5px; margin-left:4px; white-space:nowrap; line-height:1.6;
 }
-.el{ font-size:10px; padding:1px 5px; border-radius:1px; margin-left:5px; color:#fff; letter-spacing:.06em; vertical-align:1px; }
+.el{ font-size:10px; padding:1px 5px; border-radius:4px; margin-left:5px; color:#fff; letter-spacing:.06em; vertical-align:1px; }
 .el-jin{ background:#B08A34; } .el-mu{ background:#4F6E45; }
 .el-shui{ background:#2E5269; } .el-huo{ background:#B03A2B; } .el-tu{ background:#8A6242; }
 
@@ -1028,7 +1028,7 @@ html.theme-anim, html.theme-anim *{
 .haz-text{ color:var(--zhu); }
 .here-tag{
   font-size:9.5px; letter-spacing:.1em; background:var(--tai); color:var(--on-accent);
-  border-radius:1px; padding:1px 5px; margin-left:6px; vertical-align:1px;
+  border-radius:4px; padding:1px 5px; margin-left:6px; vertical-align:1px;
 }
 .meta{ font-size:11.5px; color:var(--ink-3); margin-bottom:8px; letter-spacing:.02em; }
 /* 图鉴详情（showCodexDetail）的绘形大像 */
@@ -1168,7 +1168,7 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
 .ab-head{ display:flex; align-items:center; gap:14px; padding-bottom:12px; border-bottom:2px solid var(--zhu); }
 .ab-seal{
   flex:0 0 auto; width:38px; height:38px; display:grid; grid-template-rows:1fr 1fr;
-  place-items:center; background:var(--zhu); color:#fff; border-radius:1px;
+  place-items:center; background:var(--zhu); color:#fff; border-radius:4px;
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.26), 0 1px 0 rgba(0,0,0,.3);
   transform:rotate(-1.2deg);
 }
@@ -1246,7 +1246,7 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
 .node-tile .nt-mark.tame{ background:var(--zhu); }
 .node-tile .nt-mark.here{ background:var(--tai); }
 .rec-tag{
-  font-size:9.5px; line-height:1.5; color:#fff; border-radius:1px; padding:0 4px; margin-left:2px;
+  font-size:9.5px; line-height:1.5; color:#fff; border-radius:4px; padding:0 4px; margin-left:2px;
   background:var(--qing); letter-spacing:.04em;
 }
 .rec-tag.tame{ background:var(--zhu); }
@@ -1283,7 +1283,7 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
 .fauna{ display:flex; flex-wrap:wrap; gap:6px; margin:12px 0; }
 .fauna-chip{
   display:inline-flex; align-items:center; gap:5px; font-size:12px;
-  background:var(--paper-3); border:1px solid var(--rule-2); border-radius:1px; padding:3px 9px;
+  background:var(--paper-3); border:1px solid var(--rule-2); border-radius:4px; padding:3px 9px;
   transition:border-color .15s;
 }
 .fauna-chip:hover{ border-color:var(--ink-4); }
@@ -1632,7 +1632,7 @@ svg.bi.mk{ vertical-align:-2px; }
 .el-hint:hover{ color:#fff; background:var(--qing); border-color:var(--qing); }
 .bc-foot{ display:flex; align-items:center; gap:8px; margin-top:8px; }
 .th{
-  margin-left:auto; font-size:9.5px; letter-spacing:.08em; padding:1px 5px; border-radius:1px; color:#fff;
+  margin-left:auto; font-size:9.5px; letter-spacing:.08em; padding:1px 5px; border-radius:4px; color:#fff;
 }
 .th.recommend{ background:var(--tai); }
 .th.fair{ background:var(--jin); }
@@ -1790,7 +1790,7 @@ svg.bi.mk{ vertical-align:-2px; }
 .cx-ov-t{ font-family:var(--f-kai); font-size:10px; color:var(--ink-4); letter-spacing:.04em; white-space:nowrap; }
 .cx-ov-v{ font-family:var(--f-num); font-size:12.5px; font-weight:700; color:var(--ink-2); line-height:1.1; }
 .cx-ov-v i{ font-style:normal; font-size:9.5px; font-weight:400; color:var(--ink-4); }
-.cx-ov-b{ display:block; height:2px; background:var(--rule-2); border-radius:1px; overflow:hidden; margin-top:2px; }
+.cx-ov-b{ display:block; height:2px; background:var(--rule-2); border-radius:4px; overflow:hidden; margin-top:2px; }
 .cx-ov-b i{ display:block; height:100%; background:var(--qing); }
 .cx-ov.full .cx-ov-b i{ background:var(--zhu); }
 .cx-ov.full .cx-ov-v{ color:var(--zhu-d); }
@@ -1860,7 +1860,7 @@ svg.bi.mk{ vertical-align:-2px; }
 .reveal:last-child{ border-bottom:none; }
 .reveal b{ color:var(--qing); flex:0 0 3.2em; font-family:var(--f-kai); font-size:12px; letter-spacing:.1em; }
 .reveal.locked{ color:var(--ink-4); }
-.lock-tag{ font-size:9.5px; border:1px solid var(--rule); border-radius:1px; padding:0 5px; margin-left:6px; color:var(--ink-4); }
+.lock-tag{ font-size:9.5px; border:1px solid var(--rule); border-radius:4px; padding:0 5px; margin-left:6px; color:var(--ink-4); }
 
 /* ==========================================================================
    祠祀
@@ -1891,7 +1891,7 @@ svg.bi.mk{ vertical-align:-2px; }
 .rite-left{
   position:absolute; top:3px; left:3px; padding:0 3px;
   font-family:var(--f-num); font-size:8.5px; line-height:13px; letter-spacing:0;
-  color:var(--jin); background:rgba(252,251,246,.82); border-radius:1px;
+  color:var(--jin); background:rgba(252,251,246,.82); border-radius:4px;
 }
 .rite-auto-bar{
   display:flex; align-items:center; justify-content:space-between; gap:10px;
@@ -2836,7 +2836,7 @@ body.no-scroll{ overflow:hidden; }
 /* 图鉴检索命中：朱色淡底轻标记（平面、无渐变） */
 mark.hit{
   background:var(--zhu-w); color:var(--zhu-d);
-  padding:0 2px; border-radius:1px; font-weight:700;
+  padding:0 2px; border-radius:4px; font-weight:700;
 }
 
 /* ==========================================================================
@@ -2847,7 +2847,7 @@ mark.hit{
 .bc-pick{
   display:inline-block; margin-left:2px; padding:1px 5px;
   font-family:var(--f-sans); font-size:9.5px; font-weight:700; letter-spacing:.08em;
-  color:#fff; background:var(--zhu); border-radius:1px; vertical-align:1px;
+  color:#fff; background:var(--zhu); border-radius:4px; vertical-align:1px;
 }
 .beast-card.pick{ border-color:var(--zhu); }
 .beast-card.pick:hover{ border-color:var(--zhu-d); }
@@ -2858,7 +2858,7 @@ mark.hit{
   display:inline-block; margin-left:6px; padding:1px 5px;
   font-family:var(--f-sans); font-size:9.5px; font-weight:700; letter-spacing:.04em;
   color:var(--ink-3); background:var(--paper-2); border:1px solid var(--rule-2);
-  border-radius:1px; cursor:help;
+  border-radius:4px; cursor:help;
 }
 /* ==========================================================================
    方国求购订单板（商旅贸易深化）
@@ -2880,7 +2880,7 @@ mark.hit{
 .ob-top{ display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; color:var(--ink); }
 .ob-region{
   margin-left:auto; padding:1px 6px; font-size:9.5px; font-weight:700; letter-spacing:.06em;
-  color:var(--ink-3); background:var(--paper); border:1px solid var(--rule-2); border-radius:1px;
+  color:var(--ink-3); background:var(--paper); border:1px solid var(--rule-2); border-radius:4px;
 }
 .ob-meta{ font-size:11.5px; color:var(--ink-3); }
 .ob-meta b{ font-family:var(--f-num); color:var(--ink-2); font-weight:700; }
@@ -2932,7 +2932,7 @@ mark.hit{
 .page-lvbar .pl-name{ font-family:var(--f-kai); color:var(--qing); letter-spacing:.08em; }
 .page-lvbar .pl-lv{ color:var(--ink); font-variant-numeric:tabular-nums; font-size:12.5px; }
 .page-lvbar .pl-bar{ flex:1 1 120px; min-width:64px; height:4px; background:var(--rule-3);
-  border-radius:1px; overflow:hidden; }
+  border-radius:4px; overflow:hidden; }
 .page-lvbar .pl-bar i{ display:block; height:100%; background:var(--tai); transition:width .3s; }
 .page-lvbar .pl-xp{ font-variant-numeric:tabular-nums; color:var(--ink-3); font-size:11.5px; }
 
@@ -2943,13 +2943,15 @@ mark.hit{
   font-family:var(--f-kai); font-size:10px; line-height:16px; border-radius:1px;
 }
 
-/* 移动端：操作按钮与方块统一近直角（圆角按钮在窄屏上显得过大，与纸墨主题不合） */
+/* 移动端：圆角比桌面收一档（6px）——窄屏上 8px 在小控件上显得过胖。
+   旧版这里压成近直角 1px，理由是「圆角与纸墨主题不合」；界面简洁化（v1.31.158）之后全站走圆角，
+   手机上反而成了唯一一处方形，与桌面成了两种观感——而玩家多半在手机上看它。故收进同一套弧度。 */
 @media (max-width:760px){
   .btn, .btn-mini, .chip-btn, .tile, .tab, .slot, .mini-card,
   .seed-row, .inv-card, .beast-tile, .gear-tile, .omen-tile, .rite-tile{
-    border-radius:1px !important;
+    border-radius:6px !important;
   }
-  .modal-btns .btn, .seed-row, .shop-buy, .bs-act .btn{ border-radius:1px !important; }
+  .modal-btns .btn, .seed-row, .shop-buy, .bs-act .btn{ border-radius:6px !important; }
 }
 
 /* ----- 交互弹窗（征伐目标 / 御使异兽） ----- */
@@ -2984,7 +2986,7 @@ mark.hit{
 /* ----- 装备淬炼角标 ----- */
 .gear-tile .gt-enh{
   /* 右上角被「脱」占着，强化角标挪到左下；品阶印在右下，四角各归各位 */
-  position:absolute; bottom:3px; left:3px; padding:2px 4px; border-radius:1px;
+  position:absolute; bottom:3px; left:3px; padding:2px 4px; border-radius:4px;
   font-family:var(--f-num); font-size:10px; line-height:1; color:#fff; background:var(--jin);
 }
 
@@ -3008,7 +3010,7 @@ mark.hit{
   display:inline-flex; align-items:center; justify-content:center;
   padding:7px 9px; writing-mode:vertical-rl; letter-spacing:.18em;
   font-family:var(--f-kai); font-size:12px; line-height:1;
-  color:#fff; background:var(--zhu); border-radius:1px;
+  color:#fff; background:var(--zhu); border-radius:4px;
   box-shadow:0 0 0 2px var(--paper), 0 0 0 3px var(--zhu);
   opacity:.92;
 }
@@ -3035,7 +3037,7 @@ mark.hit{
   border-left:2px solid var(--qing); border-radius:var(--r); font-size:11.5px;
 }
 .momentum-row .mo-lb{ font-family:var(--f-kai); color:var(--qing); letter-spacing:.1em; flex:0 0 auto; }
-.momentum-row .mo-bar{ flex:1 1 auto; height:6px; background:var(--rule-3); border-radius:1px; overflow:hidden; }
+.momentum-row .mo-bar{ flex:1 1 auto; height:6px; background:var(--rule-3); border-radius:4px; overflow:hidden; }
 .momentum-row .mo-bar i{ display:block; height:100%; background:linear-gradient(90deg, var(--qing), var(--tai)); transition:width .2s; }
 .momentum-row .mo-val{ font-variant-numeric:tabular-nums; color:var(--ink-2); min-width:24px; text-align:right; }
 .momentum-row .mo-combo{ color:var(--zhu); font-variant-numeric:tabular-nums; }
@@ -3117,13 +3119,13 @@ mark.hit{
 .ach-main{ flex:1 1 190px; min-width:150px; }
 .ach-nm{ font-size:13px; color:var(--ink); }
 .ach-tag{
-  margin-left:6px; padding:1px 4px; font-size:10px; border-radius:1px;
+  margin-left:6px; padding:1px 4px; font-size:10px; border-radius:4px;
   color:var(--ink-3); border:1px solid var(--rule-2);
 }
 .ach-row.st-claimable .ach-tag{ color:#fff; background:var(--zhu); border-color:var(--zhu); }
 .ach-row.st-claimed .ach-tag{ color:var(--ink-3); }
 .ach-desc{ font-size:11.5px; color:var(--ink-3); margin:2px 0 4px; }
-.ach-pro{ height:3px; background:var(--rule-3); border-radius:1px; overflow:hidden; max-width:190px; }
+.ach-pro{ height:3px; background:var(--rule-3); border-radius:4px; overflow:hidden; max-width:190px; }
 .ach-pro i{ display:block; height:100%; background:var(--tai); }
 .ach-row.st-claimed .ach-pro i{ background:var(--ink-3); }
 .ach-re{ flex:0 1 auto; font-size:11.5px; color:var(--tai); text-align:right; }
@@ -3166,7 +3168,7 @@ mark.hit{
 .use-chip{
   display:inline-block; margin:0; padding:1px 6px; white-space:nowrap;
   font-size:11.5px; color:var(--ink-2); background:var(--paper-3);
-  border:1px solid var(--rule-2); border-radius:1px;
+  border:1px solid var(--rule-2); border-radius:4px;
 }
 .use-chip.rite{ color:var(--zhu-d); border-color:var(--zhu); background:transparent; }
 .reveal .hint + .hint{ margin-left:8px; }

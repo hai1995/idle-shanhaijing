@@ -2962,8 +2962,11 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
   // 42.9 行动链：页尾「下一步」横条
   assert(uiSrc2.includes('function nextStepHtml') && uiSrc2.includes('class="next-step-bar"'), '页尾「下一步」横条（行动链）');
 
-  // 42.10 移动端操作按钮统一近直角
-  assert(/@media \(max-width:760px\)\{[\s\S]{0,500}\.btn[^{]*\{[^}]*border-radius:1px !important/.test(css2), '窄屏操作按钮统一近直角');
+  // 42.10 移动端操作按钮的弧度
+  // 旧断言是「统一近直角 1px」，理由是「圆角与纸墨主题不合」——那是纸墨直角审美时期的决定。
+  // 界面简洁化（v1.31.158）后全站走圆角，手机上反而成了唯一一处方形，与桌面两种观感。
+  // 改为：窄屏圆角收一档（6px），与桌面同一套弧度语言。
+  assert(/@media \(max-width:760px\)\{[\s\S]{0,500}\.btn[^{]*\{[^}]*border-radius:6px !important/.test(css2), '窄屏操作按钮圆角收一档（6px，与桌面同套弧度）');
 }
 
 // ============ 48. 祠礼续祭与加成落地（v1.15） ============

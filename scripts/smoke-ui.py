@@ -140,6 +140,19 @@ def main():
             if ov > 1:
                 fails.append(f'窄屏「{t}」页横向溢出 {ov}px')
         print(f'· 窄屏（390px）{len(TABS)} 页横向溢出检查完毕')
+
+        # 6) 窄屏弧度：曾有一条 !important 把所有控件压成近直角（v1.31.158 修掉）
+        #    静态测试看不见它，手机上却是「简洁化完全没生效」的元凶。
+        pg.evaluate("() => UI.switchTab('pack')")
+        pg.wait_for_timeout(200)
+        rad = pg.evaluate("""() => {
+          const r = (s) => { const el = document.querySelector(s); return el ? getComputedStyle(el).borderRadius : null; };
+          return { btn: r('.btn'), tile: r('.tile'), tab: r('#tabs .tab'), chip: r('.chip-btn') };
+        }""")
+        print(f'· 窄屏弧度：{rad}')
+        for k, v in rad.items():
+            if v and v not in ('6px', None):
+                fails.append(f'窄屏 {k} 弧度应为 6px，实为 {v}')
         if args.out:
             pg.screenshot(path=os.path.join(args.out, 'narrow.png'))
         b.close()
