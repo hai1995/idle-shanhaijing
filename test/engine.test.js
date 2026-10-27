@@ -9611,6 +9611,67 @@ section('见闻账目与文案一致');
   ST.__eventsMuted = true;
 }
 
+
+// ============ 179. 异迹专属见闻（v1.31.105） ============
+// 站在异迹之地（观瑞 / 观象 / 谒见 / 灌木所在山头）做事，才可能撞见「此地有灵」「祠前老祝」。
+// 联动的意义：见闻不再只是路上的随机插曲，还回应「你此刻正站在一个特别的地方」。
+section('异迹专属见闻');
+{
+  ST.__eventsMuted = false;
+  G.resetToDefault();
+  assert(typeof ST.heteroKindAt === 'function', 'heteroKindAt 可查（节点 → 异迹类别）');
+
+  // ① 异迹节点能查到类别；普通节点查不到
+  const sites = ST.heteroSites();
+  assert(sites.length > 0, '本档有异迹点（' + sites.length + ' 处）');
+  const site = sites.find(s => s.kind === '谒见') || sites[0];
+  assert(ST.heteroKindAt(site.nodeId) === site.kind, '异迹节点查得到类别（' + site.kind + '）');
+  assert(ST.heteroKindAt('不存在的节点') === '', '不存在的节点返回空串');
+  assert(ST.heteroKindAt(undefined) === '', '无 nodeId 返回空串（不炸）');
+
+  // ② when 过滤：只有异迹节点才入选
+  const ling = ST.TRAVEL_EVENTS.find(e => e.id === 'yiji_ling');
+  const zhu  = ST.TRAVEL_EVENTS.find(e => e.id === 'yiji_zhu');
+  assert(ling && zhu, '两条异迹见闻都在表里');
+  const guanSite = sites.find(s => s.kind === '观瑞' || s.kind === '观象');
+  if (guanSite){
+    assert(ling.when({ nodeId: guanSite.nodeId }) === true, '观瑞 / 观象地触发「此地有灵」');
+    assert(zhu.when({ nodeId: guanSite.nodeId }) === false, '观瑞地不触发「祠前老祝」');
+  }
+  assert(ling.when({ nodeId: 'zhhaoshan' }) === false || ST.heteroKindAt('zhhaoshan'),
+    '普通节点不触发「此地有灵」（除非它真是异迹点）');
+  assert(ling.when({}) === false && zhu.when({}) === false, '无节点时都不触发（制作 / 讨伐等场景安全）');
+
+  // ③ 触发给奖励且账目一致（文案数字 = 账上数字）
+  ST.__eventsMuted = false;
+  ST.Game.events.at = 0;
+  if (guanSite){
+    const before = ST.levelOf('guanxiang');
+    const out = ling.run({ kind:'gather', nodeId: guanSite.nodeId }) || {};
+    assert(/观象经验/.test(out.log || ''), '「此地有灵」文案带观象经验');
+    const m = String(out.log).match(/观象经验 \+(\d+)/);
+    assert(m && ST.levelOf('guanxiang') >= before, '经验确实发到技艺上');
+  }
+  if (site.kind === '谒见'){
+    const shellsBefore = ST.Game.shells;
+    const out2 = zhu.run({ kind:'gather', nodeId: site.nodeId }) || {};
+    const m2 = String(out2.log || '').match(/贝 \+(\d+)/);
+    assert(m2, '「祠前老祝」文案带贝数');
+    const gained = ST.Game.shells - shellsBefore;
+    assert(gained === Number(m2[1]), '文案贝数 = 账上贝数（' + m2[1] + ' = ' + gained + '）');
+  }
+
+  // ④ 可视化条目配齐（现场反馈不该缺字形）
+  assert(ST.EVENT_VIS.yiji_ling && ST.EVENT_VIS.yiji_zhu, '两条异迹见闻有现场可视化');
+
+  // ⑤ 总数计数自动跟上（成就判据不写死数字，加条目不用改成就）
+  assert(ST.eventKindsTotal() === ST.TRAVEL_EVENTS.length + ST.AWAY_EVENTS.length,
+    '总数 = 两张表长度之和（现 ' + ST.eventKindsTotal() + '）');
+
+  G.resetToDefault();
+  ST.__eventsMuted = true;
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

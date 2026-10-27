@@ -200,6 +200,39 @@ const TRAVEL_EVENTS = [
       return { log: `🪙 拾得旧贝一串（贝 +${shells}）`, toast: `🪙 贝 +${shells}` };
     },
   },
+  // ── 异迹专属（v1.31.105）：站在「异迹之地」（观瑞 / 观象 / 谒见 / 灌木所在的山头）
+  //    做事时才可能撞见。当 ctx.nodeId 是异迹节点、且该节点的事还没做完时才出手——
+  //    「此事有灵」的暗示要能落到「还没做的那件事」上，不然是空话。
+  {
+    id: 'yiji_ling', name: '此地有灵', weight: 2,
+    when(ctx){
+      const k = heteroKindAt(ctx && ctx.nodeId);
+      return k === '观瑞' || k === '观象';
+    },
+    run(ctx){
+      const lv = (typeof levelOf === 'function') ? levelOf('guanxiang') : 1;
+      const xp = 11 + Math.round(lv * 0.5);
+      if (typeof gainXp === 'function') gainXp('guanxiang', xp);
+      const where = (typeof nodeOf === 'function') ? (nodeOf(ctx.nodeId) || {}).name : '';
+      return { log: `✨ ${where ? where + '的' : ''}云气不散，像有谁在看你——观象悟得些门道（观象经验 +${xp}）`,
+               toast: `✨ 观象经验 +${xp}` };
+    },
+  },
+  {
+    id: 'yiji_zhu', name: '祠前老祝', weight: 2,
+    when(ctx){ return heteroKindAt(ctx && ctx.nodeId) === '谒见'; },
+    run(ctx){
+      const lv = (typeof levelOf === 'function') ? levelOf('bushi') : 1;
+      const xp = 10 + Math.round(lv * 0.5);
+      if (typeof gainXp === 'function') gainXp('bushi', xp);
+      const shells = 8 + lv * 2;
+      Game.shells = (Game.shells || 0) + shells;
+      Game.stats.totalEarned = (Game.stats.totalEarned || 0) + shells;
+      const where = (typeof nodeOf === 'function') ? (nodeOf(ctx.nodeId) || {}).name : '';
+      return { log: `🕯️ ${where ? where + '的' : ''}山祠前有老祝扫叶，与你说起山神的脾气（卜祀经验 +${xp} · 贝 +${shells}）`,
+               toast: `🕯️ 卜祀经验 +${xp} · 贝 +${shells}` };
+    },
+  },
 ];
 
 // 见闻的「可视化」：glyph 浮在现场画面上，wash 给现场罩一层短暂的气候/光线。
@@ -221,6 +254,8 @@ const EVENT_VIS = {
   lianhuo:  { glyph:'🔥', wash:'glow' },
   yese:     { glyph:'🌙', wash:'star' },
   gubei:    { glyph:'🗿', wash:'star' },
+  yiji_ling:{ glyph:'✨', wash:'star' },
+  yiji_zhu: { glyph:'🕯️', wash:'glow' },
 };
 const EV_WASH_MS = 2600;   // 与 CSS 的动画时长对齐（见 style.css 的 .sc-ev-*）
 
@@ -315,7 +350,7 @@ function maybeAwayEvent(seconds, summary){
 }
 
 // 抽取：先分「见过 / 没见过」两层，再在层内按原权重轮盘（v1.31.98）。
-// 缘由：18 条见闻 + 90 秒冷却，挂一小时能撞三十多次，于是同一条反复出现——
+// 缘由：二十来条见闻 + 90 秒冷却，挂一小时能撞三十多次，于是同一条反复出现——
 // 玩家记住的会是「又是残简」，而不是「这本书里有多少种事」。
 //
 // 为什么不是「按已见次数给权重打折」：试过。折扣一开，没见过的每一分都相对变重，
@@ -334,6 +369,14 @@ function pickByWeight(pool, seen){
   let r = Math.random() * total, pick = from[from.length - 1];
   for (const e of from){ r -= e.weight; if (r <= 0){ pick = e; break; } }
   return pick;
+}
+
+// 异迹 kind 查询：某节点是不是异迹之地（观瑞 / 观象 / 谒见 / 灌木），是哪一类。
+// 供「异迹专属见闻」的 when 用；引擎没挂上时返回空串（事件自然不入选）。
+function heteroKindAt(nodeId){
+  if (!nodeId || typeof heteroSites !== 'function') return '';
+  const s = heteroSites().find(x => x.nodeId === nodeId);
+  return s ? s.kind : '';
 }
 
 function eventsState(){
@@ -378,7 +421,7 @@ function maybeEvent(ctx, force){
   // 分类单列 'event'：见闻原先记在 'sys' 里，和「技能升级」「已存档」混作一堆，
   // 想回看「这一夜遇见了什么」得在系统消息里翻。
   if (out.log && typeof log === 'function') log(out.log, 'gold', 'event');
-  // toast 里带上「已见 N/18 种」：见闻的价值在种类，这个数就是收集进度。
+  // toast 里带上「已见 N/总数 种」：见闻的价值在种类，这个数就是收集进度。
   // 只加在 toast 上，日志文案不动——日志是回溯用的，多一个数字反而打断句子。
   if (out.toast && typeof UI !== 'undefined' && UI && UI.toast){
     const k = (typeof eventKindsSeen === 'function') ? eventKindsSeen() : 0;
@@ -453,6 +496,7 @@ if (typeof window !== 'undefined'){
   window.EVENT_VIS = EVENT_VIS;
   window.EV_WASH_MS = EV_WASH_MS;
   window.maybeEvent = maybeEvent;
+  window.heteroKindAt = heteroKindAt;
   window.flashEvent = flashEvent;
   window.eventCount = eventCount;
   window.eventKindsSeen = eventKindsSeen;
