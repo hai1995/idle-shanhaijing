@@ -174,6 +174,30 @@ const TRAVEL_EVENTS = [
     },
   },
   {
+    id: 'hanjing', name: '旱井见底', weight: 3, hint: '只在旱季出现',
+    // 季节（v1.31.124）：旱 / 雨六小时轮转，山上的物候本来就该跟着变。
+    // 与「夜里」同理——后者看主题，前者看 seasonPhase()，两者互不影响、可叠加。
+    when(){ return (typeof seasonPhase === 'function') && seasonPhase() === 0; },
+    run(){
+      const lv = (typeof levelOf === 'function') ? levelOf('puyi') : 1;
+      const xp = 11 + Math.round(lv * 0.5);
+      if (typeof gainXp === 'function') gainXp('puyi', xp);
+      return { log: `🏜️ 旱得久了，井底只剩一层湿泥，倒是认得出土色（圃艺 +${xp}）`,
+               toast: `🏜️ 旱井见底\n圃艺 +${xp}` };
+    },
+  },
+  {
+    id: 'yuzu', name: '雨后新涨', weight: 3, hint: '只在雨季出现',
+    when(){ return (typeof seasonPhase === 'function') && seasonPhase() === 1; },
+    run(){
+      const lv = (typeof levelOf === 'function') ? levelOf('caiyu') : 1;
+      const xp = 12 + Math.round(lv * 0.5);
+      if (typeof gainXp === 'function') gainXp('caiyu', xp);
+      return { log: `🌊 雨过溪涨，浑水裹着落叶往下冲，鱼都浮到浅处（采渔 +${xp}）`,
+               toast: `🌊 雨后新涨\n采渔 +${xp}` };
+    },
+  },
+  {
     id: 'gubei', name: '古碑可读', weight: 1, rare: true, hint: '珍稀 · 概率极低，多走多遇',
     // 珍稀：三条技艺一起给，量不大但「一份顶三份」，稀有度靠 weight=1 与文案体现。
     run(){
@@ -312,6 +336,8 @@ const EVENT_VIS = {
   yiji_miao:{ glyph:'🌱', wash:'' },
   zhao_xiong:{ glyph:'⚠️', wash:'' },
   zhao_ji:  { glyph:'🌿', wash:'glow' },
+  hanjing:  { glyph:'🏜️', wash:'' },
+  yuzu:     { glyph:'🌊', wash:'rain' },
 };
 const EV_WASH_MS = 2600;   // 与 CSS 的动画时长对齐（见 style.css 的 .sc-ev-*）
 

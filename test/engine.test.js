@@ -9882,6 +9882,63 @@ section('征兆专属见闻');
   assert(/buffDefText/.test(sh) && !/function buffDefText/.test(cx), '增益口径只在 shrine.js');
 }
 
+// ============ 183. 季节专属见闻：旱 / 雨各一条 ============
+// 季节（SEASON_SEC＝六小时）原先只影响教山渔获 ±30%，且要点开节点详情才看得到。
+// 这一节把季节变成看得见、能收集的东西：两条季限见闻 + 顶栏季名。
+// 断言直接调 when() 而不是反复抽签——抽中只说明「可能出现」，说明不了「一定不出现」。
+{
+  const all = ST.TRAVEL_EVENTS.concat(ST.AWAY_EVENTS);
+  const han = all.find(e => e.id === 'hanjing'), yu = all.find(e => e.id === 'yuzu');
+  assert(!!han && !!yu, '两条季节见闻都在表里');
+  assert(!!han.hint && /旱季/.test(han.hint), '旱季见闻的线索写明旱季');
+  assert(!!yu.hint && /雨季/.test(yu.hint), '雨季见闻的线索写明雨季');
+  assert(ST.EVENT_VIS.hanjing && ST.EVENT_VIS.yuzu, '两条都有现场字形');
+
+  // 季节由 gameTime（= Game.stats.time）推出，把它拨一季即可翻面
+  const SEC = 6 * 3600, t0 = ST.Game.stats.time;
+  const phaseOf = () => Math.floor(ST.gameTime() / SEC) % 2;
+  const p0 = phaseOf();
+  assert(han.when({}) === (p0 === 0), '旱季见闻只在旱季入选');
+  assert(yu.when({}) === (p0 === 1), '雨季见闻只在雨季入选');
+
+  // 拨一季：相位必然翻转（用 Math.floor 换算的边界上，加/减一个 SEC 正好跨一档）
+  ST.Game.stats.time = t0 + SEC;
+  assert(phaseOf() !== p0, '拨一季后相位确实翻转');
+  assert(han.when({}) === (phaseOf() === 0), '翻面后旱季见闻的入选随之翻转');
+  assert(yu.when({}) === (phaseOf() === 1), '翻面后雨季见闻的入选随之翻转');
+  ST.Game.stats.time = t0;
+  assert(phaseOf() === p0, '拨回后季节恢复（测试自身不留痕）');
+
+  // ---- 回归：seasonPhase 只能是 0 / 1，绝不能是 -1 ----
+  // `Math.floor(t/SEC) % 2` 在 t<0 时返回 -1：旧写法 `phase ? A : B` 会把它当真值判成雨季，
+  // 新写法 `=== 0 / === 1` 则两头都不算、见闻整季消失。归一留给 helper，不给每个消费方。
+  const tKeep = ST.Game.stats.time;
+  [0, 100, 6*3600 + 10, 12*3600 + 10, -100, -6*3600 + 10, -12*3600 - 500].forEach(t => {
+    ST.Game.stats.time = t;
+    const ph = ST.seasonPhase();
+    assert(ph === 0 || ph === 1, 'seasonPhase 在 time=' + t + ' 时落在 {0,1}（实际 ' + ph + '）');
+  });
+  ST.Game.stats.time = tKeep;
+
+  // ---- 顶栏季名：原先写死「南山经」，永远不变也不指任何东西 ----
+  const html183 = readText('index.html');
+  assert(/id="seasonTag"/.test(html183), '顶栏有季名节点');
+  assert(!/<small>南山经<\/small>/.test(html183), '写死的「南山经」已移除');
+  const hud183 = readText('src/ui/hud.js');
+  assert(/seasonName\(\)/.test(hud183) && /classList\.toggle\('wet'/.test(hud183), '季名按实际季节渲染并切色档');
+  const css183 = readText('style.css');
+  // 配色规则的具体度必须压过 `#topbar .title small`（0,2,1），否则季名只剩默认灰——
+  // 这一点纯文本断言看不出来，所以钉住「选择器里同时出现 #topbar 与 #seasonTag」。
+  assert(/#topbar \.title small#seasonTag\{/.test(css183), '旱季配色压过基础灰');
+  assert(/#topbar \.title small#seasonTag\.wet\{/.test(css183), '雨季配色压过基础灰');
+  // 窄屏有两处都隐藏 .title > small（760 与更窄一档），两处都得放行，缺一处手机上就没了
+  const passthrough183 = (css183.match(/small:not\(#seasonTag\)/g) || []).length;
+  assert(passthrough183 >= 2, '两处窄屏规则都为季名开了例外（实际 ' + passthrough183 + ' 处）');
+  // 窄屏把 `#nickTag::before` 的「— 」去掉了，季名与名号会黏成「雨季著录客」——实测发现，
+  // 纯文本断言看不出来，所以钉住「季名 + 名号」这条相邻规则。
+  assert(/#seasonTag \+ #nickTag\{/.test(css183), '季名与名号之间有间隔（窄屏不黏连）');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

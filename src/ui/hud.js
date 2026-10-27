@@ -175,6 +175,17 @@ UI.renderTopbar = function(){
     nt.title = nn;
     nt.classList.remove('hidden');
   }
+  // 季节（v1.31.124）：原先书脊上写死「南山经」四个字，永远不变、也不指任何东西。
+  // 换成旱 / 雨轮转的季名：它真影响玩法（教山渔获 ±30%、两条季节见闻），
+  // 而玩家此前只有在山志里点开节点才看得到——一条影响收益的状态不该藏那么深。
+  const sn = $('seasonTag');
+  if (sn){
+    const wet = (typeof seasonPhase === 'function') && seasonPhase() === 1;
+    const name = (typeof seasonName === 'function') ? seasonName() : (wet ? '雨季' : '旱季');
+    if (sn.textContent !== name) sn.textContent = name;
+    sn.classList.toggle('wet', !!wet);
+    sn.title = wet ? '雨季：教山渔获 +30%（六小时一转）' : '旱季：教山渔获 −30%（六小时一转）';
+  }
   // 增益图标处于书脊最右：这里只更新计数与明暗，内容在点开浮层时才生成。
   this.renderBuffBtn();
 };

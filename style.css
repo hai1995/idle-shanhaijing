@@ -262,6 +262,19 @@ html.theme-anim, html.theme-anim *{
 }
 #nickTag::before{ content:'— '; opacity:.5; }
 
+/* 季名（v1.31.124）：替掉原先写死的「南山经」。旱偏赭、雨偏青，
+   与顶栏其余文字的灰度区分，一眼能看出今儿是哪个季。 */
+/* 具体度要压过 `#topbar .title small`（0,2,1），否则季名只剩默认灰 */
+#topbar .title small#seasonTag{ letter-spacing:.18em; color:rgba(226,178,120,.86); }
+/* 季名后紧跟名号：基础样式里季名有左边框当分隔，名号侧靠 `#nickTag::before` 的「— 」；
+   窄屏把那道「— 」去掉了，季名与名号会黏成「雨季著录客」——补一个间隔 */
+#topbar .title small#seasonTag + #nickTag{ margin-left:8px; }
+#topbar .title small#seasonTag.wet{ color:rgba(150,196,206,.9); }
+@media (max-width:520px){
+  /* 窄屏书名隐去，季名留一格宽度即可 */
+  #topbar #seasonTag{ margin-left:0; padding-left:0; border-left:0; font-size:10px; letter-spacing:.1em; }
+}
+
 /* 三项状态盘：标签在上、数值在下，不再是「标签 值」串成一排 */
 #topbar .stat{
   display:grid; grid-template-columns:auto; gap:0; min-width:0;
@@ -2393,7 +2406,7 @@ body.no-scroll{ overflow:hidden; }
   #topbar .title{ display:inline-flex; align-items:center; font-size:11px; letter-spacing:.02em; }
   #topbar .title > b:not(#nickTag),
   #topbar .title > i,
-  #topbar .title > small{ display:none; }
+  #topbar .title > small:not(#seasonTag){ display:none; }
   #topbar #nickTag{ margin-left:0; max-width:5.5em; font-size:11px; }
   #topbar #nickTag::before{ content:''; }   /* 书名隐去后，前面那道「— 」成了孤零零一横 */
   #topbar::after{ left:16px; right:8px; }
@@ -2403,7 +2416,7 @@ body.no-scroll{ overflow:hidden; }
   }
   #topbar .left::-webkit-scrollbar{ display:none; }
   #topbar .title{ font-size:16px; letter-spacing:.14em; }
-  #topbar .title small{ display:none; }
+  #topbar .title small:not(#seasonTag){ display:none; }   /* 季名要留（v1.31.124）：它是玩法状态，不是装饰 */
   #topbar .stat{ padding-left:10px; }
   #topbar .stat .lb{ font-size:9px; letter-spacing:.1em; }
   #topbar .stat b{ font-size:13.5px; }

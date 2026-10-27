@@ -824,7 +824,12 @@ window.useConsumable = useConsumable;
 // 三处山在数据里写了设定（白沙山「尽沙」、洹山「三桑百仞」、教山「冬干而夏流」），
 // 此前只有 note 文案、没有机制。此处各给一个轻量效果，山志上也会标出来。
 const SEASON_SEC = 6 * 3600;                                     // 一候六小时，旱 / 雨轮转
-function seasonPhase(){ return Math.floor(gameTime() / SEASON_SEC) % 2; }   // 0 旱 1 雨
+// 季节（v1.31.124 修）：原来直接 `Math.floor(t/SEC) % 2`，而 JS 的 % 对负数返回负值——
+// 读档把 time 归零之前（或旧档里 time 极小、被扣成负数时）会得到 **-1**。
+// 旧消费方写的是 `seasonPhase() ? A : B`，-1 是真值 → 错判成雨季；新消费方写
+// `=== 0` / `=== 1`，-1 两头都不算 → 季节见闻整季消失。两种错都很隐蔽。
+// 归一到 0/1 是 helper 的责任，不该让每个消费方各写一遍防负。
+function seasonPhase(){ const n = Math.floor(gameTime() / SEASON_SEC); return ((n % 2) + 2) % 2; }   // 0 旱 1 雨
 function seasonName(){ return seasonPhase() ? '雨季' : '旱季'; }
 function geoOf(nodeId){ return (window.SPECIAL_NODES || {})[nodeId] || null; }
 function hasBeast(id){ return Object.values(Game.deployed || {}).indexOf(id) >= 0; }
