@@ -355,7 +355,8 @@ html.theme-anim, html.theme-anim *{
   border:1px solid var(--rule); border-bottom:1px solid var(--rule);
   border-radius:12px; margin:8px 12px;
   font-size:13px; color:var(--ink-2); cursor:pointer;
-  box-shadow:0 2px 10px rgba(31,29,25,.10);
+  /* 投影用中性黑而不是暖墨：夜间那批 token 换成深蓝黑后，暖色投影会浮在冷底上 */
+  box-shadow:0 2px 10px rgba(0,0,0,.08);
 }
 /* 仪表带只留「当前行动 / 进度 / 停止」：气血在征伐页的战斗面板里已有，
    增益则收进书脊右上角一枚图标（见 .buff-btn），不再挤占这一行。 */
@@ -820,25 +821,26 @@ html.theme-anim, html.theme-anim *{
   max-height:calc(100vh - var(--topdock-h, 110px) - 32px);
   overflow-y:auto; overscroll-behavior:contain;
   padding:10px 8px;
-  background:var(--paper-2); border:1px solid var(--rule); border-radius:var(--r);
+  /* 简洁化（v1.31.152）：与网格小卡同圆角，栏与卡不再两种弧度 */
+  background:var(--paper-2); border:1px solid var(--rule); border-radius:12px;
 }
 
 .tab{
   position:relative; font-size:13px; padding:9px 10px 9px 12px; cursor:pointer; text-align:left;
   display:flex; align-items:center; gap:10px;
-  background:transparent; border:none; border-radius:1px;
+  background:transparent; border:none;
+  /* 简洁化（v1.31.152）：圆角行；悬浮色改用主题 token——原先写死暖灰 rgba，
+     夜间那批 token 换成深蓝黑后，这处仍是一块暖色补丁。 */
+  border-radius:8px;
   color:var(--ink-2); transition:background .14s, color .14s;
 }
 .tab-ic{ display:grid; place-items:center; width:18px; height:18px; flex:0 0 auto; color:var(--ink-4); transition:color .14s; }
 .tab-ic svg{ width:17px; height:17px; display:block; }
-.tab:hover{ background:rgba(31,29,25,.045); color:var(--ink); }
+.tab:hover{ background:var(--rule-3); color:var(--ink); }
 .tab:hover .tab-ic{ color:var(--ink-2); }
+/* 选中态：一枚朱色圆角药丸。不只靠颜色——加粗一并变化，色弱也能认出当前页 */
 .tab.active{ color:var(--zhu); font-weight:700; background:var(--zhu-w); }
 .tab.active .tab-ic{ color:var(--zhu); }
-/* 选中项左侧的朱线：短、粗、像盖印时的手指压痕 */
-.tab.active::before{
-  content:''; position:absolute; left:0; top:6px; bottom:6px; width:2px; background:var(--zhu);
-}
 /* 末尾常驻的「设置」入口：形态同页签，沉到栏底，与导航之间留一道细线。
    margin-top:auto 在内容溢出时自动失效（栏本身可滚动），不会把入口挤掉。 */
 .tab-tool{ margin-top:auto; padding-top:11px; border-top:1px solid var(--rule-2); color:var(--ink-3); }
@@ -2603,7 +2605,6 @@ body.no-scroll{ overflow:hidden; }
   #tabs .tab:hover{ color:var(--ink); background:var(--rule-3); }
   #tabs .tab.active{ color:var(--zhu); background:var(--zhu-w); }
   #tabs .tab.active .tab-ic{ color:var(--zhu); }
-  #tabs .tab.active::before{ display:none; }
   /* 展开态：朱色压边 + 淡朱底，与桌面选中项同一套语言 */
   body.drawer-open #tabs .tab.active{
     background:var(--zhu-w); color:var(--zhu-d);
@@ -20059,8 +20060,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.151',
-  codename:'昼巡 · 受阻',
+  version: '1.31.152',
+  codename:'昼巡 · 圆栏',
   updated: '2026-10-28',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',

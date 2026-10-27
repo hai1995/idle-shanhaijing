@@ -1231,6 +1231,9 @@ assert(/top:calc\(var\(--topdock-h/.test(toastBaseRule), '桌面端通知落于�
 const sbRule = (css.match(/#statusbar\{[^}]*\}/) || [''])[0];
 assert(sbRule && !/position:fixed/.test(sbRule), '状态条规则不含 position:fixed（已并入吸顶流）');
 assert(/background:var\(--paper-2\)/.test(sbRule) && /border-bottom:1px solid var\(--rule\)/.test(sbRule), '状态条为纸质仪表带（墨色顶栏之下留一道细线）');
+// 夜间基底换成深蓝黑后，写死的暖色补丁会很显眼（v1.31.152 收口）
+assert(/box-shadow:0 2px 10px rgba\(0,0,0,\.08\);/.test(sbRule), '状态条投影用中性黑（冷底上不浮暖色）');
+assert(/\.tab:hover\{ background:var\(--rule-3\);/.test(css), '页签悬浮色跟主题走（不再写死暖灰 rgba）');
 assert(/padding:0 16px var\(--app-pad-b, var\(--app-pad-b-base\)\)/.test((css.match(/#app\{[^}]*\}/) || [''])[0]), '#app 底部不再为状态条预留空间（留白变量化，可被抑制）');
 // 20.4b 滚动条审查：消除「不必要」的内部滚动条
 // (1) 竖排古籍不得有左外边距：竖排时 margin-left 是物理左外边距，会把整块推出父容器内容盒
