@@ -9643,6 +9643,18 @@ section('异迹专属见闻');
   const ling = ST.TRAVEL_EVENTS.find(e => e.id === 'yiji_ling');
   const zhu  = ST.TRAVEL_EVENTS.find(e => e.id === 'yiji_zhu');
   assert(ling && zhu, '两条异迹见闻都在表里');
+  // 四类异迹各有其见闻（v1.31.111 补齐灌木这一类）：kind → 见闻 id 的对应表要全
+  const miao = ST.TRAVEL_EVENTS.find(e => e.id === 'yiji_miao');
+  const guanSite0 = sites.find(s => s.kind === '灌木');
+  assert(miao, '灌木见闻「苗有新色」在表里');
+  if (guanSite0){
+    assert(miao.when({ nodeId: guanSite0.nodeId }) === true, '灌木地触发「苗有新色」');
+    assert(miao.when({ nodeId: (sites.find(s=>s.kind==='谒见')||{}).nodeId }) === false, '祠地不触发「苗有新色」');
+  }
+  const ySrc111 = readText('src/ui/yudi.js');
+  ['yiji_ling','yiji_zhu','yiji_miao'].forEach(id => assert(ySrc111.includes(`'${id}'`), '索引挂到见闻 ' + id));
+  assert(ST.EVENT_VIS.yiji_miao, '灌木见闻有现场字形');
+
   const guanSite = sites.find(s => s.kind === '观瑞' || s.kind === '观象');
   if (guanSite){
     assert(ling.when({ nodeId: guanSite.nodeId }) === true, '观瑞 / 观象地触发「此地有灵」');

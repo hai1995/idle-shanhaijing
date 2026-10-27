@@ -146,7 +146,9 @@ function heteroPanelHtml(){
       const prog = x.prog ? ` · ${Math.min(x.prog.got, x.prog.total)}/${x.prog.total}` : '';
       // 这一处关联的见闻（v1.31.108）：观象 / 观瑞地关联「此地有灵」，谒见地关联「祠前老祝」。
       // 索引与见闻录自此互为两面：在这边看得见「还差哪条见闻」，在见闻录那边点线索又能回来。
-      const evId = (x.kind === '谒见') ? 'yiji_zhu' : ((x.kind === '观象' || x.kind === '观瑞') ? 'yiji_ling' : '');
+      const evId = (x.kind === '谒见') ? 'yiji_zhu'
+                : ((x.kind === '观象' || x.kind === '观瑞') ? 'yiji_ling'
+                : (x.kind === '灌木' ? 'yiji_miao' : ''));
       const evSeen = evId && Game.events && Game.events.seen ? (Game.events.seen[evId] || 0) : 0;
       const evTag = !evId ? ''
         : (evSeen ? `<i class="hr-ev on" title="此处可遇见闻「${esc(evNameOf(evId))}」，已遇 ${evSeen} 次">✦</i>`

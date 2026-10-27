@@ -219,6 +219,22 @@ const TRAVEL_EVENTS = [
     },
   },
   {
+    // 灌木（养成）地：玉膏 / 器酸 / 精卫填海这类「一天一点」的长线。
+    // 它最缺的从来不是奖励，而是「有人在看着它长」的感觉——所以这条见闻给的东西很轻
+    // （一点点贝 + 一句看着它变了的描述），重在「有人陪你等」。
+    id: 'yiji_miao', name: '苗有新色', weight: 2, hint: '在灌木 / 养成之地做事才遇', go: 'hetero',
+    when(ctx){ return heteroKindAt(ctx && ctx.nodeId) === '灌木'; },
+    run(ctx){
+      const lv = (typeof levelOf === 'function') ? levelOf('zhulu') : 1;
+      const shells = 10 + lv * 2;
+      Game.shells = (Game.shells || 0) + shells;
+      Game.stats.totalEarned = (Game.stats.totalEarned || 0) + shells;
+      const where = (typeof nodeOf === 'function') ? (nodeOf(ctx.nodeId) || {}).name : '';
+      return { log: `🌱 ${where ? where + '的' : ''}灌木比昨日厚了一指，叶背翻出新色（贝 +${shells}）`,
+               toast: `🌱 苗有新色 · 贝 +${shells}` };
+    },
+  },
+  {
     id: 'yiji_zhu', name: '祠前老祝', weight: 2, hint: '在有山祠（谒见）的山头做事才遇', go: 'hetero',
     when(ctx){ return heteroKindAt(ctx && ctx.nodeId) === '谒见'; },
     run(ctx){
@@ -256,6 +272,7 @@ const EVENT_VIS = {
   gubei:    { glyph:'🗿', wash:'star' },
   yiji_ling:{ glyph:'✨', wash:'star' },
   yiji_zhu: { glyph:'🕯️', wash:'glow' },
+  yiji_miao:{ glyph:'🌱', wash:'' },
 };
 const EV_WASH_MS = 2600;   // 与 CSS 的动画时长对齐（见 style.css 的 .sc-ev-*）
 
