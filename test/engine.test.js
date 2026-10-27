@@ -8991,7 +8991,7 @@ section('行旅见闻');
 
   // ⑤ 冷却随存档走：不存的话，刷新一次就能洗掉冷却、刷新即刷事件
   assert(/events: G\.events/.test(sSrc), '存档白名单里有 events');
-  assert(/g\.events = \{ at: 0, count: 0, lastId: '', seen: \{\} \}/.test(eSrc), '新建档有 events 默认值（含逐条计数 seen）');
+  assert(/g\.events = \{ at: 0, count: 0, lastId: '', seen: \{\}, awayAt: 0 \}/.test(eSrc), '新建档有 events 默认值（含逐条计数 seen 与离线见闻冷却 awayAt）');
   assert(/Game\.events = \(d\.events/.test(eSrc), '读档恢复 events');
   assert(/EVENT_GAP/.test(evSrc) && /last && now - last < EVENT_GAP/.test(evSrc),
     '冷却判据：at=0 视为「还没触发过」，不能当时间戳用');
@@ -9128,6 +9128,79 @@ section('见闻的现场反馈');
   catch(e){ err = e.message; }
   assert(!err, '无 DOM 环境下 flashEvent 不抛（' + err + '）');
 
+  ST.__eventsMuted = true;
+}
+
+// ============ 170. 离线见闻（你不在时山里的事，2026-10-27） ============
+// 这条线最容易出的错不是「不触发」，而是「把离线产出搅乱」——
+// 离线结算是全项目最贵也最不可回溯的一段，见闻只许在旁边添一句，不许动它的账。
+section('离线见闻');
+{
+  ST.__eventsMuted = false;
+  const evSrc = readText('src/events.js');
+  const gSrc = readText('src/game.js');
+  const eSrc = readText('src/engine.js');
+  const away = ST.AWAY_EVENTS || [];
+
+  assert(away.length >= 4, '离线见闻至少 4 条（实测 ' + away.length + '）');
+  assert(away.every(e => e.id && e.weight > 0 && typeof e.run === 'function'), '结构齐备');
+  const ids = away.map(e => e.id);
+  assert(new Set(ids).size === ids.length, 'id 不重复');
+  // 与路上见闻不能撞 id：两边共用 seen 计数
+  const roadIds = ST.TRAVEL_EVENTS.map(e => e.id);
+  assert(ids.every(id => roadIds.indexOf(id) < 0), '不与路上见闻重名（共用 seen 计数）');
+  assert(away.some(e => e.rare), '至少一条珍稀');
+
+  G.resetToDefault();
+  // ① 太短不编故事
+  const short = ST.maybeAwayEvent(120, {});
+  assert(short === null, '离山不足 5 分钟不触发（' + short + '）');
+
+  // ② 概率：一小时三成多，用固定随机数验边界
+  const origR = Math.random;
+  ST.Game.events = { at: 0, count: 0, lastId: '', seen: {}, awayAt: 0 };
+  Math.random = () => 0.99;
+  const miss = ST.maybeAwayEvent(3600, {});
+  ST.Game.events = { at: 0, count: 0, lastId: '', seen: {}, awayAt: 0 };
+  Math.random = () => 0;
+  const hit = ST.maybeAwayEvent(3600, {});
+  Math.random = origR;
+  assert(miss === null, '随机数 0.99 时不触发（一小时概率约三成）');
+  assert(hit && ids.indexOf(hit.id) >= 0, '随机数 0 时触发且在表内（' + (hit && hit.id) + '）');
+  assert(typeof hit.name === 'string' && typeof hit.text === 'string', '返回带名字与一句说明（摘要要直接显示）');
+  assert(ST.Game.events.seen[hit.id] === 1, '计入 seen（见闻录要能看到）');
+  assert(ST.Game.events.awayAt > 0, '记下 awayAt 冷却');
+
+  // ③ 冷却：刚触发过就不再触发
+  const again = ST.maybeAwayEvent(7200, {});
+  assert(again === null, '半小时内不再触发（awayAt 冷却）');
+
+  // ④ 只正向 + 不动离线的账
+  const src = away.map(e => e.run.toString()).join('\n');
+  assert(!/Game\.shells\s*-=/.test(src), '没有一条扣贝币');
+  assert(!/giveItem\([^)]*,\s*-/.test(src), '没有一条扣物件');
+  assert(!/summary\.\w+\s*[-+*]?=/.test(src), '不改 summary 里的既有数字（离线产出是另一套账）');
+
+  // ⑤ 挂在 settleAway 里、且在 saveGame 之前（否则刷新一次就没了）
+  const tail = gSrc.slice(gSrc.indexOf('Game.stats.lastOffline ='));
+  assert(/maybeAwayEvent\(seconds, summary\)/.test(tail), '离线结算末尾调用离线见闻');
+  assert(tail.indexOf('maybeAwayEvent') < tail.indexOf('saveGame()'), '先算见闻再存档');
+
+  // ⑥ 默认档带 awayAt；读档缺这个字段也不许炸
+  assert(/awayAt: 0/.test(eSrc), '新建档有 awayAt 默认值');
+  G.resetToDefault();
+  const sv = ST.Game.events;
+  delete sv.awayAt;
+  let err = null;
+  try { ST.maybeAwayEvent(3600, {}); } catch(e){ err = e.message; }
+  assert(!err, '旧档缺 awayAt 时不抛（' + err + '）');
+
+  // ⑦ 见闻录要分两组列
+  const mSrc = readText('src/ui/misc.js');
+  assert(/AWAY_EVENTS/.test(mSrc), '见闻录读取离线见闻表');
+  assert(/stat-sub/.test(mSrc), '见闻录给「不在时」单起一组');
+
+  G.resetToDefault();
   ST.__eventsMuted = true;
 }
 

@@ -532,6 +532,11 @@ const UI = {
       ? `<p class="hint off-cap">背包吃食每场需 ${rec.combat.needPortion} 份，只够支撑 ${rec.combat.fights} 场，其余时间已断粮。</p>`
       : (rec.combat && rec.combat.fights === 0
         ? `<p class="hint off-cap">这一战每场要吃 ${rec.combat.needPortion} 份，包中不足，故未开打。</p>` : '');
+    // 你不在时山里有事发生：一行就够，别抢了上面那些数字的注意力
+    const awayLine = rec.away
+      ? `<div class="form-row"><span>不在时</span><b class="off-away">${rec.away.rare ? '珍稀 · ' : ''}${esc(rec.away.name)}</b></div>
+         ${rec.away.text ? `<p class="hint off-cap">${esc(rec.away.text)}</p>` : ''}`
+      : '';
     const shellLine = (rec.shells||0) > 0
       ? `<div class="form-row"><span>讨平所获</span><b>🪙 ${fmt(rec.shells)} 贝</b></div>` : '';
     UI.modal(`
@@ -540,7 +545,7 @@ const UI = {
       ${capLine}
       ${acts?`<div class="form-row"><span>所做</span><b class="off-acts">${acts}</b></div>`:''}
       <div class="form-row"><span>修得经验</span><b style="color:var(--gamboge)">+${fmt(rec.xp)}</b></div>
-      ${recLine}${combatLine}${shellLine}${harvest}${riteLine}${omenLine}
+      ${recLine}${combatLine}${shellLine}${harvest}${riteLine}${omenLine}${awayLine}
       ${combatHint}
       ${items ? `<div class="panel" style="margin-top:8px"><div class="yield-row"><b>所得</b>${items}</div></div>` : ''}
       <div class="modal-btns"><button class="btn on" onclick="UI.closeModal()">收下</button></div>

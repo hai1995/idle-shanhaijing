@@ -224,8 +224,97 @@ const EVENT_VIS = {
 };
 const EV_WASH_MS = 2600;   // 与 CSS 的动画时长对齐（见 style.css 的 .sc-ev-*）
 
+// ── 离线见闻：你不在的时候，山里也发生了一点事 ──
+// 与采集见闻分开一张表，理由有三：
+//   1. 触发时机完全不同（离线归来 vs 一次采集完成），塞进同一张表就得靠 ctx 分流；
+//   2. 奖励口径不同：离线见闻的量级要按「离山多久」缩放，且必须远小于离线本体的产出；
+//   3. 见闻录要能分栏——「路上遇见的」与「不在时错过的」是两种心情。
+// 但它们共用 Game.events.seen 计数：玩家看到的仍是「一共见过多少种」。
+const AWAY_MIN_SEC = 300;     // 少于五分钟不编故事（太短，玩家会觉得是硬凑）
+const AWAY_GAP = 1800;        // 两次离线见闻至少隔半小时（游戏秒）——挂机党别每次都撞上
+
+const AWAY_EVENTS = [
+  {
+    id: 'away_laike', name: '山客来访', weight: 3,
+    run(sec, sum){
+      // 按离山时长缩放，但封顶：挂 12 小时不该比挂 1 小时多出十倍彩头
+      const h = Math.min(3, sec / 3600);
+      const shells = Math.round(60 * h) + 20;
+      Game.shells = (Game.shells || 0) + shells;
+      Game.stats.totalEarned = (Game.stats.totalEarned || 0) + shells;
+      return { log: `🍵 离山时曾有客来访，留下一囊贝（贝 +${shells}）`,
+               text: `有客来访，留贝 ${shells}`, shell: shells };
+    },
+  },
+  {
+    id: 'away_yexing', name: '夜有兽行', weight: 2,
+    run(sec){
+      const lv = (typeof levelOf === 'function') ? levelOf('taofa') : 1;
+      const xp = Math.round((10 + lv * 0.6) * Math.min(3, sec / 3600) + 6);
+      if (typeof gainXp === 'function') gainXp('taofa', xp);
+      return { log: `🐾 夜里兽群自檐下过，晨起见蹄印（讨伐 +${xp}）`,
+               text: `夜里兽群经过，讨伐 +${xp}`, xp };
+    },
+  },
+  {
+    id: 'away_lengyu', name: '冷雨敲窗', weight: 2,
+    run(sec){
+      const lv = (typeof levelOf === 'function') ? levelOf('caiyao') : 1;
+      const xp = Math.round((9 + lv * 0.55) * Math.min(3, sec / 3600) + 5);
+      if (typeof gainXp === 'function') gainXp('caiyao', xp);
+      return { log: `🌧️ 夜来冷雨敲窗，晨起阶下菌生（采药 +${xp}）`,
+               text: `一夜冷雨，采药 +${xp}`, xp };
+    },
+  },
+  {
+    id: 'away_mengzhao', name: '梦中有兆', weight: 1, rare: true,
+    run(sec){
+      // 珍稀：不直接给东西，给「看得懂」的两条技艺——与采集见闻的「古碑可读」同一路数
+      const g = (id) => ((typeof levelOf === 'function') ? levelOf(id) : 1);
+      const a = 12 + Math.round(g('guanxiang') * 0.7);
+      const b = 12 + Math.round(g('bushi') * 0.7);
+      if (typeof gainXp === 'function'){ gainXp('guanxiang', a); gainXp('bushi', b); }
+      return { log: `🌌 夜里梦见星次移位，醒来仍记得方位（观象 +${a} · 卜筮 +${b}）`,
+               text: `珍稀 · 梦中有兆，观象 +${a} · 卜筮 +${b}`, xp: a + b };
+    },
+  },
+];
+
+// 离线归来时调用。返回 { id, name, text } 或 null。
+// ⚠️ 只读 summary 做点缀，不改 summary 里的既有数字——离线产出是另一套账，
+//    见闻若去动它，两条结算链就纠缠在一起了。
+function maybeAwayEvent(seconds, summary){
+  if (typeof Game === 'undefined' || !Game) return null;
+  if (typeof window !== 'undefined' && window.__eventsMuted) return null;
+  const sec = Math.max(0, seconds || 0);
+  if (sec < AWAY_MIN_SEC) return null;
+  const st = eventsState();
+  const now = (typeof gameTime === 'function') ? gameTime() : 0;
+  const last = st.awayAt || 0;
+  if (last && now - last < AWAY_GAP) return null;
+  // 概率随时长涨，但一小时也就三成多：回来时「多半什么也没有」才让它像个消息
+  const p = Math.min(0.55, (sec / 3600) * 0.35);
+  if (typeof chance !== 'function' || !chance(p)) return null;
+
+  const total = AWAY_EVENTS.reduce((a, e) => a + e.weight, 0);
+  let r = Math.random() * total, pick = AWAY_EVENTS[AWAY_EVENTS.length - 1];
+  for (const e of AWAY_EVENTS){ r -= e.weight; if (r <= 0){ pick = e; break; } }
+
+  let out = {};
+  try { out = pick.run(sec, summary || {}) || {}; }
+  catch(e){ out = { text: '' }; }
+
+  // now 可能是 0（新档的第一秒），而 0 在冷却判据里是「从未触发」的哨兵——
+  // 与路上见闻的 at 是同一个坑。抬到 1，语义不变，哨兵不被占用。
+  st.awayAt = now || 1;
+  st.seen = (st.seen && typeof st.seen === 'object') ? st.seen : {};
+  st.seen[pick.id] = (st.seen[pick.id] || 0) + 1;
+  if (out.log && typeof log === 'function') log(out.log, 'gold', 'sys');
+  return { id: pick.id, name: pick.name, text: out.text || '', rare: !!pick.rare };
+}
+
 function eventsState(){
-  if (!Game.events || typeof Game.events !== 'object') Game.events = { at: 0, count: 0, lastId: '', seen: {} };
+  if (!Game.events || typeof Game.events !== 'object') Game.events = { at: 0, count: 0, lastId: '', seen: {}, awayAt: 0 };
   return Game.events;
 }
 
@@ -309,6 +398,8 @@ function eventCount(){ return (eventsState().count || 0); }
 
 if (typeof window !== 'undefined'){
   window.TRAVEL_EVENTS = TRAVEL_EVENTS;
+  window.AWAY_EVENTS = AWAY_EVENTS;
+  window.maybeAwayEvent = maybeAwayEvent;
   window.EVENT_VIS = EVENT_VIS;
   window.EV_WASH_MS = EV_WASH_MS;
   window.maybeEvent = maybeEvent;

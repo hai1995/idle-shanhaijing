@@ -1915,6 +1915,14 @@ svg.bi.mk{ vertical-align:-2px; }
 .off-cap{ color:var(--zhu); margin:2px 0 6px; }
 .off-acts{ font-family:var(--f-kai); font-weight:400; color:var(--ink-2); font-size:12.5px; }
 .off-omen{ color:var(--zhu); }
+/* 离线见闻（「不在时」那一行）：用藤黄而非朱色——它不是警告，是件小事 */
+.off-away{ color:var(--gamboge); font-family:var(--f-kai); font-weight:400; }
+/* 见闻录的分组小标题：路上遇见 / 不在时。跨整行，让两组之间有呼吸 */
+.stat-rows .stat-sub{
+  grid-column:1/-1; margin-top:7px; padding-top:7px;
+  border-top:1px dashed var(--rule-2);
+  font-size:12px; color:var(--ink-4); letter-spacing:.06em;
+}
 /* 祠礼都是同一支蜡烛图标，辨识度低：改用「首字朱印」，一眼分出是哪一礼 */
 .tile-seal{
   width:34px; height:34px; display:flex; align-items:center; justify-content:center;

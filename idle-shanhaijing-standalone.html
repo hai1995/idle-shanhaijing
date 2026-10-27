@@ -1942,6 +1942,14 @@ svg.bi.mk{ vertical-align:-2px; }
 .off-cap{ color:var(--zhu); margin:2px 0 6px; }
 .off-acts{ font-family:var(--f-kai); font-weight:400; color:var(--ink-2); font-size:12.5px; }
 .off-omen{ color:var(--zhu); }
+/* 离线见闻（「不在时」那一行）：用藤黄而非朱色——它不是警告，是件小事 */
+.off-away{ color:var(--gamboge); font-family:var(--f-kai); font-weight:400; }
+/* 见闻录的分组小标题：路上遇见 / 不在时。跨整行，让两组之间有呼吸 */
+.stat-rows .stat-sub{
+  grid-column:1/-1; margin-top:7px; padding-top:7px;
+  border-top:1px dashed var(--rule-2);
+  font-size:12px; color:var(--ink-4); letter-spacing:.06em;
+}
 /* 祠礼都是同一支蜡烛图标，辨识度低：改用「首字朱印」，一眼分出是哪一礼 */
 .tile-seal{
   width:34px; height:34px; display:flex; align-items:center; justify-content:center;
@@ -19865,7 +19873,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.88',
+  version: '1.31.89',
   codename:'昼巡 · 近况',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -20748,7 +20756,7 @@ function cloneDefaultGame(){
   g.enhance = {}; g.enhanceHeat = {};
   g.packGear = [];   // 行囊里的装备实例（每件自带淬炼等级；v1.31.22 起）
   g.pilgrim = {};    // 山系巡礼：走遍一系诸山后的领赏记录（v1.31.24）
-  g.events = { at: 0, count: 0, lastId: '', seen: {} };   // 行旅见闻：上次触发的游戏秒与累计次数
+  g.events = { at: 0, count: 0, lastId: '', seen: {}, awayAt: 0 };   // 行旅见闻：上次触发的游戏秒与累计次数（awayAt 为离线见闻的冷却）
   // 装备槽必须显式清空：cloneDefaultGame 是「深拷贝当前状态再覆盖字段」，
   // 漏了这一项的话，重开新档时身上还穿着上一局那件（连淬炼阶数一起）——
   // 装备改成按件存实例之后，这个漏洞才看得出来。
@@ -24984,6 +24992,10 @@ function settleAway(seconds){
   Game.stats.offlineXp = (Game.stats.offlineXp || 0) + summary.xp;
   Game.stats.offlineItems = (Game.stats.offlineItems || 0) + gotItems;
   Game.stats.lastOffline = { at: Date.now(), sec: seconds, xp: summary.xp, items: gotItems, records: summary.records || 0 };
+  // 你不在时山里有事发生（v1.31.89）：离线见闻。放在结算之后、存档之前——
+  // 它给的那点经验要进 summary 也要进档，否则刷新一次就没了。
+  const away = (typeof maybeAwayEvent === 'function') ? maybeAwayEvent(seconds, summary) : null;
+  if (away) summary.away = away;
   saveGame();
   if (typeof invalidateMilestones === 'function') invalidateMilestones();   // 离线跳变：刷新成就缓存
   return summary;
@@ -28149,8 +28161,97 @@ const EVENT_VIS = {
 };
 const EV_WASH_MS = 2600;   // 与 CSS 的动画时长对齐（见 style.css 的 .sc-ev-*）
 
+// ── 离线见闻：你不在的时候，山里也发生了一点事 ──
+// 与采集见闻分开一张表，理由有三：
+//   1. 触发时机完全不同（离线归来 vs 一次采集完成），塞进同一张表就得靠 ctx 分流；
+//   2. 奖励口径不同：离线见闻的量级要按「离山多久」缩放，且必须远小于离线本体的产出；
+//   3. 见闻录要能分栏——「路上遇见的」与「不在时错过的」是两种心情。
+// 但它们共用 Game.events.seen 计数：玩家看到的仍是「一共见过多少种」。
+const AWAY_MIN_SEC = 300;     // 少于五分钟不编故事（太短，玩家会觉得是硬凑）
+const AWAY_GAP = 1800;        // 两次离线见闻至少隔半小时（游戏秒）——挂机党别每次都撞上
+
+const AWAY_EVENTS = [
+  {
+    id: 'away_laike', name: '山客来访', weight: 3,
+    run(sec, sum){
+      // 按离山时长缩放，但封顶：挂 12 小时不该比挂 1 小时多出十倍彩头
+      const h = Math.min(3, sec / 3600);
+      const shells = Math.round(60 * h) + 20;
+      Game.shells = (Game.shells || 0) + shells;
+      Game.stats.totalEarned = (Game.stats.totalEarned || 0) + shells;
+      return { log: `🍵 离山时曾有客来访，留下一囊贝（贝 +${shells}）`,
+               text: `有客来访，留贝 ${shells}`, shell: shells };
+    },
+  },
+  {
+    id: 'away_yexing', name: '夜有兽行', weight: 2,
+    run(sec){
+      const lv = (typeof levelOf === 'function') ? levelOf('taofa') : 1;
+      const xp = Math.round((10 + lv * 0.6) * Math.min(3, sec / 3600) + 6);
+      if (typeof gainXp === 'function') gainXp('taofa', xp);
+      return { log: `🐾 夜里兽群自檐下过，晨起见蹄印（讨伐 +${xp}）`,
+               text: `夜里兽群经过，讨伐 +${xp}`, xp };
+    },
+  },
+  {
+    id: 'away_lengyu', name: '冷雨敲窗', weight: 2,
+    run(sec){
+      const lv = (typeof levelOf === 'function') ? levelOf('caiyao') : 1;
+      const xp = Math.round((9 + lv * 0.55) * Math.min(3, sec / 3600) + 5);
+      if (typeof gainXp === 'function') gainXp('caiyao', xp);
+      return { log: `🌧️ 夜来冷雨敲窗，晨起阶下菌生（采药 +${xp}）`,
+               text: `一夜冷雨，采药 +${xp}`, xp };
+    },
+  },
+  {
+    id: 'away_mengzhao', name: '梦中有兆', weight: 1, rare: true,
+    run(sec){
+      // 珍稀：不直接给东西，给「看得懂」的两条技艺——与采集见闻的「古碑可读」同一路数
+      const g = (id) => ((typeof levelOf === 'function') ? levelOf(id) : 1);
+      const a = 12 + Math.round(g('guanxiang') * 0.7);
+      const b = 12 + Math.round(g('bushi') * 0.7);
+      if (typeof gainXp === 'function'){ gainXp('guanxiang', a); gainXp('bushi', b); }
+      return { log: `🌌 夜里梦见星次移位，醒来仍记得方位（观象 +${a} · 卜筮 +${b}）`,
+               text: `珍稀 · 梦中有兆，观象 +${a} · 卜筮 +${b}`, xp: a + b };
+    },
+  },
+];
+
+// 离线归来时调用。返回 { id, name, text } 或 null。
+// ⚠️ 只读 summary 做点缀，不改 summary 里的既有数字——离线产出是另一套账，
+//    见闻若去动它，两条结算链就纠缠在一起了。
+function maybeAwayEvent(seconds, summary){
+  if (typeof Game === 'undefined' || !Game) return null;
+  if (typeof window !== 'undefined' && window.__eventsMuted) return null;
+  const sec = Math.max(0, seconds || 0);
+  if (sec < AWAY_MIN_SEC) return null;
+  const st = eventsState();
+  const now = (typeof gameTime === 'function') ? gameTime() : 0;
+  const last = st.awayAt || 0;
+  if (last && now - last < AWAY_GAP) return null;
+  // 概率随时长涨，但一小时也就三成多：回来时「多半什么也没有」才让它像个消息
+  const p = Math.min(0.55, (sec / 3600) * 0.35);
+  if (typeof chance !== 'function' || !chance(p)) return null;
+
+  const total = AWAY_EVENTS.reduce((a, e) => a + e.weight, 0);
+  let r = Math.random() * total, pick = AWAY_EVENTS[AWAY_EVENTS.length - 1];
+  for (const e of AWAY_EVENTS){ r -= e.weight; if (r <= 0){ pick = e; break; } }
+
+  let out = {};
+  try { out = pick.run(sec, summary || {}) || {}; }
+  catch(e){ out = { text: '' }; }
+
+  // now 可能是 0（新档的第一秒），而 0 在冷却判据里是「从未触发」的哨兵——
+  // 与路上见闻的 at 是同一个坑。抬到 1，语义不变，哨兵不被占用。
+  st.awayAt = now || 1;
+  st.seen = (st.seen && typeof st.seen === 'object') ? st.seen : {};
+  st.seen[pick.id] = (st.seen[pick.id] || 0) + 1;
+  if (out.log && typeof log === 'function') log(out.log, 'gold', 'sys');
+  return { id: pick.id, name: pick.name, text: out.text || '', rare: !!pick.rare };
+}
+
 function eventsState(){
-  if (!Game.events || typeof Game.events !== 'object') Game.events = { at: 0, count: 0, lastId: '', seen: {} };
+  if (!Game.events || typeof Game.events !== 'object') Game.events = { at: 0, count: 0, lastId: '', seen: {}, awayAt: 0 };
   return Game.events;
 }
 
@@ -28234,6 +28335,8 @@ function eventCount(){ return (eventsState().count || 0); }
 
 if (typeof window !== 'undefined'){
   window.TRAVEL_EVENTS = TRAVEL_EVENTS;
+  window.AWAY_EVENTS = AWAY_EVENTS;
+  window.maybeAwayEvent = maybeAwayEvent;
   window.EVENT_VIS = EVENT_VIS;
   window.EV_WASH_MS = EV_WASH_MS;
   window.maybeEvent = maybeEvent;
@@ -28956,6 +29059,11 @@ const UI = {
       ? `<p class="hint off-cap">背包吃食每场需 ${rec.combat.needPortion} 份，只够支撑 ${rec.combat.fights} 场，其余时间已断粮。</p>`
       : (rec.combat && rec.combat.fights === 0
         ? `<p class="hint off-cap">这一战每场要吃 ${rec.combat.needPortion} 份，包中不足，故未开打。</p>` : '');
+    // 你不在时山里有事发生：一行就够，别抢了上面那些数字的注意力
+    const awayLine = rec.away
+      ? `<div class="form-row"><span>不在时</span><b class="off-away">${rec.away.rare ? '珍稀 · ' : ''}${esc(rec.away.name)}</b></div>
+         ${rec.away.text ? `<p class="hint off-cap">${esc(rec.away.text)}</p>` : ''}`
+      : '';
     const shellLine = (rec.shells||0) > 0
       ? `<div class="form-row"><span>讨平所获</span><b>🪙 ${fmt(rec.shells)} 贝</b></div>` : '';
     UI.modal(`
@@ -28964,7 +29072,7 @@ const UI = {
       ${capLine}
       ${acts?`<div class="form-row"><span>所做</span><b class="off-acts">${acts}</b></div>`:''}
       <div class="form-row"><span>修得经验</span><b style="color:var(--gamboge)">+${fmt(rec.xp)}</b></div>
-      ${recLine}${combatLine}${shellLine}${harvest}${riteLine}${omenLine}
+      ${recLine}${combatLine}${shellLine}${harvest}${riteLine}${omenLine}${awayLine}
       ${combatHint}
       ${items ? `<div class="panel" style="margin-top:8px"><div class="yield-row"><b>所得</b>${items}</div></div>` : ''}
       <div class="modal-btns"><button class="btn on" onclick="UI.closeModal()">收下</button></div>
@@ -34915,20 +35023,28 @@ UI.renderStats = function(){
       <div class="stat-rows gather-rows">${gatherRows}</div></div>
     ${(function(){
       // 行旅见闻：触发过的按次数列，没见过的也列出来（「还差几条」本身就是目的）
-      const evs = (window.TRAVEL_EVENTS || []);
+      const onRoad = (window.TRAVEL_EVENTS || []);
+      const awayEv = (window.AWAY_EVENTS || []);
+      const evs = onRoad.concat(awayEv);
       if (!evs.length) return '';
       const seen = (Game.events && Game.events.seen) || {};
       // 总数用 seen 求和，不用 events.count：两者可能不一致（旧档只记 count，
       // 调试时也可能只重置 count），求和是唯一自洽的口径。
       const total = evs.reduce((a, e) => a + (seen[e.id] || 0), 0);
       const kinds = evs.filter(e => seen[e.id]).length;
-      const rows = evs.map(e => {
+      const cell = (e) => {
         const n = seen[e.id] || 0;
         return n ? `<span>${esc(e.name || e.id)} <b>${n}</b></span>`
                  : `<span class="hint">${esc(e.name || e.id)} · 未见</span>`;
-      }).join('');
+      };
+      // 分两组：「路上遇见的」与「不在时错过的」是两种心情，
+      // 混在一堆里读不出「我离开时山里发生过什么」。
+      const rows = onRoad.map(cell).join('');
+      const awayRows = awayEv.length
+        ? `<div class="stat-sub">不在时</div>` + awayEv.map(cell).join('')
+        : '';
       return `<div class="panel stat-panel"><h3>行旅见闻 <span class="hint">${kinds}/${evs.length} 种 · 共 ${total} 条</span></h3>
-        <div class="stat-rows">${rows}</div></div>`;
+        <div class="stat-rows">${rows}${awayRows}</div></div>`;
     })()}
     ${(function(){
       // 「近况」：统计页其余都是累计数字，看不出「此刻」收益几何。

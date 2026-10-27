@@ -85,7 +85,7 @@ function cloneDefaultGame(){
   g.enhance = {}; g.enhanceHeat = {};
   g.packGear = [];   // 行囊里的装备实例（每件自带淬炼等级；v1.31.22 起）
   g.pilgrim = {};    // 山系巡礼：走遍一系诸山后的领赏记录（v1.31.24）
-  g.events = { at: 0, count: 0, lastId: '', seen: {} };   // 行旅见闻：上次触发的游戏秒与累计次数
+  g.events = { at: 0, count: 0, lastId: '', seen: {}, awayAt: 0 };   // 行旅见闻：上次触发的游戏秒与累计次数（awayAt 为离线见闻的冷却）
   // 装备槽必须显式清空：cloneDefaultGame 是「深拷贝当前状态再覆盖字段」，
   // 漏了这一项的话，重开新档时身上还穿着上一局那件（连淬炼阶数一起）——
   // 装备改成按件存实例之后，这个漏洞才看得出来。

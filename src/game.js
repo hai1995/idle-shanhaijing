@@ -3673,6 +3673,10 @@ function settleAway(seconds){
   Game.stats.offlineXp = (Game.stats.offlineXp || 0) + summary.xp;
   Game.stats.offlineItems = (Game.stats.offlineItems || 0) + gotItems;
   Game.stats.lastOffline = { at: Date.now(), sec: seconds, xp: summary.xp, items: gotItems, records: summary.records || 0 };
+  // 你不在时山里有事发生（v1.31.89）：离线见闻。放在结算之后、存档之前——
+  // 它给的那点经验要进 summary 也要进档，否则刷新一次就没了。
+  const away = (typeof maybeAwayEvent === 'function') ? maybeAwayEvent(seconds, summary) : null;
+  if (away) summary.away = away;
   saveGame();
   if (typeof invalidateMilestones === 'function') invalidateMilestones();   // 离线跳变：刷新成就缓存
   return summary;
