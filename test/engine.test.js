@@ -2426,6 +2426,16 @@ section('云端化存档层');
   assert(Array.isArray(mig.orders), '迁移补齐 orders');
   const mig2 = ST.migrateSave({ version:2, shells:1, inventory:{}, skills:{}, stats:{} });
   assert(mig2.version === SM.version && mig2.grow && mig2.danmu && mig2.omenImmune, 'v2 旧档迁移补齐养成 / 丹木 / 免疫');
+  // 28.3′ 见闻状态：旧档只有 { at, count, lastId, seen }，**读档**要补 awayAt / lastAt 且不动旧值。
+  // 补齐并不发生在 migrateSave（那是版本迁移），而是在 engine 的读档处「默认值打底再合并」——
+  // 断言就得落在那一层，否则测的是另一件事（本节初版就放错了层，读档路径没被测到）。
+  const evSrc28 = readText('src/engine.js');
+  assert(/Object\.assign\(\{ at: 0, count: 0, lastId: '', seen: \{\}, awayAt: 0, lastAt: 0 \}/.test(evSrc28),
+    '读档用完整默认值打底（缺键补 0）');
+  const migEv = ST.migrateSave({ version: SM.version, shells: 1, inventory: {}, skills: {}, stats: {},
+    events: { at: 1000, count: 7, lastId: 'canjian', seen: { canjian: 3 } } });
+  assert(migEv.events.count === 7 && migEv.events.at === 1000, '旧档的见闻次数与冷却时刻不丢');
+  assert(migEv.events.seen && migEv.events.seen.canjian === 3, '旧档的逐条计数不丢');
   // 28.4 多端合并：单调字段取大，可变资源取新
   const A = { version:3, savedAt:1000, shells:50, inventory:{ gui:2 }, skills:{ taofa:{ level:3, xp:100 } },
               records:{ ds_hey:{ count:5, tier:2 } }, stats:{ kills:10, bossKills:{ a:1 } }, grow:{ p1:{ stage:2, done:1 } },
