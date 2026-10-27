@@ -73,6 +73,17 @@ function lastOfflineText(){
   const ago = Math.max(0, (Date.now() - lo.at) / 1000);
   return `${fmtTime(ago)}前 · 离线 ${fmtTime(lo.sec)} · +${fmt(lo.xp)} 经验`;
 }
+// 离线均速（v1.31.150）：总量只会随「攒得越来越久」变多，看不出这一夜到底值不值。
+// 折算成每小时，玩家自己能跟在线采集比一比，也才知道该不该先去观象 / 修仓廪。
+// 统计页渲染与 data-stat 就地刷新共用这一份算式，免得两处各算一套、日后走散。
+function offlineRateText(){
+  const s = (typeof Game !== 'undefined' && Game.stats) ? Game.stats : null;
+  if (!s) return '—';
+  const sec = s.offlineSec || 0;
+  if (sec < 60) return '—';
+  const h = sec / 3600;
+  return `经验 ${fmt(Math.round((s.offlineXp || 0) / h))}/时 · 所得 ${Math.round((s.offlineItems || 0) / h * 10) / 10} 件/时`;
+}
 // 紧凑时钟（方块角标用）：H:MM / M:SS，配合等宽数字不跳宽
 function fmtClock(sec){
   sec = Math.max(0, Math.floor(sec||0));

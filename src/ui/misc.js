@@ -180,6 +180,7 @@ UI.patchStats = function(){
     offlineSec: fmtTime(s.offlineSec || 0),
     offlineXp: fmt(s.offlineXp || 0),
     offlineItems: fmt(s.offlineItems || 0),
+    offlineRate: (typeof offlineRateText === 'function') ? offlineRateText() : '—',
     lastOffline: lastOfflineText(),
   };
   for (const k of Object.keys(vals)){

@@ -2001,6 +2001,21 @@ section('日志 300 条上限 / 离线结算统计');
   assert(html.includes('离线结算') && html.includes('累计离线') && html.includes('上次离线'), '统计页有离线结算一栏');
   assert(html.includes('data-stat="offlineCount"') && html.includes('data-stat="lastOffline"'), '离线数据带刷新标记');
   assert(uiSrc.includes('function lastOfflineText()'), '上次离线有可读摘要（多久以前 · 离线多长 · 得多少经验）');
+
+  // 34.4 离线均速（v1.31.150）：总量之外，还要有每小时的折算
+  assert(uiSrc.includes('function offlineRateText()'), '离线均速有共享算式（渲染与就地刷新同用一份）');
+  assert(html.includes('离线均速') && html.includes('data-stat="offlineRate"'), '统计页有离线均速行（且带刷新标记）');
+  // UI 层的顶层函数落在 contextified global（测试里的 window 是另一枚对象），故走 G
+  const rate = (typeof G.offlineRateText === 'function') ? G.offlineRateText() : '';
+  assert(rate.includes('经验 ') && rate.includes('/时') && rate.includes('件/时'), '均速文案为「经验 X/时 · 所得 Y 件/时」-> ' + rate);
+
+  // 34.5 离线账单同样给均速：回来看到的那张账单，是玩家最想比一比的地方
+  ST.UI.showOfflineSummary({ seconds:3600, xp:1200, items:{ gui:10 } });
+  const oh = renderTargets.modalBox.innerHTML;
+  assert(oh.includes('均速') && oh.includes('/时'), '离线账单有均速行');
+  // 不足一分钟不给均速：除出来的数虚高，看了反而误导
+  ST.UI.showOfflineSummary({ seconds:30, xp:1, items:{} });
+  assert(renderTargets.modalBox.innerHTML.includes('均速') === false, '离线过短不给均速（免得除出虚高的数）');
 }
 // ============ 35. 制作：单件即停 + 卡片紧凑 ============
 section('制作：单件 / 连作 / 紧凑卡片');

@@ -108,6 +108,16 @@ UI.showOfflineSummary = function(rec){
     ${capLine}
     ${acts?`<div class="form-row"><span>所做</span><b class="off-acts">${acts}</b></div>`:''}
     <div class="form-row"><span>修得经验</span><b style="color:var(--gamboge)">+${fmt(rec.xp)}</b></div>
+    ${(()=>{
+      // 均速（v1.31.150）：光看「+3 万经验」不知道这一夜划算不划算——
+      // 折算成每小时，玩家自己能跟在线时比一比，也才知道该不该先去观象。
+      const sec = rec.seconds || 0;
+      if (sec < 60) return '';
+      const h = sec / 3600;
+      const n = Object.values(rec.items || {}).reduce((a,b)=>a+b,0);
+      const iph = Math.round(n / h * 10) / 10;
+      return `<div class="form-row"><span>均速</span><b>经验 ${fmt(Math.round((rec.xp||0)/h))}/时${n>0?` · 所得 ${iph} 件/时`:''}</b></div>`;
+    })()}
     ${recLine}${combatLine}${shellLine}${harvest}${riteLine}${omenLine}${awayLine}
     ${combatHint}
     ${items ? `<div class="panel" style="margin-top:8px"><div class="yield-row"><b>所得</b>${items}</div></div>` : ''}

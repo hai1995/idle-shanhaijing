@@ -20056,8 +20056,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.149',
-  codename:'昼巡 · 圆头',
+  version: '1.31.150',
+  codename:'昼巡 · 均速',
   updated: '2026-10-28',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
@@ -29143,6 +29143,17 @@ function lastOfflineText(){
   const ago = Math.max(0, (Date.now() - lo.at) / 1000);
   return `${fmtTime(ago)}前 · 离线 ${fmtTime(lo.sec)} · +${fmt(lo.xp)} 经验`;
 }
+// 离线均速（v1.31.150）：总量只会随「攒得越来越久」变多，看不出这一夜到底值不值。
+// 折算成每小时，玩家自己能跟在线采集比一比，也才知道该不该先去观象 / 修仓廪。
+// 统计页渲染与 data-stat 就地刷新共用这一份算式，免得两处各算一套、日后走散。
+function offlineRateText(){
+  const s = (typeof Game !== 'undefined' && Game.stats) ? Game.stats : null;
+  if (!s) return '—';
+  const sec = s.offlineSec || 0;
+  if (sec < 60) return '—';
+  const h = sec / 3600;
+  return `经验 ${fmt(Math.round((s.offlineXp || 0) / h))}/时 · 所得 ${Math.round((s.offlineItems || 0) / h * 10) / 10} 件/时`;
+}
 // 紧凑时钟（方块角标用）：H:MM / M:SS，配合等宽数字不跳宽
 function fmtClock(sec){
   sec = Math.max(0, Math.floor(sec||0));
@@ -30339,6 +30350,16 @@ UI.showOfflineSummary = function(rec){
     ${capLine}
     ${acts?`<div class="form-row"><span>所做</span><b class="off-acts">${acts}</b></div>`:''}
     <div class="form-row"><span>修得经验</span><b style="color:var(--gamboge)">+${fmt(rec.xp)}</b></div>
+    ${(()=>{
+      // 均速（v1.31.150）：光看「+3 万经验」不知道这一夜划算不划算——
+      // 折算成每小时，玩家自己能跟在线时比一比，也才知道该不该先去观象。
+      const sec = rec.seconds || 0;
+      if (sec < 60) return '';
+      const h = sec / 3600;
+      const n = Object.values(rec.items || {}).reduce((a,b)=>a+b,0);
+      const iph = Math.round(n / h * 10) / 10;
+      return `<div class="form-row"><span>均速</span><b>经验 ${fmt(Math.round((rec.xp||0)/h))}/时${n>0?` · 所得 ${iph} 件/时`:''}</b></div>`;
+    })()}
     ${recLine}${combatLine}${shellLine}${harvest}${riteLine}${omenLine}${awayLine}
     ${combatHint}
     ${items ? `<div class="panel" style="margin-top:8px"><div class="yield-row"><b>所得</b>${items}</div></div>` : ''}
@@ -35962,6 +35983,8 @@ UI.renderStats = function(){
         <span>累计离线 <b data-stat="offlineSec">${fmtTime(s.offlineSec || 0)}</b></span>
         <span>离线经验 <b data-stat="offlineXp">${fmt(s.offlineXp || 0)}</b></span>
         <span>离线所得 <b data-stat="offlineItems">${fmt(s.offlineItems || 0)}</b> 件</span>
+        ${(typeof offlineRateText === 'function' && (s.offlineSec || 0) >= 60)
+          ? `<span>离线均速 <b data-stat="offlineRate">${offlineRateText()}</b></span>` : ''}
         <span class="off-last">上次离线 <b data-stat="lastOffline">${lastOfflineText()}</b></span>
       </div>
       <div class="stat-rows mem-rows">
@@ -36345,6 +36368,7 @@ UI.patchStats = function(){
     offlineSec: fmtTime(s.offlineSec || 0),
     offlineXp: fmt(s.offlineXp || 0),
     offlineItems: fmt(s.offlineItems || 0),
+    offlineRate: (typeof offlineRateText === 'function') ? offlineRateText() : '—',
     lastOffline: lastOfflineText(),
   };
   for (const k of Object.keys(vals)){

@@ -238,6 +238,8 @@ UI.renderStats = function(){
         <span>累计离线 <b data-stat="offlineSec">${fmtTime(s.offlineSec || 0)}</b></span>
         <span>离线经验 <b data-stat="offlineXp">${fmt(s.offlineXp || 0)}</b></span>
         <span>离线所得 <b data-stat="offlineItems">${fmt(s.offlineItems || 0)}</b> 件</span>
+        ${(typeof offlineRateText === 'function' && (s.offlineSec || 0) >= 60)
+          ? `<span>离线均速 <b data-stat="offlineRate">${offlineRateText()}</b></span>` : ''}
         <span class="off-last">上次离线 <b data-stat="lastOffline">${lastOfflineText()}</b></span>
       </div>
       <div class="stat-rows mem-rows">
