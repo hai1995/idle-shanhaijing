@@ -62,7 +62,7 @@ const TRAVEL_EVENTS = [
       const lv = (typeof levelOf === 'function') ? levelOf('caiyao') : 1;
       const xp = 9 + Math.round(lv * 0.5);
       if (typeof gainXp === 'function') gainXp('caiyao', xp);
-      return { log: `🌳 道旁一株老木，皮纹如篆（采药 +${xp}）`,
+      return { log: `🌳 道旁一株老木，皮裂如皴（采药 +${xp}）`,
                toast: `🌳 老木可辨\n采药 +${xp}` };
     },
   },
@@ -141,7 +141,7 @@ const TRAVEL_EVENTS = [
       if (typeof gainXp === 'function') gainXp('yu', xp);
       Game.shells = (Game.shells || 0) + shells;
       Game.stats.totalEarned = (Game.stats.totalEarned || 0) + shells;
-      return { log: `🐟 收网时带起一串旧贝，纹已磨平（渔 +${xp} · 贝 +${shells}）`,
+      return { log: `🐟 收网时网眼挂住几枚旧贝，海气犹腥（渔 +${xp} · 贝 +${shells}）`,
                toast: `🐟 网得旧贝\n渔 +${xp} · 贝 +${shells}` };
     },
   },
@@ -157,7 +157,7 @@ const TRAVEL_EVENTS = [
       const xp = 12 + Math.round(lv * 0.6);
       if (typeof gainXp === 'function') gainXp(sk, xp);
       const nm = (Skills && Skills[sk]) ? Skills[sk].name : '制作';
-      return { log: `🔥 火候不差毫厘，一炉俱成（${nm} +${xp}）`,
+      return { log: `🔥 火候不差毫厘，指下自有分寸（${nm} +${xp}）`,
                toast: `🔥 火候正好\n${nm} +${xp}` };
     },
   },

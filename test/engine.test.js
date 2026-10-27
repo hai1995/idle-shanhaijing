@@ -9576,6 +9576,19 @@ section('见闻账目与文案一致');
   });
   assert(checked >= 6, '确实逐条跑过 ' + checked + ' 条（不是空转）');
 
+  // 文案层面：不许两条开头一样（复制粘贴的痕迹），也不许重复用同一个生僻意象。
+  // 「篆」原本出现在三条里（残骨 / 碑文 / 老木），读起来像同一句——已改掉一条。
+  const heads = ST.TRAVEL_EVENTS.map(e => {
+    const out = e.run({ kind:'gather', itemId:'migu', skillId:'caiyao', recipeType:'burn', monsterId:'baiyuan' }) || {};
+    return String(out.log || '').slice(0, 4);
+  });
+  assert(new Set(heads).size >= heads.length - 1, '见闻文案开头不雷同（' + (heads.length - new Set(heads).size) + ' 处重复）');
+  const rareChars = ['篆', '皴', '赭', '符'];
+  rareChars.forEach(ch => {
+    const n = ST.TRAVEL_EVENTS.filter(e => String((e.run({ kind:'gather', itemId:'migu', skillId:'caiyao' }) || {}).log || '').indexOf(ch) >= 0).length;
+    assert(n <= 2, '生僻意象「' + ch + '」最多用两次（实测 ' + n + '）');
+  });
+
   G.resetToDefault();
   ST.__eventsMuted = true;
 }

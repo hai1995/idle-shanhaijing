@@ -19645,7 +19645,7 @@ const Milestones = [
   { id:'pilgrim_5', name:'五系巡礼', desc:'走遍五个山系的诸山',
     prog:()=>[pilgrimFullCount(), 5], bonus:'采获 +3%', yield:0.03,
     how:'山系进度在舆地页每个山系方块上，诸山皆涉即满。满额那系右上角会亮一枚「赏」。', go:{ tab:'yudi' } },
-  // ---- 见闻（v1.31.98）：把「偶尔撞见的一句话」变成一个可见的收集目标 ----
+  // ---- 见闻（v1.31.100）：把「偶尔撞见的一句话」变成一个可见的收集目标 ----
   // 判据取「见过几种」而非「触发多少次」：见闻的价值在种类，重复同一条没有新信息。
   { id:'event_5', name:'见闻初录', desc:'行旅见闻见过 5 种',
     prog:()=>[eventKindsSeen(), 5], bonus:'经验 +1%', xp:0.01,
@@ -19886,7 +19886,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.98',
+  version: '1.31.100',
   codename:'昼巡 · 近况',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -28012,7 +28012,7 @@ const TRAVEL_EVENTS = [
       const lv = (typeof levelOf === 'function') ? levelOf('caiyao') : 1;
       const xp = 9 + Math.round(lv * 0.5);
       if (typeof gainXp === 'function') gainXp('caiyao', xp);
-      return { log: `🌳 道旁一株老木，皮纹如篆（采药 +${xp}）`,
+      return { log: `🌳 道旁一株老木，皮裂如皴（采药 +${xp}）`,
                toast: `🌳 老木可辨\n采药 +${xp}` };
     },
   },
@@ -28091,7 +28091,7 @@ const TRAVEL_EVENTS = [
       if (typeof gainXp === 'function') gainXp('yu', xp);
       Game.shells = (Game.shells || 0) + shells;
       Game.stats.totalEarned = (Game.stats.totalEarned || 0) + shells;
-      return { log: `🐟 收网时带起一串旧贝，纹已磨平（渔 +${xp} · 贝 +${shells}）`,
+      return { log: `🐟 收网时网眼挂住几枚旧贝，海气犹腥（渔 +${xp} · 贝 +${shells}）`,
                toast: `🐟 网得旧贝\n渔 +${xp} · 贝 +${shells}` };
     },
   },
@@ -28107,7 +28107,7 @@ const TRAVEL_EVENTS = [
       const xp = 12 + Math.round(lv * 0.6);
       if (typeof gainXp === 'function') gainXp(sk, xp);
       const nm = (Skills && Skills[sk]) ? Skills[sk].name : '制作';
-      return { log: `🔥 火候不差毫厘，一炉俱成（${nm} +${xp}）`,
+      return { log: `🔥 火候不差毫厘，指下自有分寸（${nm} +${xp}）`,
                toast: `🔥 火候正好\n${nm} +${xp}` };
     },
   },
