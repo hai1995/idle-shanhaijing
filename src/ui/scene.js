@@ -221,21 +221,28 @@ function sceneToolArt(name){
   return '';
 }
 
-// 敌方：一头伏低的兽。四足 + 头 + 角 + 尾，34px 高足够认出来。
-// 面向左（朝我方），fill 用 currentColor，与画面同色系。
+// 敌方：一头伏低的兽，方块像素（crispEdges），与玩家小人同一套像素语汇。
+// 面向左（朝我方）：头在左、尾在右；四足、双角、朱色眼点。
+// 只改几何，不碰 .sc-foe 类与命中动画（paintFight 仍 toggle .hit）。
 function sceneFoe(){
-  return `<svg class="sc-foe" viewBox="0 0 46 34" aria-hidden="true">
-    <path d="M9 26 Q6 19 12 16 Q20 12 29 13 Q39 14 41 20 L40 27 Q30 30 20 29 Q12 29 9 26 Z"
-      fill="currentColor" opacity=".82"/>
-    <path d="M13 16 Q7 15 4.6 19.4 Q3.6 22.6 8 23 Q11.6 23 13 16 Z" fill="currentColor" opacity=".88"/>
-    <path d="M11.4 15 L12.6 8.6 L16.4 13.6 Z" fill="currentColor" opacity=".88"/>
-    <path d="M14.6 13.4 L16.8 5.2 L19 12.6 Z" fill="currentColor" opacity=".7"/>
-    <path d="M40 18 Q45 14.4 44 8.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".8"/>
-    <g stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".85">
-      <path d="M14 26 L13 31"/><path d="M20.4 28 L20.4 31"/>
-      <path d="M31 28 L31 31"/><path d="M37 26.6 L38 31"/>
-    </g>
-    <circle cx="9" cy="19" r="1.15" fill="#B03A2B"/>
+  return `<svg class="sc-foe" viewBox="0 0 46 34" aria-hidden="true" shape-rendering="crispEdges">
+    <!-- 躯干 -->
+    <rect x="13" y="14" width="24" height="10" fill="currentColor" opacity=".85"/>
+    <!-- 头（朝左） -->
+    <rect x="5" y="12" width="10" height="9" fill="currentColor" opacity=".9"/>
+    <!-- 双角 -->
+    <rect x="6" y="5" width="2" height="6" fill="currentColor" opacity=".85"/>
+    <rect x="11" y="3" width="2" height="7" fill="currentColor" opacity=".7"/>
+    <!-- 尾（朝右） -->
+    <rect x="37" y="13" width="6" height="3" fill="currentColor" opacity=".8"/>
+    <rect x="41" y="10" width="4" height="2" fill="currentColor" opacity=".7"/>
+    <!-- 四足 -->
+    <rect x="14" y="24" width="3" height="8" fill="currentColor" opacity=".9"/>
+    <rect x="20" y="24" width="3" height="8" fill="currentColor" opacity=".9"/>
+    <rect x="27" y="24" width="3" height="8" fill="currentColor" opacity=".9"/>
+    <rect x="33" y="24" width="3" height="8" fill="currentColor" opacity=".9"/>
+    <!-- 眼：画面里唯一暖色点 -->
+    <rect x="7" y="14" width="2" height="2" fill="#B03A2B"/>
   </svg>`;
 }
 
