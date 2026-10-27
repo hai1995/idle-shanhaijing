@@ -10114,6 +10114,74 @@ section('征兆专属见闻');
   }
 }
 
+// ============ 187. 换季要有提示（收益静默翻转太坑） ============
+// 季节改收益 ±RIVER，但每六小时静默翻转。玩家只觉得「怎么忽然变慢」。
+// 这一节钉住三件事：翻季会提示 / 只在真的翻了才提示 / 首次记录不误报。
+{
+  assert(typeof ST.checkSeasonFlip === 'function', 'checkSeasonFlip 已暴露');
+
+  const SEC187 = ST.TUNING.SEASON.SEC;
+  const keepT = ST.Game.stats.time, keepLast = ST.Game.stats.lastSeason;
+  const toasts = [];
+  const keepToast = ST.UI && ST.UI.toast;
+  if (ST.UI) ST.UI.toast = (m) => toasts.push(String(m));
+
+  // ---- ① 首次记录：老档没有 lastSeason，不该弹假提示 ----
+  ST.Game.stats.lastSeason = null;
+  ST.Game.stats.time = 10;                       // 旱季
+  toasts.length = 0;
+  ST.checkSeasonFlip();
+  assert(toasts.length === 0, '首次遇到季节只登记、不提示（老档读档不该收到假提示）');
+  assert(ST.Game.stats.lastSeason === 0, '首次登记写入当前季相 0');
+
+  // ---- ② 同一季内反复调用：不重复提示 ----
+  toasts.length = 0;
+  for (let i = 0; i < 5; i++) ST.checkSeasonFlip();
+  assert(toasts.length === 0, '同季内连调 5 次不提示');
+
+  // ---- ③ 真翻季：提示一次，文案带上收益与两条见闻 ----
+  ST.Game.stats.time = SEC187 + 10;               // 拨到雨季
+  toasts.length = 0;
+  ST.checkSeasonFlip();
+  assert(toasts.length === 1, '跨到雨季弹了 ' + toasts.length + ' 条（应为 1）');
+  assert(/雨季/.test(toasts[0]), '文案点明「雨季」');
+  assert(toasts[0].includes('+' + Math.round(ST.TUNING.SEASON.RIVER * 100) + '%'),
+    '文案里的收益与 TUNING 一致（+' + Math.round(ST.TUNING.SEASON.RIVER * 100) + '%）');
+  assert(/雨后新涨/.test(toasts[0]), '文案点出当期才可能出现的见闻「雨后新涨」');
+  assert(ST.Game.stats.lastSeason === 1, '翻季后记下雨季');
+
+  // ---- ④ 再调一次不重复 ----
+  toasts.length = 0;
+  ST.checkSeasonFlip();
+  assert(toasts.length === 0, '翻季提示只弹一次');
+
+  // ---- ⑤ 翻回旱季：文案跟着换（不是写死了一套） ----
+  ST.Game.stats.time = 2 * SEC187 + 10;           // 再推一候 → 旱季
+  toasts.length = 0;
+  ST.checkSeasonFlip();
+  assert(toasts.length === 1 && /旱季/.test(toasts[0]), '翻回旱季提示「旱季」');
+  assert(toasts[0].includes('−' + Math.round(ST.TUNING.SEASON.RIVER * 100) + '%'), '旱季文案用减号');
+  assert(/旱井见底/.test(toasts[0]), '旱季点名「旱井见底」');
+  assert(ST.Game.stats.lastSeason === 0, '记回旱季');
+
+  // ---- ⑥ 文案里的见闻名必须真的在见闻表里 ----
+  // 文案住在 game.js、见闻表住在 events.js，两边各改各的很容易对不上。
+  const evNames = new Set((ST.TRAVEL_EVENTS || []).concat(ST.AWAY_EVENTS || []).map(e => e && e.name));
+  assert(evNames.has('旱井见底'), '见闻表里有「旱井见底」');
+  assert(evNames.has('雨后新涨'), '见闻表里有「雨后新涨」');
+
+  // ---- ⑦ 老档没有 lastSeason 字段时，读档补齐为 null（不写成 0，否则老玩家读档立刻收到假提示） ----
+  assert('lastSeason' in ST.Game.stats, 'stats 里有 lastSeason 字段');
+  const eng187 = readText('src/engine.js');
+  assert(/lastSeason:\s*null/.test(eng187), '默认值是 null（不是 0：0 是合法季相，会被当成「已知」）');
+
+  // 复原
+  if (ST.UI && keepToast !== undefined) ST.UI.toast = keepToast;
+  ST.Game.stats.time = keepT;
+  ST.Game.stats.lastSeason = keepLast;
+  toasts.length = 0;
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

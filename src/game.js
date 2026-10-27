@@ -855,6 +855,8 @@ function geoGatherBonus(nodeId){
   return b;
 }
 window.seasonPhase = seasonPhase; window.seasonName = seasonName;
+// checkSeasonFlip 定义在文件后段（onSecond 旁边）。函数声明会提升，这里能直接挂。
+window.checkSeasonFlip = checkSeasonFlip;
 window.seasonRiverBonus = function(){ return (typeof TUNING !== 'undefined' && TUNING.SEASON && TUNING.SEASON.RIVER) || 0.30; };
 window.geoGatherMul = geoGatherMul; window.geoGatherBonus = geoGatherBonus; window.hasBeast = hasBeast;
 
@@ -3288,12 +3290,32 @@ function rateStall(){
 }
 window.rateStall = rateStall;
 
+// 旱雨轮转的「换季提示」。
+// 为什么要有：季节直接改收益（教山渔获 ±RIVER），但它每六小时**静默**翻转一次，
+// 玩家只会觉得「怎么忽然变慢了」——一个影响收益的状态变了却不吭声，是这个设计最坑的地方。
+// 判据用「上次记录的季相」而不是「距上次提示多久」：前者跨存档、跨离线都成立，
+// 后者离线八小时回来只会弹一次，且离线期间翻过季就永远漏掉。
+function checkSeasonFlip(){
+  const now = seasonPhase();
+  const last = Game.stats.lastSeason;
+  // 第一次记录（老档 / 新档 / 本功能上线前）：只登记不提示，否则每个老玩家读档都会收到一条假提示
+  if (last !== 0 && last !== 1){ Game.stats.lastSeason = now; return; }
+  if (last === now) return;
+  Game.stats.lastSeason = now;
+  if (!UI || !UI.toast) return;
+  const rb = Math.round(((typeof seasonRiverBonus === 'function') ? seasonRiverBonus() : TUNING.SEASON.RIVER) * 100);
+  const wet = now === 1;
+  UI.toast((wet ? '🌊 入雨季' : '🏜️ 入旱季') +
+    `：教山渔获 ${wet ? '+' : '−'}${rb}%（${(wet ? '雨后新涨' : '旱井见底')}这类见闻也变得可能）`);
+}
+
 function onSecond(){
   if (Object.keys(Game.farms).length){ farmTick(1); if (UI && UI.patchFarmsProgress) UI.patchFarmsProgress(); }
   if (UI && UI.patchSkillBars) UI.patchSkillBars();      // 技能页经验条秒级跟进（不重建节点）
   if (UI && UI.checkFarmUnlock) UI.checkFarmUnlock();    // 圃艺升级后新田开垦提示
   if (UI && UI.patchQueueProgress) UI.patchQueueProgress();   // 巡历队列：进度/当前标记/轮数秒级兜底
   Game.stats.time++;
+  checkSeasonFlip();        // 旱雨轮转：跨过分界时告诉玩家（收益静默 ±30% 太坑）
   sampleRate();             // 效率采样：近 20 分钟的每小时收益（统计页读）
   tickOmens();
   tickAutoRites();          // 续祭：到期前 60 秒自动重备一份祭品
