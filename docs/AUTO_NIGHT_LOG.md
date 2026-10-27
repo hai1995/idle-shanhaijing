@@ -336,3 +336,14 @@ VM 里整个文件一起崩、报错位置还指在别处——**搬完先跑 du
 - ARCHITECTURE 行数表对齐实际（yudi 635 / skills 680）；events.js 528 行、见闻 23 条。
 - 全量复核：3233 断言 + `--full` 同；audit-data 零悬空；check.js 五项全过；
   48 组巡检 0 溢出 0 报错；压测 3829 动作 0 异常。
+
+## v1.31.118（本轮第 15 批）· 拆 ui/pack.js：队列 / 行装 / 详情 / 淬炼各归各
+
+- `ui/pack.js`（1153 行）拆成四个：
+  `ui/queue.js`（155，巡历队列）、`ui/pack.js`（223，只留背包本体：装备格 / 清单 / 清整）、
+  `ui/item.js`（603，物品详情：用途 / 出处 / 对比行 / 买卖 / 技能与配方详情）、
+  `ui/enhance.js`（183，淬炼：「落锤→揭晓」自成一段）。index.html 36 个 script。
+- 断言同步 7 处 `readText('src/ui/pack.js')`：配方缺料 / 对比行 / 用途 / 技能详情 → item.js；
+  enhWaitMs → enhance.js；ic-up 角标与五档筛选留在 pack.js（清单归 pack，别跟详情走）。
+- 验收：3236 断言全绿；48 组巡检全过；webkit 实测队列 / 行装 / 物品详情 / 强化面板四块
+  全部正常渲染，0 JS 错误。至此 UI 层没有千行文件（最大 codex.js 778）。

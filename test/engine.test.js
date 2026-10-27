@@ -40,7 +40,7 @@ vm.createContext(context);
 const base = path.join(__dirname, '..', 'src');
 function loadJS(file){ vm.runInContext(fs.readFileSync(path.join(base, file), 'utf8'), context, {filename:file}); }
 // ui.js 已按页拆成 7 个文件（v1.31.8），顺序与 index.html 一致；core 必须最先。
-const UI_FILES = ['ui/core.js','ui/hud.js','ui/modal.js','ui/settings.js','ui/tutorial.js','ui/scene.js','ui/yudi.js','ui/skills.js','ui/combat.js','ui/codex.js','ui/trade.js','ui/pack.js','ui/misc.js'];
+const UI_FILES = ['ui/core.js','ui/hud.js','ui/modal.js','ui/settings.js','ui/tutorial.js','ui/scene.js','ui/yudi.js','ui/skills.js','ui/combat.js','ui/codex.js','ui/trade.js','ui/queue.js','ui/pack.js','ui/item.js','ui/enhance.js','ui/misc.js'];
 const uiSrcAll = UI_FILES.map(f => fs.readFileSync(path.join(base, f), 'utf8')).join('\n');
 ['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','zhongshanData.js','gameData.js','affix.js','save.js','engine.js','game.js','queue.js','interact.js','events.js','fx.js','beastIcon.js','riteIcon.js','structureIcon.js','skillIcon.js','itemIcon.js','markIcon.js'].forEach(loadJS);
 const G = context;
@@ -6781,7 +6781,7 @@ section('山海图卷与特产再生');
 // ============ 125. 配方缺特产：告诉玩家缺哪一系、走到哪了 ============
 section('配方缺料指路');
 {
-  const src = readText('src/ui/pack.js');
+  const src = readText('src/ui/item.js');
   assert(src.includes('sp-hint'), '配方详情有特产指路行');
   assert(src.includes('需走遍 <b>${esc(reg.regionName)}</b>（今 ${p.done}/${p.total} 山'), '未走遍时写进度与还差几山');
   assert(src.includes('已走遍 · 在该系采集有 1% 机会带出'), '已走遍时写再生方式');
@@ -6944,10 +6944,12 @@ section('便利性优化');
   assert(ST.deliverAllOrders() === 0, '没有可交割的单时返回 0（不重复算）');
 
   // ---- 装备详情对比 + 行囊更优角标：源码与几何口径 ----
-  const uiSrcP = readText('src/ui/pack.js');
+  const uiSrcP = readText('src/ui/item.js');
   assert(uiSrcP.includes('cmp-line'), '装备详情有「较身上」对比行');
   assert(uiSrcP.includes('此槽尚空'), '空槽时写「此槽尚空」而非与空比');
-  assert(uiSrcP.includes('ic-up'), '行囊标出「比身上强」的装备');
+  // 行囊清单的角标与筛选在 pack.js（v1.31.118 拆分后详情归 item、清单归 pack）
+  const uiSrcPp = readText('src/ui/pack.js');
+  assert(uiSrcPp.includes('ic-up'), '行囊标出「比身上强」的装备');
 
   // 对比口径：战力确由 gearPower 算，带淬炼档
   G.resetToDefault();
@@ -6960,7 +6962,7 @@ section('便利性优化');
   assert(pb > pm, '百炼剑战力高于木戈（' + pm + ' < ' + pb + '）');
 
   // ---- 行囊类别筛选：五档口径 ----
-  assert(uiSrcP.includes("['all','全部'],['mat','材料'],['gear','装备'],['food','药食'],['sp','系产']"), '行囊五档类别筛选');
+  assert(uiSrcPp.includes("['all','全部'],['mat','材料'],['gear','装备'],['food','药食'],['sp','系产']"), '行囊五档类别筛选');
   G.resetToDefault();
   ST.giveItem('tan', 3, false); ST.packGearAdd('muge', 0, 1); ST.giveItem('shanhaitujuan', 1, false);
   const isFood = id => !(ST.Items[id].equip) && (ST.Items[id].type === 'potion' || ST.Items[id].type === 'food');
@@ -7015,7 +7017,7 @@ section('队列与跳转');
   assert(!ST.itemSources('shanhaitujuan').some(x => x.nodeId), '图卷无采集来源，不出产地行');
 
   // ---- 用途：可服用的药不算「一无所用」 ----
-  const uiSrcPk = readText('src/ui/pack.js');
+  const uiSrcPk = readText('src/ui/item.js');
   assert(uiSrcPk.includes("const dose = it.buff"), '用途里认得「可服用」');
   assert(uiSrcPk.includes("(crop || dose || wear) ? ''"), '有用途（可作种 / 可服用 / 可装备）时不写「暂无合用之方」');
   assert(uiSrcPk.includes("可装备·${esc(GearSlotLabels[equipSlotOf(it)]"), '装备的用途写明「可装备·槽位」');
@@ -7055,7 +7057,7 @@ section('淬炼等待与几处修正');
   ST.Prefs.fxLevel = oldFx;
 
   // 强化本身不再「只看 forgeShow」：源码里等待时长由 enhWaitMs 决定
-  const uiSrcPk2 = readText('src/ui/pack.js');
+  const uiSrcPk2 = readText('src/ui/enhance.js');
   assert(uiSrcPk2.includes('const dur = enhWaitMs({ lv: r.lvBefore'), '单次强化按 enhWaitMs 等待');
   assert(uiSrcPk2.includes('UI._showEnhWait(dur'), '等待期显示「砧上」过程条');
   assert(!/if \(!played\)\{ UI\.refreshItemModal\(itemId\); UI\._revealEnh/.test(uiSrcPk2),
@@ -7705,7 +7707,7 @@ section('舆地产地口径');
 {
   const gSrc150 = readText('src/game.js');
   const wSrc150 = readText('src/ui/yudi.js') + readText('src/ui/skills.js');
-  const pSrc150 = readText('src/ui/pack.js');
+  const pSrc150 = readText('src/ui/item.js');
 
   // ---- 0. 判据在引擎层，且已导出 ----
   assert(typeof ST.nodeSourceItems === 'function', '产地候选集是引擎判据（单一来源）');
