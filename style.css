@@ -418,8 +418,9 @@ html.theme-anim, html.theme-anim *{
 
 /* —— 征伐 —— 舞台加宽：人在左，兽在右 */
 .sc-duel{ width:150px; }
+.sc-foe-rig{ position:absolute; right:0; bottom:11px; will-change:transform; }
 .sc-foe{
-  position:absolute; right:0; bottom:11px; width:46px; height:34px; color:inherit;
+  position:relative; display:block; width:46px; height:34px; color:inherit;
   transform-origin:70% 100%;
 }
 .sc-foe.hit{ animation:scHit .26s ease-out; }
@@ -605,6 +606,7 @@ html.theme-anim, html.theme-anim *{
 .sc-wrap.no-anim .sc-stage,
 .sc-wrap.no-anim .sc-sprout,
 .sc-wrap.no-anim .sc-stars g,
+.sc-wrap.no-anim .sc-foe-rig,
 .sc-wrap.no-anim .sc-foe,
 .sc-wrap.no-anim .sc-spark i,
 .sc-wrap.no-anim .sc-pit i{ animation:none; }

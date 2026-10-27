@@ -354,7 +354,7 @@ function sceneHtml(s){
     ${sceneSky(s.kind)}
     <div class="sc-stage${fight ? ' sc-duel' : ''}">
       <div class="sc-rig">${sceneWorker(s.kind, s.kind)}</div>
-      ${fight ? sceneFoe() + sceneSpark() : sceneProps(s.kind)}
+      ${fight ? '<div class="sc-foe-rig">' + sceneFoe() + '</div>' + sceneSpark() : sceneProps(s.kind)}
     </div>
     <!-- 地面放在人物之后：前坡把小腿挡住，「站在坡后」比「站在一块板上」自然 -->
     <svg class="sc-ground" viewBox="0 0 700 32" preserveAspectRatio="none" aria-hidden="true">
@@ -477,6 +477,11 @@ const SCENE_RIG = [
 const SCENE_LUNGE = [
   [0, 0], [10, -1.2], [45, -3], [62, -3.4], [88, 9], [94, 2.4], [100, 0],
 ];
+// 敌方受击后退：与小人前冲同相位——小人在 p≈0.9 突进到 +9 时，兽被「击退」一小格
+// （向右、远离小人），跨段定格（见 sceneAngleAt）得到像素风卡帧的撞击反馈。
+const SCENE_FOE_RECOIL = [
+  [0, 0], [72, 0], [86, 1], [90, 5], [95, 3], [100, 0],
+];
 
 // 离散帧（定格）动画：不在关键帧之间插值，而是「取所在段起点那帧」直接定格——
 // 一段内姿态不变，跨段才跳一格，得到像素风特有的「卡帧」节奏（见 ROADMAP 夜间项 #1）。
@@ -589,6 +594,10 @@ function paintFight(bar, rig){
   }
   const dx = sceneAngleAt(SCENE_LUNGE, p);
   if (rig && isFinite(dx)) rig.style.transform = 'translateX(' + dx.toFixed(1) + 'px)';
+  // 敌方受击后退：与小人前冲同相位（p≈0.9 突进到 +9 时兽被击退一小格），跨段定格。
+  const fr = sceneAngleAt(SCENE_FOE_RECOIL, p);
+  const foRig = bar.querySelector('.sc-foe-rig');
+  if (foRig && isFinite(fr)) foRig.style.transform = 'translateX(' + fr.toFixed(1) + 'px)';
   const last = UI._scenePhase;
   if (last !== undefined && p < last - 0.35){
     const fo = bar.querySelector('.sc-foe');
