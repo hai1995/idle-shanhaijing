@@ -44,7 +44,10 @@
   --ink:        #1F1D19;
   --ink-2:      #4C473E;
   --ink-3:      #6B6659;   /* 次级文字（正文可读性下限） */
-  --ink-4:      #7E786A;   /* 三级文字：标签、计数（仍保证可读） */
+  /* 三级文字：标签、计数。v1.31.136 扫对比度时发现它只有 3.99:1（WCAG AA 要 4.5），
+     而「保证可读」这句注释躺了很久没人验。压到 #6F6A5D：最深的纸底(--paper-2 237,235,226)
+     也有 4.51:1，浅底更高。只暗了 12%，肉眼几乎无感，但小字终于读得清了。 */
+  --ink-4:      #6F6A5D;
   --rule:       rgba(31,29,25,.16);
   --rule-2:     rgba(31,29,25,.08);
   --rule-3:     rgba(31,29,25,.04);
@@ -58,7 +61,7 @@
   --qing-w:     rgba(46,82,105,.10);
   --tai:        #566E4C;   /* 苔绿：所得 / 达成 */
   --tai-w:      rgba(86,110,76,.12);
-  --jin:        #9C7628;   /* 赭金：贝币 / 温值 */
+  --jin:        #8D6A24;   /* 赭金：贝币 / 温值（v1.31.136：#9C7628 是 3.79:1，压到 4.52） */
 
   /* —— 器（暗色栏） —— */
   --chrome:     #1E1C18;
@@ -1517,6 +1520,10 @@ svg.bi.mk{ vertical-align:-2px; }
   font-family:var(--f-num); font-size:8.5px; color:var(--zhu);
 }
 .beast-tile .tile-tag i{ font-style:normal; }
+/* 「录 N · Lv N」作为一个整体（v1.31.134）：窄屏要靠 flex-wrap 换行，
+   但原来它和「宜金」按钮是三个并列的 flex 项，「录 0」与「· Lv 1」会被拆到两行，
+   留下一个孤零零的「· Lv 1」。包成一项后，断行只会发生在「宜金」与它之间。 */
+.beast-tile .bt-meta{ font-style:normal; white-space:nowrap; }
 .beast-tile.danger{ border-color:rgba(176,58,43,.45); }
 .beast-tile.recommend{ border-color:rgba(86,110,76,.5); }
 .beast-tile.pick{ background:var(--zhu-w); }
@@ -1783,12 +1790,17 @@ svg.bi.mk{ vertical-align:-2px; }
 .rite-tile.on{ border-color:rgba(156,118,40,.55); background:rgba(156,118,40,.06); }
 /* 右上角「续」：续祭开关。默认淡，开启后朱底白字，与其他角标区分 */
 .rite-auto{
-  position:absolute; top:3px; right:3px; width:18px; height:18px;
+  position:absolute; top:3px; right:3px; width:24px; height:24px;
   display:flex; align-items:center; justify-content:center;
   font-family:var(--f-kai); font-size:10.5px; line-height:1;
   color:var(--ink-4); background:var(--paper-3); border:1px solid var(--rule-2); border-radius:2px;
   cursor:pointer; z-index:2; transition:all .12s;
 }
+/* 点击热区（v1.31.135）：原来只有 18×18，手机上手指落点直径约 9mm≈34px，
+   28 张祠礼卡片上都是这个小方块，点偏了会变成「打开详情」——想开续祭却弹出弹窗。
+   视觉尺寸收到 24×24（不挤），热区再用透明 ::after 扩到 36×36。
+   扩出去的部分压在卡片内，不影响相邻卡片（间距 6px，只侵入 6px 的一半）。 */
+.rite-auto::after{ content:''; position:absolute; inset:-6px; border-radius:4px; }
 .rite-auto:hover{ color:var(--zhu); border-color:var(--zhu-w); background:var(--zhu-w); }
 .rite-auto.on{ color:#FCFBF6; background:var(--zhu); border-color:var(--zhu); }
 /* 待料：开着但祭品不齐，用描边而非实底，与「真的在续」区分开 */
@@ -2159,6 +2171,12 @@ details.bulk-sell .bs-preview, details.bulk-sell .bs-act{ margin-left:11px; marg
 }
 .stat-rows > span:last-child{ border-bottom:none; }
 .stat-rows > span > b{ margin-left:auto; color:var(--ink); font-family:var(--f-num); font-size:12.5px; }
+/* 季候行（v1.31.131）：值是整句（「旱季 · 教山渔获 −30% · 还有 3 时 47 分转雨季」），
+   320px 下比其余条目长一倍。flex 默认会让值挤压标签，把「季候」压成「季」「候」两行——
+   所以标签固定不收缩、不许折行，值自己换行（整体落到下一行，仍靠右）。 */
+.stat-rows > span.season-row{ flex-wrap:wrap; }
+.stat-rows > span.season-row > .stat-k{ flex:0 0 auto; white-space:nowrap; font-style:normal; }
+.stat-rows > span.season-row > b{ min-width:0; text-align:right; line-height:1.5; }
 /* 见闻录的「未见 · 线索」：线索独占一行、缩进一点，不与条目名挤在一起
    （390px 下「祠前老祝 · 未见（在有山祠（谒见）的山头做事才遇）」会折成两行半） */
 .stat-rows > span.ev-unseen{ display:block; }
@@ -2657,13 +2675,24 @@ body.no-scroll{ overflow:hidden; }
   .tile{ padding:8px 4px 6px; gap:4px; }
   .tile-ic.bi-ic{ width:38px; height:38px; margin:-1px 0 -1px; }
   .tile-nm{ font-size:11.5px; }
+  /* 长名字在窄格子里被省略号吃掉（v1.31.134）：「北次一·瘗礼」69px、「鵕鸟（鼓所化）」80px，
+     格宽只有 60px —— 玩家看到「北次一·瘗…」等于没说清是哪一礼。允许折两行，
+     短名字（绝大多数）仍然一行，只有超长的才会占第二行。 */
+  /* 长名字折行而不是省略（v1.31.134）。原先 `white-space:nowrap` + 省略号，
+     320px 下「北次一·瘗礼」(69px) / 「鵕鸟（鼓所化）」(80px) 被格子(60px)切掉一截，
+     玩家根本看不出是哪一礼、哪只兽 —— 名字被切比多占一行糟得多。
+     不用 -webkit-line-clamp：它与下面的 inline-block 分段冲突，会把第二段再截一次。 */
+  .tile-nm{ white-space:normal; line-height:1.3; word-break:break-word; }
+  /* 礼名「区域·礼名」在「·」后断行：两块各自不可拆，断点只落在它们之间，
+     不会出现「北次一·瘗」/「礼」这种孤字。见 shrine.js 的 riteNameHtml。 */
+  .tile-nm .nm-seg{ display:inline-block; }
   .tile-tag{ font-size:9px; }
   .beast-tile .bt-el{ top:2px; left:2px; font-size:9px; padding:0 2px; }
   /* 窄卡上「宜金 / ×0.76」若仍按绝对定位钉在四角，会压住「录 N · Lv N」——
      改为与它同排居中，一行读完，不叠字。 */
-  .beast-tile .tile-tag{ display:flex; align-items:center; justify-content:center; gap:3px; }
+  .beast-tile .tile-tag{ display:flex; align-items:center; justify-content:center; gap:3px; flex-wrap:wrap; row-gap:0; }
   .beast-tile .bt-el-hint{ position:static; order:-1; height:auto; padding:1px 3px; line-height:1.25;
-    font-size:9px; min-height:16px; }
+    font-size:9px; min-height:16px; white-space:nowrap; }
   .beast-tile .bt-decay{ position:static; }
 
   /* 名号在窄屏要留（v1.31.70）：这条原本 `#nickTag{display:none}`，
@@ -19954,7 +19983,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.129',
+  version: '1.31.138',
   codename:'昼巡 · 近况',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -20732,6 +20761,19 @@ const SaveManager = {
   },
 };
 
+// 给 ui.js 初始化用的薄封装（不抛错）。
+// 原先还有一个 restoreCloudSave：自从「云端配置不再在启动时自动套用」后
+// 就没有调用者了——留着只会让人以为启动时还在恢复云端档。
+//
+// 写成**顶层函数声明**而不是块里的 `window.flushCloudSave = function(){}`：
+// boot.js 在 pagehide / visibilitychange 里是**裸名**调用它（`typeof flushCloudSave === 'function'`）。
+// 表达式赋值不产生全局变量 —— 浏览器里凑巧能解析（window 就是全局对象），
+// 但 vm 测试上下文里 window 只是普通对象，裸名取不到 → 守卫静默跳过 →
+// 「关页面前同步云存档」这条路径在测试里完全不可见。函数声明则在两种环境下都可见。
+function flushCloudSave(){
+  try { return SaveManager.flushSync(); } catch(e){ return Promise.resolve({ ok:false, reason:String(e) }); }
+}
+
 if (typeof window !== 'undefined'){
   window.SaveManager = SaveManager;
   window.LocalSaveStore = LocalSaveStore;
@@ -20741,12 +20783,7 @@ if (typeof window !== 'undefined'){
   window.SAVE_VERSION = SAVE_VERSION;
   window.serializeSave = serializeSave;
   window.mergeSaveData = mergeSaveData;
-  // 给 ui.js 初始化用的薄封装（不抛错）。
-  // 原先还有一个 restoreCloudSave：自从「云端配置不再在启动时自动套用」后
-  // 就没有调用者了——留着只会让人以为启动时还在恢复云端档。
-  window.flushCloudSave = function(){
-    try { return SaveManager.flushSync(); } catch(e){ return Promise.resolve({ ok:false, reason:String(e) }); }
-  };
+  window.flushCloudSave = flushCloudSave;
 }
 
 // ===== engine.js =====
@@ -20789,7 +20826,7 @@ const Game = {
     kills:0, deaths:0, actions:0, totalXp:0, time:0, bossKills:{}, totalEarned:0,
     harvests:0, purchases:0, sales:0, spent:0, sold:0, gathers:{}, crafts:0,
     damageDealt:0, damageTaken:0, hits:0, omens:{}, rites:0, observes:0, divines:0,
-    seenMilestones:{}, winStreak:0, deathStreak:0, deathStreakOf:null, bounties:0, seenDeployHint:false, seenFallbackHint:false, _unlockedRegions:[],
+    seenMilestones:{}, winStreak:0, deathStreak:0, deathStreakOf:null, bounties:0, seenDeployHint:false, seenFallbackHint:false, _unlockedRegions:[], lastSeason:null,
   },
   // 三签：常挂三条短目标 [{ id, base, target }]，base 是抽签那一刻的计数
   bounties: [],
@@ -20851,7 +20888,7 @@ function cloneDefaultGame(){
   g.stats = { kills:0, deaths:0, actions:0, totalXp:0, time:0, bossKills:{}, totalEarned:0,
               harvests:0, purchases:0, sales:0, spent:0, sold:0, gathers:{}, crafts:0,
               damageDealt:0, damageTaken:0, hits:0, omens:{}, rites:0, observes:0, divines:0,
-              seenMilestones:{}, claimed:{}, winStreak:0, deathStreak:0, deathStreakOf:null, bounties:0, seenDeployHint:false, seenFallbackHint:false, _unlockedRegions:[],
+              seenMilestones:{}, claimed:{}, winStreak:0, deathStreak:0, deathStreakOf:null, bounties:0, seenDeployHint:false, seenFallbackHint:false, _unlockedRegions:[], lastSeason:null,
               // 离线结算累计（统计页展示）：次数 / 时长 / 经验 / 物品件数 / 最近一次
               offlineCount:0, offlineSec:0, offlineXp:0, offlineItems:0, lastOffline:null };
   return g;
@@ -21857,12 +21894,40 @@ function doRebirth(){
 // 也是将来排行榜要收的那几个字段——先把它们凑到一处，接口才好定。
 // 自带的两个小格式化：战绩文本不该依赖界面层（fmt / fmtTime 都定义在 ui.js，
 // 在 ui.js 加载之前调用就会抛 ReferenceError）。
+// 显示用的数值归一（v1.31.137）：把 NaN / Infinity 变成 0。
+// 为什么需要：`String(NaN)` 就是 "NaN"，会原样出现在统计页上——玩家看到 11 个 NaN
+// 只会以为游戏坏了。`fmtDur(Infinity)` 更离谱，会写出「Infinity 天」。
+// 为什么放在显示层而不是写入处：数值来自几十处计算结果，逐个加守卫既啰嗦又必然漏；
+// 显示是最后一道关口，在这里统一归一最省事，也不会掩盖存档里的真实值。
+// 注意用 Number.isFinite 而不是 `Number(v) || 0`：后者对 Infinity 返回 Infinity（真值），漏网。
+function safeNum(v){
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+// 统计对象整份归一：一层数值 + 一层嵌套对象（gathers / bossKills 这类计数表）。
+// 只读不改：返回浅拷贝，Game.stats 本体不动。
+function sanitizeStats(src){
+  const out = {};
+  if (!src || typeof src !== 'object') return out;
+  for (const k in src){
+    const v = src[k];
+    if (typeof v === 'number') out[k] = safeNum(v);
+    else if (v && typeof v === 'object' && !Array.isArray(v)){
+      const o = {};
+      for (const k2 in v) o[k2] = (typeof v[k2] === 'number') ? safeNum(v[k2]) : v[k2];
+      out[k] = o;
+    } else out[k] = v;
+  }
+  return out;
+}
 // 数字的唯一写法：万 / 亿。
 // 曾经有两套——界面层 fmt() 用的是 K/M/B，战绩与分享文本用这里——同一笔贝币
 // 在两个地方写着「12.3K」和「1.2 万」。中文游戏只该有一套，判据收在这里。
 // 边界也要收：9999.96 万不该写成「10000 万」，那是 1 亿。
 function fmtNum(v){
-  v = Math.round(Number(v) || 0);
+  // 用 safeNum 而不是 `Number(v) || 0`：后者对 Infinity 返回 Infinity（真值），
+  // 会一路算到「Infinity 亿」印在界面上。
+  v = Math.round(safeNum(v));
   const neg = v < 0;
   v = Math.abs(v);
   const trim = (str) => str.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
@@ -21879,7 +21944,7 @@ function fmtNum(v){
 // 90000 → 「1 天 1 小时」。曾经界面层没有「天」这一档，30 小时会写成「30 小时」，
 // 而分享文本写「1 天 6 小时」——同一段时长两个说法。
 function fmtDur(sec){
-  sec = Math.max(0, Math.round(sec || 0));
+  sec = Math.max(0, Math.round(safeNum(sec)));   // 同上：`sec || 0` 挡不住 Infinity
   const d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600);
   const m = Math.floor(sec % 3600 / 60), s = sec % 60;
   if (d) return h ? `${d} 天 ${h} 小时` : `${d} 天`;
@@ -22242,6 +22307,15 @@ window.useConsumable = useConsumable;
 // 此前只有 note 文案、没有机制。此处各给一个轻量效果，山志上也会标出来。
 // 一候六小时（数值在 TUNING.SEASON，别在这里再写一份）
 const SEASON_SEC = (typeof TUNING !== 'undefined' && TUNING.SEASON && TUNING.SEASON.SEC) || 6 * 3600;
+// 「雨季 · 还有 2 时 13 分转旱季」。三处显示（顶栏 title / 山志节点标签 / 统计页季候行）
+// 都调这一个函数：季节相关的文案只有一个来源，改一次三处同时跟上，不会有「顶栏说 2 时、山志说 3 时」。
+function seasonLineText(){
+  const wet = seasonPhase() === 1;
+  const rb = Math.round(((typeof seasonRiverBonus === 'function') ? seasonRiverBonus() : 0.30) * 100);
+  return (wet ? '雨季' : '旱季') + ' · 教山渔获 ' + (wet ? '+' : '−') + rb
+    + '% · 还有 ' + seasonRemainText() + '转' + (wet ? '旱季' : '雨季');
+}
+
 // 季节（v1.31.124 修）：原来直接 `Math.floor(t/SEC) % 2`，而 JS 的 % 对负数返回负值——
 // 读档把 time 归零之前（或旧档里 time 极小、被扣成负数时）会得到 **-1**。
 // 旧消费方写的是 `seasonPhase() ? A : B`，-1 是真值 → 错判成雨季；新消费方写
@@ -22249,6 +22323,26 @@ const SEASON_SEC = (typeof TUNING !== 'undefined' && TUNING.SEASON && TUNING.SEA
 // 归一到 0/1 是 helper 的责任，不该让每个消费方各写一遍防负。
 function seasonPhase(){ const n = Math.floor(gameTime() / SEASON_SEC); return ((n % 2) + 2) % 2; }   // 0 旱 1 雨
 function seasonName(){ return seasonPhase() ? '雨季' : '旱季'; }
+// 距下次换季还有多久（秒）。界面上只说「六小时一转」是不够的——
+// 玩家要去教山收渔获，正需要判断「现在出发算不算雨季」「要不要等两小时」。
+// 只说周期、不说进度，这个周期信息就没法用来做计划。
+// 归一到 [0, SEC]：time 可能为负（旧档 / 读档归零前），负偏移会让剩余时间超过一候。
+function seasonRemainSec(){
+  // time 若被污染成 NaN / Infinity（存档损坏、或某处计算溢出），取模会得到 NaN，
+  // 一路传到界面上就是「NaN 分」甚至「Infinity 天」。这里直接回到「还有一整候」。
+  const t = (typeof safeNum === 'function') ? safeNum(gameTime()) : gameTime();
+  const off = ((t % SEASON_SEC) + SEASON_SEC) % SEASON_SEC;   // 候内已过的秒数
+  return SEASON_SEC - off;
+}
+// 「2 时 13 分」/「47 分」/「不足 1 分」。分钟向下取整：说「还有 2 小时」时绝不能夸大，
+// 宁可少说几秒，也不要让玩家按这个数去卡点却迟到。
+function seasonRemainText(){
+  const s = seasonRemainSec();
+  if (s < 60) return '不足 1 分';
+  const m = Math.floor(s / 60), h = Math.floor(m / 60);
+  if (h > 0) return h + ' 时' + (m % 60 ? ' ' + (m % 60) + ' 分' : '');
+  return m + ' 分';
+}
 function geoOf(nodeId){ return (window.SPECIAL_NODES || {})[nodeId] || null; }
 function hasBeast(id){ return Object.values(Game.deployed || {}).indexOf(id) >= 0; }
 function geoGatherMul(nodeId){
@@ -22271,8 +22365,21 @@ function geoGatherBonus(nodeId){
   }
   return b;
 }
+// 河川季节加成。写成**函数声明**而不是 `window.seasonRiverBonus = function(){}`：
+// 后者在浏览器里没问题（window 就是全局对象），但在 vm 测试上下文里 window 只是普通对象，
+// 于是 game.js 内部的裸引用 `seasonRiverBonus()` 取不到，守卫 `typeof ... === 'function'`
+// 静默落到硬编码的 0.30 —— 改 TUNING 后文案不变，还查不出为什么。函数声明则在文件内必然可见。
+function seasonRiverBonus(){
+  return (typeof TUNING !== 'undefined' && TUNING.SEASON && TUNING.SEASON.RIVER) || 0.30;
+}
 window.seasonPhase = seasonPhase; window.seasonName = seasonName;
-window.seasonRiverBonus = function(){ return (typeof TUNING !== 'undefined' && TUNING.SEASON && TUNING.SEASON.RIVER) || 0.30; };
+window.seasonRemainSec = seasonRemainSec; window.seasonRemainText = seasonRemainText;
+window.seasonLineText = seasonLineText;
+// 显示层归一（sanitizeStats / safeNum）：界面与测试都要用，挂出去。
+window.sanitizeStats = sanitizeStats; window.safeNum = safeNum;
+// checkSeasonFlip 定义在文件后段（onSecond 旁边）。函数声明会提升，这里能直接挂。
+window.checkSeasonFlip = checkSeasonFlip;
+window.seasonRiverBonus = seasonRiverBonus;
 window.geoGatherMul = geoGatherMul; window.geoGatherBonus = geoGatherBonus; window.hasBeast = hasBeast;
 
 // ---------- 采集 ----------
@@ -24705,12 +24812,32 @@ function rateStall(){
 }
 window.rateStall = rateStall;
 
+// 旱雨轮转的「换季提示」。
+// 为什么要有：季节直接改收益（教山渔获 ±RIVER），但它每六小时**静默**翻转一次，
+// 玩家只会觉得「怎么忽然变慢了」——一个影响收益的状态变了却不吭声，是这个设计最坑的地方。
+// 判据用「上次记录的季相」而不是「距上次提示多久」：前者跨存档、跨离线都成立，
+// 后者离线八小时回来只会弹一次，且离线期间翻过季就永远漏掉。
+function checkSeasonFlip(){
+  const now = seasonPhase();
+  const last = Game.stats.lastSeason;
+  // 第一次记录（老档 / 新档 / 本功能上线前）：只登记不提示，否则每个老玩家读档都会收到一条假提示
+  if (last !== 0 && last !== 1){ Game.stats.lastSeason = now; return; }
+  if (last === now) return;
+  Game.stats.lastSeason = now;
+  if (!UI || !UI.toast) return;
+  const rb = Math.round(((typeof seasonRiverBonus === 'function') ? seasonRiverBonus() : TUNING.SEASON.RIVER) * 100);
+  const wet = now === 1;
+  UI.toast((wet ? '🌊 入雨季' : '🏜️ 入旱季') +
+    `：教山渔获 ${wet ? '+' : '−'}${rb}%（${(wet ? '雨后新涨' : '旱井见底')}这类见闻也变得可能）`);
+}
+
 function onSecond(){
   if (Object.keys(Game.farms).length){ farmTick(1); if (UI && UI.patchFarmsProgress) UI.patchFarmsProgress(); }
   if (UI && UI.patchSkillBars) UI.patchSkillBars();      // 技能页经验条秒级跟进（不重建节点）
   if (UI && UI.checkFarmUnlock) UI.checkFarmUnlock();    // 圃艺升级后新田开垦提示
   if (UI && UI.patchQueueProgress) UI.patchQueueProgress();   // 巡历队列：进度/当前标记/轮数秒级兜底
   Game.stats.time++;
+  checkSeasonFlip();        // 旱雨轮转：跨过分界时告诉玩家（收益静默 ±30% 太坑）
   sampleRate();             // 效率采样：近 20 分钟的每小时收益（统计页读）
   tickOmens();
   tickAutoRites();          // 续祭：到期前 60 秒自动重备一份祭品
@@ -28877,7 +29004,10 @@ const TAB_RENDER = { yudi:'renderYudi', skills:'renderSkills', taofa:'renderTaof
   queue:'renderQueue', pack:'renderPack', stats:'renderStats', settings:'renderSettings',
   about:'renderAbout' };
 const CAT_EMOJI = { 兽:'🐾', 鸟:'🪶', 水族:'🐟', 蛇:'🐍' };
-const LOG_COLORS = { good:'#4A7C59', bad:'#C3272B', gold:'#D9A521', sys:'#8C5A3C' };
+// gold 原为 #D9A521：当浮字用没问题（有描边），但做日志正文色时在纸底上只有 2.04:1，
+// 几乎看不清（v1.31.136 对比度扫描抓到的）。压到 #8C6B15（4.51:1）。
+// 浮字另用硬编码亮色，不受影响。
+const LOG_COLORS = { good:'#4A7C59', bad:'#C3272B', gold:'#8C6B15', sys:'#8C5A3C' };
 
 // ---------- DOM 辅助 ----------
 function $(id){ return document.getElementById(id); }
@@ -29983,10 +30113,12 @@ UI.renderTopbar = function(){
     const name = (typeof seasonName === 'function') ? seasonName() : (wet ? '雨季' : '旱季');
     if (sn.textContent !== name) sn.textContent = name;
     sn.classList.toggle('wet', !!wet);
-    // 百分比也只有一个来源：seasonRiverBonus() 读 TUNING.SEASON.RIVER。
-    // 原先这里写死「+30%」，改数值时顶栏会说谎。
-    const rb = Math.round(((typeof seasonRiverBonus === 'function') ? seasonRiverBonus() : 0.30) * 100);
-    sn.title = (wet ? '雨季' : '旱季') + '：教山渔获 ' + (wet ? '+' : '−') + rb + '%（六小时一转）';
+    // 百分比与「还有多久换季」都来自 seasonLineText()，它内部读 TUNING.SEASON.RIVER。
+    // 原先这里写死「+30%」，改数值时顶栏会说谎；v1.31.131 起连措辞也统一了，
+    // 顶栏 / 山志 / 统计页三处说的是同一句话，不会「一处说还有 2 时、一处说六小时一转」。
+    sn.title = (typeof seasonLineText === 'function')
+      ? seasonLineText()
+      : (wet ? '雨季' : '旱季') + '（六小时一转）';
   }
   // 增益图标处于书脊最右：这里只更新计数与明暗，内容在点开浮层时才生成。
   this.renderBuffBtn();
@@ -31890,10 +32022,9 @@ function specialNodeNote(node){
   }
   if (sp.climb) tags.push('百仞：采集迟缓 ×1.18，所得更丰 +10%');
   if (sp.seasonalRiver){
-    const wet = typeof seasonPhase === 'function' && seasonPhase();
-    // 百分比不在此处写死：读 TUNING.SEASON.RIVER（经 seasonRiverBonus 暴露）
-    const rb = Math.round(((typeof seasonRiverBonus === 'function') ? seasonRiverBonus() : 0.30) * 100);
-    tags.push(`${typeof seasonName === 'function' ? seasonName() : '旱季'}：渔获 ${wet ? '+' : '−'}${rb}%（六小时一转）`);
+    // 「六小时一转」只说周期不说进度，玩家到了教山才发现正赶上旱季就晚了。
+    // 文案统一由 seasonLineText 生成（顶栏 / 山志 / 统计页共用一份）。
+    tags.push((typeof seasonLineText === 'function') ? seasonLineText() : '渔获随旱雨涨落（六小时一转）');
   }
   return `<div class="special-note">★ ${esc(sp.note||'')}${tags.length
     ? `<div class="geo-tags">${tags.map(t=>`<span class="geo-tag">${esc(t)}</span>`).join('')}</div>` : ''}</div>`;
@@ -32733,7 +32864,7 @@ function beastCardHtml(x, pick){
       ${x.el?`<span class="bt-el el-${x.el}">${x.el}</span>`:''}
       <span class="tile-ic bi-ic">${(typeof beastIcon==='function')?beastIcon(x):(CAT_EMOJI[x.category]||'🐾')}</span>
       <span class="tile-nm">${esc(xb.name)}</span>
-      <span class="tile-tag"><i class="bt-rec">录 ${rec.count}</i> · Lv ${xb.bandLv || x.needLvl || 1}${counterEl?`<button class="bt-el-hint" type="button" title="一键切到${counterEl}属（${counterEl}克${x.el}，伤害 ×${TUNING.WUXING.KE}）"
+      <span class="tile-tag"><i class="bt-meta"><i class="bt-rec">录 ${rec.count}</i> · Lv ${xb.bandLv || x.needLvl || 1}</i>${counterEl?`<button class="bt-el-hint" type="button" title="一键切到${counterEl}属（${counterEl}克${x.el}，伤害 ×${TUNING.WUXING.KE}）"
         onclick="event.stopPropagation();setCombatStyle('zhu');setZhuEl('${counterEl}');UI.renderTaofa()">宜${counterEl}</button>`:''}${decayTag?`<span class="bt-decay" title="连续讨伐 ${streakN} 次，经验递减；换一只异兽即恢复全额">×${mobStreakMult(x.id).toFixed(2)}</span>`:''}</span>
       ${x===pick?'<span class="bt-pick">宜讨</span>':''}
       <span class="tip-body hidden">
@@ -33617,6 +33748,17 @@ window.showCodexDetail = showCodexDetail;
 
 // ===== ui/shrine.js =====
 // ================= 祠祀 =================
+// 礼名折行（v1.31.134）：礼名是「区域·礼名」（如「北次一·瘗礼」），窄格子（320px 下约 60px）
+// 一行放不下。直接让它折行，中文会在任意字间断——变成「北次一·瘗」/「礼」，剩一个孤字。
+// 用 `<wbr>` 不管用：CJK 本来就能随处断，浏览器会挑最填满的那个位置，轮不到 wbr。
+// 所以把「·」两侧各包成一个 inline-block：两块之间可以断行，块内不拆，
+// 断点就自然落在「·」后。单段的名字（无「·」）原样输出。
+function riteNameHtml(name){
+  const s = String(name == null ? '' : name);
+  const i = s.indexOf('·');
+  if (i <= 0) return esc(s);
+  return `<span class="nm-seg">${esc(s.slice(0, i + 1))}</span><span class="nm-seg">${esc(s.slice(i + 1))}</span>`;
+}
 // 征兆面板 HTML（整页渲染与就地补绘共用）：总效应 / 分档 chips / 方块网格 / 禳解行
 function omenPanelHtml(){
   const xiong = Game.omens.filter(o=>OMENS[o.id]&&OMENS[o.id].polarity==='凶');
@@ -33761,7 +33903,7 @@ UI.renderJisi = function(){
           onclick="event.stopPropagation();UI.toggleRiteAuto('${id}')">续</span>
         ${st.active?`<span class="rite-left" title="余 ${fmtTime(st.left)}">${fmtClock(st.left)}</span>`:''}
         <span class="tile-ic bi-ic">${(typeof riteIcon==='function')?riteIcon(id, riteName):`<span class="tile-seal">${esc((String(riteName).split('·')[1] || String(riteName)).trim().slice(0,1))}</span>`}</span>
-        <span class="tile-nm">${esc(riteName)}</span>
+        <span class="tile-nm">${riteNameHtml(riteName)}</span>
         <span class="tile-tag">祭祀 ${rec.lvl}</span>
         <span class="tip-body hidden">
           <div class="rc-sub">${esc(region?region.regionName:'常祭')}</div>
@@ -35507,7 +35649,8 @@ UI.msDetail = function(idx){
 UI.renderStats = function(){
   const box = $('content');
   if (!box) return;
-  const s = Game.stats;
+  // 数值统一归一：NaN / Infinity 会原样印成「NaN」「Infinity 天」，见 game.js 的 sanitizeStats
+  const s = (typeof sanitizeStats === 'function') ? sanitizeStats(Game.stats) : Game.stats;
   const gatherRows = Object.entries(s.gathers||{}).map(([k,v])=>`<span>${Skills[k]?Skills[k].name:k} <b data-gather="${k}">${v}</b></span>`).join('') || '<span class="hint">未采</span>';
   // 六凶与全部凶神分开算：分子分母必须同一口径，否则「杀过刑天」会被算进六凶
   const bossList = Object.values(Monsters).filter(m => m.boss);
@@ -35681,6 +35824,7 @@ UI.renderStats = function(){
     </div>
     <div class="panel stat-panel"><h3>时间 / 离线</h3>
       <div class="stat-rows">
+        <span class="season-row"><i class="stat-k">季候</i> <b data-stat="season">${seasonLineText()}</b></span>
         <span>在册时长 <b data-stat="time">${fmtTime(s.time)}</b></span>
         <span>本次会话 <b data-stat="session">${fmtTime((Date.now()-Game.startedAt)/1000)}</b></span>
         <span>离线上限 <b>${offlineCapHours()} 小时</b></span>
@@ -35905,7 +36049,9 @@ UI.renderAbout = function(){
 // 逐项改写统计数值；只在值真的变了才碰 DOM，避免无谓重排
 UI.patchStats = function(){
   if (this.currentTab !== 'stats') return;
-  const s = Game.stats;
+  // 与静态渲染同一份归一（见 game.js sanitizeStats）：patchStats 里有 `String(s.kills)` 这类
+  // 直转，NaN 会原样写成 "NaN"，而 patch 每 800ms 覆盖一次，比静态渲染更容易让人看到。
+  const s = (typeof sanitizeStats === 'function') ? sanitizeStats(Game.stats) : Game.stats;
   const totalNodes = WORLD.regions.reduce((a, r) => a + r.nodes.length, 0);
   // ⚠️ 这一处曾把「凶神」写成 `keys(bossKills).length + '/7'`：静态渲染修好之后，
   // 统计页开着每秒一次的 patch 又把它改回错的那个数。两处的口径必须一起改。

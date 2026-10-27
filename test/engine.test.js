@@ -10541,6 +10541,140 @@ section('征兆专属见闻');
   assert(/sanitizeStats\(Game\.stats\)/.test(miscSrc192), 'patchStats 走同一份归一');
 }
 
+// ============ 193. 存档兼容性回归（迁移链 + 往返保真 + 异常不崩） ============
+// 存档是玩家全部进度，一旦往返丢字段或读崩，等于把进度清零。这一节把「合法态往返无丢档 /
+// v5→v6 迁移正确 / 异常存档绝不崩」三条底线固化成断言，任何改存档结构或读档装配的提交
+// 都必须过这里。判据用「真实存档路径」（serializeSave→落盘→loadGame→再 serializeSave），
+// 不是直接比内存对象——只有走完一遍序列化才验得到「哪个字段没被写进 / 没被读回」。
+section('存档兼容性回归');
+{
+  const SM = ST.SaveManager;
+  // 193.1 v5→v6 迁移：装备混在 inventory + 共享一档强化，读回应各归其位。
+  // 真实 v5 槽位只存 {id}（不存 enh，等级在共享表 Game.enhance 上），所以此处 gear.weapon
+  // 不带 enh；若写成 {id,enh:0} 会让「legacy 拉共享表」的 `g.enh == null` 短路、强化丢失——
+  // 那是伪造的 v5 形态，不是线上真实档。
+  {
+    const v5 = {
+      version: 5, shells: 999, nickname: '',
+      inventory: { migufu: 2, herb: 5 },          // migufu 是装备：迁移后应离开 inventory
+      enhance: { migufu: 5 },                      // 装备共享一档 +5
+      skills: {}, map: {}, stats: {},
+      gear: { weapon: { id: 'migufu' }, armor: null, charm: null, axe: null, pick: null, net: null, quiver: null },
+    };
+    const mig = ST.migrateSave(JSON.parse(JSON.stringify(v5)));
+    assert(mig.version === SM.version, 'v5 旧档迁移到当前版本（' + mig.version + '）');
+    // 迁移把同 id 同档的装备并成一条 {id,enh,n}（避免 n 件同款写 n 条 JSON 撑爆存档）
+    assert(Array.isArray(mig.packGear) && mig.packGear.length === 1 &&
+           mig.packGear[0].id === 'migufu' && mig.packGear[0].enh === 5 && mig.packGear[0].n === 2,
+           '装备从 inventory 迁成「按件」packGear 且带原强化（1 条 n=2，+5）');
+    assert(!('migufu' in (mig.inventory || {})), '迁移后 inventory 不再含装备');
+    SM.store.write(JSON.stringify(mig));
+    G.loadGame();
+    assert(ST.Game.gear.weapon && ST.Game.gear.weapon.enh === 5,
+           'v5 共享强化正确落到装备槽（gear.weapon.enh=5，不是 0）');
+    assert(ST.Game.packGear.length === 2 && ST.Game.inventory.herb === 5,
+           '读档后 packGear 与剩余行囊都正确');
+  }
+
+  // 193.2 合法态往返保真：造一份「有内容」的存档，序列化→落盘→读回→再序列化，逐字段比对。
+  // 关键是用引擎自身的 mutator（makeQueueEntry / plantSeed / gainXp）造合法态，
+  // 而非手搓 JSON——手搓很容易写出「形不对就被读档丢弃」的假数据，测了个寂寞。
+  {
+    G.resetToDefault();
+    ST.Game.shells = 12345;
+    ST.Game.nickname = '探员甲';
+    ST.Game.inventory = { gui: 7, mu: 3, herb: 12, iron: 5 };
+    ST.Game.banking = { shell: 50 };
+    for (const k in ST.Skills) ST.Game.skills[k] = { level: 1, xp: 0 };
+    ST.gainXp('zhulu', 500000);                                  // 把等级拉高，验等级往返
+    ST.Game.gear.weapon = Object.assign({}, ST.Items.migufu, { enh: 5 });
+    ST.Game.packGear = [ { id: 'lushufu', enh: 3 }, { id: 'lushufu', enh: 3 }, { id: 'guanfu', enh: 1 } ];
+    ST.Game.enhance = {};
+    ST.Game.records = { laurel: { count: 9, tier: 2 } };
+    ST.Game.map = { 'nanshan-1-01': true, 'nanshan-2-03': true };
+    ST.Game.observed = { 'nanshan-1-01': true };
+    ST.Game.buildings = { beacon: 1 };
+    ST.Game.deployed = { 0: 'shengsheng' };                       // 真实形态：数字下标
+    ST.Game.rites = { spring: 3 };
+    ST.Game.riteOf = { 'nanshan-1-01': 'spring' };
+    ST.Game.recentLoot = [ { id: 'gui', n: 2 } ];
+    ST.Game.grow = { zhulu: { stage: 2, done: 5 } };
+    ST.Game.bounties = [ { id: 'canjian', base: 5, target: 20 } ];
+    ST.Game.events = { at: 1000, count: 9, lastId: 'canjian', seen: { canjian: 3 }, awayAt: 50, lastAt: 40 };
+    ST.Game.rebirth = { count: 2, at: 999, best: 321, startedAt: 100, history: [ { at: 1, sec: 120, total: 50, best: 50 } ] };
+    ST.Game.member = { tier: 'none', until: 0 };
+    ST.Game.queue = [ ST.makeQueueEntry('gather', 'herb', 1), ST.makeQueueEntry('fight', 'shengsheng', 1) ];
+    ST.Game.queueIdx = 1; ST.Game.queueRound = 3; ST.Game.queueRunning = true;
+    ST.Game.stats = Object.assign({}, ST.Game.stats, { kills: 42, gathers: 100, bounties: 7, seenMilestones: {} });
+    ST.Game.affixSalt = { muge: 2 };
+    ST.Game.enhanceHeat = { muge: 4 };
+    ST.Game.mobStreak = { shengsheng: 3 };
+    ST.Game.pilgrim = { step: 2 };
+    ST.Game.startedAt = 123456;
+    // 田：正确的种子 id + 抬高圃艺解锁田块。田块键的真实形态是 'p'+序号（UI 用 'p'+i），
+    // trimFarmsToPlots 按 /^p/ 剥前缀取序号——写 'plot-0' 会被解析成 NaN 直接删掉，那不是游戏 bug，
+    // 是伪造的键。这里必须用真实键 'p0'。
+    let gy = 0; while (ST.levelOf('yudi') < 5 && gy++ < 400) ST.gainXp('yudi', 8000);
+    ST.Game.inventory['seed_tu'] = 3;
+    ST.plantSeed('p0', 'seed_tu', true);
+    assert(!!ST.Game.farms['p0'], '样例行囊已种下（farms 有 p0）');
+
+    const ser193 = ST.serializeSave();
+    const before193 = JSON.parse(JSON.stringify(ser193));
+    SM.store.write(JSON.stringify(ser193));
+    G.loadGame();
+    const after193 = ST.serializeSave();
+
+    const keys193 = ['shells','nickname','inventory','banking','skills','gear','packGear','records','map',
+      'observed','buildings','deployed','rites','riteOf','recentLoot','grow','bounties','events','rebirth',
+      'member','queue','queueIdx','queueRound','queueRunning','stats','affixSalt','enhanceHeat','mobStreak','pilgrim','startedAt','farms'];
+    const lost = keys193.filter(k => JSON.stringify(before193[k]) !== JSON.stringify(after193[k]));
+    assert(lost.length === 0, '合法态往返无丢档（30 字段全一致）' + (lost.length ? '，丢：' + lost.join(',') : ''));
+    // 关键标量再点名确认，免得「整体一致」掩盖个别字段的微妙退化
+    assert(after193.shells === 12345 && after193.nickname === '探员甲', '贝币 / 名号保留');
+    assert(after193.skills.zhulu && after193.skills.zhulu.level === 36, '技能等级保留（zhulu=36）');
+    assert(after193.gear.weapon && after193.gear.weapon.enh === 5, '装备强化保留（weapon.enh=5）');
+    // packGear 在序列化时按 id+档 合并成 {id,enh,n}，往返后形态一致即可（不要求展开成 n 条）
+    assert(JSON.stringify(after193.packGear) === JSON.stringify(before193.packGear), '行囊装备保留（合并形态一致）');
+    assert(after193.deployed['0'] === 'shengsheng', '御使槽位保留（数字下标）');
+    assert(after193.queue.length === 2 && after193.queue[0].target === 'herb' && after193.queue[1].target === 'shengsheng', '行动队列保留');
+    assert(after193.events.seen.canjian === 3 && after193.stats.kills === 42, '见闻逐条计数 / 统计保留');
+    assert(after193.farms && after193.farms['p0'] && after193.farms['p0'].seedId === 'seed_tu', '田块保留（p0 / seed_tu）');
+  }
+
+  // 193.3 异常存档绝不崩：序列化产物可能被手改 / 截断 / 注入 NaN，loadGame 必须要么恢复默认、
+  // 要么读回可用档，绝不能抛错把页面卡死（玩家看到的只能是「进度归零」或「正常继续」）。
+  {
+    const bad = [
+      ['null', 'null'],
+      ['JSON 数组', '[1,2,3]'],
+      ['普通字符串', '"not a save"'],
+      ['空对象', '{}'],
+      ['缺 shells/inventory/skills', '{"version":6,"shells":1}'],
+      ['坏 JSON', '{not json'],
+    ];
+    let allOk = true;
+    for (const [label, raw] of bad){
+      try {
+        SM.store.write(raw);
+        const ok = G.loadGame();
+        if (typeof ok !== 'boolean') allOk = false;
+        if (!isFinite(ST.Game.shells)) allOk = false;   // 读崩的典型后果：数值变 NaN
+      } catch(e){ allOk = false; console.error('  ' + label + ' 抛错: ' + e.message); }
+      assert(true, label + '：loadGame 未抛错');   // 不抛错即过关，逐条都记一笔
+    }
+    assert(allOk, '所有异常档都被安全消化（返回布尔、游戏数值仍有限）');
+    // NaN 海：合法 JSON 但数值全是 NaN / Infinity——上一节修的归一只管显示层，这里验「读档本身不崩」
+    const nanSave = JSON.parse(JSON.stringify(ST.serializeSave()));
+    nanSave.shells = NaN; nanSave.stats = Object.assign({}, nanSave.stats, { kills: NaN, gathers: Infinity });
+    SM.store.write(JSON.stringify(nanSave));
+    let nanOk = true;
+    try { G.loadGame(); } catch(e){ nanOk = false; console.error('  NaN 海抛错: ' + e.message); }
+    assert(nanOk && isFinite(ST.Game.shells), 'NaN/Infinity 海读档不崩，且 shells 回到有限值');
+    G.resetToDefault();
+  }
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
