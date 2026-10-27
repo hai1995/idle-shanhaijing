@@ -323,6 +323,7 @@ UI.renderYudi = function(){
         ${un && !here && !nodeHasUsableAction(sel) ? `<button class="btn" onclick="travelTo('${sel.id}')">涉足此山</button>` : ''}
       </div>
       ${nodeEventNote(sel)}
+      ${nodeOmenNote(sel)}
       <div class="nd-body">
         ${sel.terrain?`<p class="nd-terrain">${esc(sel.terrain)}</p>`:''}
         ${specialNodeNote(sel)||''}
@@ -589,6 +590,19 @@ function nodeEventNote(node){
   return `<div class="nd-ev-note${n ? ' got' : ''}" title="见闻：${esc(evNameOf(id))}">
     <i>✦</i> 在此处做事${n ? '，已遇见过闻「' : '，有机会遇见闻「'}${esc(evNameOf(id))}${n ? `」（${n} 次）` : '」'}
   </div>`;
+}
+
+// 此山此刻的征兆（v1.31.120）：压着活跃征兆时，详情里写明类型、吉凶与还剩多久。
+// 顶栏 buff 图标是「全站视角」，这里是「脚下视角」——玩家正看着这座山时，
+// 不该要他想起来去点右上角。过往的（已过期）不显示，避免详情页堆尸体。
+function nodeOmenNote(node){
+  if (typeof activeOmenAt !== 'function') return '';
+  const d = activeOmenAt(node && node.id);
+  if (!d) return '';
+  const ago = Math.max(0, (d.until || 0) - (typeof gameTime === 'function' ? gameTime() : 0));
+  const mark = d.polarity === '凶' ? '🔴' : d.polarity === '吉' ? '🟢' : '🟡';
+  const rem = (typeof fmtDur === 'function') ? fmtDur(ago) : Math.round(ago / 60) + ' 分';
+  return `<div class="nd-omen-note ${d.polarity === '凶' ? 'bad' : 'good'}">${mark} 征兆·${esc(d.type)}（${esc(d.beast)}）压着此山 · ${rem} 后应验期满</div>`;
 }
 
 function specialNodeNote(node){

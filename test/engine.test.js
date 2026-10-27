@@ -9848,6 +9848,12 @@ section('征兆专属见闻');
     assert(/祓除|御兵/.test(out.log || ''), '凶兆见闻写「可以怎么办」');
   }
 
+  // ⑤′ 脚下视角：节点详情显示「征兆·X 压着此山」（v1.31.120）
+  const ySrc181 = readText('src/ui/yudi.js');
+  assert(ySrc181.includes('function nodeOmenNote'), '节点详情有征兆提示函数');
+  assert(/nodeOmenNote\(sel\)/.test(ySrc181), '详情渲染调用了征兆提示');
+  assert(readText('style.css').includes('.nd-omen-note.bad{'), '凶吉两色样式齐备');
+
   // ⑤ 可视化与线索
   assert(ST.EVENT_VIS.zhao_xiong && ST.EVENT_VIS.zhao_ji, '两条征兆见闻有现场字形');
   assert(/id: 'zhao_xiong',[^}]*go: 'omen'/.test(readText('src/events.js')), '凶兆见闻的线索可点（跳祠祀）');

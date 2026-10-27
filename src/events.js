@@ -435,7 +435,9 @@ function activeOmenAt(nodeId){
   const now = (typeof gameTime === 'function') ? gameTime() : 0;
   for (const o of Game.omens){
     const def = OMENS[o.id];
-    if (def && def.node === nodeId && o.until > now) return def;
+    // 把「还剩多久」（o.until，实例上的）合进返回值——定义里没有这个字段，
+    // 最初版漏了它，节点详情的「应验期满」显示成 0 秒。
+    if (def && def.node === nodeId && o.until > now) return Object.assign({}, def, { until: o.until });
   }
   return null;
 }
