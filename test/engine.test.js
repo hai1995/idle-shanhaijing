@@ -9410,6 +9410,23 @@ section('加载清单守卫');
   // 构建脚本只从 index.html 读，不许自带清单
   const build = readText('scripts/build-standalone.js');
   assert(/index\.html/.test(build), '单文件构建从 index.html 取清单');
+
+  // 文件表里的「行数」也会过期：允许 ±25%（改代码不必每次回头改文档），
+  // 但差得太多说明表格在骗人——写文档的人以为文件还是那个大小。
+  const arch = readText('docs/ARCHITECTURE.md');
+  let stale = [];
+  UI_FILES.concat(nonUi.map(f => 'src/' + f)).forEach(f => {
+    const rel = f.replace(/^src\//, '');
+    const seg = arch.indexOf('`' + rel + '`');
+    if (seg < 0) return;                                     // 表里没有就不查
+    const row = arch.slice(seg, arch.indexOf('\n', seg));
+    const m = row.match(/\|\s*(\d+)\s*\|\s*$/);
+    if (!m) return;
+    const claimed = parseInt(m[1], 10);
+    const real = fs2.readFileSync(path.join(base, rel), 'utf8').split('\n').length;
+    if (Math.abs(claimed - real) / Math.max(1, real) > 0.25) stale.push(rel + ' 写 ' + claimed + ' 行、实际 ' + real);
+  });
+  assert(stale.length === 0, 'ARCHITECTURE 的行数没过期（' + (stale.join('；') || '无') + '）');
 }
 
 // ============ 175. 存档体积守卫（2026-10-27） ============

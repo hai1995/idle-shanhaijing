@@ -19645,7 +19645,7 @@ const Milestones = [
   { id:'pilgrim_5', name:'五系巡礼', desc:'走遍五个山系的诸山',
     prog:()=>[pilgrimFullCount(), 5], bonus:'采获 +3%', yield:0.03,
     how:'山系进度在舆地页每个山系方块上，诸山皆涉即满。满额那系右上角会亮一枚「赏」。', go:{ tab:'yudi' } },
-  // ---- 见闻（v1.31.101）：把「偶尔撞见的一句话」变成一个可见的收集目标 ----
+  // ---- 见闻（v1.31.102）：把「偶尔撞见的一句话」变成一个可见的收集目标 ----
   // 判据取「见过几种」而非「触发多少次」：见闻的价值在种类，重复同一条没有新信息。
   { id:'event_5', name:'见闻初录', desc:'行旅见闻见过 5 种',
     prog:()=>[eventKindsSeen(), 5], bonus:'经验 +1%', xp:0.01,
@@ -19886,7 +19886,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.101',
+  version: '1.31.102',
   codename:'昼巡 · 近况',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
