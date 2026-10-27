@@ -10289,6 +10289,59 @@ section('征兆专属见闻');
   ST.Game.stats.time = keepT;
 }
 
+// ============ 190. 跨文件共享的函数必须是「函数声明 + 挂 window」 ============
+// 起因（v1.31.131）：seasonRiverBonus 写成 `window.seasonRiverBonus = function(){}`，
+// 而同文件内裸名引用它 —— 浏览器里没事（window 就是全局对象），
+// 但测试的 vm 上下文里 `window` 是普通对象，表达式赋值不产生全局变量，
+// 裸名 `typeof` 得 undefined，守卫静默走进硬编码兜底，改 TUNING 后文案纹丝不动。
+// 同批还查出 save.js 的 flushCloudSave 有同样写法，且 boot.js 裸名调用它
+// （pagehide 时同步云存档）——线上能跑，但这条路径在测试里完全不可见。
+// 这一节把这条规矩钉死：src/ 下不许出现 `window.x = function / = (` 形式的函数赋值。
+{
+  const dirs = ['src', 'src/ui'];
+  const files = [];
+  for (const d of dirs){
+    for (const f of fs.readdirSync(path.join(__dirname, '..', d))){
+      if (f.endsWith('.js')) files.push(d + '/' + f);
+    }
+  }
+  // 扫描面必须与 index.html 实际加载的一致：漏扫一个文件，就等于给这个文件开了后门。
+  const htmlScripts = (readText('index.html').match(/<script src="src\//g) || []).length;
+  assert(files.length === htmlScripts,
+    '扫过 ' + files.length + ' 个源文件，与 index.html 的 ' + htmlScripts + ' 个脚本一致（不漏扫）');
+
+  const bad = [];
+  for (const rel of files){
+    const src = readText(rel);
+    // 只认代码行，注释里提到这种写法是允许的（本项目注释里就专门讲过它）
+    src.split('\n').forEach((line, i) => {
+      const code = line.replace(/\/\/.*$/, '');
+      if (/(?:^|[^.\w$])window\.[\w$]+\s*=\s*(?:function\b|\()/.test(code)){
+        bad.push(rel + ':' + (i + 1) + ' ' + code.trim().slice(0, 60));
+      }
+    });
+  }
+  assert(bad.length === 0,
+    '没有 window.x = function 形式的函数赋值' + (bad.length ? '（' + bad.slice(0, 3).join('；') + '）' : ''));
+
+  // ---- 反向验证：把一条改成禁止的写法，上面的扫描确实能抓到 ----
+  {
+    const probe = 'window.__probe = function(){ return 1; };';
+    assert(/(?:^|[^.\w$])window\.[\w$]+\s*=\s*(?:function\b|\()/.test(probe),
+      '扫描规则能识别 window.x = function 写法（反向自检）');
+    assert(!/(?:^|[^.\w$])window\.[\w$]+\s*=\s*(?:function\b|\()/.test('window.x = y;'),
+      '扫描规则不误伤 window.x = 已有函数（正常挂载）');
+  }
+
+  // ---- 那两个具体函数：必须是能用裸名调到的（函数声明） ----
+  assert(typeof ST.flushCloudSave === 'function', 'flushCloudSave 在全局可裸名调用');
+  assert(typeof ST.seasonRiverBonus === 'function', 'seasonRiverBonus 在全局可裸名调用');
+  // boot.js 确实裸名调用了它——这条把「谁依赖这个约定」也钉住
+  const boot190 = readText('src/ui/boot.js');
+  assert(/[^.\w$]flushCloudSave\s*\(/.test(boot190.replace(/\/\/.*$/gm, '')),
+    'boot.js 确实以裸名调用 flushCloudSave（页隐藏 / 关闭时同步云存档）');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

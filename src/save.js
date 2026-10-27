@@ -557,6 +557,19 @@ const SaveManager = {
   },
 };
 
+// 给 ui.js 初始化用的薄封装（不抛错）。
+// 原先还有一个 restoreCloudSave：自从「云端配置不再在启动时自动套用」后
+// 就没有调用者了——留着只会让人以为启动时还在恢复云端档。
+//
+// 写成**顶层函数声明**而不是块里的 `window.flushCloudSave = function(){}`：
+// boot.js 在 pagehide / visibilitychange 里是**裸名**调用它（`typeof flushCloudSave === 'function'`）。
+// 表达式赋值不产生全局变量 —— 浏览器里凑巧能解析（window 就是全局对象），
+// 但 vm 测试上下文里 window 只是普通对象，裸名取不到 → 守卫静默跳过 →
+// 「关页面前同步云存档」这条路径在测试里完全不可见。函数声明则在两种环境下都可见。
+function flushCloudSave(){
+  try { return SaveManager.flushSync(); } catch(e){ return Promise.resolve({ ok:false, reason:String(e) }); }
+}
+
 if (typeof window !== 'undefined'){
   window.SaveManager = SaveManager;
   window.LocalSaveStore = LocalSaveStore;
@@ -566,10 +579,5 @@ if (typeof window !== 'undefined'){
   window.SAVE_VERSION = SAVE_VERSION;
   window.serializeSave = serializeSave;
   window.mergeSaveData = mergeSaveData;
-  // 给 ui.js 初始化用的薄封装（不抛错）。
-  // 原先还有一个 restoreCloudSave：自从「云端配置不再在启动时自动套用」后
-  // 就没有调用者了——留着只会让人以为启动时还在恢复云端档。
-  window.flushCloudSave = function(){
-    try { return SaveManager.flushSync(); } catch(e){ return Promise.resolve({ ok:false, reason:String(e) }); }
-  };
+  window.flushCloudSave = flushCloudSave;
 }
