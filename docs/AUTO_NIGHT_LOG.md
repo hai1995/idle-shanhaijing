@@ -732,3 +732,31 @@ VM 里整个文件一起崩、报错位置还指在别处——**搬完先跑 du
 - 对比度检查固化进巡检（每页都查，耗时 20.5→21.1s，几乎无感）。
   反向验证：把 `--ink-4` 改回 `#7E786A`，18 个页面状态全部报出（yudi 55 处、codex 47 处…）。
 - 验收：3418 断言全绿；`check.js --patrol` 七步全过；巡检 32 组 0 坏；线上 v1.31.136 已确认。
+
+## v1.31.137（本轮第 38 批）· 11 个 NaN
+
+- 换了个方向查鲁棒性：把统计数值全塞成 `NaN` / `Infinity`，逐页渲染看会怎样。
+  结果统计页直接写出 **11 个「NaN」和 1 个「Infinity 天」**。
+- 根因有三层，每层都不同：
+  1. `patchStats` 里大量 `String(s.kills)` —— `String(NaN)` 就是 `"NaN"`，原样进 DOM；
+  2. `fmtDur` 用 `sec || 0` 兜底 —— 对 `NaN` 有效（NaN 是假值），但对 `Infinity` **无效**
+     （真值），于是 `Math.round(Infinity)` → `Infinity` → 输出「Infinity 天」；
+  3. `fmtNum` 用 `Number(v) || 0` —— 同样的漏洞，会输出「Infinity 亿」；
+     而 `seasonRemainSec` 对 `Infinity` 取模得 `NaN`，文案变成「NaN 分」。
+- 修法分两处，是为了让责任清楚：
+  - **显示层统一归一**：`sanitizeStats()` 把一层数值 + 一层嵌套计数表里的
+    非有限值变 0，统计页静态渲染与 800ms 的 patch **共用这一份**。放在显示层而不是
+    写入处，是因为数值来自几十处计算，逐个加守卫既啰嗦又必然漏；且它返回浅拷贝，
+    `Game.stats` 本体不动，不掩盖存档里的真实值。
+  - **格式化函数各自兜底**：`fmtNum` / `fmtDur` 改用 `safeNum`。
+    关键点是 `Number.isFinite` 而不是 `Number(v) || 0` —— 后者对 `Infinity` 返回真值，
+    正是这次漏网的原因。
+- 写测试时被项目自带的一条断言拦住：「无既未调用也未导出的顶层函数（game.js:sanitizeStats）」。
+  这个仓库早就有一条死代码检查，新函数忘了挂 window 会被它抓出来——省了我一次线上排查。
+- 第 192 节 8 条断言，其中两条**最初是失败的**（`fmtDur(Infinity)`、`fmtNum(Infinity)`），
+  反向验证也做了：把 `safeNum` 改回 `Number(v) || 0`，立刻报「Infinity 亿」。
+- 巡检加「坏数据」检查（34 组）：注入 NaN → 逐页渲染 → 断言文本里没有
+  `NaN` / `Infinity` / `undefined`。反向验证：去掉统计页的归一，
+  两个视口都报「stats:NaN×10；顶栏:NaN×10」。
+- 验收：3445 断言全绿（+27）；`check.js --patrol` 七步全过；巡检 34 组 0 坏；
+  线上 v1.31.137 已确认。
