@@ -378,7 +378,16 @@ function maybeEvent(ctx, force){
   // 分类单列 'event'：见闻原先记在 'sys' 里，和「技能升级」「已存档」混作一堆，
   // 想回看「这一夜遇见了什么」得在系统消息里翻。
   if (out.log && typeof log === 'function') log(out.log, 'gold', 'event');
-  if (out.toast && typeof UI !== 'undefined' && UI && UI.toast) UI.toast(out.toast);
+  // toast 里带上「已见 N/18 种」：见闻的价值在种类，这个数就是收集进度。
+  // 只加在 toast 上，日志文案不动——日志是回溯用的，多一个数字反而打断句子。
+  if (out.toast && typeof UI !== 'undefined' && UI && UI.toast){
+    const k = (typeof eventKindsSeen === 'function') ? eventKindsSeen() : 0;
+    const t = (typeof eventKindsTotal === 'function') ? eventKindsTotal() : 0;
+    // 接在最后一行末尾，不另起一行：toast 三行会盖掉手机下半屏的按钮
+    const lines = String(out.toast).split('\n');
+    if (t) lines[lines.length - 1] += ` · 已见 ${k}/${t}`;
+    UI.toast(lines.join('\n'));
+  }
   flashEvent(pick.id);
   return { id: pick.id, ...out };
 }
