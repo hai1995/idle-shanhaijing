@@ -10342,6 +10342,141 @@ section('征兆专属见闻');
     'boot.js 确实以裸名调用 flushCloudSave（页隐藏 / 关闭时同步云存档）');
 }
 
+// ============ 191. 饱满存档下全页面渲染（空档路径之外的半边天） ============
+// 第 15 节只渲染过「刚重置」的空存档：没有装备、没有队列、没有战斗、没记录、没见闻。
+// 而真实玩家全是有内容的——那些「有数据才渲染」的分支（空列表 / 有列表两套模板、
+// 进度条、分页、已录/未录、征兆面板、离线账单）在测试里一次都没跑过。
+// 这就是为什么有些破版只有浏览器巡检能发现：node 测试从没进过那条路径。
+// 这一节把状态堆满，再把所有渲染入口跑一遍。
+{
+  const keepTab = ST.UI.currentTab;
+
+  let setupOk = true, setupErr = '';
+  try {
+    // ---- 堆状态：每一项都对应至少一个「有数据才出现」的渲染分支 ----
+    ST.Game.shells = 999999;
+    ST.Game.xp = 900000;
+    // 技能：给 level 必须同时给 xp，否则 gainXp 会按 xp 反算掉回 1 级
+    for (const k of Object.keys(ST.Game.skills)){
+      ST.Game.skills[k].level = 40;
+      ST.Game.skills[k].xp = ST.xpForLevel(40) + 10;
+    }
+    // 行囊 + 装备（走真实 API，别手写结构）
+    for (const id of Object.keys(ST.Items).slice(0, 40)){
+      try { ST.addItem(id, 3); } catch(e){}
+    }
+    // 御使：塞满槽位
+    const beasts = Object.keys(ST.Monsters).filter(m => !ST.Monsters[m].boss).slice(0, 6);
+    beasts.forEach((b, i) => { try { ST.Game.deployed['slot' + (i+1)] = b; } catch(e){} });
+    // 田：每块都种上
+    Object.keys(ST.GROW_SITES || {}).slice(0, 3).forEach(sid => {
+      try { ST.Game.farms[sid] = { seedId: 'gui', remain: 30, grow: 1 }; } catch(e){}
+    });
+    // 营造与观象
+    Object.keys(ST.BUILDINGS || {}).slice(0, 4).forEach(b => { try { ST.Game.buildings[b] = 1; } catch(e){} });
+    Object.keys(ST.OBSERVE_SITES || {}).slice(0, 5).forEach(s => { try { ST.Game.observed[s] = true; } catch(e){} });
+    // 地图：走过的山 + 著录
+    Object.keys(ST.WORLD.regions).slice(0, 5).forEach(ri => {
+      const r = ST.WORLD.regions[ri];
+      if (r && r.nodes) r.nodes.slice(0, 6).forEach(n => { try { ST.Game.map[n.id] = { visits: 2 }; } catch(e){} });
+    });
+    Object.keys(ST.CODEX || {}).slice(0, 30).forEach(id => { try { ST.Game.codex[id] = 3; } catch(e){} });
+    // 统计：数字都非零，数字格式化分支（万位缩写等）才走得到
+    Object.assign(ST.Game.stats, {
+      kills: 12345, deaths: 678, actions: 98765, harvests: 4321, crafts: 567,
+      rites: 89, observes: 12, divines: 34, totalEarned: 1234567, totalXp: 888888,
+      damageDealt: 2345678, damageTaken: 765432, purchases: 234, sales: 345,
+      offlineCount: 7, offlineSec: 36000, offlineXp: 45678, offlineItems: 890,
+      time: ST.TUNING.SEASON.SEC + 100,        // 雨季，季候行走「转旱季」分支
+      bounties: 9, winStreak: 4, deathStreak: 0,
+      lastSeason: 1,
+    });
+    ST.Game.stats.omens = { xiong: 3, ji: 2 };
+    // 见闻：让「已见」与「未见」两条分支同时存在
+    const evIds = (ST.TRAVEL_EVENTS || []).map(e => e.id).filter(Boolean);
+    ST.Game.events = ST.Game.events || { seen:{}, count:0, lastId:'' };
+    evIds.slice(0, Math.ceil(evIds.length / 2)).forEach(id => { ST.Game.events.seen[id] = 2; });
+    ST.Game.events.count = evIds.length;
+    ST.Game.events.lastId = evIds[0] || '';
+    // 队列：三条都排上，进度处于中间
+    try {
+      ST.Game.queue = [
+        { kind:'gather', skillId:'gui', target:'nanshan-1-01', done:3, total:10 },
+        { kind:'craft', recipeId: Object.keys(ST.Recipes || {})[0], done:1, total:5 },
+        { kind:'taofa', monsterId: Object.keys(ST.Monsters)[0], done:0, total:8 },
+      ];
+      ST.Game.queueIdx = 1; ST.Game.queueRunning = true;
+    } catch(e){}
+    // 成就：解锁一部分
+    const msIds = Object.keys(ST.Game.stats.seenMilestones || {});
+    for (let i = 0; i < 8; i++) ST.Game.stats.seenMilestones['m' + i] = true;
+    // 征兆：挂两条待应验
+    ST.Game.omensPending = (ST.Game.omensPending || []).concat([
+      { id:'xiong', soft:false, at: Date.now() },
+    ]);
+  } catch(e){ setupOk = false; setupErr = e.message; }
+  assert(setupOk, '饱满存档构造成功' + (setupOk ? '' : '（' + setupErr + '）'));
+
+  // ---- 遍历全部渲染入口：任何一个抛错都要定位到具体页 ----
+  const tabs191 = ['yudi','skills','taofa','yushi','codex','jisi','shichan','ying','queue','pack','stats','about','settings'];
+  const failed191 = [];
+  for (const t of tabs191){
+    try { ST.UI.currentTab = t; ST.UI.renderCurrent(); }
+    catch(e){ failed191.push(t + ': ' + e.message); }
+  }
+  assert(failed191.length === 0,
+    '饱满存档下 ' + tabs191.length + ' 个页签全部渲染成功'
+    + (failed191.length ? '（失败：' + failed191.slice(0, 3).join('；') + '）' : ''));
+
+  // ---- 每个页签真的产出了内容（不是渲染成空白）----
+  const empty191 = [];
+  for (const t of tabs191){
+    try {
+      ST.UI.currentTab = t; ST.UI.renderCurrent();
+      const len = (renderTargets.content.innerHTML || '').length;
+      if (len < 50 && t !== 'about') empty191.push(t + '(' + len + ')');
+    } catch(e){}
+  }
+  assert(empty191.length === 0,
+    '每个页签都产出了实际内容' + (empty191.length ? '（空白：' + empty191.join('、') + '）' : ''));
+
+  // ---- 顶栏 / 进度 / 活动 / 弹窗类：这些在空档下走不到的支路 ----
+  let miscOk = true, miscErr = '';
+  try {
+    ST.UI.renderTopbar();
+    ST.UI.tickProgress();
+    ST.UI.refreshActivity();
+    ST.UI.renderBuffBtn();
+    ST.showItemDetail(Object.keys(ST.Items)[0]);
+    ST.UI.closeModal();
+    if (typeof ST.showCodexDetail === 'function') ST.showCodexDetail(Object.keys(ST.CODEX)[0]);
+    ST.UI.closeModal();
+    if (typeof ST.UI.showOfflineSummary === 'function'){
+      ST.UI.showOfflineSummary({ seconds:20000, rawSeconds:30000, capped:true, xp:5000,
+        items:{ gui:20 }, records:9, harvests:4, acts:{ gather:30, craft:5 },
+        riteRenews:2, riteCost:{ gui:4 }, omensLanded:2, combat:{ fights:6, stopped:'无食' } });
+      ST.UI.closeModal();
+    }
+    if (typeof ST.UI.msDetail === 'function'){ ST.UI.msDetail(0); ST.UI.closeModal(); }
+    if (typeof ST.UI.openBuffPop === 'function'){ ST.UI.openBuffPop(); ST.UI.closeBuffPop(); }
+  } catch(e){ miscOk = false; miscErr = e.message + ' @ ' + (e.stack||'').split('\n')[1]; }
+  assert(miscOk, '顶栏 / 进度 / 详情 / 离线账单 / 成就详情 / 增益浮层渲染不抛错'
+    + (miscOk ? '' : '（' + miscErr + '）'));
+
+  // ---- 季候行在有数据时也确实出现（第 189 节的函数真被接进页面）----
+  let seasonShown = false;
+  try {
+    ST.UI.currentTab = 'stats'; ST.UI.renderStats();
+    seasonShown = (renderTargets.content.innerHTML || '').indexOf('季候') >= 0;
+  } catch(e){}
+  assert(seasonShown, '统计页在饱满存档下也渲染出「季候」行');
+
+  // ---- 复原：后面的用例依赖初始状态 ----
+  ST.UI.currentTab = keepTab;
+  try { ST.resetToDefault(); } catch(e){}
+  ST.__eventsMuted = true;
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
