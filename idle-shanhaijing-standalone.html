@@ -19811,7 +19811,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.76',
+  version: '1.31.77',
   codename:'昼巡 · 近况',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -35111,7 +35111,20 @@ function init(){
   window.addEventListener('beforeunload', ()=>{ if (typeof flushCloudSave === 'function') flushCloudSave(); });
   // 开机结算：关页再开的那段时长交给离线结算（此前只认页面活着时累积的时间）
   try { if (typeof settleOnBoot === 'function') settleOnBoot(); } catch(e){ console.error('离线结算失败', e); }
-  setInterval(gameLoop, 250);
+  // 后台停表：页面不可见时把主循环停掉。
+  // iOS 本来就会节流，安卓与桌面不会——挂机游戏每 250ms 跑一次的循环，
+  // 后台挂一晚是实打实的耗电，而这段时间的收益本来就该由离线结算来给。
+  // 安全性：回来时第一帧的 dt 很大，gameLoop 里已有「pendingTime ≥ 60s → settleAway」
+  // 的兜底，与「关掉页面再打开」走同一条路（那条路早就在跑）。
+  let loopId = setInterval(gameLoop, 250);
+  document.addEventListener('visibilitychange', ()=>{
+    if (document.visibilityState === 'hidden'){
+      if (loopId){ clearInterval(loopId); loopId = 0; }
+    } else if (!loopId){
+      gameLoop();                        // 先结一次，把离开这段补上，再重新起表
+      loopId = setInterval(gameLoop, 250);
+    }
+  });
   initA11y();
 }
 

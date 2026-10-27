@@ -8770,6 +8770,21 @@ section('祠礼与配装');
   G.resetToDefault();
 }
 
+// ============ 163. 后台停表（2026-10-27） ============
+// 主循环 250ms 一次，页面切走之后不该继续跑：iOS 会节流，安卓与桌面不会。
+// 停掉不丢收益——回来时第一帧的 dt 很大，gameLoop 里「pendingTime ≥ 60s → settleAway」
+// 会把这段时间补上，与「关掉页面再打开」走同一条路。
+section('后台停表');
+{
+  const mSrc = readText('src/ui/misc.js');
+  assert(/let loopId = setInterval\(gameLoop, 250\)/.test(mSrc), '主循环的 interval 句柄要留住');
+  assert(!/^\s*setInterval\(gameLoop, 250\);\s*$/m.test(mSrc), '不能再有一个没人管的 interval');
+  assert(/visibilitychange[\s\S]{0,240}clearInterval\(loopId\)/.test(mSrc), '切到后台就清表');
+  assert(/else if \(!loopId\)\{[\s\S]{0,160}gameLoop\(\)/.test(mSrc), '回前台先补算一次，再重新起表');
+  // 计时停掉但有「补算」这条路，两条都在才安全：只停不补 = 后台收益凭空消失
+  assert(/settleAway/.test(readText('src/game.js')), '补算由 settleAway 承担（引擎里已有）');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

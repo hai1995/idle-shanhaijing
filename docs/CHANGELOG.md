@@ -3,6 +3,27 @@
 > 只记「为什么改」，不记「改了哪一行」。更细的取舍过程在仓库根 `README.md` 与各次提交信息里。
 > v1.15 之前的版本号未逐条归档，按主题合并记在文末。
 
+## v1.31.77 · 2026-10-27
+
+**后台不再空转。** 主循环是 `setInterval(gameLoop, 250)`，页面切走后它照跑——
+iOS 会自己节流，安卓和桌面不会。挂机游戏在后台每 250ms 醒一次，一晚上是实打实的耗电。
+
+改成 `visibilitychange` 停表 / 回前台起表，**回来时先结一次账**：
+
+```js
+let loopId = setInterval(gameLoop, 250);
+document.addEventListener('visibilitychange', ()=>{
+  if (document.visibilityState === 'hidden'){ clearInterval(loopId); loopId = 0; }
+  else if (!loopId){ gameLoop(); loopId = setInterval(gameLoop, 250); }
+});
+```
+
+停掉不丢收益——回来时第一帧的 `dt` 很大，`gameLoop` 里「`pendingTime ≥ 60s` → `settleAway`」
+这条路早就在跑（关掉页面再打开走的就是它）。只停不补才是 bug，所以两条必须成对。
+
+实测（WebKit，人为造 hidden/visible）：可见时 1 秒推进 1 秒；隐藏 1.5 秒推进 **0**；
+回前台后计时恢复。
+
 ## v1.31.76 · 2026-10-27（修）
 
 **无限轮回。**
