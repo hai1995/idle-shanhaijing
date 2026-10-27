@@ -184,7 +184,10 @@ UI.renderTopbar = function(){
     const name = (typeof seasonName === 'function') ? seasonName() : (wet ? '雨季' : '旱季');
     if (sn.textContent !== name) sn.textContent = name;
     sn.classList.toggle('wet', !!wet);
-    sn.title = wet ? '雨季：教山渔获 +30%（六小时一转）' : '旱季：教山渔获 −30%（六小时一转）';
+    // 百分比也只有一个来源：seasonRiverBonus() 读 TUNING.SEASON.RIVER。
+    // 原先这里写死「+30%」，改数值时顶栏会说谎。
+    const rb = Math.round(((typeof seasonRiverBonus === 'function') ? seasonRiverBonus() : 0.30) * 100);
+    sn.title = (wet ? '雨季' : '旱季') + '：教山渔获 ' + (wet ? '+' : '−') + rb + '%（六小时一转）';
   }
   // 增益图标处于书脊最右：这里只更新计数与明暗，内容在点开浮层时才生成。
   this.renderBuffBtn();

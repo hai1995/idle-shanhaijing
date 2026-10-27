@@ -10012,6 +10012,69 @@ section('征兆专属见闻');
   assert(/_ghostRAF/.test(coreSrc), '延后测量有「每帧一次」的闸门');
 }
 
+// ============ 186. 季节参数只有一个来源 ============
+// ±30% 原先在三个地方各写了一遍（采集结算 / 顶栏 title / 山志节点标签）。
+// 数值类的东西散成三份，改一处必然分叉：玩家看到的百分比会和实际拿到的奖励不一致。
+{
+  assert(ST.TUNING && ST.TUNING.SEASON, 'TUNING.SEASON 存在');
+  assert(ST.TUNING.SEASON.SEC === 6 * 3600, '一候六小时');
+  assert(typeof ST.TUNING.SEASON.RIVER === 'number' && ST.TUNING.SEASON.RIVER > 0, '河川季节加成是正数');
+  assert(typeof ST.seasonRiverBonus === 'function', '季节加成已导出给界面用');
+  assert(ST.seasonRiverBonus() === ST.TUNING.SEASON.RIVER, '导出值就是 TUNING 里那一个');
+
+  // ---- 界面两处不许再写死百分比 ----
+  const hud186 = readText('src/ui/hud.js');
+  const yudi186 = readText('src/ui/yudi.js');
+  assert(/seasonRiverBonus\(\)/.test(hud186), '顶栏 title 读统一数值');
+  assert(/seasonRiverBonus\(\)/.test(yudi186), '山志节点标签读统一数值');
+  // 反例：不许出现 `+30%` / `−30%` 这类写死的百分比（注释里可以提，代码字符串里不行）
+  const codeOf = (src) => src.replace(/^\s*\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert(!/[+−]30%/.test(codeOf(hud186)), '顶栏不再写死 ±30%');
+  assert(!/[+−]30%/.test(codeOf(yudi186)), '山志不再写死 ±30%');
+
+  // ---- 引擎里也不许再有一份 ----
+  const g186 = codeOf(readText('src/game.js'));
+  assert(/TUNING\.SEASON\.RIVER/.test(g186), '采集结算读 TUNING.SEASON.RIVER');
+  assert(!/b \+= seasonPhase\(\) \? 0\.30 : -0\.30/.test(g186), '结算不再内联 0.30');
+
+  // ---- 唯一来源的真验收：改一个数，引擎收益跟着变 ----
+  // 「读同一个变量」这种事靠静态断言只能证一半；真改一次值看它是否传导，才算数。
+  {
+    const keepR = ST.TUNING.SEASON.RIVER, keepT = ST.Game.stats.time;
+    const sp2 = Object.keys(ST.SPECIAL_NODES || {}).find(k => ST.SPECIAL_NODES[k].seasonalRiver);
+    if (sp2){
+      ST.Game.stats.time = ST.TUNING.SEASON.SEC + 10;         // 雨季
+      const before = ST.geoGatherBonus(sp2);
+      ST.TUNING.SEASON.RIVER = 0.45;
+      const after = ST.geoGatherBonus(sp2);
+      assert(Math.abs(after - before - 0.15) < 1e-9, '改 TUNING 后引擎收益同步变化（+0.15）');
+      ST.TUNING.SEASON.RIVER = keepR;
+      assert(Math.abs(ST.geoGatherBonus(sp2) - before) < 1e-9, '复原后回到原值');
+    }
+    ST.Game.stats.time = keepT;
+    assert(ST.TUNING.SEASON.RIVER === keepR, '测试自身不留痕');
+  }
+
+  // ---- 行为不变：雨季加、旱季减，幅度等于 TUNING 值 ----
+  const SEC186 = ST.TUNING.SEASON.SEC, t186 = ST.Game.stats.time;
+  const spNode = Object.keys(ST.SPECIAL_NODES || {}).find(k => ST.SPECIAL_NODES[k].seasonalRiver);
+  if (spNode){
+    ST.Game.stats.time = 0;                                   // 旱季
+    const dryB = ST.geoGatherBonus(spNode);
+    ST.Game.stats.time = SEC186 + 10;                          // 雨季
+    const wetB = ST.geoGatherBonus(spNode);
+    const expectWet = (ST.SPECIAL_NODES[spNode].climb ? 0.10 : 0) + ST.TUNING.SEASON.RIVER;
+    const expectDry = (ST.SPECIAL_NODES[spNode].climb ? 0.10 : 0) - ST.TUNING.SEASON.RIVER;
+    assert(Math.abs(wetB - expectWet) < 1e-9, '雨季加成 = 攀援 + RIVER');
+    assert(Math.abs(dryB - expectDry) < 1e-9, '旱季加成 = 攀援 − RIVER');
+    ST.Game.stats.time = t186;
+    assert(Math.abs(ST.geoGatherBonus(spNode) - wetB) < 1e-9 || Math.abs(ST.geoGatherBonus(spNode) - dryB) < 1e-9,
+      '复原后仍在两季之一（测试自身不留痕）');
+  } else {
+    assert(true, '（无 seasonalRiver 节点，跳过行为对照）');
+  }
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

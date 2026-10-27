@@ -616,7 +616,9 @@ function specialNodeNote(node){
   if (sp.climb) tags.push('百仞：采集迟缓 ×1.18，所得更丰 +10%');
   if (sp.seasonalRiver){
     const wet = typeof seasonPhase === 'function' && seasonPhase();
-    tags.push(`${typeof seasonName === 'function' ? seasonName() : '旱季'}：渔获 ${wet ? '+30%' : '−30%'}（六小时一转）`);
+    // 百分比不在此处写死：读 TUNING.SEASON.RIVER（经 seasonRiverBonus 暴露）
+    const rb = Math.round(((typeof seasonRiverBonus === 'function') ? seasonRiverBonus() : 0.30) * 100);
+    tags.push(`${typeof seasonName === 'function' ? seasonName() : '旱季'}：渔获 ${wet ? '+' : '−'}${rb}%（六小时一转）`);
   }
   return `<div class="special-note">★ ${esc(sp.note||'')}${tags.length
     ? `<div class="geo-tags">${tags.map(t=>`<span class="geo-tag">${esc(t)}</span>`).join('')}</div>` : ''}</div>`;

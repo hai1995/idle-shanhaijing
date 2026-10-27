@@ -823,7 +823,8 @@ window.useConsumable = useConsumable;
 // ---------- 地理特性 ----------
 // 三处山在数据里写了设定（白沙山「尽沙」、洹山「三桑百仞」、教山「冬干而夏流」），
 // 此前只有 note 文案、没有机制。此处各给一个轻量效果，山志上也会标出来。
-const SEASON_SEC = 6 * 3600;                                     // 一候六小时，旱 / 雨轮转
+// 一候六小时（数值在 TUNING.SEASON，别在这里再写一份）
+const SEASON_SEC = (typeof TUNING !== 'undefined' && TUNING.SEASON && TUNING.SEASON.SEC) || 6 * 3600;
 // 季节（v1.31.124 修）：原来直接 `Math.floor(t/SEC) % 2`，而 JS 的 % 对负数返回负值——
 // 读档把 time 归零之前（或旧档里 time 极小、被扣成负数时）会得到 **-1**。
 // 旧消费方写的是 `seasonPhase() ? A : B`，-1 是真值 → 错判成雨季；新消费方写
@@ -846,10 +847,15 @@ function geoGatherBonus(nodeId){
   if (!sp) return 0;
   let b = 0;
   if (sp.climb) b += 0.10;                             // 登高而取，所得更丰
-  if (sp.seasonalRiver) b += seasonPhase() ? 0.30 : -0.30;   // 冬干而夏流
+  // 冬干而夏流：雨季 +、旱季 −。数值只有 TUNING.SEASON.RIVER 一份。
+  if (sp.seasonalRiver){
+    const r = (typeof TUNING !== 'undefined' && TUNING.SEASON && TUNING.SEASON.RIVER) || 0.30;
+    b += seasonPhase() ? r : -r;
+  }
   return b;
 }
 window.seasonPhase = seasonPhase; window.seasonName = seasonName;
+window.seasonRiverBonus = function(){ return (typeof TUNING !== 'undefined' && TUNING.SEASON && TUNING.SEASON.RIVER) || 0.30; };
 window.geoGatherMul = geoGatherMul; window.geoGatherBonus = geoGatherBonus; window.hasBeast = hasBeast;
 
 // ---------- 采集 ----------
