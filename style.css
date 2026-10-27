@@ -344,9 +344,11 @@ html.theme-anim, html.theme-anim *{
 #statusbar.scene-on #activityText{ flex:1 1 auto; }
 /* 动作卡片：右上角停止（✕），弹性项顶到右端，绝不压到行动文字 */
 #btnStop.act-stop{
-  width:22px; height:22px; padding:0; margin-left:auto;
+  width:24px; height:24px; padding:0; margin-left:auto;
   display:flex; align-items:center; justify-content:center;
-  border-radius:50%; font-size:13px; line-height:1;
+  border-radius:50%; font-size:12px; line-height:1;
+  /* 简洁化（v1.31.149）：停止键常驻朱意——原先是枚灰钮，不悬停就看不出它能停 */
+  color:var(--zhu); background:var(--zhu-w); border-color:var(--zhu);
 }
 #btnStop.act-stop::after{ width:30px; height:30px; }
 #btnStop.act-stop:hover{ background:var(--zhu-w); color:var(--zhu); border-color:var(--zhu); }
@@ -645,8 +647,9 @@ html.theme-anim, html.theme-anim *{
 }
 
 /* 底部细进度：看画面时眼睛在现场，进度也该在那里 */
-.sc-prog{ position:absolute; left:0; right:0; bottom:0; height:3px; background:rgba(107,102,89,.08); }
-.sc-prog i{ display:block; height:100%; width:0; background:var(--zhu); opacity:.7; transition:width .18s linear; }
+/* 现场底部那根与仪表带同形（6px 圆头），底色跟主题走而不是写死暖灰 */
+.sc-prog{ position:absolute; left:0; right:0; bottom:0; height:6px; background:var(--rule-2); }
+.sc-prog i{ display:block; height:100%; width:0; border-radius:0 999px 999px 0; background:var(--zhu); opacity:.85; transition:width .18s linear; }
 
 /* 动效关掉时保留静帧：画面还在（知道在做什么），只是不动 */
 .sc-wrap.no-anim .sc-rig,
@@ -746,11 +749,18 @@ html.theme-anim, html.theme-anim *{
 .buff-pop .bp-agg b{ font-weight:400; color:var(--qing-d); font-size:11.5px; line-height:1.5; }
 .buff-pop .bp-empty{ padding:6px 0 2px; line-height:1.7; }
 
+/* 简洁化（v1.31.149）：进度条统一为「圆头长条」——与现场底部那根同形，
+   读数靠长度不靠颜色；两端一点渐变只为让填充看着有方向，不影响读数。 */
 #actionProg{
-  flex:1 1 auto; min-width:80px; height:3px; background:var(--rule-2);
+  flex:1 1 auto; min-width:80px; height:6px; border-radius:999px;
+  background:var(--rule-2); box-shadow:inset 0 1px 2px rgba(0,0,0,.05);
   overflow:hidden; position:relative;
 }
-#actionProgFill{ height:100%; width:0; background:var(--zhu); transition:width .15s linear; }
+#actionProgFill{
+  height:100%; width:0; border-radius:999px;
+  background:linear-gradient(90deg, var(--zhu-d), var(--zhu));
+  transition:width .15s linear;
+}
 
 .btn-mini{
   font-size:11.5px; line-height:1; padding:6px 12px;
