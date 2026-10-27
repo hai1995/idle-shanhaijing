@@ -8626,6 +8626,133 @@ section('移动端视口与重载');
   assert(/重载最新版/.test(cSrc161), '设置页有这颗按钮');
 }
 
+// ============ 162. 祠礼与配装（2026-10-27） ============
+// 这两处一次操作改掉十几个字段，却一直没有测试：
+// 祠礼按「山系」记到期时间、按「礼」记归属（同山系两套礼会互相顶掉）；
+// 配装要保证「卸下来的那件带着自己的淬炼等级回行囊」，丢了就是玩家白练。
+section('祠礼与配装');
+{
+  const RITE = 'rite_ns1';
+  const rec = ST.Recipes.find(r => r.type === 'rite' && r.out === RITE);
+  assert(rec && rec.cost.length, '拿得到「南山首经」那套礼的配方');
+
+  G.resetToDefault();
+  // 等级够、材料空：不给行
+  for (const k in ST.Game.skills) ST.Game.skills[k].level = 81;
+  assert(ST.performRite(RITE, {silent:true}) === false, '材料不备时行不了礼');
+  assert(!ST.Game.rites[ST.RITES[RITE].regionId], '没行成就不该留下到期时间（不能半付）');
+
+  // 备齐材料：行得成，记到期与归属
+  for (const [iid, q] of rec.cost) ST.giveItem(iid, q, false);
+  const before = ST.Game.stats.rites;
+  assert(ST.performRite(RITE, {silent:true}) === true, '材料备齐就行得成');
+  const region = ST.RITES[RITE].regionId;
+  assert(ST.Game.stats.rites === before + 1, '记账 +1');
+  assert(ST.Game.riteOf[region] === RITE, '记下「此刻供的是哪一套礼」');
+  assert(ST.Game.rites[region] > ST.gameTime(), '到期时间在将来');
+  assert(ST.regionRiteBonus(region) > 0, '该域采获加成生效');
+
+  // 同山系换另一套礼：归属要跟着换，不能还挂着旧的那套
+  const other = Object.keys(ST.RITES).find(id => ST.RITES[id].regionId === region && id !== RITE);
+  if (other){
+    const rec2 = ST.Recipes.find(r => r.type === 'rite' && r.out === other);
+    for (const [iid, q] of rec2.cost) ST.giveItem(iid, q, false);
+    ST.Game.skills.jisi.level = 81;
+    if (ST.performRite(other, {silent:true})){
+      assert(ST.Game.riteOf[region] === other, '同山系换了礼，归属跟着换（否则大祭的加成白给）');
+    }
+  }
+
+  // 加成到期即失效
+  ST.Game.rites[region] = ST.gameTime() - 1;
+  assert(ST.regionRiteBonus(region) === 0, '过期就归零');
+  assert(ST.activeRiteOf(region) === null, '过期后「当前在供之礼」为空');
+
+  // 「30%」不是产量 +30%：实采约 +15%，文案与数字必须是同一套口径
+  assert(ST.riteRealYield(0.3) === 15, '30% 的礼，实产约 +15%（实测 ' + ST.riteRealYield(0.3) + '%）');
+  assert(ST.riteRealYield(0) === 0, '没有加成就写 0');
+
+  // —— 续祭：到期前自动补一份；材料不继转「待料」而不是关开关 ——
+  G.resetToDefault();
+  for (const k in ST.Game.skills) ST.Game.skills[k].level = 81;
+  ST.Game.riteAuto = { [RITE]: true };
+  ST.Game.rites = { [region]: ST.gameTime() + 30 };   // 只剩 30 秒（提前量是 60 秒）
+  ST.Game.riteOf = { [region]: RITE };
+  const costs = rec.cost.map(([iid, q]) => [iid, q]);
+  for (const [iid, q] of costs) ST.giveItem(iid, q, false);
+  const untilBefore = ST.Game.rites[region];
+  ST.tickAutoRites();
+  assert(ST.Game.rites[region] > untilBefore + 3000, '进到期窗口就自动续上（到期时间后延约一小时）');
+  assert(!ST.Game.riteStall[RITE], '续成了就没有「待料」标记');
+
+  // 材料用光：不关开关，转「待料」。
+  // 注意祭品里有「刀」「剑」——它们是**装备**，按件存在 packGear 里，
+  // 只清 inventory/banking 是清不掉的（第一次写这条断言时就是这么错的）。
+  for (const [iid] of costs){ ST.Game.inventory[iid] = 0; ST.Game.banking[iid] = 0; }
+  ST.Game.packGear = ST.Game.packGear.filter(g => !costs.some(([iid]) => iid === g.id));
+  // 等级是 xp 推出来的（gainXp 里 `sk.level = levelFromXp(sk.xp)`）：
+  // 上面那次续祭涨了经验，手改的 81 会被打回真实等级（4），于是这一支会走
+  // 「祭祀等级不足」而不是「待料」。要测待料，就得把等级再抬一次。
+  ST.Game.skills.jisi.level = 81;
+  ST.Game.rites[region] = ST.gameTime() + 10;
+  ST.tickAutoRites();
+  assert(ST.Game.riteStall[RITE] === true, '祭品不继 → 转入待料');
+  assert(ST.Game.riteAuto[RITE] === true, '待料时开关仍开着（备齐自续，不用玩家再点一次）');
+
+  // —— 配装 ——
+  G.resetToDefault();
+  for (const k in ST.Game.skills) ST.Game.skills[k].level = 81;
+  // 符类装备带「需著录某某至某阶」的前置，新档没有著录——不先补上，
+  // 下面每一条都会被前置挡掉（第一次跑就是这么全红）。
+  for (const id in ST.Items){
+    const r = ST.Items[id].reqRecord;
+    if (r) ST.Game.records[r.id] = { count: 200, tier: 4 };
+  }
+
+  assert(ST.equipItem('migu', null) === undefined && !ST.Game.gear.charm, '不能装备的东西不会进槽');
+  ST.giveItem('migufu', 1, false);
+  ST.equipItem('migufu');
+  assert(ST.Game.gear.charm && ST.Game.gear.charm.id === 'migufu', '装备进了符位');
+  assert(!ST.Game.packGear.some(g => g.id === 'migufu'), '装上去的那件从行囊里拿走了');
+
+  // 换一件：旧的那件要回行囊，且带自己的淬炼等级
+  ST.Game.gear.charm.enh = 7;
+  ST.giveItem('lushufu', 1, false);
+  ST.equipItem('lushufu');
+  assert(ST.Game.gear.charm.id === 'lushufu', '换上了新的');
+  const back = ST.Game.packGear.find(g => g.id === 'migufu');
+  assert(back && back.enh === 7, '换下来的那件带着 +7 回行囊（丢了就是玩家白练）');
+
+  // 卸下：同样带淬炼等级回囊
+  ST.Game.gear.charm.enh = 3;
+  const charmed = ST.Game.gear.charm.id;
+  ST.unequip('charm', false);
+  assert(!ST.Game.gear.charm, '卸下后槽位为空');
+  const u = ST.Game.packGear.find(g => g.id === charmed && g.enh === 3);
+  assert(!!u, '卸下的那件也带着 +3 回囊');
+
+  // equipBest：按战力挑，不按 id 先后
+  G.resetToDefault();
+  for (const k in ST.Game.skills) ST.Game.skills[k].level = 81;
+  for (const id in ST.Items){
+    const r = ST.Items[id].reqRecord;
+    if (r) ST.Game.records[r.id] = { count: 200, tier: 4 };
+  }
+  // 期望值要按 gearPower 算，不能按 value：符的「战力」是 1+各项加成，
+  // 与市价完全是两回事（第一版按 value 排序，断言挑错了对象）。
+  const charms = Object.keys(ST.Items).filter(id => ST.Items[id].equip && ST.Items[id].type === 'charm');
+  const rank = charms.slice().sort((a,b) => ST.gearPower(ST.Items[b]) - ST.gearPower(ST.Items[a]));
+  const strongest = rank[0], weakest = rank[rank.length - 1];
+  assert(strongest !== weakest, '符类里有强弱之分（否则这条断言没意义）');
+  ST.giveItem(strongest, 1, false);
+  ST.giveItem(weakest, 1, false);
+  ST.equipBest();
+  assert(ST.Game.gear.charm && ST.Game.gear.charm.id === strongest,
+    '一键最优挑的是强的那件（' + (ST.Game.gear.charm||{}).name + '）');
+
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
