@@ -1237,6 +1237,9 @@ assert(/\.tab:hover\{ background:var\(--rule-3\);/.test(css), '页签悬浮色�
 // 圆角梯度（v1.31.153）：面 8px / 片 4px / 药丸 999px，不再各写各的
 assert(/--r: 8px;/.test(css), '全局圆角开关 --r 统一到 8px（面板 / 按钮 / 弹窗同弧）');
 assert(!/border-radius:2px/.test(css), '内联小片不再写死 2px（统一提到 4px）');
+// 夜间苔绿（v1.31.154）：那些 rgba(86,110,76,…) 是给日间纸底调的暗绿，夜底上会发闷
+assert(/\[data-theme="night"\] \.slot\.filled\{/.test(css) && /\[data-theme="night"\] \.beast-tile \.el-mu\{/.test(css),
+  '苔绿系有夜间提亮版本（不再只有日间那套暗绿）');
 assert(/padding:0 16px var\(--app-pad-b, var\(--app-pad-b-base\)\)/.test((css.match(/#app\{[^}]*\}/) || [''])[0]), '#app 底部不再为状态条预留空间（留白变量化，可被抑制）');
 // 20.4b 滚动条审查：消除「不必要」的内部滚动条
 // (1) 竖排古籍不得有左外边距：竖排时 margin-left 是物理左外边距，会把整块推出父容器内容盒

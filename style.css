@@ -162,6 +162,20 @@
 /* 夜间现场：天光从「压白」改成「压暗」，否则顶上一条亮带像没关的灯。
    底色已走 token；这里只补两处写死过的光。 */
 [data-theme="night"] .sc-wrap{ --sc-sky:rgba(232,236,244,.045); }
+/* 苔绿系在深蓝黑底上的适配（v1.31.154）：这些地方原先写死 rgba(86,110,76,…)，
+   那是给日间纸底调的暗绿——夜里落在 #1A1F29 上又闷又糊，边框几乎看不见。
+   夜间改用 --tai（#8FB57C）的同透明度版本，省得日后又抄一段日间的绿进来。 */
+[data-theme="night"] .building-card.done,
+[data-theme="night"] .build-tile.done,
+[data-theme="night"] .beast-tile.recommend,
+[data-theme="night"] .chip.cost.ok{ border-color:rgba(143,181,124,.52); }
+[data-theme="night"] .deploy-tile.inslot{ border-color:rgba(143,181,124,.52); background:rgba(143,181,124,.07); }
+[data-theme="night"] .slot.filled{ border-color:rgba(143,181,124,.45); }
+[data-theme="night"] .buff-pop .bp-pol.吉{ color:#CBE0BC; background:rgba(143,181,124,.18); }
+[data-theme="night"] .beast-tile .el-mu{ color:#CBE0BC; background:rgba(143,181,124,.18); }
+[data-theme="night"] .node-prog .prog-line{ background:rgba(143,181,124,.2); }
+[data-theme="night"] .wuxing-tip.good,
+[data-theme="night"] .combat-est.good{ border-color:rgba(143,181,124,.26); }
 [data-theme="night"] .sc-flash{
   background:radial-gradient(circle at 22% 78%, rgba(221,87,66,.26), rgba(221,87,66,.06) 42%, transparent 62%);
 }
