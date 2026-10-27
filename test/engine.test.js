@@ -8999,6 +8999,84 @@ section('行旅见闻');
   ST.__eventsMuted = true;       // 恢复静音，别影响后面的精确数值用例
 }
 
+// ============ 168. 见闻铺开（按技艺 / 场景 / 昼夜 / 稀有度，2026-10-27） ============
+// 167 只锁了「机制正确」，没管「够不够用」：8 条见闻里 6 条只认采集，
+// 樵采、采玉、渔这三种玩家同样在挂的技艺一辈子见不到一句自己的话。
+// 这一节锁的是**分布**：
+section('见闻铺开');
+{
+  ST.__eventsMuted = false;
+  const evSrc = readText('src/events.js');
+  const gSrc = readText('src/game.js');
+  const evs = ST.TRAVEL_EVENTS;
+  const byId = {};
+  evs.forEach(e => { byId[e.id] = e; });
+  const poolOf = (ctx) => evs.filter(e => !e.when || e.when(ctx)).map(e => e.id);
+
+  assert(evs.length >= 14, '见闻至少 14 条（实测 ' + evs.length + '）');
+
+  // ① 四条采集技艺都该有自己的句子（此前只有采药）
+  const skills = ['qiaocai', 'caiyu', 'yu', 'caiyao'];
+  skills.forEach(sk => {
+    const pool = poolOf({ kind:'gather', itemId:'migu', skillId: sk });
+    const own = evs.filter(e => e.when && new RegExp("skillId === '" + sk + "'").test(e.when.toString()));
+    assert(own.length >= 1, '技艺 ' + sk + ' 有专属见闻（' + own.map(e => e.id).join(',') + '）');
+    assert(pool.length >= 2, sk + ' 的采集候选池不少于 2 条（实测 ' + pool.length + '）');
+  });
+
+  // ② 专属见闻不能串场：樵采的句子不该在采玉时出现
+  const qc = poolOf({ kind:'gather', itemId:'migu', skillId:'qiaocai' });
+  const cy = poolOf({ kind:'gather', itemId:'migu', skillId:'caiyu' });
+  assert(qc.includes('qiaoge') && !qc.includes('shiyu'), '樵采池有樵歌、没有「石中蕴玉」');
+  assert(cy.includes('shiyu') && !cy.includes('qiaoge'), '采玉池有石中蕴玉、没有樵歌');
+  const yy = poolOf({ kind:'gather', itemId:'migu', skillId:'yu' });
+  assert(yy.includes('yuyin') && !yy.includes('qiaoge'), '渔池有「网得旧贝」、不串樵歌');
+
+  // ③ 制作场景有两条形态不同的奖励（多一件 / 加经验），不是同质堆叠
+  const craftPool = poolOf({ kind:'craft', itemId:'migu' });
+  assert(craftPool.includes('qiaoshou') && craftPool.includes('lianhuo'),
+    '制作池含「巧手偶得」与「火候正好」两条（' + craftPool.join(',') + '）');
+
+  // ④ 火候正好要按工序映射回技艺：ctx 里必须带 recipeType，否则永远落在 fanliao
+  assert(/recipeType: a\.recipe\.type/.test(gSrc), '制作见闻带上工序类型 recipeType');
+  G.resetToDefault();
+  let out = null, err = null;
+  try { out = ST.maybeEvent({ kind:'craft', itemId:'migu', recipeType:'smith' }, true); }
+  catch(e){ err = e.message; }
+  assert(!err, '带 recipeType 触发不抛（' + err + '）');
+  // 直接验映射本身：smith → yezhu（锻造），不该落到 fanliao
+  const lianhuo = byId['lianhuo'];
+  assert(typeof lianhuo === 'object' && /RECIPE_SKILL/.test(lianhuo.run.toString()),
+    '「火候正好」按 RECIPE_SKILL 映射技艺');
+  assert(ST.RECIPE_SKILL.smith === 'yezhu', 'smith 映射到锻造（数据契约没变）');
+
+  // ⑤ 昼夜：夜里才有「夜色如墨」
+  const nightBefore = poolOf({ kind:'gather', itemId:'migu' }).includes('yese');
+  const docEl = { getAttribute: () => 'night' };
+  const oldEl = G.document.documentElement;
+  G.document.documentElement = docEl;
+  const nightAfter = poolOf({ kind:'gather', itemId:'migu' }).includes('yese');
+  G.document.documentElement = oldEl;
+  const dayAfter = poolOf({ kind:'gather', itemId:'migu' }).includes('yese');
+  assert(nightBefore === false, '日间没有「夜色如墨」');
+  assert(nightAfter === true, '夜间才出现「夜色如墨」');
+  assert(dayAfter === false, '切回日间又消失（判据只认 data-theme 一处）');
+
+  // ⑥ 稀有度：weight=1 的两条里至少一条要显式标 rare（面板/toast 要能区分）
+  const rares = evs.filter(e => e.rare);
+  assert(rares.length >= 1, '至少一条标了 rare（' + rares.map(e => e.id).join(',') + '）');
+  assert(rares.every(e => e.weight === 1), 'rare 必须同时是 weight=1（否则「珍稀」是句空话）');
+  assert(/珍稀/.test(rares[0].run.toString()), '稀有见闻的 toast 自带「珍稀」字样');
+
+  // ⑦ 全局：所有见闻都只做正向（没有任何扣减）
+  const src = evs.map(e => e.run.toString()).join('\n');
+  assert(!/Game\.shells\s*-=(?!\s*-)/.test(src), '没有任何一条扣贝币');
+  assert(!/giveItem\([^)]*,\s*-/.test(src), '没有任何一条扣物件');
+
+  G.resetToDefault();
+  ST.__eventsMuted = true;
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

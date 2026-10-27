@@ -3381,7 +3381,8 @@ function doRecipeAction(a){
     return;
   }
   const done = processRecipe(a.recipe, 1);
-  if (done && typeof maybeEvent === 'function') maybeEvent({ kind:'craft', itemId: a.recipe.out });
+  // recipeType 一并带上：见闻里的「火候正好」要按工序映射回技艺（RECIPE_SKILL）
+  if (done && typeof maybeEvent === 'function') maybeEvent({ kind:'craft', itemId: a.recipe.out, recipeType: a.recipe.type });
   // 限量制作（如单件武器）：做够件数就收手，不再无限连做
   if (done && a.remain != null){
     a.remain--;

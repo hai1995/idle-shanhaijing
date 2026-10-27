@@ -55,7 +55,9 @@ const TRAVEL_EVENTS = [
   },
   {
     id: 'laomu', name: '老木可辨', weight: 2,
-    when(ctx){ return !ctx || !ctx.kind || ctx.kind === 'gather'; },
+    // 专属采药：文案写的就是「采药 +xp」，串到樵采头上会前后不搭。
+    // 通用采集（残简/古玉/雨后/兽踪）仍覆盖所有技艺，见闻不会因此变稀。
+    when(ctx){ return !ctx || !ctx.kind || (ctx.kind === 'gather' && (!ctx.skillId || ctx.skillId === 'caiyao')); },
     run(){
       const lv = (typeof levelOf === 'function') ? levelOf('caiyao') : 1;
       const xp = 9 + Math.round(lv * 0.5);
@@ -98,6 +100,90 @@ const TRAVEL_EVENTS = [
       const it = Items[ctx.itemId];
       if (typeof giveItem === 'function') giveItem(ctx.itemId, 1, false);
       return { log: `🪶 手熟，收尾时又成 ${it.name} ×1`, toast: `🪶 巧手偶得\n${it.name} ×1` };
+    },
+  },
+  // ── v1.31.86 新增：把「只在采集里出现」的见闻，按技艺与外景铺开 ──
+  // 理由：见闻此前只认得「采药 / 观象 / 讨伐 / 著录」四条技艺，
+  // 樵采、采玉、渔、炉料这些玩家同样在挂的技艺，一辈子见不到一句自己的话。
+  // 每条只给「本技艺的经验 + 一点贝」，量级对齐 canjian（8 + 0.6×lv）。
+  {
+    id: 'qiaoge', name: '樵歌相应', weight: 3,
+    when(ctx){ return !!ctx && ctx.kind === 'gather' && ctx.skillId === 'qiaocai'; },
+    run(){
+      const lv = (typeof levelOf === 'function') ? levelOf('qiaocai') : 1;
+      const xp = 9 + Math.round(lv * 0.55);
+      if (typeof gainXp === 'function') gainXp('qiaocai', xp);
+      return { log: `🪵 山深处有人应和，斧声与歌声相和（樵采 +${xp}）`,
+               toast: `🪵 樵歌相应\n樵采 +${xp}` };
+    },
+  },
+  {
+    id: 'shiyu', name: '石中蕴玉', weight: 2,
+    when(ctx){ return !!ctx && ctx.kind === 'gather' && ctx.skillId === 'caiyu'; },
+    run(){
+      const lv = (typeof levelOf === 'function') ? levelOf('caiyu') : 1;
+      const xp = 9 + Math.round(lv * 0.55);
+      const shells = 12 + lv * 2;
+      if (typeof gainXp === 'function') gainXp('caiyu', xp);
+      Game.shells = (Game.shells || 0) + shells;
+      Game.stats.totalEarned = (Game.stats.totalEarned || 0) + shells;
+      return { log: `💠 敲开顽石，内里一缕青气（采玉 +${xp} · 贝 +${shells}）`,
+               toast: `💠 石中蕴玉\n采玉 +${xp} · 贝 +${shells}` };
+    },
+  },
+  {
+    id: 'yuyin', name: '网得旧贝', weight: 2,
+    when(ctx){ return !!ctx && ctx.kind === 'gather' && ctx.skillId === 'yu'; },
+    run(){
+      const lv = (typeof levelOf === 'function') ? levelOf('yu') : 1;
+      const xp = 9 + Math.round(lv * 0.55);
+      const shells = 16 + lv * 3;
+      if (typeof gainXp === 'function') gainXp('yu', xp);
+      Game.shells = (Game.shells || 0) + shells;
+      Game.stats.totalEarned = (Game.stats.totalEarned || 0) + shells;
+      return { log: `🐟 收网时带起一串旧贝，纹已磨平（渔 +${xp} · 贝 +${shells}）`,
+               toast: `🐟 网得旧贝\n渔 +${xp} · 贝 +${shells}` };
+    },
+  },
+  {
+    id: 'lianhuo', name: '火候正好', weight: 2,
+    when(ctx){ return !!ctx && ctx.kind === 'craft'; },
+    run(ctx){
+      // 制作见闻的第二条：qiaoshou 给「多一件成品」，这条给「手上更稳」——
+      // 同一场景两种奖励形态，比堆两条同质的「多一件」更有区分度。
+      const type = (ctx && ctx.recipeType) || '';
+      const sk = (typeof RECIPE_SKILL !== 'undefined' && RECIPE_SKILL[type]) ? RECIPE_SKILL[type] : 'fanliao';
+      const lv = (typeof levelOf === 'function') ? levelOf(sk) : 1;
+      const xp = 12 + Math.round(lv * 0.6);
+      if (typeof gainXp === 'function') gainXp(sk, xp);
+      const nm = (Skills && Skills[sk]) ? Skills[sk].name : '制作';
+      return { log: `🔥 火候不差毫厘，一炉俱成（${nm} +${xp}）`,
+               toast: `🔥 火候正好\n${nm} +${xp}` };
+    },
+  },
+  {
+    id: 'yese', name: '夜色如墨', weight: 2,
+    // 只在夜间主题下出现：同一趟山，白天与夜里读到的句子不该一样。
+    when(){ return (typeof sceneNight === 'function') && sceneNight(); },
+    run(){
+      const lv = (typeof levelOf === 'function') ? levelOf('guanxiang') : 1;
+      const xp = 10 + Math.round(lv * 0.5);
+      if (typeof gainXp === 'function') gainXp('guanxiang', xp);
+      return { log: `🌙 夜色浓得化不开，仰头却见星次分明（观象 +${xp}）`,
+               toast: `🌙 夜色如墨\n观象 +${xp}` };
+    },
+  },
+  {
+    id: 'gubei', name: '古碑可读', weight: 1, rare: true,
+    // 珍稀：三条技艺一起给，量不大但「一份顶三份」，稀有度靠 weight=1 与文案体现。
+    run(){
+      const g = (id) => ((typeof levelOf === 'function') ? levelOf(id) : 1);
+      const xpZ = 14 + Math.round(g('zhulu') * 0.7);
+      const xpT = 12 + Math.round(g('taofa') * 0.6);
+      const xpB = 12 + Math.round(g('bushi') * 0.6);
+      if (typeof gainXp === 'function'){ gainXp('zhulu', xpZ); gainXp('taofa', xpT); gainXp('bushi', xpB); }
+      return { log: `🗿 断碑半埋土中，拂去苔痕，其文尚可辨（著录 +${xpZ} · 讨伐 +${xpT} · 卜筮 +${xpB}）`,
+               toast: `🗿 珍稀 · 古碑可读\n著录 +${xpZ} · 讨伐 +${xpT} · 卜筮 +${xpB}` };
     },
   },
   {
