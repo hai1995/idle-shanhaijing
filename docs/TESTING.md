@@ -23,7 +23,7 @@ npm run check -- --patrol       # 或挂进自检一起跑（缺 python/playwrig
 `test/engine.test.js` 用 `vm` 起一个假浏览器上下文，按 `index.html` 的顺序加载全部脚本，然后一节一节断言：
 
 ```js
-loadJS('nanshanData.js'); … UI_FILES.forEach(loadJS);   // ui/ 下 8 个文件，顺序同 index.html
+loadJS('nanshanData.js'); … UI_FILES.forEach(loadJS);   // ui/ 下 9 个文件，顺序同 index.html
 section('问神');
 {
   G.resetToDefault();

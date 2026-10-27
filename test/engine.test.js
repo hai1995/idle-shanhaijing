@@ -40,7 +40,7 @@ vm.createContext(context);
 const base = path.join(__dirname, '..', 'src');
 function loadJS(file){ vm.runInContext(fs.readFileSync(path.join(base, file), 'utf8'), context, {filename:file}); }
 // ui.js 已按页拆成 7 个文件（v1.31.8），顺序与 index.html 一致；core 必须最先。
-const UI_FILES = ['ui/core.js','ui/hud.js','ui/modal.js','ui/settings.js','ui/tutorial.js','ui/scene.js','ui/yudi.js','ui/skills.js','ui/combat.js','ui/codex.js','ui/shrine.js','ui/trade.js','ui/queue.js','ui/pack.js','ui/item.js','ui/enhance.js','ui/stats.js','ui/misc.js','ui/boot.js'];
+const UI_FILES = ['ui/core.js','ui/hud.js','ui/modal.js','ui/settings.js','ui/tutorial.js','ui/scene.js','ui/yudi.js','ui/skills.js','ui/combat.js','ui/codex.js','ui/shrine.js','ui/trade.js','ui/queue.js','ui/pack.js','ui/item.js','ui/enhance.js','ui/stats.js','ui/rank.js','ui/misc.js','ui/boot.js'];
 const uiSrcAll = UI_FILES.map(f => fs.readFileSync(path.join(base, f), 'utf8')).join('\n');
 ['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','zhongshanData.js','gameData.js','affix.js','save.js','engine.js','game.js','queue.js','interact.js','events.js','fx.js','beastIcon.js','riteIcon.js','structureIcon.js','skillIcon.js','itemIcon.js','markIcon.js'].forEach(loadJS);
 const G = context;
@@ -2240,7 +2240,7 @@ section('叙录 / 关于本作');
   // 39.1 页签：末页为叙录，图标与其余页签同一路数（内联 SVG）
   const ids = ST.TABS.map(t => t.id);
   assert(ids[ids.length - 1] === 'about', '末页签为「叙录」');
-  assert(ids.includes('about') && ids.length === 12, '功能页签共 12 项（另有侧栏末尾的「设置」入口）');
+  assert(ids.includes('about') && ids.length === 13, '功能页签共 13 项（另有侧栏末尾的「设置」入口）');
   const ab = ST.TABS.find(t => t.id === 'about');
   assert(ab.label === '叙录' && /<svg/.test(ab.icon), '叙录页签带内联 SVG 图标');
 
@@ -5700,6 +5700,21 @@ section('离线结算与线上同口径');
   const listed = [...html.matchAll(/src="(src\/[^"?]+\.js)(?:\?[^"]*)?"/g)].map(m => m[1].replace(/^src\//, ''));
   const missing = listed.filter(f => !arch.includes('`' + f + '`'));
   assert(missing.length === 0, 'ARCHITECTURE 的文件表覆盖了全部脚本（缺：' + missing.join(',') + '）');
+
+// ============ 183. 群英榜（v1.31.139）：tab 注册 + 页面函数 + Prefs 字段 ============
+section('群英榜：tab 注册与页面函数');
+{
+  const core = readText('src/ui/core.js');
+  const rank = readText('src/ui/rank.js');
+  const eng = readText('src/engine.js');
+  assert(/id:\s*'rank'/.test(core), 'TABS 含 rank 条目');
+  assert(/rank:\s*'renderRank'/.test(core), 'TAB_RENDER 映射 rank -> renderRank');
+  assert(/UI\.renderRank\s*=\s*function/.test(rank), 'rank.js 定义 UI.renderRank');
+  assert(/UI\.(submitScore|fetchRank|saveLbUrl|scorePayload)\s*=/.test(rank), 'rank.js 含投递/拉取/保存/取字段函数');
+  assert(typeof ST.UI.renderRank === 'function', '测试上下文里 UI.renderRank 已装载');
+  assert(/leaderboardUrl:\s*''/.test(eng), 'Prefs 默认 leaderboardUrl 为空（留空不参与排行）');
+  assert(UI_FILES.includes('ui/rank.js'), 'UI_FILES 含 ui/rank.js（与 index.html 同序）');
+}
 
   // ---- 资源缓存串：页面上每个本地资源都必须带 ?v=<当前版本> ----
   // GitHub Pages 对 html/js/css 一律 `Cache-Control: max-age=600`，改完十分钟内
@@ -10674,6 +10689,56 @@ section('存档兼容性回归');
     G.resetToDefault();
   }
 }
+
+// 32.6 群英榜参考后端：真实 HTTP 走一遍契约（ping -> 投递 -> 排序 -> 校验 -> 防刷）
+pending.push((async()=>{
+  const { spawn } = require('child_process');
+  const os = require('os');
+  const dataFile = path.join(os.tmpdir(), 'shj-rank-test-' + process.pid + '.json');
+  try { fs.unlinkSync(dataFile); } catch(e){}
+  const child = spawn(process.execPath, [path.join(root, 'server', 'leaderboard.js'), '--port', '0', '--data', dataFile], { stdio: ['ignore','pipe','pipe'] });
+  const port = await new Promise((resolve, reject)=>{
+    let buf = '';
+    const timer = setTimeout(()=>reject(new Error('榜单后端启动超时')), 8000);
+    child.stdout.on('data', d=>{
+      buf += d;
+      const nl = buf.indexOf('\n');
+      if (nl < 0) return;
+      const m = buf.slice(0, nl).match(/127\.0\.0\.1:(\d+)/);
+      if (m){ clearTimeout(timer); resolve(+m[1]); }
+      else reject(new Error('未能解析榜单后端端口：' + buf.slice(0, nl)));
+    });
+    child.on('exit', ()=>{ clearTimeout(timer); reject(new Error('榜单后端提前退出')); });
+  });
+  const base = 'http://127.0.0.1:' + port;
+  const score = (over)=>Object.assign({ name:'甲', totalXp:100, rebirthCount:0, recorded:10, codexTotal:100, bestSec:0, bounties:0, bestEnhance:0, v:'1.31.139' }, over || {});
+  try {
+    let res = await fetch(base + '/api/ping');
+    assert(res.status === 200 && (await res.json()).ok === true, '榜 ping 返回 200 ok');
+    res = await fetch(base + '/api/score', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(score()) });
+    assert(res.status === 200 && (await res.json()).rank === 1, '首次投递 200 且总修为排名第 1');
+    res = await fetch(base + '/api/score', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(score()) });
+    assert(res.status === 429, '同人 3 秒内重复投递被限流（429）');
+    res = await fetch(base + '/api/score', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(score({ name:'乙', totalXp:200 })) });
+    assert(res.status === 200 && (await res.json()).rank === 1, '乙（修为更高）总修为排名第 1');
+    res = await fetch(base + '/api/leaderboard?metric=totalXp&limit=50');
+    const j = await res.json();
+    assert(res.status === 200 && j.rows.length >= 2, '榜单返回至少 2 条');
+    assert(j.rows[0].name === '乙' && j.rows[0].value === 200, '总修为榜：乙(200) 居首');
+    assert(j.rows[1].name === '甲' && j.rows[1].value === 100, '总修为榜：甲(100) 次之');
+    res = await fetch(base + '/api/leaderboard?metric=recorded');
+    assert(res.status === 200 && Array.isArray((await res.json()).rows), '著录榜返回数组');
+    res = await fetch(base + '/api/score', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(score({ name:'' })) });
+    assert(res.status === 400, '空昵称被拒（400）');
+    res = await fetch(base + '/api/score', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(score({ name:'丙', recorded:200, codexTotal:100 })) });
+    assert(res.status === 400, '著录数超过图鉴总数被拒（400）');
+    res = await fetch(base + '/api/score', { method:'POST', headers:{'Content-Type':'application/json'}, body: 'not json' });
+    assert(res.status === 400, '非法 JSON 被拒（400）');
+  } finally {
+    child.kill();
+    try { fs.unlinkSync(dataFile); } catch(e){}
+  }
+})());
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){

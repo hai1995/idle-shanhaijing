@@ -2695,9 +2695,9 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.138',
+  version: '1.31.139',
   codename:'昼巡 · 近况',
-  updated: '2026-10-26',
+  updated: '2026-10-27',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
   // 唯一的对外联系方式：关于页显示、可一键复制。不放外链，也不指向任何下载。

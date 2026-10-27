@@ -66,6 +66,7 @@ const Prefs = {
   lastGatherId: null,    // 上次采的物（id）；舆地页「再采」据此一键接上
   sceneOn: true,         // 仪表带下方的「现场」画面（v1.31.54）：关掉省一截屏高
   sceneProbe: false,     // 现场左下角的诊断行（v1.31.59）：主屏幕模式没有地址栏，只能从设置开
+  leaderboardUrl: '',    // 群英榜服务地址（v1.31.139）：留空则不参与排行，由玩家自管（见 server/leaderboard.js）
 };
 
 function cloneDefaultGame(){
