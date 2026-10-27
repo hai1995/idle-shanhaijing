@@ -3098,6 +3098,32 @@ details.hetero-panel .hp-left{ margin-left:auto; font-style:normal; color:var(--
   .orc-row .orc-where{ display:none; }
 }
 
+
+/* ==========================================================================
+   触摸热区（2026-10-27）
+   几个图标按钮在手机上只有 18–28px：视觉上它们必须小（不挤占内容），
+   但可点范围不该跟着小。做法是给按钮加一层居中的透明热区——不改布局、
+   不改视觉、不影响桌面端的鼠标命中判定，只在手指（pointer:coarse）下生效。
+
+   这里**不写 inset:-Npx**：实测在 WebKit 上，`.hint-close::after{inset:-4px -2px -8px -2px}`
+   会让热区向左吃掉 18px（把旁边「前往」的点击抢走）。改成显式 width/height +
+   translate 居中，热区尺寸就是写死的那个数，可预期。
+   ========================================================================== */
+@media (pointer: coarse){
+  .rite-auto::after, .bn-swap::after, .buff-btn::after, .hint-close::after{
+    content:''; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    pointer-events:auto;
+  }
+  /* 「续」：18×18 → 36×34。右上角一枚小签，往左下有空间 */
+  .rite-auto::after{ width:36px; height:34px; }
+  /* 三签「换」：27×20 → 35×30，行内上下还有别的按钮，只扩一档 */
+  .bn-swap::after{ width:35px; height:30px; }
+  /* 书脊增益图标：28×28 → 40×40，四周空旷 */
+  .buff-btn::after{ width:40px; height:40px; }
+  /* 指引条的 ✕：26×24 → 26×34，**不横向扩**——右边是「前往」，扩了会抢它的点击 */
+  .hint-close::after{ width:26px; height:34px; }
+}
+
 </style>
 </head>
 <body onload="init()">
@@ -19769,7 +19795,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.71',
+  version: '1.31.72',
   codename:'昼巡 · 近况',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',

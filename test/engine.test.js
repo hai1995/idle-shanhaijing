@@ -8525,6 +8525,30 @@ section('名号与工具');
     '比的是页面里的 GAME_META 版本（旧页面才能自证是旧的）');
 }
 
+// ============ 159. 小按钮的触摸热区（2026-10-27） ============
+// 手机上实测：祠礼的「续」18×18、三签的「换」27×20、书脊增益图标 28×28。
+// 视觉上它们必须小（不能挤占内容），但可点范围不该跟着小——这三个是
+// 「点十次中三次」的那类控件。做法是加一层居中透明热区，只在手指下生效。
+section('触摸热区');
+{
+  const cssT = readText('style.css');
+  const i = cssT.indexOf('@media (pointer: coarse)');
+  assert(i > 0, '有 pointer:coarse 的媒体查询（鼠标不需要这份宽容）');
+  const block = cssT.slice(i, cssT.indexOf('\n}', i) + 2);
+  for (const sel of ['.rite-auto', '.bn-swap', '.buff-btn', '.hint-close']){
+    assert(block.includes(sel + '::after'), sel + ' 有热区');
+  }
+  // 尺寸必须写死：「续」36×34、「换」35×30、增益 40×40、✕ 只加高不加宽
+  assert(/\.rite-auto::after\{[^}]*width:36px; height:34px/.test(block), '「续」热区 36×34');
+  assert(/\.bn-swap::after\{[^}]*width:35px; height:30px/.test(block), '「换」热区 35×30');
+  assert(/\.buff-btn::after\{[^}]*width:40px; height:40px/.test(block), '增益图标热区 40×40');
+  assert(/\.hint-close::after\{[^}]*width:26px; height:34px/.test(block), '「✕」只加高不加宽（右边是「前往」）');
+  // 这一段**不许**再出现 inset 负值：WebKit 上实测 `inset:-4px -2px -8px -2px`
+  // 会让热区向左吃掉 18px，把「前往」的点击抢走（量出来的）。
+  assert(!/inset:-\d/.test(block), '热区不用负 inset（WebKit 上会吃成 18px，抢走邻居的点击）');
+  assert(/transform:translate\(-50%,\s*-50%\)/.test(block), '热区靠 translate 居中');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
