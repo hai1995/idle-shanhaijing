@@ -2140,6 +2140,21 @@ details.bulk-sell .bs-preview, details.bulk-sell .bs-act{ margin-left:11px; marg
   font-style:normal; font-size:11px; color:var(--ink-4); line-height:1.45;
 }
 .stat-rows > span.ev-unseen .ev-hint::before{ content:'↳ '; opacity:.7; }
+/* 限定条件小标记（v1.31.125）：一条见闻要挑时间 / 挑地点才遇得上，
+   标记比一整句线索更容易扫。只有九个字号大小，别抢了名字的位置。 */
+.ev-cond{
+  display:inline-block; min-width:14px; margin-right:4px; padding:0 3px;
+  font-style:normal; font-size:10px; line-height:14px; text-align:center;
+  border-radius:3px; border:1px solid currentColor; vertical-align:1px;
+  opacity:.85;
+}
+/* 选择器要带上 `.stat-rows > span.ev-unseen`（0,3,0），否则被父级的灰字压掉——
+   实测确认：只写 .ev-cond-* 时算出来还是 rgb(126,120,106)。 */
+.stat-rows > span.ev-unseen .ev-cond-night{ color:#8fa4c4; }   /* 夜：偏靛 */
+.stat-rows > span.ev-unseen .ev-cond-dry{ color:#c79a63; }     /* 旱：偏赭 */
+.stat-rows > span.ev-unseen .ev-cond-wet{ color:#7fa8b4; }     /* 雨：偏青 */
+.stat-rows > span.ev-unseen .ev-cond-rare{ color:#c08a4a; }    /* 稀：偏金 */
+.stat-rows > span.ev-unseen .ev-cond-away{ color:#9a9a92; }    /* 离：中性灰 */
 /* 线索里能点的（异迹两条）：字色往上提一档、下划线点睛，说明「这块能按」
    ——与正文同色会让人以为是灰字注释，不会去按。 */
 .stat-rows .linklike{

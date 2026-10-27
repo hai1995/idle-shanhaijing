@@ -162,7 +162,7 @@ const TRAVEL_EVENTS = [
     },
   },
   {
-    id: 'yese', name: '夜色如墨', weight: 2, hint: '只在夜里出现',
+    id: 'yese', name: '夜色如墨', weight: 2, hint: '只在夜里出现', cond: 'night',
     // 只在夜间主题下出现：同一趟山，白天与夜里读到的句子不该一样。
     when(){ return (typeof sceneNight === 'function') && sceneNight(); },
     run(){
@@ -174,7 +174,7 @@ const TRAVEL_EVENTS = [
     },
   },
   {
-    id: 'hanjing', name: '旱井见底', weight: 3, hint: '只在旱季出现',
+    id: 'hanjing', name: '旱井见底', weight: 3, hint: '只在旱季出现', cond: 'dry',
     // 季节（v1.31.124）：旱 / 雨六小时轮转，山上的物候本来就该跟着变。
     // 与「夜里」同理——后者看主题，前者看 seasonPhase()，两者互不影响、可叠加。
     when(){ return (typeof seasonPhase === 'function') && seasonPhase() === 0; },
@@ -187,7 +187,7 @@ const TRAVEL_EVENTS = [
     },
   },
   {
-    id: 'yuzu', name: '雨后新涨', weight: 3, hint: '只在雨季出现',
+    id: 'yuzu', name: '雨后新涨', weight: 3, hint: '只在雨季出现', cond: 'wet',
     when(){ return (typeof seasonPhase === 'function') && seasonPhase() === 1; },
     run(){
       const lv = (typeof levelOf === 'function') ? levelOf('caiyu') : 1;
@@ -198,7 +198,7 @@ const TRAVEL_EVENTS = [
     },
   },
   {
-    id: 'gubei', name: '古碑可读', weight: 1, rare: true, hint: '珍稀 · 概率极低，多走多遇',
+    id: 'gubei', name: '古碑可读', weight: 1, rare: true, hint: '珍稀 · 概率极低，多走多遇', cond: 'rare',
     // 珍稀：三条技艺一起给，量不大但「一份顶三份」，稀有度靠 weight=1 与文案体现。
     run(){
       const g = (id) => ((typeof levelOf === 'function') ? levelOf(id) : 1);
@@ -316,6 +316,17 @@ const TRAVEL_EVENTS = [
 // 单列一张表而不是塞回每条事件里——这是纯表现，和「给什么奖励」正交，
 // 改配色时不该碰奖励逻辑（反之亦然）。
 // wash 只有三种：rain（雨）/ glow（光）/ star（星）。多了就不是「一层薄雾」，是换皮肤。
+// 限定条件的标签表（v1.31.125）：见闻表里写成结构化的 cond，界面靠这张表出小标记。
+// 为什么不用 hint 文案反推：文案是给玩家读的句子，随时可能改字；条件是数据，
+// 改文案不该让标记消失。表在 events.js（跟着见闻表走），界面只读，不自己维护一份。
+const EVENT_COND = {
+  night: { label:'夜',  title:'只在夜间出现' },
+  dry:   { label:'旱',  title:'只在旱季出现（六小时一转）' },
+  wet:   { label:'雨',  title:'只在雨季出现（六小时一转）' },
+  rare:  { label:'稀',  title:'珍稀 · 概率极低' },
+  away:  { label:'离',  title:'离山归来才可能听说' },
+};
+
 const EVENT_VIS = {
   canjian:  { glyph:'📜', wash:'glow' },
   yuhou:    { glyph:'🌧️', wash:'rain' },
@@ -352,7 +363,7 @@ const AWAY_GAP = 1800;        // 两次离线见闻至少隔半小时（游戏�
 
 const AWAY_EVENTS = [
   {
-    id: 'away_laike', name: '山客来访', weight: 3, hint: '离山归来才可能听说',
+    id: 'away_laike', name: '山客来访', weight: 3, hint: '离山归来才可能听说', cond: 'away',
     run(sec, sum){
       // 按离山时长缩放，但封顶：挂 12 小时不该比挂 1 小时多出十倍彩头
       const h = Math.min(3, sec / 3600);
@@ -597,6 +608,7 @@ if (typeof window !== 'undefined'){
   window.maybeAwayEvent = maybeAwayEvent;
   window.pickByWeight = pickByWeight;
   window.EVENT_VIS = EVENT_VIS;
+  window.EVENT_COND = EVENT_COND;
   window.EV_WASH_MS = EV_WASH_MS;
   window.maybeEvent = maybeEvent;
   window.heteroKindAt = heteroKindAt;

@@ -9939,6 +9939,52 @@ section('征兆专属见闻');
   assert(/#seasonTag \+ #nickTag\{/.test(css183), '季名与名号之间有间隔（窄屏不黏连）');
 }
 
+// ============ 184. 见闻录的条件标记：不解析文案，只看数据 ============
+// 25 条见闻里有一半要挑时间 / 地点。原先只有整句线索，扫一眼看不出「哪条在等雨季」。
+// 关键设计：标记读 e.cond（数据），不读 e.hint（文案）——改文案不该让标记消失。
+{
+  const all = ST.TRAVEL_EVENTS.concat(ST.AWAY_EVENTS);
+  const COND = ST.EVENT_COND;
+  assert(!!COND && typeof COND === 'object', '条件标签表已导出');
+
+  // 每条带 cond 的见闻，标签表里都得有对应项（否则标记静默变成空字符串）
+  const dangling = all.filter(e => e.cond && !COND[e.cond]).map(e => e.id);
+  assert(dangling.length === 0, 'cond 无悬空' + (dangling.length ? ('，缺：' + dangling.join(',')) : ''));
+  // 反向：表里每一项至少被一条见闻用到（写多了就是死配置）
+  const used = new Set(all.map(e => e.cond).filter(Boolean));
+  const unused = Object.keys(COND).filter(k => !used.has(k));
+  assert(unused.length === 0, '条件标签无死配置' + (unused.length ? ('，闲：' + unused.join(',')) : ''));
+
+  // 五类限定都要真的挂上：夜 / 旱 / 雨 / 稀 / 离
+  ['night','dry','wet','rare','away'].forEach(k => {
+    const n = all.filter(e => e.cond === k).length;
+    assert(n >= 1, '「' + k + '」至少一条见闻在用（' + n + ' 条）');
+  });
+  // 标签要单字（顶栏外的窄格子放不下两个字），且 title 是完整说明
+  Object.entries(COND).forEach(([k, d]) => {
+    assert(d.label.length === 1, '标签「' + k + '」是单字');
+    assert(!!d.title && d.title.length >= 4, '标签「' + k + '」有完整说明（title）');
+  });
+
+  // ---- 界面：标记只给未见的条目 ----
+  const st184 = readText('src/ui/stats.js');
+  assert(/EVENT_COND/.test(st184), '见闻录读条件标签表');
+  assert(/ev-cond/.test(st184) && /class="ev-cond ev-cond-/.test(st184), '未见条目渲染条件标记');
+  // 反例：不许解析 hint 文案反推条件（`/只在.*季/` 这类）
+  assert(!/只在.*(旱|雨)季.*test\(/.test(st184), '不从线索文案反推条件');
+  // 见过的条目不该再挂标记
+  const cellSrc = st184.slice(st184.indexOf('const cell = (e)'), st184.indexOf('const cell = (e)') + 700);
+  const seenBranch = cellSrc.slice(0, cellSrc.indexOf(':') > 0 ? cellSrc.indexOf('`<span class="hint ev-unseen">') : 700);
+  assert(seenBranch.indexOf('condTag') < 0, '见过的条目不带条件标记');
+
+  const css184 = readText('style.css');
+  // 配色必须带上父级选择器才压得过 `.stat-rows > span.ev-unseen`（实测才发现只写
+  // `.ev-cond-*` 时算出来仍是父级灰），所以断言钉住的是「带 .ev-unseen 的完整选择器」。
+  ['night','dry','wet','rare','away'].forEach(k => {
+    assert(css184.includes('.stat-rows > span.ev-unseen .ev-cond-' + k + '{'), '「' + k + '」标记有配色（且压过父级灰）');
+  });
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

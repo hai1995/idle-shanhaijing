@@ -92,10 +92,17 @@ UI.renderStats = function(){
       const kinds = evs.filter(e => seen[e.id]).length;
       // 未见的条目带上「去哪儿能撞见」的线索（e.hint，v1.31.106）：
       // 「未见」两个字只会让人干瞪眼，线索才让人动身。见过的不再啰嗦。
+      // 限定条件的小标记（v1.31.125）：25 条见闻里有一半要挑时间 / 挑地点，
+      // 原先只有读完整句线索才知道「这条要蹲雨季」——扫一眼看不出哪条在等什么。
+      // 标记只在未见时出现：见过的条目已经是战绩，不需要再提醒怎么弄到。
+      const condTag = (e) => {
+        const d = (window.EVENT_COND || {})[e.cond];
+        return d ? `<i class="ev-cond ev-cond-${esc(e.cond)}" title="${esc(d.title)}">${esc(d.label)}</i>` : '';
+      };
       const cell = (e) => {
         const n = seen[e.id] || 0;
         return n ? `<span>${esc(e.name || e.id)} <b>${n}</b></span>`
-                 : `<span class="hint ev-unseen">${esc(e.name || e.id)} · 未见${e.hint
+                 : `<span class="hint ev-unseen">${condTag(e)}${esc(e.name || e.id)} · 未见${e.hint
                      ? `<em class="ev-hint">${e.go === 'hetero'
                          ? `<button class="linklike" type="button" onclick="UI.gotoHetero()">${esc(e.hint)}</button>`
                          : (e.go === 'omen'
