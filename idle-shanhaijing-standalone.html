@@ -184,7 +184,11 @@ body{
   font-size:13.5px; line-height:1.62;
   color:var(--ink);
   background:var(--paper);
-  overflow-x:hidden;
+  /* 兜底：任何一处算错宽度，都不该让整页能左右拖。
+     用 clip 而不是 hidden——hidden 会把 body 变成滚动容器，里面的
+     position:sticky（顶栏、图鉴的分类条）会跟着失效。 */
+  overflow-x:hidden;    /* 老内核的退路 */
+  overflow-x:clip;      /* 认 clip 的按 clip 来（不建立滚动容器） */
   /* 纸：纤维 + 两团淡墨晕，避免大面积平涂的塑料感 */
   background-image:
     var(--grain),
@@ -2485,7 +2489,15 @@ body.no-scroll{ overflow:hidden; }
   .region-item,.node-item,.inv-card,.codex-card{ min-height:40px; }
   .slot{ min-width:calc(50% - 5px); flex:1 1 calc(50% - 5px); }
   .form-row{ flex-wrap:wrap; }
-  .form-row select,.form-row input[type=text],.form-row input[type=number],.form-row input[type=password]{ font-size:15px; }
+  /* iOS 的老规矩：输入框字号 < 16px 时，一聚焦就自动把页面放大（约 1.33 倍）。
+     放大之后整页可以左右拖——这正是「滑动时出现横向滚动」的来源，
+     而且它跟 CSS 溢出无关：`overflow-x:hidden` 拦不住视觉视口的缩放。
+     所以手机上所有能输入的控件一律 16px。视觉只大一点点，换来不缩放。 */
+  .form-row select,.form-row input[type=text],.form-row input[type=number],
+  .form-row input[type=password],.search-box input,.qty-input,.enh-to input,
+  #content input[type=search]{ font-size:16px; }
+  .search-box input{ width:120px; }
+  .search-box{ height:32px; }
   #modal{ padding:12px; }
   .qty-input{ font-size:16px; width:72px; }
   #modalBox{ max-width:100%; max-height:calc(100dvh - 24px); padding:16px 16px 18px; border-radius:var(--r); }
@@ -19799,7 +19811,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.73',
+  version: '1.31.74',
   codename:'昼巡 · 近况',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -28880,6 +28892,9 @@ UI.renderSettings = function(){
             <span class="hint">${Object.keys(Game.records||{}).length} 条著录 · ${Object.keys(Game.map||{}).length} 座山已访</span></div>
           <div class="form-row"><span>版本</span><b>v${esc((typeof GAME_META!=='undefined'&&GAME_META.version)||'—')}</b>
             <span class="hint">${esc((typeof GAME_META!=='undefined'&&GAME_META.updated)||'')}</span></div>
+          <div class="form-row"><span>强制刷新</span>
+            <button class="btn" type="button" onclick="forceReload()">重载最新版</button></div>
+          <div class="hint set-hint">清掉离线缓存与 Service Worker，再带时间戳重载整页。更新后看不到变化、或主屏幕里一直显示旧版时点这里。存档不受影响。</div>
           <div class="form-row"><span>导出 / 导入 / 重置</span>
             <span class="hint">在「统计」页</span></div>
           <p class="hint">进度仅存本机。多设备同步将由账号系统统一提供——存档结构（版本号 / 修订号 / 时间戳）与合并规则已为此预留，届时登录即可续玩，无需另填服务器。</p>
@@ -29039,6 +29054,34 @@ function devSim(what){
   UI.toast('🧪 ' + msg);
 }
 window.devSim = devSim;
+
+// 强制刷新：把「浏览器可能还在用旧文件」这件事一次清干净。
+// 三步：Cache API → Service Worker → 带时间戳重载。
+// **不动 localStorage**：那是存档，清缓存不该把玩家的进度一起清掉。
+async function forceReload(){
+  if (UI && UI.toast) UI.toast('🧹 清缓存中…');
+  let n = 0;
+  try {
+    if (typeof caches !== 'undefined' && caches.keys){
+      const ks = await caches.keys();
+      await Promise.all(ks.map(k => caches.delete(k)));
+      n = ks.length;
+    }
+  } catch(e){}
+  try {
+    if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations){
+      const rs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(rs.map(r => r.unregister()));
+      n += rs.length;
+    }
+  } catch(e){}
+  // 先把当前进度落盘——重载会丢掉内存里尚未写盘的那几秒
+  try { if (typeof saveGame === 'function') saveGame(); } catch(e){}
+  const u = new URL(location.href);
+  u.searchParams.set('_r', Date.now());     // 新 URL，绕开 index.html 自己的缓存
+  setTimeout(()=>location.replace(u.toString()), 120);
+}
+window.forceReload = forceReload;
 
 function openSettings(){ UI.switchTab('settings'); }
 function setFx(v){ Prefs.fxLevel = v; saveGame(); openSettings(); }

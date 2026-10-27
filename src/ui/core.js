@@ -924,6 +924,9 @@ UI.renderSettings = function(){
             <span class="hint">${Object.keys(Game.records||{}).length} 条著录 · ${Object.keys(Game.map||{}).length} 座山已访</span></div>
           <div class="form-row"><span>版本</span><b>v${esc((typeof GAME_META!=='undefined'&&GAME_META.version)||'—')}</b>
             <span class="hint">${esc((typeof GAME_META!=='undefined'&&GAME_META.updated)||'')}</span></div>
+          <div class="form-row"><span>强制刷新</span>
+            <button class="btn" type="button" onclick="forceReload()">重载最新版</button></div>
+          <div class="hint set-hint">清掉离线缓存与 Service Worker，再带时间戳重载整页。更新后看不到变化、或主屏幕里一直显示旧版时点这里。存档不受影响。</div>
           <div class="form-row"><span>导出 / 导入 / 重置</span>
             <span class="hint">在「统计」页</span></div>
           <p class="hint">进度仅存本机。多设备同步将由账号系统统一提供——存档结构（版本号 / 修订号 / 时间戳）与合并规则已为此预留，届时登录即可续玩，无需另填服务器。</p>
@@ -1083,6 +1086,34 @@ function devSim(what){
   UI.toast('🧪 ' + msg);
 }
 window.devSim = devSim;
+
+// 强制刷新：把「浏览器可能还在用旧文件」这件事一次清干净。
+// 三步：Cache API → Service Worker → 带时间戳重载。
+// **不动 localStorage**：那是存档，清缓存不该把玩家的进度一起清掉。
+async function forceReload(){
+  if (UI && UI.toast) UI.toast('🧹 清缓存中…');
+  let n = 0;
+  try {
+    if (typeof caches !== 'undefined' && caches.keys){
+      const ks = await caches.keys();
+      await Promise.all(ks.map(k => caches.delete(k)));
+      n = ks.length;
+    }
+  } catch(e){}
+  try {
+    if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations){
+      const rs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(rs.map(r => r.unregister()));
+      n += rs.length;
+    }
+  } catch(e){}
+  // 先把当前进度落盘——重载会丢掉内存里尚未写盘的那几秒
+  try { if (typeof saveGame === 'function') saveGame(); } catch(e){}
+  const u = new URL(location.href);
+  u.searchParams.set('_r', Date.now());     // 新 URL，绕开 index.html 自己的缓存
+  setTimeout(()=>location.replace(u.toString()), 120);
+}
+window.forceReload = forceReload;
 
 function openSettings(){ UI.switchTab('settings'); }
 function setFx(v){ Prefs.fxLevel = v; saveGame(); openSettings(); }

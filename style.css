@@ -157,7 +157,11 @@ body{
   font-size:13.5px; line-height:1.62;
   color:var(--ink);
   background:var(--paper);
-  overflow-x:hidden;
+  /* 兜底：任何一处算错宽度，都不该让整页能左右拖。
+     用 clip 而不是 hidden——hidden 会把 body 变成滚动容器，里面的
+     position:sticky（顶栏、图鉴的分类条）会跟着失效。 */
+  overflow-x:hidden;    /* 老内核的退路 */
+  overflow-x:clip;      /* 认 clip 的按 clip 来（不建立滚动容器） */
   /* 纸：纤维 + 两团淡墨晕，避免大面积平涂的塑料感 */
   background-image:
     var(--grain),
@@ -2458,7 +2462,15 @@ body.no-scroll{ overflow:hidden; }
   .region-item,.node-item,.inv-card,.codex-card{ min-height:40px; }
   .slot{ min-width:calc(50% - 5px); flex:1 1 calc(50% - 5px); }
   .form-row{ flex-wrap:wrap; }
-  .form-row select,.form-row input[type=text],.form-row input[type=number],.form-row input[type=password]{ font-size:15px; }
+  /* iOS 的老规矩：输入框字号 < 16px 时，一聚焦就自动把页面放大（约 1.33 倍）。
+     放大之后整页可以左右拖——这正是「滑动时出现横向滚动」的来源，
+     而且它跟 CSS 溢出无关：`overflow-x:hidden` 拦不住视觉视口的缩放。
+     所以手机上所有能输入的控件一律 16px。视觉只大一点点，换来不缩放。 */
+  .form-row select,.form-row input[type=text],.form-row input[type=number],
+  .form-row input[type=password],.search-box input,.qty-input,.enh-to input,
+  #content input[type=search]{ font-size:16px; }
+  .search-box input{ width:120px; }
+  .search-box{ height:32px; }
   #modal{ padding:12px; }
   .qty-input{ font-size:16px; width:72px; }
   #modalBox{ max-width:100%; max-height:calc(100dvh - 24px); padding:16px 16px 18px; border-radius:var(--r); }

@@ -8582,6 +8582,50 @@ section('长列表分页');
   assert(/\.pack-more\{[^}]*grid-column:1 \/ -1/.test(cssSrc), '行囊「更多」横跨整行');
 }
 
+// ============ 161. 手机上不缩放、不横滚；强制刷新（2026-10-27） ============
+// 报障是「滑动时会出现横向滚动」。查下去不是 CSS 溢出——
+// iOS Safari 有个老规矩：输入框字号 < 16px 时，一聚焦就把页面放大（约 1.33 倍），
+// 放大之后整页可左右拖。`overflow-x:hidden` 拦不住视觉视口缩放，只能从字号上治。
+section('移动端视口与重载');
+{
+  const cssSrc161 = readText('style.css');
+  const cSrc161 = readText('src/ui/core.js');
+  const hSrc161 = readText('index.html');
+
+  // ---- 1. 输入控件一律 ≥ 16px（手机媒体查询里） ----
+  const mobile = cssSrc161.slice(cssSrc161.indexOf('@media (max-width:720px)'));
+  assert(/\.search-box input[^}]*font-size:16px/.test(mobile.replace(/\s+/g, ' ')) ||
+         /,\s*\.search-box input,/.test(mobile) || /\n\s*\.search-box input/.test(mobile),
+    '检索框在手机上是 16px');
+  const rule = (mobile.match(/[^{}]*font-size:16px;[^{}]*\}/) || [''])[0];
+  for (const sel of ['.search-box input', '.qty-input', '.enh-to input']){
+    assert(mobile.includes(sel), '16px 那条规则覆盖了 ' + sel);
+  }
+  assert(/#content input\[type=search\]/.test(mobile), '也覆盖 input[type=search]');
+
+  // ---- 2. body 不许横向滚动，且用 clip 优先 ----
+  const bodyRule = (cssSrc161.match(/^body\{[\s\S]*?\n\}/m) || [''])[0];
+  assert(/overflow-x:hidden/.test(bodyRule), 'body 兜底 hidden（老内核）');
+  assert(/overflow-x:clip/.test(bodyRule), 'body 优先用 clip（不建立滚动容器，sticky 才不失效）');
+  assert(bodyRule.indexOf('overflow-x:hidden') < bodyRule.indexOf('overflow-x:clip'),
+    '顺序：hidden 在前、clip 在后（同权重后者生效）');
+
+  // ---- 3. 强制刷新 ----
+  assert(/name="viewport"[^>]*width=device-width/.test(hSrc161), '页面有 viewport 声明（width=device-width）');
+  // 不加 maximum-scale / user-scalable=no：iOS 早就忽略它们，代价却是让人没法放大看字
+  assert(!/user-scalable=no|maximum-scale=1/.test(hSrc161), '不靠禁用缩放来掩盖问题');
+  assert(typeof ST.forceReload === 'function', '有 forceReload()');
+  assert(/UI\.forceReload|window\.forceReload/.test(cSrc161), '入口挂在 window 上（内联 onclick 才调得到）');
+  assert(/caches\.keys/.test(cSrc161), '清 Cache API');
+  assert(/serviceWorker\.getRegistrations/.test(cSrc161), '注销 Service Worker（将来加了也不会卡旧版）');
+  assert(/searchParams\.set\('_r'/.test(cSrc161), '带时间戳重载，绕开 index.html 自己的缓存');
+  // ⚠️ 清缓存**不能**动 localStorage——那是存档
+  const fnBody = cSrc161.slice(cSrc161.indexOf('async function forceReload'), cSrc161.indexOf('window.forceReload'));
+  assert(!/localStorage\.(clear|removeItem)/.test(fnBody), '强制刷新不碰 localStorage（那是存档）');
+  assert(/saveGame\(\)/.test(fnBody), '重载前先落盘（否则丢最后几秒的进度）');
+  assert(/重载最新版/.test(cSrc161), '设置页有这颗按钮');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
