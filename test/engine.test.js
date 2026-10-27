@@ -40,7 +40,7 @@ vm.createContext(context);
 const base = path.join(__dirname, '..', 'src');
 function loadJS(file){ vm.runInContext(fs.readFileSync(path.join(base, file), 'utf8'), context, {filename:file}); }
 // ui.js 已按页拆成 7 个文件（v1.31.8），顺序与 index.html 一致；core 必须最先。
-const UI_FILES = ['ui/core.js','ui/hud.js','ui/modal.js','ui/settings.js','ui/tutorial.js','ui/scene.js','ui/yudi.js','ui/skills.js','ui/combat.js','ui/codex.js','ui/trade.js','ui/queue.js','ui/pack.js','ui/item.js','ui/enhance.js','ui/misc.js'];
+const UI_FILES = ['ui/core.js','ui/hud.js','ui/modal.js','ui/settings.js','ui/tutorial.js','ui/scene.js','ui/yudi.js','ui/skills.js','ui/combat.js','ui/codex.js','ui/trade.js','ui/queue.js','ui/pack.js','ui/item.js','ui/enhance.js','ui/stats.js','ui/misc.js','ui/boot.js'];
 const uiSrcAll = UI_FILES.map(f => fs.readFileSync(path.join(base, f), 'utf8')).join('\n');
 ['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','zhongshanData.js','gameData.js','affix.js','save.js','engine.js','game.js','queue.js','interact.js','events.js','fx.js','beastIcon.js','riteIcon.js','structureIcon.js','skillIcon.js','itemIcon.js','markIcon.js'].forEach(loadJS);
 const G = context;
@@ -6375,7 +6375,7 @@ section('快速挂机');
   assert(old.version === 6 && old.member && old.member.tier === 'none', 'v4 旧档迁移补出「未开通」并升到 v6');
 
   // UI：只列权益、不给购买入口
-  const mis = readText('src/ui/misc.js');
+  const mis = readText('src/ui/stats.js');
   assert(mis.includes('mem-panel') && mis.includes('TUNING.MEMBER.TIERS'), '统计页会员面板由权益表驱动');
   assert(!/开通会员|立即购买|充值/.test(mis), '页面不提供购买入口（开通走账号系统）');
   assert(/基础 \$\{TUNING.OFFLINE.CAP_H\}h/.test(mis), '离线上限写明「基础 24h + 观象/营造 + 会员」三段构成');
@@ -7297,7 +7297,7 @@ section('效率采样');
   assert(ST.Game.rateHistory.length === 40, '最多保留 40 点（' + ST.Game.rateHistory.length + '）');
 
   // 统计页有「近况」面板，并与累计均值对比
-  const uiSrcM = readText('src/ui/misc.js');
+  const uiSrcM = readText('src/ui/stats.js');
   assert(uiSrcM.includes('近况'), '统计页有「近况」面板');
   assert(uiSrcM.includes('累计均值'), '与累计均值对比');
   assert(uiSrcM.includes('仍在采样'), '样本不足时给说明而不是显示 0');
@@ -7426,7 +7426,7 @@ section('卡住告警');
   ST.Game.activity = null;
 
   assert(readText('src/game.js').includes('const st = rateStall();'), '秒循环里做卡住判定');
-  assert(readText('src/ui/misc.js').includes('stall-warn'), '统计页近况给出卡住告警');
+  assert(readText('src/ui/stats.js').includes('stall-warn'), '统计页近况给出卡住告警');
   G.resetToDefault();
 }
 
@@ -7477,7 +7477,7 @@ section('图鉴指路与再采');
   ST.Game.activity = null;
 
   // ---- 3. 统计页离线对照 ----
-  const mSrc = readText('src/ui/misc.js');
+  const mSrc = readText('src/ui/stats.js');
   assert(mSrc.includes('estimateOfflineGains'), '统计页近况给出离线折算对照');
   assert(mSrc.includes('离线一小时约'), '离线对照写明一小时口径');
   // 顺带修一处旧错：「当前：行动·undefined」——entryLabel 是队列条目用的，
@@ -8799,7 +8799,7 @@ section('祠礼与配装');
 // 会把这段时间补上，与「关掉页面再打开」走同一条路。
 section('后台停表');
 {
-  const mSrc = readText('src/ui/misc.js');
+  const mSrc = readText('src/ui/boot.js');
   assert(/let loopId = setInterval\(gameLoop, 250\)/.test(mSrc), '主循环的 interval 句柄要留住');
   assert(!/^\s*setInterval\(gameLoop, 250\);\s*$/m.test(mSrc), '不能再有一个没人管的 interval');
   assert(/visibilitychange[\s\S]{0,240}clearInterval\(loopId\)/.test(mSrc), '切到后台就清表');
@@ -8963,11 +8963,11 @@ section('行旅见闻');
   assert(typeof out.name === 'string' || (ST.TRAVEL_EVENTS.find(e => e.id === out.id) || {}).name,
     '每条见闻都有名字（面板要显示，不能只显示 id）');
   // 见闻录面板在统计页
-  assert(/行旅见闻/.test(readText('src/ui/misc.js')), '统计页有「行旅见闻」一栏');
+  assert(/行旅见闻/.test(readText('src/ui/stats.js')), '统计页有「行旅见闻」一栏');
   // 日志分类单列 'event'（原先记在 sys 里，和升级、存档混作一堆）
   assert(/log\(out\.log, 'gold', 'event'\)/.test(evSrc), '见闻日志分类为 event');
-  assert(/'event','见闻'/.test(readText('src/ui/misc.js')), '日志筛选有「见闻」按钮');
-  assert(/seen\[e\.id\]/.test(readText('src/ui/misc.js')), '面板按逐条计数渲染');
+  assert(/'event','见闻'/.test(readText('src/ui/stats.js')), '日志筛选有「见闻」按钮');
+  assert(/seen\[e\.id\]/.test(readText('src/ui/stats.js')), '面板按逐条计数渲染');
   assert(ST.Game.shells >= before.shells, '奖励不为负（只做正向）');
   assert(ST.Game.stats.totalXp >= before.xp, '经验不为负');
 
@@ -9217,7 +9217,7 @@ section('离线见闻');
   assert(!err, '旧档缺 awayAt 时不抛（' + err + '）');
 
   // ⑦ 见闻录要分两组列
-  const mSrc = readText('src/ui/misc.js');
+  const mSrc = readText('src/ui/stats.js');
   assert(/AWAY_EVENTS/.test(mSrc), '见闻录读取离线见闻表');
   assert(/stat-sub/.test(mSrc), '见闻录给「不在时」单起一组');
 
@@ -9232,7 +9232,7 @@ section('离线见闻');
 section('技能浮层延迟生成');
 {
   const wSrc = readText('src/ui/skills.js');
-  const mSrc = readText('src/ui/misc.js');
+  const mSrc = readText('src/ui/boot.js');
   const wI = wSrc.indexOf('UI.renderSkills = function');
   const body = wSrc.slice(wI, wSrc.indexOf('<div class="panel recipe-panel">', wI));
 
@@ -9363,7 +9363,7 @@ section('见闻成就');
   // 「最近一次」：计数只说多少，说不了上次是什么时候
   ST.Game.events.lastId = 'canjian';
   ST.Game.events.lastAt = Math.max(1, ST.gameTime() - 120);
-  const mSrc = readText('src/ui/misc.js');
+  const mSrc = readText('src/ui/stats.js');
   assert(/最近一次/.test(mSrc) && /lastAt/.test(mSrc), '面板显示「最近一次」');
   assert(/fmtDur\(ago\)/.test(mSrc), '用统一的时长口径 fmtDur（不另写一套）');
   // 离线见闻也要写 lastId：玩家回来看到的那条就是最近的一条
@@ -9720,7 +9720,7 @@ section('异迹专属见闻');
   const evSrc179 = readText('src/events.js');
   assert(/id: 'yiji_ling',[^}]*hint:/.test(evSrc179), '异迹见闻带未见线索（hint）');
   assert(/id: 'gubei',[^}]*hint:/.test(evSrc179), '珍稀见闻带线索');
-  const mSrc179 = readText('src/ui/misc.js');
+  const mSrc179 = readText('src/ui/stats.js');
   assert(mSrc179.includes('e.hint'), '见闻录渲染未见条目的线索');
 
   // ⑤″ 线索可点：异迹那条一路跳到异迹索引，且把那一处高亮出来（v1.31.107）
@@ -9802,7 +9802,7 @@ section('见闻与异迹三处同源');
   // ⑤ 三处渲染都在用同一张表（静态钉住，防止有人图省事又内联一份）
   const ySrc180 = readText('src/ui/yudi.js');
   assert((ySrc180.match(/HETERO_EVENT/g) || []).length >= 2, '索引与详情两处都查表');
-  const mSrc180 = readText('src/ui/misc.js');
+  const mSrc180 = readText('src/ui/stats.js');
   assert(mSrc180.includes('TRAVEL_EVENTS') && mSrc180.includes('AWAY_EVENTS'), '统计页遍历两张见闻表');
 
   G.resetToDefault();
@@ -9862,7 +9862,7 @@ section('征兆专属见闻');
   // ⑤ 可视化与线索
   assert(ST.EVENT_VIS.zhao_xiong && ST.EVENT_VIS.zhao_ji, '两条征兆见闻有现场字形');
   assert(/id: 'zhao_xiong',[^}]*go: 'omen'/.test(readText('src/events.js')), '凶兆见闻的线索可点（跳祠祀）');
-  assert(readText('src/ui/misc.js').includes("e.go === 'omen'"), '见闻录渲染 omen 线索按钮');
+  assert(readText('src/ui/stats.js').includes("e.go === 'omen'"), '见闻录渲染 omen 线索按钮');
 
   G.resetToDefault();
   ST.__eventsMuted = true;
