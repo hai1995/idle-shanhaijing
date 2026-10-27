@@ -205,3 +205,16 @@ VM 里整个文件一起崩、报错位置还指在别处——**搬完先跑 du
 - 没动任何平衡数值：经验曲线、怪的血攻、强化概率、祠礼成本全部原样。
 - 没碰现场「画人」的造型（40px 下已到这套手写 SVG 的极限，要更好只能上美术资源）。
 - 云端存档与账号系统仍未开工（按项目主定，等账号系统）。
+
+## v1.31.104（本轮第 1 批）· 拆 ui/world.js：舆地归舆地，技能归技能
+
+- `ui/world.js`（1260 行）拆成 `ui/yudi.js`（587，区域/节点/异迹索引/采集弹窗/神话块/图鉴落点）
+  与 `ui/skills.js`（678，技能卡/配方/田地/三签/轮回 + `nodeForSkill` 材料产地定位系）。
+- 搬家纪律照旧：逐字搬运；`nodeForSkill` 系与 `pickRecipeKind` / `keepScroll` 按语义跟走 skills
+  （codexNode / relicText 留 yudi——它们是异迹 / 图鉴落点，不是技能的）。
+- 同步面：index.html 33 个 script、UI_FILES、8 处测试 `readText('src/ui/world.js')` 逐处按断言
+  内容改指新文件（混合断言用两文件拼接，如「旧写法已移除」这类负向守卫）、
+  ARCHITECTURE.md 行数表（32→33）、scripts/fuzz.js 清单。
+- 版本三处 + index.html `?v=` 统一升 1.31.104。
+- 验收：3167 断言全绿（`--full` 同）；webkit 无头 8 页切换 0 JS 错误；采集弹窗、次数快选、
+  配方分类记忆、轮回弹窗、田地 / 征兆 patch 实测正常。

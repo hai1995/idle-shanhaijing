@@ -40,7 +40,7 @@ vm.createContext(context);
 const base = path.join(__dirname, '..', 'src');
 function loadJS(file){ vm.runInContext(fs.readFileSync(path.join(base, file), 'utf8'), context, {filename:file}); }
 // ui.js 已按页拆成 7 个文件（v1.31.8），顺序与 index.html 一致；core 必须最先。
-const UI_FILES = ['ui/core.js','ui/hud.js','ui/modal.js','ui/settings.js','ui/tutorial.js','ui/scene.js','ui/world.js','ui/combat.js','ui/codex.js','ui/trade.js','ui/pack.js','ui/misc.js'];
+const UI_FILES = ['ui/core.js','ui/hud.js','ui/modal.js','ui/settings.js','ui/tutorial.js','ui/scene.js','ui/yudi.js','ui/skills.js','ui/combat.js','ui/codex.js','ui/trade.js','ui/pack.js','ui/misc.js'];
 const uiSrcAll = UI_FILES.map(f => fs.readFileSync(path.join(base, f), 'utf8')).join('\n');
 ['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','zhongshanData.js','gameData.js','affix.js','save.js','engine.js','game.js','queue.js','interact.js','events.js','fx.js','beastIcon.js','riteIcon.js','structureIcon.js','skillIcon.js','itemIcon.js','markIcon.js'].forEach(loadJS);
 const G = context;
@@ -6911,7 +6911,7 @@ section('便利性优化');
   ST.Game.inventory = saved;
 
   // ---- 配方分段排序：源码层钉住三段口径 ----
-  const uiSrcW = readText('src/ui/world.js');
+  const uiSrcW = readText('src/ui/skills.js');
   assert(uiSrcW.includes("const grp = r => (lvOf(r) < r.lvl ? 2 : (canAfford(r.cost) ? 0 : 1))"),
     '配方按「可做 / 缺料 / 未解锁」三段排序');
   assert(/return ga === 2 \? a\.lvl - b\.lvl : b\.lvl - a\.lvl/.test(uiSrcW), '前两段等级降序、未解锁段升序');
@@ -7344,7 +7344,7 @@ section('采集次数');
 
   // 交互：舆地采集按钮改走次数弹窗，且与战斗共用一份校验
   assert(typeof ST.UI.openGatherModal === 'function' && typeof ST.UI.startGatherTimes === 'function', '舆地采集弹窗入口齐备');
-  const wSrc = readText('src/ui/world.js');
+  const wSrc = readText('src/ui/yudi.js');
   assert(wSrc.includes("onclick=\"UI.openGatherModal('${it.id}')\""), '舆地采集按钮改走次数弹窗');
   assert(wSrc.includes('id="gatherTimes"') && wSrc.includes('UI.clampGatherTimes'), '弹窗内可设采集次数（1–99，留空为 ∞）');
   assert(wSrc.includes('function clampTimesInput'), '次数校验只有一处定义');
@@ -7426,7 +7426,7 @@ section('图鉴指路与再采');
   // 447 条山川的图鉴 id 就是 nodeId；此前 codexNode 只认异兽与物品，
   // 于是山川这一类（占全图鉴四成）详情页永远没有「前往」。
   const shan = Object.values(ST.CODEX || {}).filter(e=>e.cat==='山川');
-  const wSrc2 = readText('src/ui/world.js');
+  const wSrc2 = readText('src/ui/yudi.js');
   const cSrc2 = readText('src/ui/codex.js');
   assert(readText('src/game.js').includes("e.cat === '山川'"), 'codexNode 认得山川类（条目 id 即 nodeId）');
   assert(cSrc2.includes('function codexGoBtn') && cSrc2.includes('UI.gotoCodexNode'), '图鉴给出「前往」入口');
@@ -7490,7 +7490,7 @@ section('图鉴指路与再采');
 section('采集判据统一');
 {
   const gSrc = readText('src/game.js');
-  const wSrc = readText('src/ui/world.js');
+  const wSrc = readText('src/ui/yudi.js');
   const iSrc = readText('src/interact.js');
   const qSrc = readText('src/queue.js');
 
@@ -7591,7 +7591,7 @@ section('图鉴产地口径');
 {
   const gSrc149 = readText('src/game.js');
   const cSrc149 = readText('src/ui/codex.js');
-  const wSrc149 = readText('src/ui/world.js');
+  const wSrc149 = readText('src/ui/yudi.js');
   const css149  = readText('style.css');
 
   // ---- 0. 判据在引擎层，且三类条目各有来源 ----
@@ -7694,7 +7694,7 @@ section('图鉴产地口径');
 section('舆地产地口径');
 {
   const gSrc150 = readText('src/game.js');
-  const wSrc150 = readText('src/ui/world.js');
+  const wSrc150 = readText('src/ui/yudi.js') + readText('src/ui/skills.js');
   const pSrc150 = readText('src/ui/pack.js');
 
   // ---- 0. 判据在引擎层，且已导出 ----
@@ -7856,7 +7856,7 @@ section('道里数据');
 
   // ---- 5. 界面已下线：舆地页不再有「图 / 录」切换 ----
   // 这条是「删干净」的守卫：功能撤了，入口、状态、脚本都不该留。
-  const wSrc = readText('src/ui/world.js');
+  const wSrc = readText('src/ui/yudi.js') + readText('src/ui/skills.js');
   const cSrc = readText('src/ui/core.js');
   assert(!wSrc.includes('view-toggle'), '舆地页已无「图 / 录」切换钮');
   assert(!wSrc.includes('mapMode'), '舆地页不再引用 mapMode');
@@ -9219,7 +9219,7 @@ section('离线见闻');
 // 这一节锁三件事：不再内联、点开才生成、生成的内容与原来一致。
 section('技能浮层延迟生成');
 {
-  const wSrc = readText('src/ui/world.js');
+  const wSrc = readText('src/ui/skills.js');
   const mSrc = readText('src/ui/misc.js');
   const wI = wSrc.indexOf('UI.renderSkills = function');
   const body = wSrc.slice(wI, wSrc.indexOf('<div class="panel recipe-panel">', wI));
