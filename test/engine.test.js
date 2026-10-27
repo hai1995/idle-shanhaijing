@@ -42,7 +42,7 @@ function loadJS(file){ vm.runInContext(fs.readFileSync(path.join(base, file), 'u
 // ui.js 已按页拆成 7 个文件（v1.31.8），顺序与 index.html 一致；core 必须最先。
 const UI_FILES = ['ui/core.js','ui/settings.js','ui/scene.js','ui/world.js','ui/combat.js','ui/codex.js','ui/trade.js','ui/pack.js','ui/misc.js'];
 const uiSrcAll = UI_FILES.map(f => fs.readFileSync(path.join(base, f), 'utf8')).join('\n');
-['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','zhongshanData.js','gameData.js','affix.js','save.js','engine.js','game.js','queue.js','interact.js','fx.js','beastIcon.js','riteIcon.js','structureIcon.js','skillIcon.js','itemIcon.js','markIcon.js'].forEach(loadJS);
+['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','zhongshanData.js','gameData.js','affix.js','save.js','engine.js','game.js','queue.js','interact.js','events.js','fx.js','beastIcon.js','riteIcon.js','structureIcon.js','skillIcon.js','itemIcon.js','markIcon.js'].forEach(loadJS);
 const G = context;
 const ST = context.window;
 
@@ -247,7 +247,7 @@ section('配方原料可获得性审计');
   Object.values(ST.Monsters).forEach(m=>(m.loot||[]).forEach(([id])=>{ if (!ST.Items[id]) badLoot.push(id); }));
   assert(badLoot.length === 0, '战利品均为已定义物品');
   // 每个技能都有经验来源（源码中出现该技能的 gainXp / 计经验逻辑）
-  const srcAll = ['game.js','queue.js','interact.js','gameData.js', ...UI_FILES]
+  const srcAll = ['game.js','queue.js','interact.js','events.js','gameData.js', ...UI_FILES]
     .map(f=>fs.readFileSync(path.join(__dirname,'..','src',f),'utf8')).join('\n');
   const noXpSource = Object.keys(ST.Skills).filter(id=>!srcAll.includes(`'${id}'`));
   assert(noXpSource.length === 0, '26 技能均有经验来源' + (noXpSource.length?('，缺：'+noXpSource.join(',')):''));
@@ -1007,7 +1007,7 @@ const root = path.join(__dirname, '..');
 function readText(rel){ return fs.readFileSync(path.join(root, rel), 'utf8'); }
 // 子串位置（-1 表示不存在），用于断言脚本加载顺序
 function indexOfOf(rel, sub){ return readText(rel).indexOf(sub); }
-const codeFiles = ['index.html','style.css','src/nanshanData.js','src/gameData.js','src/save.js','src/engine.js','src/game.js','src/queue.js','src/interact.js','src/fx.js',...UI_FILES.map(f=>'src/'+f),'src/beastIcon.js','src/riteIcon.js','src/structureIcon.js','src/skillIcon.js','src/itemIcon.js','src/markIcon.js','README.md'];
+const codeFiles = ['index.html','style.css','src/nanshanData.js','src/gameData.js','src/save.js','src/engine.js','src/game.js','src/queue.js','src/interact.js','src/events.js','src/fx.js',...UI_FILES.map(f=>'src/'+f),'src/beastIcon.js','src/riteIcon.js','src/structureIcon.js','src/skillIcon.js','src/itemIcon.js','src/markIcon.js','README.md'];
 const banned = ['Melvor','melvor','梅尔沃'];
 let ipHits = [];
 codeFiles.forEach(f=>{ const t = readText(f); banned.forEach(b=>{ if (t.includes(b)) ipHits.push(f+':'+b); }); });
@@ -8903,6 +8903,72 @@ section('模拟轮回转数');
   for (let i = 0; i < 20; i++) ST.devSim('rebirth+1');
   assert(ST.Game.skills.qiaocai.level === ST.TUNING.REBIRTH.START_CAP,
     '起手等级封顶 ' + ST.TUNING.REBIRTH.START_CAP + '（实测 ' + ST.Game.skills.qiaocai.level + '）');
+
+  G.resetToDefault();
+}
+
+// ============ 167. 行旅见闻（奇遇，2026-10-27） ============
+// 采集完成时低概率触发的小事件。四条约束都得锁住：
+// 只正向 / 有冷却 / 只改已有字段 / 冷却随存档走（刷新不能洗）。
+section('行旅见闻');
+{
+  const evSrc = readText('src/events.js');
+  const gSrc = readText('src/game.js');
+  const sSrc = readText('src/save.js');
+  const eSrc = readText('src/engine.js');
+
+  assert(Array.isArray(ST.TRAVEL_EVENTS) && ST.TRAVEL_EVENTS.length >= 5, '见闻表至少 5 条（实测 ' +
+    (ST.TRAVEL_EVENTS || []).length + '）');
+  assert(ST.TRAVEL_EVENTS.every(e => e.id && e.weight > 0 && typeof e.run === 'function'),
+    '每条都有 id / 正权重 / run()');
+  const ids = ST.TRAVEL_EVENTS.map(e => e.id);
+  assert(new Set(ids).size === ids.length, 'id 不重复');
+
+  // 挂在采集完成的末尾（不是主循环——那样没有节拍，也没有「刚采完」的叙事位置）
+  assert(/maybeEvent\(\{ kind:'gather'/.test(gSrc), '采集完成时调用见闻');
+
+  G.resetToDefault();
+  // ① 强制触发：只改已有字段，不抛
+  const before = { shells: ST.Game.shells, xp: ST.Game.stats.totalXp };
+  let out = null, err = null;
+  try { out = ST.maybeEvent({ kind:'gather', itemId:'migu', skillId:'qiaocai', nodeId:ST.Game.node }, true); }
+  catch(e){ err = e.message; }
+  assert(!err, '强制触发不抛（' + err + '）');
+  assert(out && ids.indexOf(out.id) >= 0, '返回的是一条表内事件（' + (out && out.id) + '）');
+  assert(typeof out.log === 'string' && out.log.length > 6, '有可读的日志文案');
+  assert(ST.Game.events.count === 1 && ST.Game.stats.seenEvents === 1, '计数 +1');
+  assert(ST.Game.shells >= before.shells, '奖励不为负（只做正向）');
+  assert(ST.Game.stats.totalXp >= before.xp, '经验不为负');
+
+  // ② 冷却：刚触发过，紧接着的自然触发必须被挡住
+  // 注意 at 要取正值——`at === 0` 是「还没触发过」的哨兵值（见下一条断言）。
+  ST.Game.events.at = ST.gameTime() + 5;
+  const blocked = ST.maybeEvent({ kind:'gather', itemId:'migu' }, false);
+  assert(blocked === null, '冷却期内不再触发');
+
+  // ③ 概率阈值：用固定随机数验边界，不靠「跑 400 次看频率」（那样在测试里不稳）
+  const origR = Math.random;
+  ST.Game.events = { at: 0, count: 0, lastId: '' };
+  Math.random = () => 0.999;                         // 高于 0.05，不该触发
+  const miss = ST.maybeEvent({ kind:'gather', itemId:'migu' }, false);
+  ST.Game.events = { at: 0, count: 0, lastId: '' };
+  Math.random = () => 0;                             // 必过概率，且落在权重最靠前的那条
+  const hitOne = ST.maybeEvent({ kind:'gather', itemId:'migu' }, false);
+  Math.random = origR;
+  assert(miss === null, '随机数 0.999 时不触发（概率阈值生效）');
+  assert(hitOne && hitOne.id === ST.TRAVEL_EVENTS[0].id, '随机数 0 时触发权重最靠前的那条（' + (hitOne && hitOne.id) + '）');
+
+  // ④ 空档（没有 itemId）也不该抛：雨后那条要 itemId，缺了就该被 when 过滤掉
+  err = null;
+  try { ST.maybeEvent({ kind:'gather' }, true); } catch(e){ err = e.message; }
+  assert(!err, '缺 itemId 时不抛（' + err + '）');
+
+  // ⑤ 冷却随存档走：不存的话，刷新一次就能洗掉冷却、刷新即刷事件
+  assert(/events: G\.events/.test(sSrc), '存档白名单里有 events');
+  assert(/g\.events = \{ at: 0, count: 0, lastId: '' \}/.test(eSrc), '新建档有 events 默认值');
+  assert(/Game\.events = \(d\.events/.test(eSrc), '读档恢复 events');
+  assert(/EVENT_GAP/.test(evSrc) && /last && now - last < EVENT_GAP/.test(evSrc),
+    '冷却判据：at=0 视为「还没触发过」，不能当时间戳用');
 
   G.resetToDefault();
 }

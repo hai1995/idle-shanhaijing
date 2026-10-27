@@ -1249,6 +1249,9 @@ function doGather(itemId){
   }
   UI && UI.log(`${Skills[skillId].icon} 采得 ${it.name} ×${qty}${overEff < 1 ? `（越级 · 效 ${Math.round(overEff*100)}%）` : ''}`, skillId, 'skill');
   UI && UI.actionFeedback(skillId, it.id, qty, { first: !!(recRes && recRes.first), tierUp: !!(recRes && recRes.tierUp) });
+  // 行旅见闻：低概率的小插曲（见 src/events.js）。挂在这里而不是主循环里——
+  // 「刚采完一次」才是自然的叙事位置，也天然有节拍。
+  if (typeof maybeEvent === 'function') maybeEvent({ kind:'gather', itemId, skillId, nodeId: Game.node });
 }
 // 著录一个对象（含阶位提升、异兽征兆触发、关联著录）
 function recordObject(objId, n){
