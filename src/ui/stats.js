@@ -294,6 +294,7 @@ UI.renderStats = function(){
   if (this._statTicker) clearInterval(this._statTicker);
   this._statTicker = setInterval(() => {
     if (this.currentTab !== 'stats'){ clearInterval(this._statTicker); this._statTicker = null; return; }
+    if (typeof document !== 'undefined' && document.hidden) return;   // 后台不白跑 0.8s 一次的 DOM patch
     UI.patchStats();
   }, 800);
 };

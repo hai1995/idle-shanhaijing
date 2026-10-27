@@ -98,36 +98,30 @@ function sceneState(){
   return { kind:'other', ink, place, iv, key:`other:${a.kind}`, verb:'为', name:(typeof currentActivityLabel==='function'?currentActivityLabel():'行动'), note:'' };
 }
 
-// 场景里的小人：一个躬身劳作的水墨剪影，面朝右侧的挖掘点。
-// ⚠️ 这里**不能**用细线条画——52×60 的框实际只显示 40 来像素高，
-// 线条在这个尺寸下必然变成「火柴人」。所以躯干用填充的袍身（有宽度），
-// 四肢用粗线（stroke-width 4，显示约 3.4px，接近真人比例），
-// 头保持小（真人的头约占身高 1/7.5）。
+// 场景里的小人：一个躬身劳作的像素剪影，面朝右侧的挖掘点。
+// 改用方块像素（shape-rendering: crispEdges），与「现场不引入图片资源」的约束一致，
+// 也比此前的水墨曲线更贴「像素风」。用一组 <rect> 拼轮廓，沿用 currentColor 与朱色腰带。
+// 工具仍由 sceneTool(kind) 注入，挥落动画（坐标旋转）原样保留——见 paintSceneFrame。
 function sceneWorker(kind){
-  return `<svg class="sc-worker" viewBox="0 0 60 70" aria-hidden="true">
+  return `<svg class="sc-worker" viewBox="0 0 60 70" aria-hidden="true" shape-rendering="crispEdges">
     <g class="sc-figure">
-      <!-- 袍身：四边都带弧的手绘轮廓。
-           直边梯形会像一只「砖头」——真人的侧面有后脑的弧、肩背的外凸、臀的起伏。
-           这几笔弧线就是「像人」与「像柱子」的全部差别。 -->
-      <path d="M17.4 20
-               Q15.2 26 15.2 34
-               Q15.4 41 15.6 47.4
-               L25.6 46.4
-               Q26.4 38 26.4 30
-               Q26.2 22.6 25.4 20
-               Q21.4 18 17.4 20 Z"
-        fill="currentColor" opacity=".93"/>
-      <!-- 腰带：一道朱色，点题 -->
-      <path d="M15.4 34.4 L26.4 33.8" stroke="#B03A2B" stroke-width="1.6" opacity=".5" stroke-linecap="round"/>
-      <!-- 头：前伸。真人的头约占身高 1/7.5，大了就变卡通 -->
-      <circle cx="24" cy="15.4" r="3.3" fill="currentColor"/>
-      <circle cx="23.2" cy="11.4" r="1.4" fill="currentColor" opacity=".8"/>
-      <!-- 腿：两条粗腿，下半截被地面坡挡住 -->
-      <path d="M17.4 46.8 L14.4 60" stroke="currentColor" stroke-width="4.4" stroke-linecap="round"/>
-      <path d="M24 46.6 L26.2 59.4" stroke="currentColor" stroke-width="4.4" stroke-linecap="round"/>
-      <!-- 手臂：从肩到握点 -->
-      <path d="M25 23.6 Q28 27 31 30" stroke="currentColor" stroke-width="4.2"
-        stroke-linecap="round" fill="none"/>
+      <!-- 发髻 -->
+      <rect x="22" y="6" width="9" height="3" fill="currentColor" opacity=".8"/>
+      <!-- 头：方块（真人头约占身高 1/7.5，方块化后略收） -->
+      <rect x="22" y="9" width="9" height="9" fill="currentColor"/>
+      <!-- 肩 -->
+      <rect x="17" y="18" width="13" height="4" fill="currentColor"/>
+      <!-- 上身（袍） -->
+      <rect x="16" y="22" width="14" height="11" fill="currentColor" opacity=".95"/>
+      <!-- 下摆（袍外扩） -->
+      <rect x="14" y="33" width="18" height="13" fill="currentColor" opacity=".92"/>
+      <!-- 朱色腰带：点题，画面里唯一一处暖色 -->
+      <rect x="15" y="32" width="16" height="3" fill="#B03A2B" opacity=".6"/>
+      <!-- 手臂：从肩伸向握点（31,30） -->
+      <rect x="26" y="22" width="7" height="8" fill="currentColor"/>
+      <!-- 双腿 -->
+      <rect x="16" y="46" width="6" height="14" fill="currentColor" opacity=".95"/>
+      <rect x="24" y="46" width="6" height="14" fill="currentColor" opacity=".95"/>
       ${sceneTool(kind)}
     </g>
   </svg>`;

@@ -365,7 +365,7 @@ html.theme-anim, html.theme-anim *{
 }
 /* 52×60 是折中：人占场景高约七成，再大就顶到山线，再小就只剩一个符号。 */
 .sc-rig{ position:relative; width:54px; height:62px; transform-origin:50% 100%; }
-.sc-worker{ display:block; width:54px; height:62px; }
+.sc-worker{ display:block; width:54px; height:62px; shape-rendering:crispEdges; image-rendering:pixelated; }
 /* 呼吸：固定 3.4s，与采集间隔无关，作为「人活着」的底噪 */
 .sc-figure{ transform-box:view-box; transform-origin:24px 68px; animation:scBreath 3.4s ease-in-out infinite; }
 /* 工具：人物 SVG 内的 <g>，姿态由 SVG 原生 transform 属性驱动（JS 每帧 setAttribute）。
