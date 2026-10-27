@@ -56,6 +56,27 @@ def overflow(pg):
     return pg.evaluate("() => document.documentElement.scrollWidth - document.documentElement.clientWidth")
 
 
+# 文字被盒子切掉：只看叶子节点、只量文字本身（Range 不含伪元素）。
+# 判据必须是「量文字」而不是 scrollWidth > clientWidth——后者会把带「扩大命中区」
+# 伪元素的小钮（手机上指尖点得准，靠 ::after 外扩）全部误报成截断（v1.31.159 踩过）。
+JS_CLIP = """() => {
+  const out = [];
+  document.querySelectorAll('#app *').forEach(el => {
+    if (el.children.length) return;
+    const cs = getComputedStyle(el);
+    if (cs.overflow === 'hidden' && cs.textOverflow === 'ellipsis') return;   // 有省略号是有意为之
+    if (!el.firstChild || el.firstChild.nodeType !== 3) return;
+    const r = document.createRange(); r.selectNodeContents(el);
+    const tw = r.getBoundingClientRect().width;
+    if (el.clientWidth > 0 && tw > el.clientWidth + 1) {
+      const t = (el.textContent || '').trim().slice(0, 20);
+      out.push((el.className ? '.' + String(el.className).split(' ')[0] : el.tagName) + '「' + t + '」');
+    }
+  });
+  return [...new Set(out)].slice(0, 5);
+}"""
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--file', default='idle-shanhaijing-standalone.html', help='要体检的页面（相对仓库根）')
@@ -133,13 +154,20 @@ def main():
         pg.set_viewport_size({'width': 390, 'height': 844})
         pg.evaluate("() => { try { setTheme('day'); } catch(e) {} }")
         pg.wait_for_timeout(300)
+        clipped = []
         for t in TABS:
             pg.evaluate("t => UI.switchTab(t)", t)
             pg.wait_for_timeout(120)
             ov = overflow(pg)
             if ov > 1:
                 fails.append(f'窄屏「{t}」页横向溢出 {ov}px')
+            for c in pg.evaluate(JS_CLIP):
+                clipped.append(f'{t}: {c}')
         print(f'· 窄屏（390px）{len(TABS)} 页横向溢出检查完毕')
+        if clipped:
+            fails.append('文字被盒子切掉：' + ' | '.join(clipped[:5]))
+        else:
+            print('· 窄屏无文字截断（按文字实宽判定，排除命中区伪元素）')
 
         # 6) 窄屏弧度：曾有一条 !important 把所有控件压成近直角（v1.31.158 修掉）
         #    静态测试看不见它，手机上却是「简洁化完全没生效」的元凶。
