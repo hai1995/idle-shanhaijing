@@ -152,7 +152,9 @@ UI.patchQueueChip = function(){
   const loop = Game.queueLoop ? ` · 第 ${(Game.queueRound|0) + 1} 轮` : '';
   const t = `队列 ${pos}${loop}` + (rem >= 1 ? ` · 约 ${fmtTime(rem)}` : '');
   if (el.textContent !== t) el.textContent = t;
-  if (el.title) el.title = '';
+  // 芯片可点（v1.31.156）：title 兼作「点了去哪」的说明；受阻时会被上面的原因文案顶掉，正合用
+  const tip = '前往巡历队列';
+  if (el.title !== tip) el.title = tip;
 };
 function addQueueTask(){
   const target = $('queueTarget') ? $('queueTarget').value : (UI.queueTarget || '');

@@ -1211,6 +1211,9 @@ assert(html.indexOf('id="statusbar"') > html.indexOf('id="topdock"'), '状态条
 assert(/<div id="statusbar">/.test(html), '状态条改为吸顶区内普通区块（不再 fixed 于视口底部）');
 assert(!/id="maxSkill"/.test(html) && !/id="omenCount"/.test(html), '顶栏已精简：去除最高技能与征兆计数两项');
 assert(/<footer id="statusbar">/.test(html) === false, '状态条不再是 footer 底栏');
+// 队列芯片可点（v1.31.156）：看到「队列受阻」时最想做的就是去改它
+assert(/id="queueChip"[^>]*onclick="event\.stopPropagation\(\);UI\.switchTab\('queue'\)"/.test(html),
+  '队列芯片点击直达队列页（且阻止冒泡，不触发整卡跳转）');
 // 20.2 JS：renderTopbar 不再写已移除项；增益摘要点击打开征兆总效应；不再同步 --statusbar-h
 assert(!/set\('omenCount'/.test(uiSrc) && !/set\('maxSkill'/.test(uiSrc), 'renderTopbar 不再写已移除的顶栏项');
 assert(!uiSrc.includes('--statusbar-h'), 'ui.js 不再回填底部状态条高度');

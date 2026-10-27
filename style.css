@@ -395,10 +395,13 @@ html.theme-anim, html.theme-anim *{
   flex:0 0 auto; font-family:var(--f-num); font-size:11px; letter-spacing:.02em; line-height:1.6;
   color:var(--qing-d); background:var(--paper-3); border:1px solid var(--rule-2);
   border-radius:999px; padding:0 8px; white-space:nowrap;
+  cursor:pointer;   /* 可点：跳到队列页（v1.31.156） */
 }
+#queueChip:hover{ border-color:var(--qing); }
 /* 受阻（v1.31.151）：转朱色。芯片上放不下整句原因，标红即为「去看队列页」，
    具体原因留在 title 里（悬停 / 长按需看才看）。 */
 #queueChip.warn{ color:var(--zhu); background:var(--zhu-w); border-color:var(--zhu); }
+#queueChip.warn:hover{ border-color:var(--zhu); background:var(--zhu-w); }
 /* —— 融入现场：现场开启时，状态条不再单独成带，而是叠在现场顶部、融入动画画面（v1.31.145）。
    仅 .scene-on 时切换为绝对定位覆盖；空闲 / 现场关闭时仍退化为独立带状（兜底显示）。
    覆盖层只在最顶一小条留半透纸色保证文字可读，下方透出动画，因此不再额外占用纵向高度。 */

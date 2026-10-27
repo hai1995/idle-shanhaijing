@@ -422,10 +422,13 @@ html.theme-anim, html.theme-anim *{
   flex:0 0 auto; font-family:var(--f-num); font-size:11px; letter-spacing:.02em; line-height:1.6;
   color:var(--qing-d); background:var(--paper-3); border:1px solid var(--rule-2);
   border-radius:999px; padding:0 8px; white-space:nowrap;
+  cursor:pointer;   /* 可点：跳到队列页（v1.31.156） */
 }
+#queueChip:hover{ border-color:var(--qing); }
 /* 受阻（v1.31.151）：转朱色。芯片上放不下整句原因，标红即为「去看队列页」，
    具体原因留在 title 里（悬停 / 长按需看才看）。 */
 #queueChip.warn{ color:var(--zhu); background:var(--zhu-w); border-color:var(--zhu); }
+#queueChip.warn:hover{ border-color:var(--zhu); background:var(--zhu-w); }
 /* —— 融入现场：现场开启时，状态条不再单独成带，而是叠在现场顶部、融入动画画面（v1.31.145）。
    仅 .scene-on 时切换为绝对定位覆盖；空闲 / 现场关闭时仍退化为独立带状（兜底显示）。
    覆盖层只在最顶一小条留半透纸色保证文字可读，下方透出动画，因此不再额外占用纵向高度。 */
@@ -3441,7 +3444,9 @@ details.hetero-panel .hp-left{ margin-left:auto; font-style:normal; color:var(--
     <div id="sceneBar" class="hidden">
       <div id="statusbar">
         <span id="activityText" class="act-link">空闲</span>
-        <span id="queueChip" class="hidden"></span>
+        <!-- 队列芯片（v1.31.146）：点一下直接去队列页——看到「队列受阻」时最想做的就是去改它。
+             阻止冒泡，免得连带触发整卡的「跳到当前行动」 -->
+        <span id="queueChip" class="hidden" title="前往巡历队列" onclick="event.stopPropagation();UI.switchTab('queue')"></span>
         <div id="actionProg" class="hidden"><div id="actionProgFill"></div></div>
         <button id="btnStop" class="btn-mini act-stop" type="button" title="停止" onclick="event.stopPropagation()">✕</button>
       </div>
@@ -20093,8 +20098,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.155',
-  codename:'昼巡 · 夜五行',
+  version: '1.31.156',
+  codename:'昼巡 · 可点',
   updated: '2026-10-28',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
@@ -34747,7 +34752,9 @@ UI.patchQueueChip = function(){
   const loop = Game.queueLoop ? ` · 第 ${(Game.queueRound|0) + 1} 轮` : '';
   const t = `队列 ${pos}${loop}` + (rem >= 1 ? ` · 约 ${fmtTime(rem)}` : '');
   if (el.textContent !== t) el.textContent = t;
-  if (el.title) el.title = '';
+  // 芯片可点（v1.31.156）：title 兼作「点了去哪」的说明；受阻时会被上面的原因文案顶掉，正合用
+  const tip = '前往巡历队列';
+  if (el.title !== tip) el.title = tip;
 };
 function addQueueTask(){
   const target = $('queueTarget') ? $('queueTarget').value : (UI.queueTarget || '');
