@@ -1760,12 +1760,17 @@ svg.bi.mk{ vertical-align:-2px; }
 .rite-tile.on{ border-color:rgba(156,118,40,.55); background:rgba(156,118,40,.06); }
 /* 右上角「续」：续祭开关。默认淡，开启后朱底白字，与其他角标区分 */
 .rite-auto{
-  position:absolute; top:3px; right:3px; width:18px; height:18px;
+  position:absolute; top:3px; right:3px; width:24px; height:24px;
   display:flex; align-items:center; justify-content:center;
   font-family:var(--f-kai); font-size:10.5px; line-height:1;
   color:var(--ink-4); background:var(--paper-3); border:1px solid var(--rule-2); border-radius:2px;
   cursor:pointer; z-index:2; transition:all .12s;
 }
+/* 点击热区（v1.31.135）：原来只有 18×18，手机上手指落点直径约 9mm≈34px，
+   28 张祠礼卡片上都是这个小方块，点偏了会变成「打开详情」——想开续祭却弹出弹窗。
+   视觉尺寸收到 24×24（不挤），热区再用透明 ::after 扩到 36×36。
+   扩出去的部分压在卡片内，不影响相邻卡片（间距 6px，只侵入 6px 的一半）。 */
+.rite-auto::after{ content:''; position:absolute; inset:-6px; border-radius:4px; }
 .rite-auto:hover{ color:var(--zhu); border-color:var(--zhu-w); background:var(--zhu-w); }
 .rite-auto.on{ color:#FCFBF6; background:var(--zhu); border-color:var(--zhu); }
 /* 待料：开着但祭品不齐，用描边而非实底，与「真的在续」区分开 */
