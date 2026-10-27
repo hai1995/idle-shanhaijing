@@ -9655,6 +9655,16 @@ section('异迹专属见闻');
   ['yiji_ling','yiji_zhu','yiji_miao'].forEach(id => assert(ySrc111.includes(`'${id}'`), '索引挂到见闻 ' + id));
   assert(ST.EVENT_VIS.yiji_miao, '灌木见闻有现场字形');
 
+  // ⑥ 脚下这一座山：节点详情也写「此处可遇某条见闻」（v1.31.114）
+  //    与索引那头的 ✦ 是同一事实的两个视角（上帝视角 / 脚下视角），文案不同、来源同一张表。
+  assert(ySrc111.includes('function nodeEventNote'), '节点详情有见闻提示函数');
+  assert(/nodeEventNote\(sel\)/.test(ySrc111), '节点详情的两处渲染都调用它');
+  const evNoteMap = { '观象':'yiji_ling', '观瑞':'yiji_ling', '谒见':'yiji_zhu', '灌木':'yiji_miao' };
+  ['观象','观瑞','谒见','灌木'].forEach(k => assert(
+    ySrc111.includes(`'${k}':'${evNoteMap[k]}'`) || ySrc111.includes(`'${k}': '${evNoteMap[k]}'`),
+    '四类异迹都有对应的见闻（' + k + '）'));
+  assert(readText('style.css').includes('.nd-ev-note.got{'), '已遇过的提示有区分样式');
+
   const guanSite = sites.find(s => s.kind === '观瑞' || s.kind === '观象');
   if (guanSite){
     assert(ling.when({ nodeId: guanSite.nodeId }) === true, '观瑞 / 观象地触发「此地有灵」');

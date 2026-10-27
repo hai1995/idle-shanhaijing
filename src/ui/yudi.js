@@ -324,6 +324,7 @@ UI.renderYudi = function(){
         ${combatButtonsForNode(sel)}
         ${un && !here && !nodeHasUsableAction(sel) ? `<button class="btn" onclick="travelTo('${sel.id}')">涉足此山</button>` : ''}
       </div>
+      ${nodeEventNote(sel)}
       <div class="nd-body">
         ${sel.terrain?`<p class="nd-terrain">${esc(sel.terrain)}</p>`:''}
         ${specialNodeNote(sel)||''}
@@ -572,6 +573,21 @@ function growButtonForNode(node){
 }
 // 特殊节点的「地气」：原文设定之外，把它实际影响什么写清楚。
 // 尽沙 / 百仞 / 干河三处原先只有一句原文，玩家不知道走进去会怎样。
+// 此山可遇的见闻（v1.31.114）：站在观象 / 祠 / 灌木之地时，把「在这里接着做事还能撞见什么」
+// 写在行动按钮下面。索引那一头已经能在上帝视角看全，这里补的是**脚下这一座山**的视角——
+// 「我人都到这儿了，还能得点什么」是玩家此刻最想知道的。
+function nodeEventNote(node){
+  const kind = (typeof heteroKindAt === 'function') ? heteroKindAt(node && node.id) : '';
+  if (!kind) return '';
+  const map = { '观象':'yiji_ling', '观瑞':'yiji_ling', '谒见':'yiji_zhu', '灌木':'yiji_miao' };
+  const id = map[kind];
+  if (!id || typeof evNameOf !== 'function') return '';
+  const n = (Game.events && Game.events.seen) ? (Game.events.seen[id] || 0) : 0;
+  return `<div class="nd-ev-note${n ? ' got' : ''}" title="见闻：${esc(evNameOf(id))}">
+    <i>✦</i> 在此处做事${n ? '，已遇见过闻「' : '，有机会遇见闻「'}${esc(evNameOf(id))}${n ? `」（${n} 次）` : '」'}
+  </div>`;
+}
+
 function specialNodeNote(node){
   const sp = SPECIAL_NODES[node.id];
   if (!sp) return '';
