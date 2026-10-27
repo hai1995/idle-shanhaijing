@@ -290,25 +290,29 @@ html.theme-anim, html.theme-anim *{
   #topbar #seasonTag{ margin-left:0; padding-left:0; border-left:0; font-size:10px; letter-spacing:.1em; }
 }
 
-/* 三项状态盘：标签在上、数值在下，不再是「标签 值」串成一排 */
+/* 三项状态盘：简洁化后收成一排小胶囊（v1.31.148）——
+   参考简洁化手游顶栏：标签与数值合为一枚圆角小牌，靠半透底与一道极细描边浮起；
+   原先「竖排标签 + 左边框分隔」在书脊上显得零碎，暗底上那几道竖线尤其刺眼。 */
 #topbar .stat{
-  display:grid; grid-template-columns:auto; gap:0; min-width:0;
-  padding-left:16px; border-left:1px solid rgba(232,228,216,.14);
+  display:flex; flex-direction:column; align-items:flex-start; min-width:0;
+  padding:4px 11px 5px; border-radius:10px;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.07);
 }
 #topbar .stat .lb{
-  display:block; font-size:9.5px; letter-spacing:.18em; line-height:1.4;
-  color:rgba(232,228,216,.46); white-space:nowrap;
+  display:block; font-size:9.5px; letter-spacing:.14em; line-height:1.4;
+  color:rgba(232,228,216,.5); white-space:nowrap;
 }
 #topbar .stat b{
-  display:block; font-family:var(--f-num); font-size:15px; font-weight:700;
+  display:block; font-family:var(--f-num); font-size:14px; font-weight:700;
   line-height:1.25; color:#F2EDDF; letter-spacing:.02em; white-space:nowrap;
 }
 #topbar .stat[data-s="录"] b{ color:#E9C98A; }
 #topbar .stat[data-s="🐚"] b{ color:#E4C27E; }
 
-/* 已录进度：一条 2px 的朱线，压在「已录」数值下方 */
+/* 已录进度：胶囊底部一道 2px 细线 */
 #topbar .stat .meter{
-  display:block; width:64px; height:2px; margin-top:4px;
+  display:block; width:60px; height:2px; margin-top:3px; border-radius:1px;
   background:rgba(232,228,216,.16); overflow:hidden;
 }
 #topbar .stat .meter > i{ display:block; height:100%; width:0; background:var(--zhu); transition:width .4s ease-out; }
@@ -2464,7 +2468,7 @@ body.no-scroll{ overflow:hidden; }
 @media (max-width:1180px){
   #tabs{ flex-basis:150px; width:150px; }
   #topbar .left{ gap:14px; }
-  #topbar .stat{ padding-left:12px; }
+  #topbar .stat{ padding:4px 10px 5px; }   /* 胶囊化后无左边框，留白改四周均匀 */
 }
 @media (max-width:1080px){
   .map-wrap{ grid-template-columns:172px 200px minmax(0,1fr); }
