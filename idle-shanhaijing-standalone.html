@@ -890,9 +890,13 @@ html.theme-anim, html.theme-anim *{
 /* 设置项的说明文字单独一行：塞进 label 的 <span> 里会把 flex 项撑成 max-content，
    窄屏直接横向溢出（实测 320px 时溢出 338px，整页能左右拖）。 */
 .set-hint{ margin:-6px 0 10px; overflow-wrap:anywhere; }
-/* 数据模拟：一排小按钮，窄屏自动换行（放一行必然横溢出） */
-.sim-row{ display:flex; flex-wrap:wrap; gap:6px; margin:8px 0 12px; }
-.sim-row .btn{ flex:0 0 auto; }
+/* 数据模拟：等宽网格而不是 flex 换行——换行会让每行最后剩半个空位（
+   320px 上尤其明显，「材料各 +50」曾独占一行）。网格宽窄一致，扫一眼就知道有几个。 */
+.sim-row{
+  display:grid; gap:6px; margin:8px 0 12px;
+  grid-template-columns:repeat(3, minmax(0, 1fr));
+}
+.sim-row .btn{ width:100%; padding:7px 2px; font-size:11.5px; line-height:1.25; }
 
 /* 新版本提示：贴在底部中间，不遮操作区；点整条刷新，点 × 只是本次收起 */
 .update-bar{
@@ -19765,7 +19769,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.70',
+  version: '1.31.71',
   codename:'昼巡 · 近况',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -28861,12 +28865,17 @@ UI.renderSettings = function(){
           <h4>数据模拟</h4>
           <p class="hint">测试用：点一下直接改当前存档并落盘。正式游玩不必理会。</p>
           <div class="sim-row">
-            <button class="btn" type="button" onclick="devSim('lv+10')">技艺 +10</button>
+            <button class="btn on" type="button" onclick="devSim('all')">一键全开</button>
             <button class="btn" type="button" onclick="devSim('lv81')">技艺全 81</button>
             <button class="btn" type="button" onclick="devSim('shell')">贝币 +10 万</button>
             <button class="btn" type="button" onclick="devSim('mat')">材料各 +50</button>
-            <button class="btn" type="button" onclick="devSim('away1h')">模拟离山 1 小时</button>
-            <button class="btn" type="button" onclick="devSim('clear')">停掉行动与战斗</button>
+            <button class="btn" type="button" onclick="devSim('codex')">著录全开</button>
+            <button class="btn" type="button" onclick="devSim('map')">走遍全图</button>
+            <button class="btn" type="button" onclick="devSim('gear')">装备最优</button>
+            <button class="btn" type="button" onclick="devSim('deploy')">御使择优</button>
+            <button class="btn" type="button" onclick="devSim('lv+10')">技艺 +10</button>
+            <button class="btn" type="button" onclick="devSim('away1h')">离山 1 小时</button>
+            <button class="btn" type="button" onclick="devSim('clear')">停掉行动</button>
           </div>
           <div class="form-row"><span>重置本档</span>
             <button class="btn" type="button" onclick="devSim('wipe')">清空并重开</button>
@@ -28876,6 +28885,59 @@ UI.renderSettings = function(){
     </div>
   </div>`;
 };
+
+// ---------- 数据模拟的四个动作（拆出来是因为「一键全开」要复用） ----------
+function simMaterials(){
+  let n = 0;
+  for (const id in Items){
+    const it = Items[id];
+    if (!it || it.equip) continue;            // 装备走「按件」那套，不在这里灌
+    Game.inventory[id] = (Game.inventory[id] || 0) + 50;
+    n++;
+  }
+  return n;
+}
+function simCodex(){
+  const top = 120;                            // 阈值表最高一档是 100，120 一定满阶
+  const tier = (typeof recordTierOf === 'function') ? recordTierOf(top) : 4;
+  let n = 0;
+  for (const id in Items){ Game.records[id] = { count: top, tier }; n++; }
+  for (const id in Monsters){ Game.records[id] = { count: top, tier }; n++; }
+  return n;
+}
+function simMap(){
+  let n = 0;
+  const world = (typeof WORLD !== 'undefined' && WORLD) ? WORLD : null;
+  if (!world) return 0;
+  for (const r of world.regions){
+    for (const nd of (r.nodes || [])){
+      if (!Game.map[nd.id]) n++;
+      Game.map[nd.id] = true;
+    }
+  }
+  return n;
+}
+// 每个槽位灌一件「当前等级能穿的最高档」，再交给 equipBest 自己挑。
+// 不直接写 Game.gear：那会绕开淬炼与回囊逻辑，测出来的配装页面是假的。
+function simGear(){
+  if (typeof equipSlotOf !== 'function' || typeof giveItem !== 'function') return 0;
+  const best = {};
+  for (const id in Items){
+    const it = Items[id];
+    if (!it || !it.equip) continue;
+    if ((it.lvl || 1) > 81) continue;
+    const slot = equipSlotOf(it);
+    const score = (it.value || 0) * 1000 + (it.lvl || 1);
+    if (!best[slot] || score > best[slot].score) best[slot] = { id, score };
+  }
+  for (const slot in best) giveItem(best[slot].id, 1, false);
+  const changes = (typeof equipBest === 'function') ? equipBest() : [];
+  return (changes || []).length;
+}
+function simGearFilled(){
+  const g = (typeof Game !== 'undefined' && Game.gear) ? Game.gear : {};
+  return Object.keys(g).filter(k => g[k]).length;
+}
 
 // 数据模拟：给「测试各项功能是否正常」用的一排按钮。
 // 原则：只改存档字段，不绕过任何业务流程——点完之后各页面走的是和平时一样的渲染与判定，
@@ -28894,14 +28956,34 @@ function devSim(what){
       Game.shells = (Game.shells || 0) + 100000;
       msg = '贝币 +10 万';
     } else if (what === 'mat'){
-      let n = 0;
-      for (const id in Items){
-        const it = Items[id];
-        if (!it || it.equip) continue;          // 装备走「按件」那套，不在这里灌
-        Game.inventory[id] = (Game.inventory[id] || 0) + 50;
-        n++;
-      }
-      msg = `材料各 +50（${n} 种）`;
+      msg = `材料各 +50（${simMaterials()} 种）`;
+    } else if (what === 'codex'){
+      // 著录直接写表：走 addRecord 会触发「首次著录的征兆」「阶位提升的日志」，
+      // 一键刷几百条会把日志刷满，也把征兆状态搅乱——测试数据要的是「已有」，不是「刚获得」。
+      const n = simCodex();
+      msg = `著录全开（${n} 项，均已五阶）`;
+    } else if (what === 'map'){
+      const n = simMap();
+      msg = `走遍全图（${n} 处到访）`;
+    } else if (what === 'gear'){
+      const n = simGear();
+      // 三种结果要分开说：换了几件 / 本来就最优 / 根本无装备可换。
+      // 混成一句「没有可装的装备」，在「已经配好」时是误报。
+      const filled = simGearFilled();
+      msg = n ? `已配齐 ${n} 件兵器甲胄`
+            : (filled ? `装备已是当前最优（${filled} 槽）` : '没有可装的装备（先点「技艺全 81」）');
+    } else if (what === 'deploy'){
+      if (typeof autoDeployBest !== 'function'){ UI.toast('🧪 御使未开'); return; }
+      const r = autoDeployBest();
+      msg = r && r.count ? `已择优御使 ${r.kinds} 只（占 ${r.count} 槽）` : '暂无可御使的异兽（先点「著录全开」）';
+    } else if (what === 'all'){
+      simMaterials(); simCodex(); simMap();
+      for (const k in Game.skills) Game.skills[k].level = 81;
+      Game.shells = (Game.shells || 0) + 100000;
+      // 配装与御使放在最后：它们依赖等级与著录
+      const g = simGear();
+      if (typeof autoDeployBest === 'function') autoDeployBest();
+      msg = `全开：技艺 81 / 著录满 / 全图到访 / 贝币 +10 万 / 装备 ${g} 件`;
     } else if (what === 'away1h'){
       const sum = (typeof settleAway === 'function') ? settleAway(3600) : null;
       if (!sum){ UI.toast('🧪 离山不足 30 秒，未结算'); return; }

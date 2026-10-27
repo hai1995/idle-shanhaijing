@@ -8472,9 +8472,46 @@ section('名号与工具');
   assert(ST.Game.skills.qiaocai.level === 81, '技艺可一键到 81（等于解锁全部山川）');
   ST.devSim('mat');
   assert(Object.keys(ST.Game.inventory).length > 100, '材料各 +50 真的灌进去了');
+
+  // 四个「造前置条件」的动作：测图鉴 / 舆地 / 配装 / 御使之前不必练几百小时。
+  ST.devSim('codex');
+  const recIds = Object.keys(ST.Game.records);
+  assert(recIds.length > 900, '著录全开：写了 ' + recIds.length + ' 项');
+  const oneBeast = Object.keys(ST.Monsters)[0];
+  assert(ST.Game.records[oneBeast].tier === ST.TUNING.MASTERY.THRESHOLDS.length - 1,
+    '异兽著录到顶阶（' + ST.Game.records[oneBeast].tier + '），图鉴才会全部揭示');
+
+  ST.devSim('map');
+  const nodeCount = ST.WORLD.regions.reduce((a, r) => a + r.nodes.length, 0);
+  assert(Object.keys(ST.Game.map).length === nodeCount,
+    '走遍全图：' + Object.keys(ST.Game.map).length + '/' + nodeCount + ' 处到访');
+
+  ST.devSim('gear');
+  const filled = Object.keys(ST.Game.gear).filter(k => ST.Game.gear[k]).length;
+  assert(filled >= 5, '装备最优：' + filled + ' 个槽位有东西');
+  for (const k in ST.Game.gear){
+    const g = ST.Game.gear[k];
+    if (!g) continue;
+    assert(ST.Items[g.id] && ST.Items[g.id].equip, '槽里的是一件真装备（' + k + '：' + g.name + '）');
+    break;
+  }
+  // 再点一次不该报「没有可装的装备」——那是误报，此时是「已经最优」
+  const beforeGear = JSON.stringify(Object.keys(ST.Game.gear).map(k => (ST.Game.gear[k]||{}).id || ''));
+  ST.devSim('gear');
+  assert(JSON.stringify(Object.keys(ST.Game.gear).map(k => (ST.Game.gear[k]||{}).id || '')) === beforeGear,
+    '重复点「装备最优」不会来回换装');
+
+  // 一键全开：等级、著录、全图、装备、贝币一次到位
+  G.resetToDefault();
+  const shell0 = ST.Game.shells;
+  ST.devSim('all');
+  assert(ST.Game.skills.qiaocai.level === 81, '一键全开：技艺 81');
+  assert(Object.keys(ST.Game.records).length > 900, '一键全开：著录满');
+  assert(Object.keys(ST.Game.map).length === nodeCount, '一键全开：全图到访');
+  assert(ST.Game.shells === shell0 + 100000, '一键全开：贝币 +10 万');
+  assert(Object.keys(ST.Game.gear).filter(k => ST.Game.gear[k]).length >= 5, '一键全开：装备已配');
+
   // 还原，别污染后面的用例
-  ST.Game.shells = save.shells;
-  for (const k in ST.Game.skills) ST.Game.skills[k].level = save.lv;
   G.resetToDefault();
 
   // ---- 3. 新版本提示 ----
