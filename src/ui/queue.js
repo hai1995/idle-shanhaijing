@@ -15,7 +15,7 @@ UI.renderQueue = function(){
   const fb = Game.fallback;
   let html = `<div class="queue-wrap">
     <div class="panel queue-list">
-      <h3>巡历队列（${Game.queue.length}/${QUEUE_MAX}）${Game.queue.length?` · 预计一轮 ≈ ${fmtTime(estimateQueueSeconds())}`:''}</h3>
+      <h3>巡历队列（${Game.queue.length}/${QUEUE_MAX}）${Game.queue.length?`<span class="h3-more"> · 预计一轮 ≈ ${fmtTime(estimateQueueSeconds())}</span>`:''}</h3>
       ${Game.queue.map((e,i)=>{
         const st = entryCanRun(e);
         // 条目前的小像：讨伐取目标异兽像，采集 / 制作取该行动的技艺像，一眼认得出在做什么

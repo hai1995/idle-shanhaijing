@@ -720,14 +720,15 @@ html.theme-anim, html.theme-anim *{
   .sc-hud{ bottom:12px; }
 }
 
-/* 窄屏：压到 74px。手机上一屏要装书脊 + 仪表带 + 现场 + 页签 + 内容，
-   再高就奢侈了，但再压就看不清人了。 */
+/* 窄屏：86px。手机上一屏要装书脊 + 仪表带 + 现场 + 页签 + 内容，
+   原先 74px 时人只剩一个剪影，几乎看不出在做哪件活——
+   74 → 86 只多一指节，动画的挥锄 / 落点才看得清（v1.31.162）。 */
 @media (max-width:560px){
-  .sc-wrap{ height:74px; }
-  .sc-hills{ height:42px; }
-  .sc-stage{ transform:scale(.9); transform-origin:left bottom; bottom:18px; }
+  .sc-wrap{ height:86px; }
+  .sc-hills{ height:46px; }
+  .sc-stage{ transform:scale(.95); transform-origin:left bottom; bottom:20px; }
   .sc-drops{ bottom:4px; }
-  .sc-hud{ right:10px; bottom:9px; }
+  .sc-hud{ right:10px; bottom:11px; }
   .sc-hud b .sc-n{ font-size:17px; }
 }
 
@@ -896,7 +897,13 @@ html.theme-anim, html.theme-anim *{
   font-family:var(--f-kai); font-size:16px; font-weight:700; color:var(--qing-d);
   letter-spacing:.1em; margin-bottom:12px; line-height:1.4;
   display:flex; align-items:center; gap:8px;
+  /* 窄屏放不下时整段折到下一行，而不是把末字挤成孤字（「≈ 8 秒」的「秒」） */
+  flex-wrap:wrap; row-gap:2px;
 }
+/* 标题行里的附注段（如「 · 预计一轮 ≈ 8 秒」）：不许在数字中间断开 */
+.panel h3 .h3-more{ white-space:nowrap; flex:0 1 auto; }
+/* 标题下的说明行：此前塞在 h3 里，窄面板上会和标题挤成一团（「近况」卡） */
+.panel .h3-hint{ margin:-5px 0 10px; font-size:12px; color:var(--ink-3); line-height:1.6; }
 /* 田地标题：窄屏下「圃艺 · 田地 / Lv 8 · 815/1763 / 一键种植」三段并排，
    任一段被压就会竖排成一列字——所以标题与数字都 nowrap，按钮靠右且不缩。 */
 .farm-panel h3{ flex-wrap:wrap; row-gap:4px; }
@@ -2314,8 +2321,9 @@ details.bulk-sell .bs-preview, details.bulk-sell .bs-act{ margin-left:11px; marg
 .save-panel .stat-rows > span{ border-bottom:none; padding:0; }
 .save-panel .stat-rows .btn{ width:100%; justify-content:center; }
 
-.log-list{ max-height:300px; overflow-y:auto; font-size:11.5px; padding-right:4px; }
-.log-row{ padding:4px 0; border-bottom:1px dotted var(--rule-2); line-height:1.6; }
+.log-list{ max-height:300px; overflow-y:auto; font-size:12px; padding-right:4px; }
+/* 日志行与异迹面板（.omen-log-line）同形：solid 细分隔线 + 5px 上下距 + 1.6 行距 */
+.log-row{ padding:5px 0; border-bottom:1px solid var(--rule-2); line-height:1.6; }
 
 /* ==========================================================================
    弹窗
