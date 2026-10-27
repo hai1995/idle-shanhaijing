@@ -296,9 +296,7 @@ function maybeAwayEvent(seconds, summary){
   const p = Math.min(0.55, (sec / 3600) * 0.35);
   if (typeof chance !== 'function' || !chance(p)) return null;
 
-  const total = AWAY_EVENTS.reduce((a, e) => a + e.weight, 0);
-  let r = Math.random() * total, pick = AWAY_EVENTS[AWAY_EVENTS.length - 1];
-  for (const e of AWAY_EVENTS){ r -= e.weight; if (r <= 0){ pick = e; break; } }
+  const pick = pickByWeight(AWAY_EVENTS, st.seen || {});
 
   let out = {};
   try { out = pick.run(sec, summary || {}) || {}; }
@@ -314,6 +312,28 @@ function maybeAwayEvent(seconds, summary){
   st.lastAt = now || 1;
   if (out.log && typeof log === 'function') log(out.log, 'gold', 'event');
   return { id: pick.id, name: pick.name, text: out.text || '', rare: !!pick.rare };
+}
+
+// 抽取：先分「见过 / 没见过」两层，再在层内按原权重轮盘（v1.31.98）。
+// 缘由：18 条见闻 + 90 秒冷却，挂一小时能撞三十多次，于是同一条反复出现——
+// 玩家记住的会是「又是残简」，而不是「这本书里有多少种事」。
+//
+// 为什么不是「按已见次数给权重打折」：试过。折扣一开，没见过的每一分都相对变重，
+// 而珍稀（weight=1）若不打折，就会在别人都降到 0.23 时以 1 独占五成（实测 159/300）——
+// 「珍稀」变成「最常见」。分层不碰权重，只调「从哪一层抽」，两件事互不干扰。
+//
+// 65% 走「没见过」那层：留 35% 给旧句子，否则见全之后就只剩稀有两条在转。
+// 某一层为空时自然落到另一层。
+const UNSEEN_SHARE = 0.65;
+
+function pickByWeight(pool, seen){
+  if (!pool.length) return null;
+  const fresh = pool.filter(e => !(seen && seen[e.id]));
+  const from = (fresh.length && Math.random() < UNSEEN_SHARE) ? fresh : pool;
+  const total = from.reduce((a, e) => a + e.weight, 0);
+  let r = Math.random() * total, pick = from[from.length - 1];
+  for (const e of from){ r -= e.weight; if (r <= 0){ pick = e; break; } }
+  return pick;
 }
 
 function eventsState(){
@@ -338,9 +358,8 @@ function maybeEvent(ctx, force){
   }
   const pool = TRAVEL_EVENTS.filter(e => !e.when || e.when(ctx || {}));
   if (!pool.length) return null;
-  const total = pool.reduce((a, e) => a + e.weight, 0);
-  let r = Math.random() * total, pick = pool[pool.length - 1];
-  for (const e of pool){ r -= e.weight; if (r <= 0){ pick = e; break; } }
+  // 见过的越多权重越低：让「没见过的」更容易出现（见 eventWeight 注释）
+  const pick = pickByWeight(pool, st.seen || {});
 
   let out = {};
   try { out = pick.run(ctx || {}) || {}; }
@@ -421,6 +440,7 @@ if (typeof window !== 'undefined'){
   window.TRAVEL_EVENTS = TRAVEL_EVENTS;
   window.AWAY_EVENTS = AWAY_EVENTS;
   window.maybeAwayEvent = maybeAwayEvent;
+  window.pickByWeight = pickByWeight;
   window.EVENT_VIS = EVENT_VIS;
   window.EV_WASH_MS = EV_WASH_MS;
   window.maybeEvent = maybeEvent;

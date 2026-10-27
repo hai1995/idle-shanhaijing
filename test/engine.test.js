@@ -9483,6 +9483,51 @@ section('长列表分页');
   G.resetToDefault();
 }
 
+// ============ 177. 见闻抽取分层（没见过的高优先，2026-10-27） ============
+// 18 条见闻 + 90 秒冷却 = 挂一小时撞三十多次，于是同一条反复出现。
+// 玩家记住的会是「又是残简」，而不是「这本书里有多少种事」。
+//
+// 第一版写成「按已见次数给权重打折」，跑 300 次实测发现：
+// 珍稀（weight=1）不参与打折，于是别人都降到 0.23 时它以 1 独占 53%（159/300）——
+// 「珍稀」成了「最常见」。所以改成**分层抽取**：不碰权重，只调「从哪一层抽」。
+section('见闻抽取分层');
+{
+  assert(typeof ST.pickByWeight === 'function', '有 pickByWeight');
+
+  const pool = [
+    { id: 'a', weight: 3 }, { id: 'b', weight: 3 }, { id: 'c', weight: 1, rare: true },
+  ];
+  // 用可控序列验证分层：random 的第一枪决定「走不走新层」，第二枪决定层内落点
+  const seqOf = (v1, v2) => { let n = 0; return () => (n++ === 0 ? v1 : v2); };
+  const pickWith = (v1, v2, seen) => {
+    const old = Math.random;
+    Math.random = seqOf(v1, v2);
+    const r = ST.pickByWeight(pool, seen);
+    Math.random = old;
+    return r && r.id;
+  };
+
+  // v1=0.2 (<0.65) → 走「没见过」层；此时 c 从未见过，权重 1/7 的位置在末尾
+  const freshOnly = pickWith(0.2, 0.99, {});
+  assert(freshOnly === 'c', '全新档 65% 走新层，落点 0.99 命中最后一条（' + freshOnly + '）');
+  // v1=0.9 (≥0.65) → 走全池；此时已见 a、b，只有 c 是新的，但全池里 c 仍是 weight 1
+  const allPool = pickWith(0.9, 0.99, { a: 20, b: 20 });
+  assert(allPool === 'c', '走全池时落点 0.99 仍命中 c（' + allPool + '）');
+  // v1=0.9 且落点靠前 → 命中已见的 a（说明旧句子仍有 35% 的机会）
+  const oldHit = pickWith(0.9, 0.01, { a: 20, b: 20 });
+  assert(oldHit === 'a', '走全池时落点靠前命中的是已见的 a（' + oldHit + '）');
+  // v1=0.2 但新层只剩一条时，落点一定在那一条
+  const onlyNew = pickWith(0.2, 0.5, { a: 99, b: 99 });
+  assert(onlyNew === 'c', '只剩一条没见过的，必中它（' + onlyNew + '）');
+
+  // ② 两处选择都走同一个函数
+  const evSrc = readText('src/events.js');
+  assert((evSrc.match(/pickByWeight\(/g) || []).length >= 3, '路上与离线两处都走 pickByWeight');
+  assert(/UNSEEN_SHARE = 0\.65/.test(evSrc), '新层占比是显式常量（不是散落的魔数）');
+
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
