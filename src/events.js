@@ -396,6 +396,21 @@ function flashEvent(id){
 // 见闻累计（统计页/自检用）
 function eventCount(){ return (eventsState().count || 0); }
 
+// 见过几种 / 一共几种：成就「见闻初录」「山海谈丛」的判据。
+// 两张表合起来算——玩家心里没有「路上」与「不在时」的分别，只有「还差几条」。
+function eventKindsTotal(){
+  return ((typeof TRAVEL_EVENTS !== 'undefined' ? TRAVEL_EVENTS.length : 0) +
+          (typeof AWAY_EVENTS !== 'undefined' ? AWAY_EVENTS.length : 0));
+}
+function eventKindsSeen(){
+  const seen = (Game && Game.events && Game.events.seen) || {};
+  const all = (typeof TRAVEL_EVENTS !== 'undefined' ? TRAVEL_EVENTS : [])
+    .concat(typeof AWAY_EVENTS !== 'undefined' ? AWAY_EVENTS : []);
+  let n = 0;
+  all.forEach(e => { if (seen[e.id]) n++; });
+  return n;
+}
+
 if (typeof window !== 'undefined'){
   window.TRAVEL_EVENTS = TRAVEL_EVENTS;
   window.AWAY_EVENTS = AWAY_EVENTS;
@@ -405,5 +420,7 @@ if (typeof window !== 'undefined'){
   window.maybeEvent = maybeEvent;
   window.flashEvent = flashEvent;
   window.eventCount = eventCount;
+  window.eventKindsSeen = eventKindsSeen;
+  window.eventKindsTotal = eventKindsTotal;
   window.eventsState = eventsState;
 }

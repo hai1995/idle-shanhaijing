@@ -36,7 +36,9 @@ const ctx = {
 ctx.window.UI = UIstub;
 vm.createContext(ctx);
 for (const f of ['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','zhongshanData.js',
-  'gameData.js','affix.js','engine.js','game.js','queue.js','interact.js','fx.js']){
+  'gameData.js','affix.js','engine.js','game.js','queue.js','interact.js','events.js','fx.js']){
+  // events.js 要在这里：成就判据（eventKindsSeen）住在见闻表里。
+  // 漏掉它不会报「文件缺失」，只会让两条成就的 prog 抛错——审计靠 try/catch 才抓到。
   vm.runInContext(fs.readFileSync(path.join(root, 'src', f), 'utf8'), ctx, { filename: f });
 }
 const W = ctx.window, I = W.Items;

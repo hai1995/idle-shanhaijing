@@ -9294,6 +9294,91 @@ section('拆分：弹窗与单一定义');
   });
 }
 
+// ============ 173. 见闻成就（2026-10-27） ============
+// 见闻原本只有「统计页一张表」，没有目标感。这一节锁两条成就的口径：
+// 按「见过几种」算，不按「触发几次」——重复同一条不产生新信息。
+section('见闻成就');
+{
+  ST.__eventsMuted = false;
+  G.resetToDefault();
+
+  assert(typeof ST.eventKindsTotal === 'function' && typeof ST.eventKindsSeen === 'function',
+    '有「见过几种 / 共几种」两个判据');
+  const total = ST.eventKindsTotal();
+  assert(total === ST.TRAVEL_EVENTS.length + ST.AWAY_EVENTS.length,
+    '总数为两张表之和（' + total + '）');
+
+  ST.Game.events.seen = {};
+  assert(ST.eventKindsSeen() === 0, '未见时为 0');
+
+  const first = ST.TRAVEL_EVENTS.slice(0, 4).map(e => e.id);
+  first.forEach(id => { ST.Game.events.seen[id] = 1; });
+  assert(ST.eventKindsSeen() === 4, '见过 4 种即为 4');
+
+  // 重复同一条不加种类数——这是这条成就唯一可能写错的地方
+  ST.Game.events.seen[first[0]] = 99;
+  assert(ST.eventKindsSeen() === 4, '同一条触发 99 次仍算 1 种');
+
+  // 两张表都计入
+  ST.Game.events.seen[ST.AWAY_EVENTS[0].id] = 1;
+  assert(ST.eventKindsSeen() === 5, '离线见闻也计入（5 种）');
+
+  const ms5 = (ST.Milestones || []).find(m => m.id === 'event_5');
+  const msAll = (ST.Milestones || []).find(m => m.id === 'event_all');
+  assert(ms5 && msAll, '两条见闻成就都在表里');
+  assert(ms5.check() === true, '见过 5 种时「见闻初录」达成');
+  assert(msAll.check() === false, '未集齐时「山海谈丛」未达成');
+
+  // 集齐
+  ST.TRAVEL_EVENTS.concat(ST.AWAY_EVENTS).forEach(e => { ST.Game.events.seen[e.id] = 1; });
+  assert(msAll.check() === true, '集齐后「山海谈丛」达成');
+
+  // 成就的加成字段要在白名单里（xpMult 只认 xp / gather / yield / dmg / offlineCap / offlineEff）
+  assert(typeof ms5.xp === 'number' && typeof msAll.yield === 'number', '加成字段是引擎认得的名字');
+  assert(typeof ms5.how === 'string' && ms5.how.length > 10, '有「怎么达成」的说明（面板要显示）');
+  assert(ms5.go && ms5.go.tab, '有跳转目标');
+
+  G.resetToDefault();
+  ST.__eventsMuted = true;
+}
+
+// ============ 174. 加载清单守卫：三处清单不许漏文件（2026-10-27） ============
+// 加两条见闻成就时踩到的：`audit-data.js` 自带一份硬编码的加载清单，没有 events.js，
+// 于是 `eventKindsSeen` 未定义、两条成就的 prog 直接抛错。
+// 这里不要求三处共用一份清单（各有用途），只要求**覆盖**一致。
+section('加载清单守卫');
+{
+  const idx = readText('index.html');
+  // index.html 里的非 ui 脚本（ui 那批由 UI_FILES 管）
+  const nonUi = [];
+  const re = /<script src="src\/([^"?]+)/g;
+  let m;
+  while ((m = re.exec(idx))){ if (m[1].indexOf('ui/') !== 0) nonUi.push(m[1]); }
+  assert(nonUi.length > 10, 'index.html 里的引擎脚本共 ' + nonUi.length + ' 个');
+
+  // 审计脚本只加载「算数据用得上的」一撮（图标族、存档不需要），所以判据是**子集**：
+  // 不许出现 index.html 里已经没有的文件名（那种漏是删文件后忘改清单）。
+  // 「漏了必需模块」由审计自己兜——prog 抛错会被它记成「发现 N 处问题」（本次就是这么抓到的）。
+  const audit = readText('scripts/audit-data.js');
+  const listBlock = (audit.match(/for \(const f of \[([\s\S]*?)\]\)/) || ['',''])[1];
+  const auditFiles = (listBlock.match(/'([^']+\.js)'/g) || []).map(x => x.replace(/'/g, ''));
+  assert(auditFiles.length > 5, '读得到审计的加载清单（' + auditFiles.length + ' 个）');
+  const ghosts = auditFiles.filter(f => nonUi.indexOf(f) < 0);
+  assert(ghosts.length === 0, '审计清单里没有 index.html 之外的文件（多余：' + (ghosts.join(',') || '无') + '）');
+  assert(auditFiles.indexOf('events.js') >= 0, '审计清单含 events.js（成就判据住在那里）');
+
+  // 测试自己的加载清单也要覆盖（否则「测试里能跑、页面里不跑」）
+  const testSrc = readText('test/engine.test.js');
+  const loadLine = (testSrc.match(/\[([^\]]*Data\.js[^\]]*)\]\.forEach\(loadJS\)/) || ['',''])[1];
+  assert(loadLine.length > 0, '找得到测试的加载清单');
+  const missTest = nonUi.filter(f => loadLine.indexOf("'" + f + "'") < 0 && f.indexOf('gameData') !== 0 ? loadLine.indexOf("'" + f + "'") < 0 : false);
+  assert(missTest.length === 0, '测试加载清单覆盖全部引擎脚本（缺：' + (missTest.join(',') || '无') + '）');
+
+  // 构建脚本只从 index.html 读，不许自带清单
+  const build = readText('scripts/build-standalone.js');
+  assert(/index\.html/.test(build), '单文件构建从 index.html 取清单');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

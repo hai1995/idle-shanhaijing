@@ -2444,6 +2444,14 @@ const Milestones = [
   { id:'pilgrim_5', name:'五系巡礼', desc:'走遍五个山系的诸山',
     prog:()=>[pilgrimFullCount(), 5], bonus:'采获 +3%', yield:0.03,
     how:'山系进度在舆地页每个山系方块上，诸山皆涉即满。满额那系右上角会亮一枚「赏」。', go:{ tab:'yudi' } },
+  // ---- 见闻（v1.31.92）：把「偶尔撞见的一句话」变成一个可见的收集目标 ----
+  // 判据取「见过几种」而非「触发多少次」：见闻的价值在种类，重复同一条没有新信息。
+  { id:'event_5', name:'见闻初录', desc:'行旅见闻见过 5 种',
+    prog:()=>[eventKindsSeen(), 5], bonus:'经验 +1%', xp:0.01,
+    how:'采集、讨伐、制作时偶有见闻；离山归来也可能有一条「不在时」。挂机就会遇到，不必刻意刷。', go:{ tab:'stats' } },
+  { id:'event_all', name:'山海谈丛', desc:'行旅见闻见全（路上与不在时）',
+    prog:()=>[eventKindsSeen(), eventKindsTotal()], bonus:'采获 +2%', yield:0.02,
+    how:'统计页「行旅见闻」按两组列出未见的那几条。珍稀的两条概率低，急不得——这本书本来就是慢慢翻的。', go:{ tab:'stats' } },
   { id:'pilgrim_13', name:'半壁山河', desc:'走遍十三个山系的诸山',
     prog:()=>[pilgrimFullCount(), 13], bonus:'采集速度 +5%', gather:0.05,
     how:'全书二十六系，走完一半。北山三系与东山四系各有一条长线，正好凑够十三。', go:{ tab:'yudi' } },
@@ -2677,7 +2685,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.91',
+  version: '1.31.92',
   codename:'昼巡 · 近况',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
