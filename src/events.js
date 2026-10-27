@@ -449,6 +449,12 @@ function maybeEvent(ctx, force){
     UI.toast(lines.join('\n'));
   }
   flashEvent(pick.id);
+  // 首次见到珍稀的那一条，单独再说一句（v1.31.112）：
+  // 珍稀权重 1，见一次可能就是几小时的运气；只混在普通 toast 里过一眼太可惜。
+  // 判据用「本次之前见过几次」——必须在上面 st.seen 自增之后仍能判，所以取 ===1。
+  if (pick.rare && st.seen[pick.id] === 1 && typeof UI !== 'undefined' && UI && UI.toast){
+    setTimeout(() => { try { UI.toast('珍稀见闻 · ' + (pick.name || pick.id) + '\n这一条极难遇上，已记入见闻录'); } catch(e){} }, 900);
+  }
   return { id: pick.id, ...out };
 }
 

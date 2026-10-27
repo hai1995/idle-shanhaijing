@@ -9709,6 +9709,20 @@ section('异迹专属见闻');
     assert(ST.evNameOf('不存在') === '不存在', '查不到时回落 id（不抛）');
   }
 
+  // ⑤⁗ 珍稀首见单独再提示一次（v1.31.112）：只在「见过的次数 === 1」那一刻触发
+  const evSrc112 = readText('src/events.js');
+  assert(/pick\.rare && st\.seen\[pick\.id\] === 1/.test(evSrc112), '珍稀首见判据是「本次之前为 0」');
+  assert(evSrc112.includes('珍稀见闻 · '), '珍稀首见有单独的提示文案');
+  // 第二次撞见同一条珍稀不该再提示（判据 1 → 2 即失效）
+  const rareEv = ST.TRAVEL_EVENTS.find(e => e.rare);
+  assert(rareEv, '表里至少有一条珍稀见闻');
+  ST.Game.events.seen = {};
+  ST.__eventsMuted = false; ST.Game.events.at = 0;
+  const firstSeen = (() => { let n = 0; const st = ST.Game.events;
+    const before = st.seen[rareEv.id] || 0;
+    st.seen[rareEv.id] = before + 1; if (st.seen[rareEv.id] === 1) n++; return n; })();
+  assert(firstSeen === 1, '首见计数从 0 走到 1（判据命中）');
+
   // ⑤ 总数计数自动跟上（成就判据不写死数字，加条目不用改成就）
   assert(ST.eventKindsTotal() === ST.TRAVEL_EVENTS.length + ST.AWAY_EVENTS.length,
     '总数 = 两张表长度之和（现 ' + ST.eventKindsTotal() + '）');
