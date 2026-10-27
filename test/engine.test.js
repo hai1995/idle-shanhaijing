@@ -9077,6 +9077,59 @@ section('见闻铺开');
   ST.__eventsMuted = true;
 }
 
+// ============ 169. 见闻的现场反馈（2026-10-27） ============
+// 上一版的反馈是「屏幕中上方炸一簇 ✦」——不管玩家在山里还是在市廛，
+// 都在同一位置炸同一簇。这一节锁三件事：意象要落在现场、要覆盖全表、减动效要闭嘴。
+section('见闻的现场反馈');
+{
+  ST.__eventsMuted = false;
+  const evSrc = readText('src/events.js');
+  const cssSrc = readText('style.css');
+  const vis = ST.EVENT_VIS || {};
+  const ids = ST.TRAVEL_EVENTS.map(e => e.id);
+
+  // ① 一条不漏：新增见闻忘了配意象，现场就退回一个 ✦
+  const missing = ids.filter(id => !vis[id] || !vis[id].glyph);
+  assert(missing.length === 0, '每条见闻都配了 glyph（缺：' + (missing.join(',') || '无') + '）');
+  const orphan = Object.keys(vis).filter(k => ids.indexOf(k) < 0);
+  assert(orphan.length === 0, 'EVENT_VIS 没有指向已删除见闻的孤儿项（' + (orphan.join(',') || '无') + '）');
+
+  // ② wash 只有三种：多了就不是「一层薄雾」，是换皮肤
+  const washes = Object.keys(vis).map(k => vis[k].wash).filter(Boolean);
+  assert(washes.every(w => ['rain', 'glow', 'star'].indexOf(w) >= 0), 'wash 只用 rain / glow / star');
+  assert(new Set(washes).size === 3, '三种 wash 都用上了（实测 ' + [...new Set(washes)].join(',') + '）');
+
+  // ③ 锚在现场，不是屏幕中央
+  assert(/querySelector\('\.sc-wrap'\)/.test(evSrc), 'flashEvent 找的是现场容器 .sc-wrap');
+  assert(/FX\.burstAtEl\(wrap/.test(evSrc), '粒子锚在现场元素上');
+  assert(/FX\.floatAtEl\(wrap/.test(evSrc), '意象浮字锚在现场元素上');
+  const fallback = evSrc.slice(evSrc.indexOf('// 兜底'));
+  assert(/innerHeight \* 0\.32/.test(fallback), '没有现场时才退回屏幕坐标（兜底分支里才用 innerHeight）');
+
+  // ④ 减动效 / 关了特效：一点都不画
+  assert(/sceneReduceMotion\(\)\) return;/.test(evSrc), '减动效时 flashEvent 直接返回');
+  assert(/fxLevel === 'off'\) return;/.test(evSrc), 'Effects 关掉时也不画');
+  assert(/sc-ev-rain::after/.test(cssSrc) && /sc-ev-glow::after/.test(cssSrc) && /sc-ev-star::after/.test(cssSrc),
+    'CSS 三种气候层齐备');
+  assert(/prefers-reduced-motion: reduce\)\{\s*\.sc-wrap\.sc-ev-rain/.test(cssSrc.replace(/\n\s*/g, ' ')),
+    '减动效媒体查询里关掉这三种动画');
+
+  // ⑤ 两处时长必须对齐（JS 摘 class 的时刻 = CSS 动画结束的时刻）
+  assert(ST.EV_WASH_MS === 2600, 'EV_WASH_MS 为 2600ms（实测 ' + ST.EV_WASH_MS + '）');
+  ['scEvRain', 'scEvGlow', 'scEvStar'].forEach(k => {
+    assert(new RegExp('animation:' + k + ' 2\\.6s').test(cssSrc), k + ' 的动画时长也是 2.6s');
+    assert(cssSrc.indexOf('@keyframes ' + k) > 0, k + ' 有关键帧定义');
+  });
+
+  // ⑥ 空转不抛：无 DOM 环境下连调 14 次
+  let err = null;
+  try { ids.forEach(id => ST.flashEvent(id)); ST.flashEvent('不存在的 id'); }
+  catch(e){ err = e.message; }
+  assert(!err, '无 DOM 环境下 flashEvent 不抛（' + err + '）');
+
+  ST.__eventsMuted = true;
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

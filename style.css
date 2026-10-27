@@ -501,6 +501,60 @@ html.theme-anim, html.theme-anim *{
   100%{ opacity:0; }
 }
 
+/* 见闻的「气候层」：见闻触发时给现场罩一层薄雾，2.6 秒退去。
+   时长与 src/events.js 的 EV_WASH_MS 对齐，两边改一处就够（测试盯着这一条）。
+   颜色一律 currentColor——.sc-wrap 的 color 本来就是该山系的墨色，
+   日间深、夜间浅，这里不用再分主题。
+   ⚠️ 只做 opacity 与 transform，不碰 filter（iOS 上 filter 动画会整块离屏重绘）。 */
+.sc-wrap::after{
+  content:''; position:absolute; inset:0; pointer-events:none; opacity:0;
+  z-index:1; will-change:opacity;
+}
+.sc-wrap.sc-ev-rain::after{
+  /* 密度与透明度是量出来的，不是估的：6px 间距 + .16 在浅纸上会糊成一片雪花，
+     还把右下角 HUD 的「每 3.6 秒一采」盖住。改成 11px 间距、.1 透明度，
+     再让上半部淡出——雨该从上往下落，不该把天空糊住。 */
+  background:repeating-linear-gradient(76deg, transparent 0 11px, currentColor 11px 11.6px);
+  -webkit-mask-image:linear-gradient(180deg, transparent 0%, #000 46%, #000 100%);
+  mask-image:linear-gradient(180deg, transparent 0%, #000 46%, #000 100%);
+  animation:scEvRain 2.6s linear;
+}
+@keyframes scEvRain{
+  0%  { opacity:0; transform:translateY(-30%); }
+  18% { opacity:.1; }
+  80% { opacity:.085; }
+  100%{ opacity:0; transform:translateY(18%); }
+}
+.sc-wrap.sc-ev-glow::after{
+  background:radial-gradient(circle at 22% 84%, currentColor 0%, transparent 62%);
+  animation:scEvGlow 2.6s ease-out;
+}
+@keyframes scEvGlow{
+  0%  { opacity:0; transform:scale(.6); }
+  22% { opacity:.2; }
+  100%{ opacity:0; transform:scale(1.06); }
+}
+.sc-wrap.sc-ev-star::after{
+  background:
+    radial-gradient(circle at 18% 26%, currentColor 0 1.2px, transparent 1.6px),
+    radial-gradient(circle at 46% 14%, currentColor 0 1px, transparent 1.4px),
+    radial-gradient(circle at 72% 30%, currentColor 0 1.3px, transparent 1.7px),
+    radial-gradient(circle at 88% 18%, currentColor 0 .9px, transparent 1.3px);
+  animation:scEvStar 2.6s ease-in-out;
+}
+@keyframes scEvStar{
+  0%  { opacity:0; }
+  30% { opacity:.55; }
+  55% { opacity:.18; }
+  75% { opacity:.5; }
+  100%{ opacity:0; }
+}
+/* 减动效时不闪：留一层极淡的静态色（不是全无——「发生了点什么」仍要看得见） */
+@media (prefers-reduced-motion: reduce){
+  .sc-wrap.sc-ev-rain::after,
+  .sc-wrap.sc-ev-glow::after,
+  .sc-wrap.sc-ev-star::after{ animation:none; opacity:.1; }
+}
 /* 降级：JS 的 rAF 链被环境掐死时（iOS「添加到主屏幕」最容易遇到），
    把现场交给 CSS 关键帧转。转的是 .sc-stage 这个 div，不是 <g>——
    div 的 transform 任何内核都认，这是最后一道保险。

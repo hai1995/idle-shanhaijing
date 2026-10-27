@@ -202,6 +202,28 @@ const TRAVEL_EVENTS = [
   },
 ];
 
+// 见闻的「可视化」：glyph 浮在现场画面上，wash 给现场罩一层短暂的气候/光线。
+// 单列一张表而不是塞回每条事件里——这是纯表现，和「给什么奖励」正交，
+// 改配色时不该碰奖励逻辑（反之亦然）。
+// wash 只有三种：rain（雨）/ glow（光）/ star（星）。多了就不是「一层薄雾」，是换皮肤。
+const EVENT_VIS = {
+  canjian:  { glyph:'📜', wash:'glow' },
+  yuhou:    { glyph:'🌧️', wash:'rain' },
+  zongji:   { glyph:'🐾', wash:'' },
+  laomu:    { glyph:'🌳', wash:'' },
+  yunqi:    { glyph:'☁️', wash:'star' },
+  cangyu:   { glyph:'🦴', wash:'' },
+  qiaoshou: { glyph:'🪶', wash:'glow' },
+  guyu:     { glyph:'🪙', wash:'glow' },
+  qiaoge:   { glyph:'🪵', wash:'' },
+  shiyu:    { glyph:'💠', wash:'glow' },
+  yuyin:    { glyph:'🐟', wash:'' },
+  lianhuo:  { glyph:'🔥', wash:'glow' },
+  yese:     { glyph:'🌙', wash:'star' },
+  gubei:    { glyph:'🗿', wash:'star' },
+};
+const EV_WASH_MS = 2600;   // 与 CSS 的动画时长对齐（见 style.css 的 .sc-ev-*）
+
 function eventsState(){
   if (!Game.events || typeof Game.events !== 'object') Game.events = { at: 0, count: 0, lastId: '', seen: {} };
   return Game.events;
@@ -243,10 +265,43 @@ function maybeEvent(ctx, force){
 
   if (out.log && typeof log === 'function') log(out.log, 'gold', 'sys');
   if (out.toast && typeof UI !== 'undefined' && UI && UI.toast) UI.toast(out.toast);
-  if (typeof FX !== 'undefined' && FX && FX.burst && typeof window !== 'undefined'){
-    try { FX.burst(window.innerWidth / 2, window.innerHeight / 3, '✦', 8); } catch(e){}
-  }
+  flashEvent(pick.id);
   return { id: pick.id, ...out };
+}
+
+// 见闻的现场反馈：优先落在「现场画面」上（玩家正看的地方），
+// 没有现场（关掉了 / 不在采集页）才退回屏幕中上方的一小簇粒子。
+// 之前一律 `burst(innerWidth/2, innerHeight/3)`：不管在山里还是在市廛，
+// 都从同一个位置炸同一簇 ✦，看了两次就变成噪声。
+function flashEvent(id){
+  const vis = EVENT_VIS[id] || {};
+  const glyph = vis.glyph || '✦';
+  // 减动效 / 关了特效：一点都不画。见闻本身仍会进日志与 toast，信息不丢。
+  if (typeof sceneReduceMotion === 'function' && sceneReduceMotion()) return;
+  if (typeof Prefs !== 'undefined' && Prefs && Prefs.fxLevel === 'off') return;
+  const doc = (typeof document !== 'undefined') ? document : null;
+  const wrap = (doc && doc.querySelector) ? doc.querySelector('.sc-wrap') : null;
+  const live = wrap && wrap.classList && !wrap.classList.contains('hidden')
+    && typeof wrap.getBoundingClientRect === 'function' && wrap.getBoundingClientRect().height > 0;
+
+  if (live){
+    if (typeof FX !== 'undefined' && FX){
+      if (FX.floatAtEl) FX.floatAtEl(wrap, glyph, null, true);
+      if (FX.burstAtEl) FX.burstAtEl(wrap, glyph, 5);
+    }
+    if (vis.wash){
+      const cls = 'sc-ev-' + vis.wash;
+      try {
+        wrap.classList.add(cls);
+        setTimeout(()=>{ try { wrap.classList.remove(cls); } catch(e){} }, EV_WASH_MS);
+      } catch(e){}
+    }
+    return;
+  }
+  // 兜底：没有现场时保持克制，只给一小簇，别在整页中央炸开
+  if (typeof FX !== 'undefined' && FX && FX.burst && typeof window !== 'undefined'){
+    try { FX.burst(window.innerWidth / 2, window.innerHeight * 0.32, glyph, 4); } catch(e){}
+  }
 }
 
 // 见闻累计（统计页/自检用）
@@ -254,7 +309,10 @@ function eventCount(){ return (eventsState().count || 0); }
 
 if (typeof window !== 'undefined'){
   window.TRAVEL_EVENTS = TRAVEL_EVENTS;
+  window.EVENT_VIS = EVENT_VIS;
+  window.EV_WASH_MS = EV_WASH_MS;
   window.maybeEvent = maybeEvent;
+  window.flashEvent = flashEvent;
   window.eventCount = eventCount;
   window.eventsState = eventsState;
 }
