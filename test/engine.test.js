@@ -40,7 +40,7 @@ vm.createContext(context);
 const base = path.join(__dirname, '..', 'src');
 function loadJS(file){ vm.runInContext(fs.readFileSync(path.join(base, file), 'utf8'), context, {filename:file}); }
 // ui.js 已按页拆成 7 个文件（v1.31.8），顺序与 index.html 一致；core 必须最先。
-const UI_FILES = ['ui/core.js','ui/hud.js','ui/settings.js','ui/tutorial.js','ui/scene.js','ui/world.js','ui/combat.js','ui/codex.js','ui/trade.js','ui/pack.js','ui/misc.js'];
+const UI_FILES = ['ui/core.js','ui/hud.js','ui/modal.js','ui/settings.js','ui/tutorial.js','ui/scene.js','ui/world.js','ui/combat.js','ui/codex.js','ui/trade.js','ui/pack.js','ui/misc.js'];
 const uiSrcAll = UI_FILES.map(f => fs.readFileSync(path.join(base, f), 'utf8')).join('\n');
 ['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','zhongshanData.js','gameData.js','affix.js','save.js','engine.js','game.js','queue.js','interact.js','events.js','fx.js','beastIcon.js','riteIcon.js','structureIcon.js','skillIcon.js','itemIcon.js','markIcon.js'].forEach(loadJS);
 const G = context;
@@ -9249,6 +9249,49 @@ section('技能浮层延迟生成');
   assert(/\.skill-tile\{ content-visibility:auto/.test(readText('style.css')), '技能卡加 content-visibility');
 
   G.resetToDefault();
+}
+
+// ============ 172. 拆分第四步：弹窗搬家 / UI 方法不许有第二份 ============
+// 搬家最典型的失败不是「搬错」，是「搬了但没删」——两份定义，后加载的赢，
+// 于是改了 A 文件却不生效，而且谁都不会报错。这一节给全项目上一条通用守卫。
+section('拆分：弹窗与单一定义');
+{
+  const mSrc = readText('src/ui/modal.js');
+  const cSrc = readText('src/ui/core.js');
+
+  // ① 搬过去的六个方法都在新文件里，且不再在 core.js 里
+  ['modal', '_splitModal', 'closeModal', 'showOfflineSummary', 'maybeShowDeployHint', 'showDeployHint']
+    .forEach(fn => {
+      assert(new RegExp('UI\\.' + fn + '\\s*=\\s*function').test(mSrc), fn + ' 定义在 modal.js');
+      assert(!new RegExp('\\n  ' + fn + '\\(').test(cSrc), fn + ' 已从 core.js 移除（不留第二份）');
+    });
+  assert(!/UI\.modal\s*=\s*function/.test(cSrc), 'core.js 里没有 UI.modal 的第二份定义');
+
+  // ② 全项目扫描：同一个 UI.xxx 不许在两个文件里都有 `UI.xxx =` 赋值
+  const fs2 = require('fs');
+  const files = UI_FILES;
+  const owner = {};
+  const dup = [];
+  files.forEach(f => {
+    const txt = fs2.readFileSync(path.join(base, f), 'utf8');
+    const re = /UI\.([A-Za-z_$][\w$]*)\s*=\s*function/g;
+    let m;
+    while ((m = re.exec(txt))){
+      const name = m[1];
+      if (owner[name] && owner[name] !== f) dup.push(name + '（' + owner[name] + ' 与 ' + f + '）');
+      owner[name] = f;
+    }
+  });
+  assert(dup.length === 0, 'UI 方法没有跨文件重复定义（' + (dup.join('；') || '无') + '）');
+
+  // ③ 三段式弹窗的结构约定仍在（标题 / 可滚内容 / 固定按钮）
+  assert(/modal-body/.test(mSrc) && /modal-foot/.test(mSrc), '弹窗仍是三段式（body + foot）');
+  assert(/no-scroll/.test(mSrc), '开窗时锁背景滚动');
+
+  // ④ 离线摘要的关键行都在（搬家最容易漏掉后加的那几行）
+  ['离线归来', '续祭', '烽烟', '不在时', '离线上限'].forEach(k => {
+    assert(mSrc.indexOf(k) >= 0, '离线摘要含「' + k + '」');
+  });
 }
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
