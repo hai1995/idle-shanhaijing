@@ -363,6 +363,14 @@ html.theme-anim, html.theme-anim *{
 #btnStop.act-stop:hover{ background:var(--zhu-w); color:var(--zhu); border-color:var(--zhu); }
 /* 空闲时不显示停止，卡片更轻；忙碌态给一点浮起感 */
 #statusbar:not(.running){ opacity:.9; }
+/* 巡历队列指示：状态条里的「第几项 / 共几项 + 预计剩余」（v1.31.146）。
+   与行动名同行，作为一枚小药丸；现场开启时贴在覆盖层里，保持轻量可读。
+   配色走既有的青 / 高亮面 / 分隔线变量，日间夜间自动适配，不与朱色「此刻」撞色。 */
+#queueChip{
+  flex:0 0 auto; font-family:var(--f-num); font-size:11px; letter-spacing:.02em; line-height:1.6;
+  color:var(--qing-d); background:var(--paper-3); border:1px solid var(--rule-2);
+  border-radius:999px; padding:0 8px; white-space:nowrap;
+}
 /* —— 融入现场：现场开启时，状态条不再单独成带，而是叠在现场顶部、融入动画画面（v1.31.145）。
    仅 .scene-on 时切换为绝对定位覆盖；空闲 / 现场关闭时仍退化为独立带状（兜底显示）。
    覆盖层只在最顶一小条留半透纸色保证文字可读，下方透出动画，因此不再额外占用纵向高度。 */
@@ -3369,6 +3377,7 @@ details.hetero-panel .hp-left{ margin-left:auto; font-style:normal; color:var(--
     <div id="sceneBar" class="hidden">
       <div id="statusbar">
         <span id="activityText" class="act-link">空闲</span>
+        <span id="queueChip" class="hidden"></span>
         <div id="actionProg" class="hidden"><div id="actionProgFill"></div></div>
         <button id="btnStop" class="btn-mini act-stop" type="button" title="停止" onclick="event.stopPropagation()">✕</button>
       </div>
@@ -20020,8 +20029,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.145',
-  codename:'昼巡 · 近况',
+  version: '1.31.146',
+  codename:'昼巡 · 队列',
   updated: '2026-10-27',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
@@ -25446,6 +25455,24 @@ function estimateEntrySeconds(e){
   const ak = def.mode==='recipe' ? 'craft' : (e.kind==='taofa' ? 'taofa' : 'gather');
   return e.qty * (ak==='craft' ? 2 : 1);
 }
+// 队列「当前这一轮」还差多少秒（约估，不含转场）：当前项剩余 + 其后所有项。
+// 循环模式下整队无限，这里只估当前这一轮，给玩家一个可感的「这轮还差多久跑完」；
+// 非循环模式下这正是「全部跑完的剩余」。与 estimateQueueSeconds（整队一轮）口径一致。
+function queueRemainSeconds(){
+  if (!Game.queueRunning) return 0;
+  const list = Game.queue;
+  const n = list.length;
+  if (!n) return 0;
+  const cur = Math.min(Game.queueIdx, n - 1);
+  let s = 0;
+  const e = list[cur];
+  if (e && e.qty > 0){
+    const left = Math.max(0, (e.qty || 0) - (e.done || 0));
+    s += estimateEntrySeconds(e) * (left / e.qty);
+  }
+  for (let i = cur + 1; i < n; i++) s += estimateEntrySeconds(list[i]);
+  return s;
+}
 
 // ---------- 可执行性 ----------
 function entryCanRun(e){
@@ -25572,6 +25599,7 @@ function startQueue(){
   }
   log('▶ 巡历队列启动', 'good');
   saveGame();
+  if (typeof UI !== 'undefined' && UI.patchQueueChip) UI.patchQueueChip();   // 状态条队列指示即时出现
   return true;
 }
 function pauseQueue(reason){
@@ -25580,6 +25608,7 @@ function pauseQueue(reason){
   if (UI && UI.toast) UI.toast(`⏸ 巡历队列已暂停${reason?`（${reason}）`:''}`);
   log('⏸ 巡历队列已暂停', 'gold');
   saveGame();
+  if (typeof UI !== 'undefined' && UI.patchQueueChip) UI.patchQueueChip();   // 状态条队列指示即时收起
   return true;
 }
 function toggleQueue(){
@@ -25879,6 +25908,7 @@ if (typeof window !== 'undefined'){
   window.entryProgressText = entryProgressText;
   window.estimateQueueSeconds = estimateQueueSeconds;
   window.estimateEntrySeconds = estimateEntrySeconds;
+  window.queueRemainSeconds = queueRemainSeconds;
   window.entryCanRun = entryCanRun;
   window.startQueue = startQueue;
   window.pauseQueue = pauseQueue;
@@ -29396,6 +29426,7 @@ const UI = {
     // 仪表带上的活动指示点：忙碌时转朱色，空闲时保持墨灰
     const sb = $('statusbar');
     if (sb) sb.classList.toggle('running', !!(Game.activity || Game.combat));
+    if (this.patchQueueChip) this.patchQueueChip();   // 巡历队列指示：第几项 / 共几项 + 预计剩余
     this.tickProgress();
     if (this.renderScene) this.renderScene();
     refreshTabBadges();
@@ -34571,6 +34602,7 @@ UI.renderQueue = function(){
 // 队列在跑时每秒（以及每次动作完成时）调用，只改文本与 class，
 // 不重建 DOM——保滚动位置、保「添加任务」表单的填写状态。
 UI.patchQueueProgress = function(){
+  this.patchQueueChip && this.patchQueueChip();   // 状态条队列指示：每秒 / 每完成兜底同步，跨页也生效
   if (this.currentTab !== 'queue') return;
   const box = $('content');
   if (!box) return;
@@ -34602,6 +34634,20 @@ UI.patchQueueProgress = function(){
     const t = `已完成 ${Game.queueRound} 轮`;
     if (hint.textContent !== t) hint.textContent = t;
   }
+};
+// 状态条里的巡历队列指示：第几项 / 共几项 + 预计剩余（v1.31.146）。
+// 与现场融为一体的状态条上，玩家挂机巡历时一眼能看见「现在跑到第几个、这轮还差多久」。
+// 放在 patchQueueProgress 顶部随每秒 / 每完成兜底刷新，跨页也生效；tab 限制只管下方队列页补绘。
+UI.patchQueueChip = function(){
+  const el = $('queueChip');
+  if (!el || !el.classList) return;
+  const show = Game.queueRunning && Game.queue.length > 0;
+  if (!show){ el.classList.add('hidden'); return; }   // add 幂等，真实 DOM 与测试桩都安全
+  el.classList.remove('hidden');
+  const pos = `${Game.queueIdx + 1}/${Game.queue.length}`;
+  const rem = (typeof queueRemainSeconds === 'function') ? queueRemainSeconds() : 0;
+  const t = `队列 ${pos}` + (rem >= 1 ? ` · 约 ${fmtTime(rem)}` : '');
+  if (el.textContent !== t) el.textContent = t;
 };
 function addQueueTask(){
   const target = $('queueTarget') ? $('queueTarget').value : (UI.queueTarget || '');

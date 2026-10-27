@@ -383,6 +383,7 @@ const UI = {
     // 仪表带上的活动指示点：忙碌时转朱色，空闲时保持墨灰
     const sb = $('statusbar');
     if (sb) sb.classList.toggle('running', !!(Game.activity || Game.combat));
+    if (this.patchQueueChip) this.patchQueueChip();   // 巡历队列指示：第几项 / 共几项 + 预计剩余
     this.tickProgress();
     if (this.renderScene) this.renderScene();
     refreshTabBadges();

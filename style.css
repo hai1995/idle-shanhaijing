@@ -336,6 +336,14 @@ html.theme-anim, html.theme-anim *{
 #btnStop.act-stop:hover{ background:var(--zhu-w); color:var(--zhu); border-color:var(--zhu); }
 /* 空闲时不显示停止，卡片更轻；忙碌态给一点浮起感 */
 #statusbar:not(.running){ opacity:.9; }
+/* 巡历队列指示：状态条里的「第几项 / 共几项 + 预计剩余」（v1.31.146）。
+   与行动名同行，作为一枚小药丸；现场开启时贴在覆盖层里，保持轻量可读。
+   配色走既有的青 / 高亮面 / 分隔线变量，日间夜间自动适配，不与朱色「此刻」撞色。 */
+#queueChip{
+  flex:0 0 auto; font-family:var(--f-num); font-size:11px; letter-spacing:.02em; line-height:1.6;
+  color:var(--qing-d); background:var(--paper-3); border:1px solid var(--rule-2);
+  border-radius:999px; padding:0 8px; white-space:nowrap;
+}
 /* —— 融入现场：现场开启时，状态条不再单独成带，而是叠在现场顶部、融入动画画面（v1.31.145）。
    仅 .scene-on 时切换为绝对定位覆盖；空闲 / 现场关闭时仍退化为独立带状（兜底显示）。
    覆盖层只在最顶一小条留半透纸色保证文字可读，下方透出动画，因此不再额外占用纵向高度。 */

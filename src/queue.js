@@ -106,6 +106,24 @@ function estimateEntrySeconds(e){
   const ak = def.mode==='recipe' ? 'craft' : (e.kind==='taofa' ? 'taofa' : 'gather');
   return e.qty * (ak==='craft' ? 2 : 1);
 }
+// 队列「当前这一轮」还差多少秒（约估，不含转场）：当前项剩余 + 其后所有项。
+// 循环模式下整队无限，这里只估当前这一轮，给玩家一个可感的「这轮还差多久跑完」；
+// 非循环模式下这正是「全部跑完的剩余」。与 estimateQueueSeconds（整队一轮）口径一致。
+function queueRemainSeconds(){
+  if (!Game.queueRunning) return 0;
+  const list = Game.queue;
+  const n = list.length;
+  if (!n) return 0;
+  const cur = Math.min(Game.queueIdx, n - 1);
+  let s = 0;
+  const e = list[cur];
+  if (e && e.qty > 0){
+    const left = Math.max(0, (e.qty || 0) - (e.done || 0));
+    s += estimateEntrySeconds(e) * (left / e.qty);
+  }
+  for (let i = cur + 1; i < n; i++) s += estimateEntrySeconds(list[i]);
+  return s;
+}
 
 // ---------- 可执行性 ----------
 function entryCanRun(e){
@@ -232,6 +250,7 @@ function startQueue(){
   }
   log('▶ 巡历队列启动', 'good');
   saveGame();
+  if (typeof UI !== 'undefined' && UI.patchQueueChip) UI.patchQueueChip();   // 状态条队列指示即时出现
   return true;
 }
 function pauseQueue(reason){
@@ -240,6 +259,7 @@ function pauseQueue(reason){
   if (UI && UI.toast) UI.toast(`⏸ 巡历队列已暂停${reason?`（${reason}）`:''}`);
   log('⏸ 巡历队列已暂停', 'gold');
   saveGame();
+  if (typeof UI !== 'undefined' && UI.patchQueueChip) UI.patchQueueChip();   // 状态条队列指示即时收起
   return true;
 }
 function toggleQueue(){
@@ -539,6 +559,7 @@ if (typeof window !== 'undefined'){
   window.entryProgressText = entryProgressText;
   window.estimateQueueSeconds = estimateQueueSeconds;
   window.estimateEntrySeconds = estimateEntrySeconds;
+  window.queueRemainSeconds = queueRemainSeconds;
   window.entryCanRun = entryCanRun;
   window.startQueue = startQueue;
   window.pauseQueue = pauseQueue;

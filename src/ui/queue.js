@@ -92,6 +92,7 @@ UI.renderQueue = function(){
 // 队列在跑时每秒（以及每次动作完成时）调用，只改文本与 class，
 // 不重建 DOM——保滚动位置、保「添加任务」表单的填写状态。
 UI.patchQueueProgress = function(){
+  this.patchQueueChip && this.patchQueueChip();   // 状态条队列指示：每秒 / 每完成兜底同步，跨页也生效
   if (this.currentTab !== 'queue') return;
   const box = $('content');
   if (!box) return;
@@ -123,6 +124,20 @@ UI.patchQueueProgress = function(){
     const t = `已完成 ${Game.queueRound} 轮`;
     if (hint.textContent !== t) hint.textContent = t;
   }
+};
+// 状态条里的巡历队列指示：第几项 / 共几项 + 预计剩余（v1.31.146）。
+// 与现场融为一体的状态条上，玩家挂机巡历时一眼能看见「现在跑到第几个、这轮还差多久」。
+// 放在 patchQueueProgress 顶部随每秒 / 每完成兜底刷新，跨页也生效；tab 限制只管下方队列页补绘。
+UI.patchQueueChip = function(){
+  const el = $('queueChip');
+  if (!el || !el.classList) return;
+  const show = Game.queueRunning && Game.queue.length > 0;
+  if (!show){ el.classList.add('hidden'); return; }   // add 幂等，真实 DOM 与测试桩都安全
+  el.classList.remove('hidden');
+  const pos = `${Game.queueIdx + 1}/${Game.queue.length}`;
+  const rem = (typeof queueRemainSeconds === 'function') ? queueRemainSeconds() : 0;
+  const t = `队列 ${pos}` + (rem >= 1 ? ` · 约 ${fmtTime(rem)}` : '');
+  if (el.textContent !== t) el.textContent = t;
 };
 function addQueueTask(){
   const target = $('queueTarget') ? $('queueTarget').value : (UI.queueTarget || '');
