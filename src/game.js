@@ -322,12 +322,29 @@ function bestSkillLevel(){
   return { level: best, id: id0, name: (Skills[id0] || {}).name || id0 };
 }
 // 轮回的凭据：任一技艺至九九。不是「总等级达标」——那会让玩家为了凑数去练用不上的技艺。
+//
+// ⚠️ 必须排除 REBIRTH_KEEP（舆地 / 履险）。这两门轮回时**不重置**（走过的路不忘），
+// 于是它们一旦到 81，就成了永久凭据：轮回一次 → 舆地还是 81 → 立刻又能轮回，
+// 每次白拿一枚轮回印（+修为 + 采获），可以无限刷。这不是理论问题，
+// 一键全开之后点一次轮回就能复现（2026-10-27 报障）。
 function canRebirth(){
   const need = TUNING.REBIRTH.MIN_LEVEL;
   for (const id in Game.skills){
+    if (REBIRTH_KEEP[id]) continue;          // 不重置的技艺不能当凭据，否则就是无限轮回
     if (((Game.skills[id] || {}).level || 1) >= need) return true;
   }
   return false;
+}
+// 「最高技艺」若把舆地算进去，界面上会出现「舆地 81/81 · 差 0 级」却轮回不了的怪状；
+// 这一项只算会被重置的技艺。
+function bestRebirthSkill(){
+  let best = 0, id0 = '';
+  for (const id in Game.skills){
+    if (REBIRTH_KEEP[id]) continue;
+    const lv = (Game.skills[id] || {}).level || 1;
+    if (lv > best){ best = lv; id0 = id; }
+  }
+  return { level: best, id: id0, name: (Skills[id0] || {}).name || id0 };
 }
 function doRebirth(){
   if (!canRebirth()) {
@@ -456,6 +473,7 @@ window.rebirthYield = rebirthYield;
 window.relicSum = relicSum; window.relicOwned = relicOwned;
 window.rebirthStartLevel = rebirthStartLevel; window.canRebirth = canRebirth;
 window.doRebirth = doRebirth; window.bestSkillLevel = bestSkillLevel;
+window.bestRebirthSkill = bestRebirthSkill;
 
 function xpMult(){
   let m = 1;

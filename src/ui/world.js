@@ -876,7 +876,9 @@ UI.renderSkills = function(){
     const gain = Math.round(rebirthGain() * 100);
     const yl = Math.round(rebirthYield() * 100);
     const start = rebirthStartLevel();
-    const best = bestSkillLevel();
+    // 这一行要跟 canRebirth 同源：算的是「会被重置的技艺」里的最高者，
+    // 否则会出现「舆地 81/81」却轮回不了的怪状。
+    const best = (typeof bestRebirthSkill === 'function') ? bestRebirthSkill() : bestSkillLevel();
     const ok = canRebirth();
     const nextStart = Math.min(TUNING.REBIRTH.START_CAP, (cnt + 1) * TUNING.REBIRTH.START_PER);
     return `<div class="panel rebirth-panel">

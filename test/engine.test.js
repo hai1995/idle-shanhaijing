@@ -8398,6 +8398,23 @@ section('轮回边界');
   try { ST.ensureQueueActivity(); } catch(e){ err = e.message; }
   assert(!err, '转生后队列仍能算出下一步（' + err + '）');
 
+  // ---- 5. 不重置的技艺不能当轮回凭据（2026-10-27 报障） ----
+  // 舆地 / 履险轮回时保留，于是它们一到 81 就成了**永久**凭据：
+  // 轮回一次，舆地还是 81，立刻又能轮回，每次白拿一枚轮回印。可以无限刷。
+  G.resetToDefault();
+  for (const k in ST.Game.skills) ST.Game.skills[k].level = 1;
+  ST.Game.skills.yudi.level = 81;
+  assert(ST.canRebirth() === false, '只有舆地 81 不算九九圆满（否则无限轮回）');
+  ST.Game.skills.qiaocai.level = 81;
+  assert(ST.canRebirth() === true, '可重置的技艺到 81 才给轮回');
+
+  const r5 = ST.doRebirth();
+  assert(r5.ok === true, '正常轮回');
+  assert(ST.Game.skills.yudi.level === 81, '舆地保留（走过的路不忘）');
+  assert(ST.canRebirth() === false, '轮回完不能立刻再轮回（舆地 81 不算凭据）');
+  assert(ST.bestRebirthSkill().level < 81, '「最高技艺」只算会被重置的那些（' +
+    ST.bestRebirthSkill().name + ' ' + ST.bestRebirthSkill().level + '）');
+
   G.resetToDefault();
 }
 
