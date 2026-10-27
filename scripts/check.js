@@ -47,6 +47,17 @@ step('版本一致（package.json = GAME_META）', () => {
   return 'v' + m[1];
 });
 
+// 1.5 资源版本号：index.html 的 ?v= 与 version.json 都要跟 package.json 一致。
+//     前者决定「今天改的东西用户能不能拿到」，后者决定「旧的 index.html 会不会提示刷新」。
+step('资源版本号（version.json）', () => {
+  const v = JSON.parse(fs.readFileSync(path.join(root, 'version.json'), 'utf8')).version;
+  if (v !== pkg.version) throw new Error(`version.json ${v} ≠ package.json ${pkg.version}`);
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const bad = [...html.matchAll(/\?v=([0-9.]+)/g)].map(m => m[1]).filter(v2 => v2 !== pkg.version);
+  if (bad.length) throw new Error(`index.html 里有 ${bad.length} 处 ?v= 与版本不符（如 ${bad[0]}）`);
+  return 'v' + v;
+});
+
 step('引擎测试', () => run(path.join('test', 'engine.test.js')));
 // --full：额外跑一轮随机动作压测。默认不跑（多 2 秒），但改过引擎 / 拆分过文件时值得跑。
 if (process.argv.includes('--full')){

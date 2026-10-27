@@ -278,6 +278,10 @@ html.theme-anim, html.theme-anim *{
 #nickTag{
   font-family:var(--f-sans); font-size:11px; font-weight:400; letter-spacing:.04em;
   color:rgba(232,228,216,.7); margin-left:10px; align-self:center;
+  /* 名字可能很长（存档可手改），只给一行宽度，超出用省略号；
+     别让它把「总等级 / 已录 / 贝币」挤跑 */
+  display:inline-block; max-width:6.5em; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; vertical-align:bottom;
 }
 #nickTag::before{ content:'— '; opacity:.5; }
 
@@ -886,6 +890,23 @@ html.theme-anim, html.theme-anim *{
 /* 设置项的说明文字单独一行：塞进 label 的 <span> 里会把 flex 项撑成 max-content，
    窄屏直接横向溢出（实测 320px 时溢出 338px，整页能左右拖）。 */
 .set-hint{ margin:-6px 0 10px; overflow-wrap:anywhere; }
+/* 数据模拟：一排小按钮，窄屏自动换行（放一行必然横溢出） */
+.sim-row{ display:flex; flex-wrap:wrap; gap:6px; margin:8px 0 12px; }
+.sim-row .btn{ flex:0 0 auto; }
+
+/* 新版本提示：贴在底部中间，不遮操作区；点整条刷新，点 × 只是本次收起 */
+.update-bar{
+  position:fixed; left:50%; transform:translateX(-50%);
+  bottom:calc(env(safe-area-inset-bottom, 0px) + 14px);
+  z-index:60; display:flex; align-items:center; gap:8px;
+  padding:8px 12px; border-radius:20px; cursor:pointer; white-space:nowrap;
+  max-width:calc(100vw - 28px);
+  background:var(--ink); color:var(--paper-3); font-size:12px;
+  box-shadow:0 6px 20px rgba(0,0,0,.3);
+}
+.update-bar.hidden{ display:none; }
+.update-bar b{ font-weight:600; }
+.update-bar i{ font-style:normal; opacity:.55; padding:0 2px; font-size:14px; }
 .set-hint code{ font-family:var(--f-num); background:var(--paper-3); padding:0 3px; border-radius:2px; }
 .form-row b{ color:var(--ink); }
 .form-row select,.form-row input[type=number],.form-row input[type=text],.form-row input[type=password]{
@@ -2285,8 +2306,14 @@ body.no-scroll{ overflow:hidden; }
 
   /* 顶栏：印章 + 标题 + 两个数值，可横向滑动，绝不换行占高 */
   #topbar{ padding:8px 12px 9px; gap:10px; }
-  /* 印章「山海」已是全书标识，右侧「山海经 · 著录」在窄屏重复，隐去后印章居左 */
-  #topbar .title{ display:none; }
+  /* 印章「山海」已是全书标识，右侧「山海经 · 著录」在窄屏重复，隐去后印章居左。
+     但名号要留：玩家改完昵称，手机上找不到它显示在哪，会以为没生效。 */
+  #topbar .title{ display:inline-flex; align-items:center; font-size:11px; letter-spacing:.02em; }
+  #topbar .title > b:not(#nickTag),
+  #topbar .title > i,
+  #topbar .title > small{ display:none; }
+  #topbar #nickTag{ margin-left:0; max-width:5.5em; font-size:11px; }
+  #topbar #nickTag::before{ content:''; }   /* 书名隐去后，前面那道「— 」成了孤零零一横 */
   #topbar::after{ left:16px; right:8px; }
   #topbar .left{
     flex-wrap:nowrap; gap:12px; overflow-x:auto; scrollbar-width:none;
@@ -2494,8 +2521,10 @@ body.no-scroll{ overflow:hidden; }
     font-size:9px; min-height:16px; }
   .beast-tile .bt-decay{ position:static; }
 
-  #nickTag{ display:none; }
-  /* 小屏：标题只留「山海经」，省下的宽度留给数值 */
+  /* 名号在窄屏要留（v1.31.70）：这条原本 `#nickTag{display:none}`，
+     于是手机上改完昵称根本看不到它显示在哪，像没保存成功。 */
+  #nickTag{ display:inline-block; max-width:4.5em; }
+  /* 小屏：书名只留「山海经」，省下的宽度留给数值 */
   #topbar .title{ font-size:15px; letter-spacing:.12em; }
   #topbar .title i{ display:none; }
   #topbar .stat[data-s="级"]{ display:none; }
@@ -3130,9 +3159,49 @@ details.hetero-panel .hp-left{ margin-left:auto; font-style:normal; color:var(--
 <div id="modal" class="hidden"><div id="modalBox"></div></div>
 
 <!-- 长页回到顶部（滚动后浮现） -->
+<!-- 新版本提示：index.html 自身没有 ?v=，主屏幕里的旧版可能一直不刷新，
+     靠一份 no-store 的 version.json 与页面里的 GAME_META 对一下（见下面的内联脚本）。 -->
+<div id="updateBar" class="update-bar hidden" role="status">
+  <span>有新版本 <b></b>，点此刷新</span><i aria-label="暂时关闭">×</i>
+</div>
+
 <button id="btnTop" class="to-top" type="button" aria-label="回到顶部" title="回到顶部">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 14l6-6 6 6"/></svg>
 </button>
+<script>
+/* 缓存自检（内联，不依赖任何模块）：index.html 自身没有 ?v=，主屏幕里的独立实例
+   可能一直拿着旧页面——旧页面又去引用同名（旧版本串）的脚本，于是「改了手机不生效」。
+   这里拿一份 no-store 的 version.json 跟页面里的 GAME_META 对一下，不一致就提示刷新。
+   任何一步失败都安静退出：这只是个提示，不该影响开局。 */
+(function(){
+  function show(v){
+    var el = document.getElementById('updateBar');
+    if (!el) return;
+    var b = el.querySelector('b'); if (b) b.textContent = 'v' + v;
+    el.classList.remove('hidden');
+    el.addEventListener('click', function(){
+      // 带一个随机参数重取 index.html，绕开它自己的缓存
+      location.replace(location.pathname + '?_r=' + Date.now());
+    });
+    var x = el.querySelector('i');
+    if (x) x.addEventListener('click', function(ev){ ev.stopPropagation(); el.classList.add('hidden'); });
+  }
+  window.addEventListener('load', function(){
+    setTimeout(function(){
+      try {
+        fetch('version.json?t=' + Date.now(), { cache:'no-store' })
+          .then(function(r){ return r.ok ? r.json() : null; })
+          .then(function(d){
+            if (!d || !d.version) return;
+            if (typeof GAME_META === 'undefined' || !GAME_META.version) return;
+            if (String(d.version) !== String(GAME_META.version)) show(d.version);
+          })
+          .catch(function(){});
+      } catch(e){}
+    }, 1500);
+  });
+})();
+</script>
 <script>
 // ===== nanshanData.js =====
 // ===== 南山经世界数据（三系 39 山） =====
@@ -19696,7 +19765,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.69',
+  version: '1.31.70',
   codename:'昼巡 · 近况',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -20494,7 +20563,7 @@ if (typeof window !== 'undefined'){
 
 const Game = {
   shells: 50,            // 贝币（商旅之用）
-  nickname: '',          // 玩家自定义昵称（顶栏展示，最多 12 字）
+  nickname: '',          // 玩家自定义昵称（顶栏展示，最多 12 字；留空用默认名号）
   banking: {},           // 仓廪 { itemId: qty }
   inventory: {},         // 行囊 { itemId: qty }
   skills: {},            // { skillId: { level, xp } }
@@ -20910,6 +20979,14 @@ function importSaveText(raw){
   return r;
 }
 
+// 默认名号：不设昵称时顶栏也要有个称呼，否则那块位置空着像个 bug。
+// 12 字上限与输入框 maxlength 一致；存档可能被手改成长串，这里再截一次。
+const DEFAULT_NICK = '著录客';
+function playerName(){
+  const n = String((Game && Game.nickname) || '').trim().slice(0, 12);
+  return n || DEFAULT_NICK;
+}
+
 function resetToDefault(){
   const g = cloneDefaultGame();
   Object.assign(Game, g);
@@ -21109,6 +21186,7 @@ function log(msg, color, cat){
 
 if (typeof window !== 'undefined'){
   window.Game = Game; window.Prefs = Prefs;
+  window.playerName = playerName; window.DEFAULT_NICK = DEFAULT_NICK;
   window.xpForLevel = xpForLevel; window.levelFromXp = levelFromXp; window.xpForNextLevel = xpForNextLevel;
   window.gainXp = gainXp; window.levelOf = levelOf; window.totalSkillLevel = totalSkillLevel;
   window.totalOf = totalOf; window.giveItem = giveItem; window.takeItem = takeItem;
@@ -28680,12 +28758,14 @@ const UI = {
     // 「已录」下的细进度线：让 0/632 这种数字有一个可感知的比例
     const meter = $('recordMeter');
     if (meter) meter.style.width = (recTotal ? Math.min(100, recDone / recTotal * 100) : 0).toFixed(1) + '%';
-    // 自定义昵称（未设置时隐藏，不占顶栏空间）
+    // 名号：没设昵称时也显示默认名号（顶栏空一块比「默认名」更像 bug）。
+    // 超长截断交给 CSS，title 里放全名——手机上还能长按看。
     const nt = $('nickTag');
     if (nt){
-      const nn = (Game.nickname || '').trim();
-      nt.textContent = nn;
-      nt.classList.toggle('hidden', !nn);
+      const nn = (typeof playerName === 'function') ? playerName() : ((Game.nickname || '').trim() || '著录客');
+      if (nt.textContent !== nn) nt.textContent = nn;
+      nt.title = nn;
+      nt.classList.remove('hidden');
     }
     // 增益图标处于书脊最右：这里只更新计数与明暗，内容在点开浮层时才生成。
     this.renderBuffBtn();
@@ -28737,7 +28817,7 @@ UI.renderSettings = function(){
         <section class="set-sec">
           <h4>偏好</h4>
           <div class="form-row"><span>游戏昵称</span>
-            <input type="text" id="nickInput" maxlength="12" value="${esc(Game.nickname||'')}" placeholder="未设置（最多 12 字）">
+            <input type="text" id="nickInput" maxlength="12" value="${esc(Game.nickname||'')}" placeholder="留空即用默认名号（最多 12 字）">
             <button class="btn" onclick="saveNickname()">保存</button></div>
           <div class="form-row"><span>自动进食</span>
             <input type="range" min="10" max="80" value="${Math.round(Prefs.autoEat*100)}" oninput="Prefs.autoEat=this.value/100" onchange="saveGame()">
@@ -28777,10 +28857,76 @@ UI.renderSettings = function(){
           <div class="form-row"><span>停止行动</span><b>Q</b></div>
           <div class="form-row"><span>关闭弹层</span><b>Esc</b></div>
         </section>
+        <section class="set-sec">
+          <h4>数据模拟</h4>
+          <p class="hint">测试用：点一下直接改当前存档并落盘。正式游玩不必理会。</p>
+          <div class="sim-row">
+            <button class="btn" type="button" onclick="devSim('lv+10')">技艺 +10</button>
+            <button class="btn" type="button" onclick="devSim('lv81')">技艺全 81</button>
+            <button class="btn" type="button" onclick="devSim('shell')">贝币 +10 万</button>
+            <button class="btn" type="button" onclick="devSim('mat')">材料各 +50</button>
+            <button class="btn" type="button" onclick="devSim('away1h')">模拟离山 1 小时</button>
+            <button class="btn" type="button" onclick="devSim('clear')">停掉行动与战斗</button>
+          </div>
+          <div class="form-row"><span>重置本档</span>
+            <button class="btn" type="button" onclick="devSim('wipe')">清空并重开</button>
+            <span class="hint">抹掉本机存档，不可撤销</span></div>
+        </section>
       </div>
     </div>
   </div>`;
 };
+
+// 数据模拟：给「测试各项功能是否正常」用的一排按钮。
+// 原则：只改存档字段，不绕过任何业务流程——点完之后各页面走的是和平时一样的渲染与判定，
+// 这样测出来的才是真行为。每个动作都立即 saveGame()，刷新也在。
+function devSim(what){
+  if (typeof Game === 'undefined' || !Game) return;
+  let msg = '';
+  try {
+    if (what === 'lv+10'){
+      for (const k in Game.skills) Game.skills[k].level = Math.min(81, (Game.skills[k].level || 1) + 10);
+      msg = '各门技艺 +10 级';
+    } else if (what === 'lv81'){
+      for (const k in Game.skills) Game.skills[k].level = 81;
+      msg = '各门技艺 81 级（山川全解锁）';
+    } else if (what === 'shell'){
+      Game.shells = (Game.shells || 0) + 100000;
+      msg = '贝币 +10 万';
+    } else if (what === 'mat'){
+      let n = 0;
+      for (const id in Items){
+        const it = Items[id];
+        if (!it || it.equip) continue;          // 装备走「按件」那套，不在这里灌
+        Game.inventory[id] = (Game.inventory[id] || 0) + 50;
+        n++;
+      }
+      msg = `材料各 +50（${n} 种）`;
+    } else if (what === 'away1h'){
+      const sum = (typeof settleAway === 'function') ? settleAway(3600) : null;
+      if (!sum){ UI.toast('🧪 离山不足 30 秒，未结算'); return; }
+      msg = `模拟离山 1 小时：修为 +${Math.round(sum.xp)}`;
+      if (UI.showOfflineSummary) UI.showOfflineSummary(sum);
+    } else if (what === 'clear'){
+      if (typeof stopActivity === 'function') stopActivity();
+      msg = '已停掉当前行动与战斗';
+    } else if (what === 'wipe'){
+      if (!window.confirm('清空本机存档并重开？这一步不可撤销。')) return;
+      try { localStorage.clear(); } catch(e){}
+      location.reload();
+      return;
+    }
+  } catch(e){
+    UI.toast('🧪 模拟失败：' + (e && e.message));
+    return;
+  }
+  saveGame();
+  UI.renderTopbar();
+  UI.refreshActivity();
+  UI.renderCurrent();
+  UI.toast('🧪 ' + msg);
+}
+window.devSim = devSim;
 
 function openSettings(){ UI.switchTab('settings'); }
 function setFx(v){ Prefs.fxLevel = v; saveGame(); openSettings(); }
@@ -28802,7 +28948,7 @@ function saveNickname(){
   Game.nickname = v;
   saveGame();
   UI.renderTopbar();
-  UI.toast(v ? `✍️ 昵称已设为「${v}」` : '昵称已清除');
+  UI.toast(v ? `✍️ 昵称已设为「${v}」` : `✍️ 已恢复默认名号「${(typeof playerName==='function')?playerName():'著录客'}」`);
   openSettings();
 }
 window.saveNickname = saveNickname;

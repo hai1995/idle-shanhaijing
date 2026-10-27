@@ -1241,11 +1241,13 @@ try {
   const hiddenCls = renderTargets.nickTag.classList.contains('hidden');
   ST.Game.nickname = '';
   ST.UI.renderTopbar();
+  // 没设昵称时**不再隐藏**：显示默认名号（v1.31.70）。顶栏空一块比「默认名」更像 bug。
+  const fallback = renderTargets.nickTag.textContent;
   const hiddenWhenEmpty = renderTargets.nickTag.classList.contains('hidden');
-  nickOk = shown === '西王母' && !hiddenCls && hiddenWhenEmpty;
+  nickOk = shown === '西王母' && !hiddenCls && !hiddenWhenEmpty && fallback === ST.DEFAULT_NICK;
 } catch(e){ nickOk = false; console.error('昵称渲染异常：' + e.stack); }
 finally { ST.Game.nickname = _nick; }
-assert(nickOk, 'renderTopbar 有昵称时显示、无昵称时隐藏');
+assert(nickOk, 'renderTopbar 有昵称时显示、无昵称时回落到默认名号');
 // 实测：saveNickname 去空白并写入存档；读档时截断到 12 字
 let snOk = true;
 try {
@@ -8441,6 +8443,49 @@ section('夜间选中态对比度');
   assert(ratio >= 4.5, '夜间选中态对比度 ≥ 4.5:1（实测 ' + ratio.toFixed(1) + '）');
   assert(/\.chip-btn\.on\{[^}]*var\(--on-accent\)/.test(cssSrc157), 'chip 选中态用 token，不写死 #fff');
   assert(/\.btn\.on\{[^}]*var\(--on-accent\)/.test(cssSrc157), '按钮选中态同样');
+}
+
+// ============ 158. 名号、数据模拟、新版本提示（2026-10-27） ============
+// 三件都是「玩家看得见」的：顶栏有没有称呼、能不能自己造数据测功能、改版后手机上会不会拿到新版。
+section('名号与工具');
+{
+  const hSrc158 = readText('index.html');
+  const cSrc158 = readText('src/ui/core.js');
+
+  // ---- 1. 默认名号 ----
+  assert(typeof ST.DEFAULT_NICK === 'string' && ST.DEFAULT_NICK.length > 0, '有默认名号');
+  const savedNick = ST.Game.nickname;
+  ST.Game.nickname = '';
+  assert(ST.playerName() === ST.DEFAULT_NICK, '没设昵称时回落到默认名号');
+  ST.Game.nickname = '  云中君  ';
+  assert(ST.playerName() === '云中君', '去空白后显示');
+  ST.Game.nickname = '一二三四五六七八九十十一十二';
+  assert(ST.playerName().length === 12, '超长截断到 12 字（存档可被手改）');
+  ST.Game.nickname = savedNick;
+
+  // ---- 2. 数据模拟 ----
+  assert(typeof ST.devSim === 'function', '有 devSim 入口');
+  const save = { shells: ST.Game.shells, lv: ST.Game.skills.qiaocai.level };
+  ST.devSim('shell');
+  assert(ST.Game.shells === save.shells + 100000, '贝币 +10 万');
+  ST.devSim('lv81');
+  assert(ST.Game.skills.qiaocai.level === 81, '技艺可一键到 81（等于解锁全部山川）');
+  ST.devSim('mat');
+  assert(Object.keys(ST.Game.inventory).length > 100, '材料各 +50 真的灌进去了');
+  // 还原，别污染后面的用例
+  ST.Game.shells = save.shells;
+  for (const k in ST.Game.skills) ST.Game.skills[k].level = save.lv;
+  G.resetToDefault();
+
+  // ---- 3. 新版本提示 ----
+  const versionJson = JSON.parse(readText('version.json'));
+  const pkg = JSON.parse(readText('package.json'));
+  assert(versionJson.version === pkg.version, 'version.json 与 package.json 同版本');
+  assert(/id="updateBar"/.test(hSrc158), '页面底部有新版本提示条');
+  assert(/version\.json\?t=/.test(hSrc158) && /cache:\s*'no-store'/.test(hSrc158),
+    '自检请求带时间戳且 no-store（否则它自己也被缓存）');
+  assert(/\.version !== String\(GAME_META\.version\)|String\(d\.version\) !== String\(GAME_META\.version\)/.test(hSrc158),
+    '比的是页面里的 GAME_META 版本（旧页面才能自证是旧的）');
 }
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）

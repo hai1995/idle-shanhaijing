@@ -836,12 +836,14 @@ const UI = {
     // 「已录」下的细进度线：让 0/632 这种数字有一个可感知的比例
     const meter = $('recordMeter');
     if (meter) meter.style.width = (recTotal ? Math.min(100, recDone / recTotal * 100) : 0).toFixed(1) + '%';
-    // 自定义昵称（未设置时隐藏，不占顶栏空间）
+    // 名号：没设昵称时也显示默认名号（顶栏空一块比「默认名」更像 bug）。
+    // 超长截断交给 CSS，title 里放全名——手机上还能长按看。
     const nt = $('nickTag');
     if (nt){
-      const nn = (Game.nickname || '').trim();
-      nt.textContent = nn;
-      nt.classList.toggle('hidden', !nn);
+      const nn = (typeof playerName === 'function') ? playerName() : ((Game.nickname || '').trim() || '著录客');
+      if (nt.textContent !== nn) nt.textContent = nn;
+      nt.title = nn;
+      nt.classList.remove('hidden');
     }
     // 增益图标处于书脊最右：这里只更新计数与明暗，内容在点开浮层时才生成。
     this.renderBuffBtn();
@@ -893,7 +895,7 @@ UI.renderSettings = function(){
         <section class="set-sec">
           <h4>偏好</h4>
           <div class="form-row"><span>游戏昵称</span>
-            <input type="text" id="nickInput" maxlength="12" value="${esc(Game.nickname||'')}" placeholder="未设置（最多 12 字）">
+            <input type="text" id="nickInput" maxlength="12" value="${esc(Game.nickname||'')}" placeholder="留空即用默认名号（最多 12 字）">
             <button class="btn" onclick="saveNickname()">保存</button></div>
           <div class="form-row"><span>自动进食</span>
             <input type="range" min="10" max="80" value="${Math.round(Prefs.autoEat*100)}" oninput="Prefs.autoEat=this.value/100" onchange="saveGame()">
@@ -933,10 +935,76 @@ UI.renderSettings = function(){
           <div class="form-row"><span>停止行动</span><b>Q</b></div>
           <div class="form-row"><span>关闭弹层</span><b>Esc</b></div>
         </section>
+        <section class="set-sec">
+          <h4>数据模拟</h4>
+          <p class="hint">测试用：点一下直接改当前存档并落盘。正式游玩不必理会。</p>
+          <div class="sim-row">
+            <button class="btn" type="button" onclick="devSim('lv+10')">技艺 +10</button>
+            <button class="btn" type="button" onclick="devSim('lv81')">技艺全 81</button>
+            <button class="btn" type="button" onclick="devSim('shell')">贝币 +10 万</button>
+            <button class="btn" type="button" onclick="devSim('mat')">材料各 +50</button>
+            <button class="btn" type="button" onclick="devSim('away1h')">模拟离山 1 小时</button>
+            <button class="btn" type="button" onclick="devSim('clear')">停掉行动与战斗</button>
+          </div>
+          <div class="form-row"><span>重置本档</span>
+            <button class="btn" type="button" onclick="devSim('wipe')">清空并重开</button>
+            <span class="hint">抹掉本机存档，不可撤销</span></div>
+        </section>
       </div>
     </div>
   </div>`;
 };
+
+// 数据模拟：给「测试各项功能是否正常」用的一排按钮。
+// 原则：只改存档字段，不绕过任何业务流程——点完之后各页面走的是和平时一样的渲染与判定，
+// 这样测出来的才是真行为。每个动作都立即 saveGame()，刷新也在。
+function devSim(what){
+  if (typeof Game === 'undefined' || !Game) return;
+  let msg = '';
+  try {
+    if (what === 'lv+10'){
+      for (const k in Game.skills) Game.skills[k].level = Math.min(81, (Game.skills[k].level || 1) + 10);
+      msg = '各门技艺 +10 级';
+    } else if (what === 'lv81'){
+      for (const k in Game.skills) Game.skills[k].level = 81;
+      msg = '各门技艺 81 级（山川全解锁）';
+    } else if (what === 'shell'){
+      Game.shells = (Game.shells || 0) + 100000;
+      msg = '贝币 +10 万';
+    } else if (what === 'mat'){
+      let n = 0;
+      for (const id in Items){
+        const it = Items[id];
+        if (!it || it.equip) continue;          // 装备走「按件」那套，不在这里灌
+        Game.inventory[id] = (Game.inventory[id] || 0) + 50;
+        n++;
+      }
+      msg = `材料各 +50（${n} 种）`;
+    } else if (what === 'away1h'){
+      const sum = (typeof settleAway === 'function') ? settleAway(3600) : null;
+      if (!sum){ UI.toast('🧪 离山不足 30 秒，未结算'); return; }
+      msg = `模拟离山 1 小时：修为 +${Math.round(sum.xp)}`;
+      if (UI.showOfflineSummary) UI.showOfflineSummary(sum);
+    } else if (what === 'clear'){
+      if (typeof stopActivity === 'function') stopActivity();
+      msg = '已停掉当前行动与战斗';
+    } else if (what === 'wipe'){
+      if (!window.confirm('清空本机存档并重开？这一步不可撤销。')) return;
+      try { localStorage.clear(); } catch(e){}
+      location.reload();
+      return;
+    }
+  } catch(e){
+    UI.toast('🧪 模拟失败：' + (e && e.message));
+    return;
+  }
+  saveGame();
+  UI.renderTopbar();
+  UI.refreshActivity();
+  UI.renderCurrent();
+  UI.toast('🧪 ' + msg);
+}
+window.devSim = devSim;
 
 function openSettings(){ UI.switchTab('settings'); }
 function setFx(v){ Prefs.fxLevel = v; saveGame(); openSettings(); }
@@ -958,7 +1026,7 @@ function saveNickname(){
   Game.nickname = v;
   saveGame();
   UI.renderTopbar();
-  UI.toast(v ? `✍️ 昵称已设为「${v}」` : '昵称已清除');
+  UI.toast(v ? `✍️ 昵称已设为「${v}」` : `✍️ 已恢复默认名号「${(typeof playerName==='function')?playerName():'著录客'}」`);
   openSettings();
 }
 window.saveNickname = saveNickname;

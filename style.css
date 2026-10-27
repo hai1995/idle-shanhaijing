@@ -251,6 +251,10 @@ html.theme-anim, html.theme-anim *{
 #nickTag{
   font-family:var(--f-sans); font-size:11px; font-weight:400; letter-spacing:.04em;
   color:rgba(232,228,216,.7); margin-left:10px; align-self:center;
+  /* 名字可能很长（存档可手改），只给一行宽度，超出用省略号；
+     别让它把「总等级 / 已录 / 贝币」挤跑 */
+  display:inline-block; max-width:6.5em; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; vertical-align:bottom;
 }
 #nickTag::before{ content:'— '; opacity:.5; }
 
@@ -859,6 +863,23 @@ html.theme-anim, html.theme-anim *{
 /* 设置项的说明文字单独一行：塞进 label 的 <span> 里会把 flex 项撑成 max-content，
    窄屏直接横向溢出（实测 320px 时溢出 338px，整页能左右拖）。 */
 .set-hint{ margin:-6px 0 10px; overflow-wrap:anywhere; }
+/* 数据模拟：一排小按钮，窄屏自动换行（放一行必然横溢出） */
+.sim-row{ display:flex; flex-wrap:wrap; gap:6px; margin:8px 0 12px; }
+.sim-row .btn{ flex:0 0 auto; }
+
+/* 新版本提示：贴在底部中间，不遮操作区；点整条刷新，点 × 只是本次收起 */
+.update-bar{
+  position:fixed; left:50%; transform:translateX(-50%);
+  bottom:calc(env(safe-area-inset-bottom, 0px) + 14px);
+  z-index:60; display:flex; align-items:center; gap:8px;
+  padding:8px 12px; border-radius:20px; cursor:pointer; white-space:nowrap;
+  max-width:calc(100vw - 28px);
+  background:var(--ink); color:var(--paper-3); font-size:12px;
+  box-shadow:0 6px 20px rgba(0,0,0,.3);
+}
+.update-bar.hidden{ display:none; }
+.update-bar b{ font-weight:600; }
+.update-bar i{ font-style:normal; opacity:.55; padding:0 2px; font-size:14px; }
 .set-hint code{ font-family:var(--f-num); background:var(--paper-3); padding:0 3px; border-radius:2px; }
 .form-row b{ color:var(--ink); }
 .form-row select,.form-row input[type=number],.form-row input[type=text],.form-row input[type=password]{
@@ -2258,8 +2279,14 @@ body.no-scroll{ overflow:hidden; }
 
   /* 顶栏：印章 + 标题 + 两个数值，可横向滑动，绝不换行占高 */
   #topbar{ padding:8px 12px 9px; gap:10px; }
-  /* 印章「山海」已是全书标识，右侧「山海经 · 著录」在窄屏重复，隐去后印章居左 */
-  #topbar .title{ display:none; }
+  /* 印章「山海」已是全书标识，右侧「山海经 · 著录」在窄屏重复，隐去后印章居左。
+     但名号要留：玩家改完昵称，手机上找不到它显示在哪，会以为没生效。 */
+  #topbar .title{ display:inline-flex; align-items:center; font-size:11px; letter-spacing:.02em; }
+  #topbar .title > b:not(#nickTag),
+  #topbar .title > i,
+  #topbar .title > small{ display:none; }
+  #topbar #nickTag{ margin-left:0; max-width:5.5em; font-size:11px; }
+  #topbar #nickTag::before{ content:''; }   /* 书名隐去后，前面那道「— 」成了孤零零一横 */
   #topbar::after{ left:16px; right:8px; }
   #topbar .left{
     flex-wrap:nowrap; gap:12px; overflow-x:auto; scrollbar-width:none;
@@ -2467,8 +2494,10 @@ body.no-scroll{ overflow:hidden; }
     font-size:9px; min-height:16px; }
   .beast-tile .bt-decay{ position:static; }
 
-  #nickTag{ display:none; }
-  /* 小屏：标题只留「山海经」，省下的宽度留给数值 */
+  /* 名号在窄屏要留（v1.31.70）：这条原本 `#nickTag{display:none}`，
+     于是手机上改完昵称根本看不到它显示在哪，像没保存成功。 */
+  #nickTag{ display:inline-block; max-width:4.5em; }
+  /* 小屏：书名只留「山海经」，省下的宽度留给数值 */
   #topbar .title{ font-size:15px; letter-spacing:.12em; }
   #topbar .title i{ display:none; }
   #topbar .stat[data-s="级"]{ display:none; }

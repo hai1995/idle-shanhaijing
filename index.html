@@ -24,7 +24,7 @@
   }catch(e){}
 })();
 </script>
-<link rel="stylesheet" href="style.css?v=1.31.69">
+<link rel="stylesheet" href="style.css?v=1.31.70">
 </head>
 <body onload="init()">
 <div id="app">
@@ -89,36 +89,76 @@
 <div id="modal" class="hidden"><div id="modalBox"></div></div>
 
 <!-- 长页回到顶部（滚动后浮现） -->
+<!-- 新版本提示：index.html 自身没有 ?v=，主屏幕里的旧版可能一直不刷新，
+     靠一份 no-store 的 version.json 与页面里的 GAME_META 对一下（见下面的内联脚本）。 -->
+<div id="updateBar" class="update-bar hidden" role="status">
+  <span>有新版本 <b></b>，点此刷新</span><i aria-label="暂时关闭">×</i>
+</div>
+
 <button id="btnTop" class="to-top" type="button" aria-label="回到顶部" title="回到顶部">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 14l6-6 6 6"/></svg>
 </button>
 
-<script src="src/nanshanData.js?v=1.31.69"></script>
-<script src="src/xishanData.js?v=1.31.69"></script>
-<script src="src/beishanData.js?v=1.31.69"></script>
-<script src="src/dongshanData.js?v=1.31.69"></script>
-<script src="src/zhongshanData.js?v=1.31.69"></script>
-<script src="src/gameData.js?v=1.31.69"></script>
-<script src="src/affix.js?v=1.31.69"></script>
-<script src="src/save.js?v=1.31.69"></script>
-<script src="src/engine.js?v=1.31.69"></script>
-<script src="src/game.js?v=1.31.69"></script>
-<script src="src/queue.js?v=1.31.69"></script>
-<script src="src/beastIcon.js?v=1.31.69"></script>
-<script src="src/riteIcon.js?v=1.31.69"></script>
-<script src="src/structureIcon.js?v=1.31.69"></script>
-<script src="src/skillIcon.js?v=1.31.69"></script>
-<script src="src/itemIcon.js?v=1.31.69"></script>
-<script src="src/markIcon.js?v=1.31.69"></script>
-<script src="src/interact.js?v=1.31.69"></script>
-<script src="src/fx.js?v=1.31.69"></script>
-<script src="src/ui/core.js?v=1.31.69"></script>
-<script src="src/ui/scene.js?v=1.31.69"></script>
-<script src="src/ui/world.js?v=1.31.69"></script>
-<script src="src/ui/combat.js?v=1.31.69"></script>
-<script src="src/ui/codex.js?v=1.31.69"></script>
-<script src="src/ui/trade.js?v=1.31.69"></script>
-<script src="src/ui/pack.js?v=1.31.69"></script>
-<script src="src/ui/misc.js?v=1.31.69"></script>
+<script src="src/nanshanData.js?v=1.31.70"></script>
+<script src="src/xishanData.js?v=1.31.70"></script>
+<script src="src/beishanData.js?v=1.31.70"></script>
+<script src="src/dongshanData.js?v=1.31.70"></script>
+<script src="src/zhongshanData.js?v=1.31.70"></script>
+<script src="src/gameData.js?v=1.31.70"></script>
+<script src="src/affix.js?v=1.31.70"></script>
+<script src="src/save.js?v=1.31.70"></script>
+<script src="src/engine.js?v=1.31.70"></script>
+<script src="src/game.js?v=1.31.70"></script>
+<script src="src/queue.js?v=1.31.70"></script>
+<script src="src/beastIcon.js?v=1.31.70"></script>
+<script src="src/riteIcon.js?v=1.31.70"></script>
+<script src="src/structureIcon.js?v=1.31.70"></script>
+<script src="src/skillIcon.js?v=1.31.70"></script>
+<script src="src/itemIcon.js?v=1.31.70"></script>
+<script src="src/markIcon.js?v=1.31.70"></script>
+<script src="src/interact.js?v=1.31.70"></script>
+<script src="src/fx.js?v=1.31.70"></script>
+<script src="src/ui/core.js?v=1.31.70"></script>
+<script src="src/ui/scene.js?v=1.31.70"></script>
+<script src="src/ui/world.js?v=1.31.70"></script>
+<script src="src/ui/combat.js?v=1.31.70"></script>
+<script src="src/ui/codex.js?v=1.31.70"></script>
+<script src="src/ui/trade.js?v=1.31.70"></script>
+<script src="src/ui/pack.js?v=1.31.70"></script>
+<script src="src/ui/misc.js?v=1.31.70"></script>
+<script>
+/* 缓存自检（内联，不依赖任何模块）：index.html 自身没有 ?v=，主屏幕里的独立实例
+   可能一直拿着旧页面——旧页面又去引用同名（旧版本串）的脚本，于是「改了手机不生效」。
+   这里拿一份 no-store 的 version.json 跟页面里的 GAME_META 对一下，不一致就提示刷新。
+   任何一步失败都安静退出：这只是个提示，不该影响开局。 */
+(function(){
+  function show(v){
+    var el = document.getElementById('updateBar');
+    if (!el) return;
+    var b = el.querySelector('b'); if (b) b.textContent = 'v' + v;
+    el.classList.remove('hidden');
+    el.addEventListener('click', function(){
+      // 带一个随机参数重取 index.html，绕开它自己的缓存
+      location.replace(location.pathname + '?_r=' + Date.now());
+    });
+    var x = el.querySelector('i');
+    if (x) x.addEventListener('click', function(ev){ ev.stopPropagation(); el.classList.add('hidden'); });
+  }
+  window.addEventListener('load', function(){
+    setTimeout(function(){
+      try {
+        fetch('version.json?t=' + Date.now(), { cache:'no-store' })
+          .then(function(r){ return r.ok ? r.json() : null; })
+          .then(function(d){
+            if (!d || !d.version) return;
+            if (typeof GAME_META === 'undefined' || !GAME_META.version) return;
+            if (String(d.version) !== String(GAME_META.version)) show(d.version);
+          })
+          .catch(function(){});
+      } catch(e){}
+    }, 1500);
+  });
+})();
+</script>
 </body>
 </html>

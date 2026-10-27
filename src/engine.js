@@ -2,7 +2,7 @@
 
 const Game = {
   shells: 50,            // 贝币（商旅之用）
-  nickname: '',          // 玩家自定义昵称（顶栏展示，最多 12 字）
+  nickname: '',          // 玩家自定义昵称（顶栏展示，最多 12 字；留空用默认名号）
   banking: {},           // 仓廪 { itemId: qty }
   inventory: {},         // 行囊 { itemId: qty }
   skills: {},            // { skillId: { level, xp } }
@@ -418,6 +418,14 @@ function importSaveText(raw){
   return r;
 }
 
+// 默认名号：不设昵称时顶栏也要有个称呼，否则那块位置空着像个 bug。
+// 12 字上限与输入框 maxlength 一致；存档可能被手改成长串，这里再截一次。
+const DEFAULT_NICK = '著录客';
+function playerName(){
+  const n = String((Game && Game.nickname) || '').trim().slice(0, 12);
+  return n || DEFAULT_NICK;
+}
+
 function resetToDefault(){
   const g = cloneDefaultGame();
   Object.assign(Game, g);
@@ -617,6 +625,7 @@ function log(msg, color, cat){
 
 if (typeof window !== 'undefined'){
   window.Game = Game; window.Prefs = Prefs;
+  window.playerName = playerName; window.DEFAULT_NICK = DEFAULT_NICK;
   window.xpForLevel = xpForLevel; window.levelFromXp = levelFromXp; window.xpForNextLevel = xpForNextLevel;
   window.gainXp = gainXp; window.levelOf = levelOf; window.totalSkillLevel = totalSkillLevel;
   window.totalOf = totalOf; window.giveItem = giveItem; window.takeItem = takeItem;
