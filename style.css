@@ -29,6 +29,9 @@
   --zhu:        #B03A2B;   /* 朱砂：此刻 / 动作 */
   --zhu-d:      #8C2A1E;
   --zhu-w:      rgba(176,58,43,.10);
+  /* 朱色描边（队列当前项等）：此前各处直接写 rgba(176,58,43,…)，
+     夜间 --zhu 提亮成 #E06A55 后，那些写死的边仍是日间的深朱。收成一个 token 随主题走。 */
+  --zhu-line:   rgba(176,58,43,.4);
   --qing:       #2E5269;   /* 石青：结构 / 篇名 */
   --qing-d:     #1F3B4D;
   --qing-w:     rgba(46,82,105,.10);
@@ -120,6 +123,7 @@
   --zhu:        #E06A55;   /* 朱砂在蓝黑底上微提亮 */
   --zhu-d:      #C04E3B;
   --zhu-w:      rgba(224,106,85,.16);
+  --zhu-line:   rgba(224,106,85,.45);
   --qing:       #7FB2D8;   /* 石青提亮，与夜空同调 */
   --qing-d:     #9CC6E4;
   --qing-w:     rgba(127,178,216,.16);
@@ -176,6 +180,18 @@
 [data-theme="night"] .node-prog .prog-line{ background:rgba(143,181,124,.2); }
 [data-theme="night"] .wuxing-tip.good,
 [data-theme="night"] .combat-est.good{ border-color:rgba(143,181,124,.26); }
+/* 五行签（v1.31.155）：金 / 水 / 火 / 土的色值都是按日间纸底挑的深色，
+   夜里落在 #1A1F29 上几乎只剩一团糊影（此前只有「木」做过提亮）。同色相提亮，
+   认色依然靠色相，不靠明暗。 */
+[data-theme="night"] .beast-tile .el-jin{ color:#DEC07C; background:rgba(224,192,120,.18); }
+[data-theme="night"] .beast-tile .el-shui{ color:#A8C6DE; background:rgba(111,160,189,.2); }
+[data-theme="night"] .beast-tile .el-huo{ color:#F0A898; background:rgba(224,106,85,.2); }
+[data-theme="night"] .beast-tile .el-tu{ color:#D8B490; background:rgba(180,140,104,.2); }
+/* 「凶」签同理：日间深朱 #B03A2B 在夜底上读不出 */
+[data-theme="night"] .buff-pop .bp-pol.凶{ color:#F0A898; background:rgba(224,106,85,.2); }
+/* 装备对比里「更强」那行：日间用的深绿 #3f7a52，夜间换 --tai */
+[data-theme="night"] .cmp-line.down b,
+[data-theme="night"] .cmp-line.down{ color:var(--tai); }
 [data-theme="night"] .sc-flash{
   background:radial-gradient(circle at 22% 78%, rgba(221,87,66,.26), rgba(221,87,66,.06) 42%, transparent 62%);
 }
@@ -2132,7 +2148,7 @@ svg.bi.mk{ vertical-align:-2px; }
   transition:border-color .15s;
 }
 .queue-item:hover{ border-color:var(--rule); }
-.queue-item.cur{ border-color:rgba(176,58,43,.4); border-left-color:var(--zhu); background:var(--zhu-w); }
+.queue-item.cur{ border-color:var(--zhu-line); border-left-color:var(--zhu); background:var(--zhu-w); }
 .queue-item.blocked{ opacity:.55; }
 .qi-idx{ width:16px; font-family:var(--f-num); font-size:10.5px; color:var(--ink-4); }
 .qi-name{ flex:1; min-width:0; }
