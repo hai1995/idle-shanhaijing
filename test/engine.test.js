@@ -8785,6 +8785,53 @@ section('后台停表');
   assert(/settleAway/.test(readText('src/game.js')), '补算由 settleAway 承担（引擎里已有）');
 }
 
+// ============ 164. 御使槽位与等级一致性（2026-10-27） ============
+// 槽位由「御使」等级算（每 10 级 +1），轮回却把等级打回起手——
+// 已入槽的异兽若留着，界面会写「御使槽位（9/1）」，而 deployedBonuses()
+// 是全量求和：九只看不见的异兽加成照算。两处都得收。
+section('御使槽位一致性');
+{
+  G.resetToDefault();
+  // ① 收拢：按原顺序保留放得下的
+  ST.Game.skills.yushi.level = 1;              // 1 槽
+  ST.Game.deployed = { 0: 'shengsheng', 1: 'baiyuan', 2: 'lushu' };
+  const dropped = ST.trimDeployedToSlots();
+  assert(dropped === 2, '多出来的 2 只被请出槽位（实测 ' + dropped + '）');
+  assert(Object.values(ST.Game.deployed).length === 1, '只留 1 只');
+  assert(ST.Game.deployed[0] === 'shengsheng', '保留的是原来第一只（不打乱玩家的选择）');
+
+  // ② 成对：占两槽，一槽时整只退出（不能只留半对）
+  ST.Game.deployed = { 0: 'manman', 1: 'manman' };
+  ST.trimDeployedToSlots();
+  assert(Object.values(ST.Game.deployed).length === 0, '成对的异兽在只有 1 槽时整只退出');
+
+  // ③ 槽位够时不误伤
+  ST.Game.skills.yushi.level = 81;             // 9 槽
+  ST.Game.deployed = { 0: 'shengsheng', 1: 'manman', 2: 'manman', 3: 'baiyuan' };
+  const keep = ST.trimDeployedToSlots();
+  assert(keep === 0 && Object.values(ST.Game.deployed).length === 4, '槽位够时一只都不动');
+
+  // ④ 轮回之后槽位与入槽数必须相等（这是界面那行「（x/y）」的来源）
+  G.resetToDefault();
+  ST.devSim('all');
+  assert(ST.beastSlots() === 9, '全开后 9 槽（御使 81 级）');
+  assert(Object.values(ST.Game.deployed).length <= 9, '入槽不超过槽位');
+  ST.doRebirth();
+  assert(ST.beastSlots() === 1, '轮回后槽位回落到 1');
+  assert(Object.values(ST.Game.deployed).length <= ST.beastSlots(),
+    '轮回后入槽数不超过槽位（' + Object.values(ST.Game.deployed).length + '/' + ST.beastSlots() + '）');
+
+  // ⑤ devSim 写等级要连 xp 一起写，否则下一次涨经验会被打回真实等级
+  G.resetToDefault();
+  ST.devSim('all');
+  const before = ST.Game.skills.yushi.level;
+  ST.gainXp('qiaocai', 500);
+  assert(ST.Game.skills.yushi.level === before, '涨经验后等级不被打回（' + before + ' → ' + ST.Game.skills.yushi.level + '）');
+  assert(ST.Game.skills.qiaocai.level === 81, '主修技艺也仍是 81');
+
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

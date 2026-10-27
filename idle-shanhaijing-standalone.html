@@ -19811,7 +19811,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.77',
+  version: '1.31.78',
   codename:'昼巡 · 近况',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -20934,6 +20934,10 @@ function applySave(d){
       if (!isFinite(f.remain) || f.remain < 0) f.remain = 0;
       if (!isFinite(f.grow) || f.grow <= 0) f.grow = Items[f.seedId].grow || 10;
     }
+    // 校正御使：槽位数随「御使」等级走，坏档或跨版本可能塞超了。
+    // 超出的不生效却仍算加成（`deployedBonuses` 是全量求和），必须在读档时收干净。
+    if (typeof trimDeployedToSlots === 'function') trimDeployedToSlots();
+
     // 校正当前行动：行动里引用的技能 / 物品 / 配方必须还在。
     // 一个缺 `skill` 的采集行动会让 `currentActivityLabel` 抛
     // `Skills[a.skill].name` 的错——而它每次重绘都被调用，等于把舆地与技能两页彻底锁死。
@@ -21592,6 +21596,29 @@ function bestRebirthSkill(){
   }
   return { level: best, id: id0, name: (Skills[id0] || {}).name || id0 };
 }
+// 御使槽位由「御使」等级决定（每 10 级 +1），而轮回会把等级打回起手——
+// 已入槽的异兽却留了下来。不处理的话：界面写「御使槽位（6/1）」，
+// 而 `deployedBonuses()` 又把六只全算进去（看不见却生效）。
+// 规则：按原顺序保留放得下的，多出来的请回著录（资格还在，随时可再入槽）。
+function trimDeployedToSlots(){
+  const slots = (typeof beastSlots === 'function') ? beastSlots() : 9;
+  const ids = [];
+  for (const k of Object.keys(Game.deployed || {}).sort((a, b) => Number(a) - Number(b))){
+    const id = Game.deployed[k];
+    if (id && !ids.includes(id)) ids.push(id);      // 成对的两槽是同一只，算一次
+  }
+  const next = {};
+  let used = 0, dropped = 0;
+  for (const id of ids){
+    const need = (typeof deploySlotsNeed === 'function') ? deploySlotsNeed(id) : 1;
+    if (used + need > slots){ dropped++; continue; }
+    for (let i = 0; i < need; i++) next[used++] = id;
+  }
+  Game.deployed = next;
+  return dropped;
+}
+window.trimDeployedToSlots = trimDeployedToSlots;
+
 function doRebirth(){
   if (!canRebirth()) {
     return { ok:false, reason:`需任一技艺至 ${TUNING.REBIRTH.MIN_LEVEL} 级（九九圆满）` };
@@ -21627,6 +21654,9 @@ function doRebirth(){
   // 「再采」记的物也一并清掉：轮回后技艺归零，原来那件物多半采不动了
   Prefs.lastGatherId = null;
   autoAttack = false;
+  // 御使槽位跟着等级缩了，多出来的请回著录（否则界面写「6/1」而加成照算）
+  const dropped = trimDeployedToSlots();
+  if (dropped) log(`🐾 御使槽位不足，${dropped} 只异兽请回著录（资格仍在，可再入槽）`, 'dim', 'sys');
   // 送回南山起点：当前那座山多半已打不动
   Game.node = 'nanshan-1-01';
   log(`♻️ 第 ${count} 次轮回：技艺归 ${startLv} 级，修为与著录俱在`, 'gold', 'sys');
@@ -28949,6 +28979,14 @@ UI.renderSettings = function(){
   </div>`;
 };
 
+// 把「等级」写进存档时必须连 xp 一起写。
+// 原因：gainXp 里有 `sk.level = levelFromXp(sk.xp)`——只改 level 不改 xp 的假档，
+// 下一次涨经验就被打回真实等级（1 级），看起来像「一键全开没生效」。
+function simSetLevel(level){
+  const xp = (typeof xpForLevel === 'function') ? xpForLevel(level) : 0;
+  for (const k in Game.skills){ Game.skills[k].level = level; Game.skills[k].xp = xp; }
+}
+
 // ---------- 数据模拟的四个动作（拆出来是因为「一键全开」要复用） ----------
 function simMaterials(){
   let n = 0;
@@ -29010,10 +29048,11 @@ function devSim(what){
   let msg = '';
   try {
     if (what === 'lv+10'){
-      for (const k in Game.skills) Game.skills[k].level = Math.min(81, (Game.skills[k].level || 1) + 10);
+      const cur = (Game.skills.qiaocai && Game.skills.qiaocai.level) || 1;
+      simSetLevel(Math.min(81, cur + 10));
       msg = '各门技艺 +10 级';
     } else if (what === 'lv81'){
-      for (const k in Game.skills) Game.skills[k].level = 81;
+      simSetLevel(81);
       msg = '各门技艺 81 级（山川全解锁）';
     } else if (what === 'shell'){
       Game.shells = (Game.shells || 0) + 100000;
@@ -29041,7 +29080,7 @@ function devSim(what){
       msg = r && r.count ? `已择优御使 ${r.kinds} 只（占 ${r.count} 槽）` : '暂无可御使的异兽（先点「著录全开」）';
     } else if (what === 'all'){
       simMaterials(); simCodex(); simMap();
-      for (const k in Game.skills) Game.skills[k].level = 81;
+      simSetLevel(81);
       Game.shells = (Game.shells || 0) + 100000;
       // 配装与御使放在最后：它们依赖等级与著录
       const g = simGear();

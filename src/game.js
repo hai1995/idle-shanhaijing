@@ -346,6 +346,29 @@ function bestRebirthSkill(){
   }
   return { level: best, id: id0, name: (Skills[id0] || {}).name || id0 };
 }
+// 御使槽位由「御使」等级决定（每 10 级 +1），而轮回会把等级打回起手——
+// 已入槽的异兽却留了下来。不处理的话：界面写「御使槽位（6/1）」，
+// 而 `deployedBonuses()` 又把六只全算进去（看不见却生效）。
+// 规则：按原顺序保留放得下的，多出来的请回著录（资格还在，随时可再入槽）。
+function trimDeployedToSlots(){
+  const slots = (typeof beastSlots === 'function') ? beastSlots() : 9;
+  const ids = [];
+  for (const k of Object.keys(Game.deployed || {}).sort((a, b) => Number(a) - Number(b))){
+    const id = Game.deployed[k];
+    if (id && !ids.includes(id)) ids.push(id);      // 成对的两槽是同一只，算一次
+  }
+  const next = {};
+  let used = 0, dropped = 0;
+  for (const id of ids){
+    const need = (typeof deploySlotsNeed === 'function') ? deploySlotsNeed(id) : 1;
+    if (used + need > slots){ dropped++; continue; }
+    for (let i = 0; i < need; i++) next[used++] = id;
+  }
+  Game.deployed = next;
+  return dropped;
+}
+window.trimDeployedToSlots = trimDeployedToSlots;
+
 function doRebirth(){
   if (!canRebirth()) {
     return { ok:false, reason:`需任一技艺至 ${TUNING.REBIRTH.MIN_LEVEL} 级（九九圆满）` };
@@ -381,6 +404,9 @@ function doRebirth(){
   // 「再采」记的物也一并清掉：轮回后技艺归零，原来那件物多半采不动了
   Prefs.lastGatherId = null;
   autoAttack = false;
+  // 御使槽位跟着等级缩了，多出来的请回著录（否则界面写「6/1」而加成照算）
+  const dropped = trimDeployedToSlots();
+  if (dropped) log(`🐾 御使槽位不足，${dropped} 只异兽请回著录（资格仍在，可再入槽）`, 'dim', 'sys');
   // 送回南山起点：当前那座山多半已打不动
   Game.node = 'nanshan-1-01';
   log(`♻️ 第 ${count} 次轮回：技艺归 ${startLv} 级，修为与著录俱在`, 'gold', 'sys');

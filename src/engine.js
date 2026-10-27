@@ -327,6 +327,10 @@ function applySave(d){
       if (!isFinite(f.remain) || f.remain < 0) f.remain = 0;
       if (!isFinite(f.grow) || f.grow <= 0) f.grow = Items[f.seedId].grow || 10;
     }
+    // 校正御使：槽位数随「御使」等级走，坏档或跨版本可能塞超了。
+    // 超出的不生效却仍算加成（`deployedBonuses` 是全量求和），必须在读档时收干净。
+    if (typeof trimDeployedToSlots === 'function') trimDeployedToSlots();
+
     // 校正当前行动：行动里引用的技能 / 物品 / 配方必须还在。
     // 一个缺 `skill` 的采集行动会让 `currentActivityLabel` 抛
     // `Skills[a.skill].name` 的错——而它每次重绘都被调用，等于把舆地与技能两页彻底锁死。

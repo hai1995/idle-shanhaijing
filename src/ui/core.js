@@ -963,6 +963,14 @@ UI.renderSettings = function(){
   </div>`;
 };
 
+// 把「等级」写进存档时必须连 xp 一起写。
+// 原因：gainXp 里有 `sk.level = levelFromXp(sk.xp)`——只改 level 不改 xp 的假档，
+// 下一次涨经验就被打回真实等级（1 级），看起来像「一键全开没生效」。
+function simSetLevel(level){
+  const xp = (typeof xpForLevel === 'function') ? xpForLevel(level) : 0;
+  for (const k in Game.skills){ Game.skills[k].level = level; Game.skills[k].xp = xp; }
+}
+
 // ---------- 数据模拟的四个动作（拆出来是因为「一键全开」要复用） ----------
 function simMaterials(){
   let n = 0;
@@ -1024,10 +1032,11 @@ function devSim(what){
   let msg = '';
   try {
     if (what === 'lv+10'){
-      for (const k in Game.skills) Game.skills[k].level = Math.min(81, (Game.skills[k].level || 1) + 10);
+      const cur = (Game.skills.qiaocai && Game.skills.qiaocai.level) || 1;
+      simSetLevel(Math.min(81, cur + 10));
       msg = '各门技艺 +10 级';
     } else if (what === 'lv81'){
-      for (const k in Game.skills) Game.skills[k].level = 81;
+      simSetLevel(81);
       msg = '各门技艺 81 级（山川全解锁）';
     } else if (what === 'shell'){
       Game.shells = (Game.shells || 0) + 100000;
@@ -1055,7 +1064,7 @@ function devSim(what){
       msg = r && r.count ? `已择优御使 ${r.kinds} 只（占 ${r.count} 槽）` : '暂无可御使的异兽（先点「著录全开」）';
     } else if (what === 'all'){
       simMaterials(); simCodex(); simMap();
-      for (const k in Game.skills) Game.skills[k].level = 81;
+      simSetLevel(81);
       Game.shells = (Game.shells || 0) + 100000;
       // 配装与御使放在最后：它们依赖等级与著录
       const g = simGear();
