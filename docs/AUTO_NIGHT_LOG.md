@@ -605,3 +605,32 @@ VM 里整个文件一起崩、报错位置还指在别处——**搬完先跑 du
   实测 390 一行放下（高 18px），320 两行（高 36px），不溢出不拆字。
 - 验收：3406 断言全绿（第 189 节 33 条）；`check.js --patrol` 七步全过；30 组巡检 0 坏；
   webkit 实测两个视口文案一致、patch 后不被覆盖、0 JS 错误；线上 v1.31.131 已确认。
+
+## v1.31.132（本轮第 32 批）· 一个写法，两种环境，一条看不见的路径
+
+- 循着上批那个 `seasonRiverBonus` 往下查：**这个坑是不是还有别处？**
+  先扫「`window.x = function` 且同文件裸名引用」→ 只有它自己（已修）。
+  再扫更危险的模式「`typeof x === 'function' ? x() : 字面量兜底`」→ 61 处，
+  但绝大多数是**图标降级**（`markIcon() : '✔'`），拿不到就退 emoji，只影响观感。
+  真正涉及**数值**的只有 4 处（`enhanceHeatOf` / `bagQty` / `xpMult` / `levelOf`），
+  逐个查定义方式——全是「函数声明 + 挂 window」，裸名必然可见，兜底是死代码，安全。
+- 顺手扫到一处真的：`save.js` 的 `window.flushCloudSave = function(){...}`，
+  而 **`boot.js` 在 `pagehide` / `visibilitychange` 里裸名调用它**。
+  浏览器里能跑（window 就是全局对象），但这是「关页面前同步云存档」这条路径——
+  一旦哪天写法或加载顺序变动，它就静默不执行，而测试永远看不见。
+  改成顶层函数声明 + 挂 window，与其他地方统一。
+- 用一个小实验把机理钉死（值得记）：
+  ```js
+  function declaredFn(){}           // 裸名 → 'function'，ctx.declaredFn 也是 function
+  window.exprFn = function(){};     // 裸名 → 'undefined'，ctx.exprFn 也是 undefined
+  ```
+  差别不在「挂没挂 window」，而在**表达式赋值不产生全局变量**。
+  所以规矩是：**跨文件共享的函数，一律先写函数声明，再挂 window**。
+- 第 190 节把这条规矩做成静态扫描：src/ 下不许出现 `window.x = function` / `= (` 形式的函数赋值，
+  扫描面必须与 `index.html` 的脚本数一致（39 = 39），漏扫一个文件就等于给那文件开后门。
+  另配两条反向自检：规则能认出禁止写法、不误伤 `window.x = 已有函数` 的正常挂载。
+- 反向验证：把 `flushCloudSave` 改回表达式赋值 → 第 190 节立刻报
+  「`src/save.js:580 window.flushCloudSave = function(){`」，定位到行。
+- webkit 实测：`flushCloudSave` 裸名可调用、与 `window.flushCloudSave` 是同一对象、
+  真调一次返回 `{ok:false, reason:'云端未接入'}`（单机正常降级，不崩）、0 JS 错误。
+- 验收：3413 断言全绿（第 190 节 7 条）；`check.js --patrol` 七步全过；30 组巡检 0 坏；线上 v1.31.132 已确认。
