@@ -19645,7 +19645,7 @@ const Milestones = [
   { id:'pilgrim_5', name:'五系巡礼', desc:'走遍五个山系的诸山',
     prog:()=>[pilgrimFullCount(), 5], bonus:'采获 +3%', yield:0.03,
     how:'山系进度在舆地页每个山系方块上，诸山皆涉即满。满额那系右上角会亮一枚「赏」。', go:{ tab:'yudi' } },
-  // ---- 见闻（v1.31.102）：把「偶尔撞见的一句话」变成一个可见的收集目标 ----
+  // ---- 见闻（v1.31.103）：把「偶尔撞见的一句话」变成一个可见的收集目标 ----
   // 判据取「见过几种」而非「触发多少次」：见闻的价值在种类，重复同一条没有新信息。
   { id:'event_5', name:'见闻初录', desc:'行旅见闻见过 5 种',
     prog:()=>[eventKindsSeen(), 5], bonus:'经验 +1%', xp:0.01,
@@ -19886,7 +19886,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.102',
+  version: '1.31.103',
   codename:'昼巡 · 近况',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -20919,7 +20919,10 @@ function applySave(d){
     // 同目标连续讨伐计数（旧档无此字段，缺省为空）
     Game.mobStreak = (d.mobStreak && typeof d.mobStreak === 'object') ? d.mobStreak : {};
     Game.pilgrim = (d.pilgrim && typeof d.pilgrim === 'object') ? d.pilgrim : {};
-    Game.events = (d.events && typeof d.events === 'object') ? d.events : { at: 0, count: 0, lastId: '', seen: {} };
+    // 用默认值打底再合并：旧档缺 awayAt / lastAt 时补上，
+    // 否则「结构不完整」会一路带进下次存档（功能靠 `|| 0` 兜着，但越攒越歪）
+    Game.events = Object.assign({ at: 0, count: 0, lastId: '', seen: {}, awayAt: 0, lastAt: 0 },
+                                (d.events && typeof d.events === 'object') ? d.events : {});
     if (Game.events && !Game.events.seen) Game.events.seen = {}
     // 装备淬炼等级（旧档无此字段，缺省为空；非法值剔除）
     // 上限取当前 ENHANCE_MAX——这里曾写死 9，强化上限提到 30 时忘了同步，

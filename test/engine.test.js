@@ -9000,7 +9000,8 @@ section('行旅见闻');
   assert(/events: G\.events/.test(sSrc), '存档白名单里有 events');
   assert(/g\.events = \{ at: 0, count: 0, lastId: '', seen: \{\}, awayAt: 0, lastAt: 0 \}/.test(eSrc),
     '新建档有 events 默认值（含逐条计数 seen、离线冷却 awayAt、最近一次 lastAt）');
-  assert(/Game\.events = \(d\.events/.test(eSrc), '读档恢复 events');
+  assert(/Game\.events = Object\.assign\(\{ at: 0/.test(eSrc),
+    '读档恢复 events（默认值打底再合并，旧档缺的字段会被补上）');
   assert(/EVENT_GAP/.test(evSrc) && /last && now - last < EVENT_GAP/.test(evSrc),
     '冷却判据：at=0 视为「还没触发过」，不能当时间戳用');
 

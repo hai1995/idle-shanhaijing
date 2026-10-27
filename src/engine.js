@@ -235,7 +235,10 @@ function applySave(d){
     // 同目标连续讨伐计数（旧档无此字段，缺省为空）
     Game.mobStreak = (d.mobStreak && typeof d.mobStreak === 'object') ? d.mobStreak : {};
     Game.pilgrim = (d.pilgrim && typeof d.pilgrim === 'object') ? d.pilgrim : {};
-    Game.events = (d.events && typeof d.events === 'object') ? d.events : { at: 0, count: 0, lastId: '', seen: {} };
+    // 用默认值打底再合并：旧档缺 awayAt / lastAt 时补上，
+    // 否则「结构不完整」会一路带进下次存档（功能靠 `|| 0` 兜着，但越攒越歪）
+    Game.events = Object.assign({ at: 0, count: 0, lastId: '', seen: {}, awayAt: 0, lastAt: 0 },
+                                (d.events && typeof d.events === 'object') ? d.events : {});
     if (Game.events && !Game.events.seen) Game.events.seen = {}
     // 装备淬炼等级（旧档无此字段，缺省为空；非法值剔除）
     // 上限取当前 ENHANCE_MAX——这里曾写死 9，强化上限提到 30 时忘了同步，
