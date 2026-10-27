@@ -2436,6 +2436,27 @@ section('云端化存档层');
     events: { at: 1000, count: 7, lastId: 'canjian', seen: { canjian: 3 } } });
   assert(migEv.events.count === 7 && migEv.events.at === 1000, '旧档的见闻次数与冷却时刻不丢');
   assert(migEv.events.seen && migEv.events.seen.canjian === 3, '旧档的逐条计数不丢');
+  // 28.3″ 旧见闻 id 在**读档**时被清掉（v1.31.128）
+  // 场景：见闻改名 / 下架后，旧档的 seen 里会留下表里没有的键。求和只扫当前表、
+  // 不会算错数，但那些键会跟着存档一直走。断言走真实读档路径（存档→读回），
+  // 不是直接调某个 helper——清理发生在 engine 的读档装配里。
+  {
+    const keep28 = ST.Game.events;
+    const saved28 = JSON.parse(JSON.stringify(ST.Game));
+    saved28.events = { at: 500, count: 9, lastId: '__ghost', awayAt: 100,
+                       lastAt: 400, seen: { canjian: 3, __ghost: 5, __removed: 2 } };
+    // 键名取 save.js 的 SAVE_KEY（不是随手编一个）：写错的键会被静默忽略，测试就变成空转。
+    ST.SaveManager.store.write(JSON.stringify(saved28));
+    G.loadGame();
+    const ev28 = ST.Game.events;
+    assert(ev28.seen.canjian === 3, '表内的见闻计数保留');
+    assert(!('__ghost' in ev28.seen) && !('__removed' in ev28.seen), '表里已无的旧见闻 id 被清掉');
+    assert(ev28.count === 9 && ev28.at === 500, '总数与冷却时刻不受清理影响');
+    assert(ev28.lastId === '', '「最近一次」指向已下架的见闻时置空');
+    assert(ev28.seen.canjian === 3 && ev28.count === 9, '清理只删幽灵键、不误伤正主');
+    ST.Game.events = keep28;
+  }
+
   // 28.4 多端合并：单调字段取大，可变资源取新
   const A = { version:3, savedAt:1000, shells:50, inventory:{ gui:2 }, skills:{ taofa:{ level:3, xp:100 } },
               records:{ ds_hey:{ count:5, tier:2 } }, stats:{ kills:10, bossKills:{ a:1 } }, grow:{ p1:{ stage:2, done:1 } },

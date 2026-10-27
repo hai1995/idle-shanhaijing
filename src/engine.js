@@ -240,6 +240,20 @@ function applySave(d){
     Game.events = Object.assign({ at: 0, count: 0, lastId: '', seen: {}, awayAt: 0, lastAt: 0 },
                                 (d.events && typeof d.events === 'object') ? d.events : {});
     if (Game.events && !Game.events.seen) Game.events.seen = {}
+    // 清掉「表里已没有」的旧见闻 id（v1.31.128）：改名 / 下架的见闻会在 seen 里留键，
+    // 虽然求和只扫当前表、不会算错，但这些键会一直跟着存档走，越攒越多。
+    // 判据取「当前两张表」——见闻表的唯一来源在 events.js，这里只读不抄。
+    {
+      const known = new Set(
+        ((typeof window !== 'undefined' && window.TRAVEL_EVENTS) || [])
+          .concat((typeof window !== 'undefined' && window.AWAY_EVENTS) || [])
+          .map(e => e && e.id).filter(Boolean)
+      );
+      if (known.size && Game.events.seen && typeof Game.events.seen === 'object'){
+        Object.keys(Game.events.seen).forEach(k => { if (!known.has(k)) delete Game.events.seen[k]; });
+        if (Game.events.lastId && !known.has(Game.events.lastId)) Game.events.lastId = '';
+      }
+    }
     // 装备淬炼等级（旧档无此字段，缺省为空；非法值剔除）
     // 上限取当前 ENHANCE_MAX——这里曾写死 9，强化上限提到 30 时忘了同步，
     // 结果强到 +20 的装备一刷新就掉回 +9。凡是「另一处定义的常量」，
