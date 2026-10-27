@@ -267,7 +267,7 @@ UI.renderLog = function(){
   if (!box) return;
   const rows = this.logEntries.filter(e=>this.logFilter==='all'||e.cat===this.logFilter).slice(0, 300);
   box.innerHTML = rows.map(e=>`<div class="log-row" style="color:${LOG_COLORS[e.color]||'inherit'}">${markHtml(e.msg,14)}</div>`).join('')
-    || '<div class="hint">暂无记录</div>';
+    || '<div class="empty-note">暂无记录</div>';
 };
 function exportSave(){
   const txt = exportSaveText();

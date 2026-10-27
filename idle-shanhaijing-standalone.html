@@ -1111,7 +1111,9 @@ html.theme-anim, html.theme-anim *{
 }
 .form-row select:hover,.form-row input:hover{ border-color:var(--ink-4); }
 .form-row select:focus,.form-row input:focus{ border-color:var(--qing); box-shadow:0 0 0 3px var(--qing-w); outline:none; }
-input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
+/* 滑块：Chromium 给 range 的默认背景是白的，夜间模式里露出一小块亮底（v1.31.163）。
+   background 归零不影响轨道与滑块——它们由 accent-color 绘制。 */
+input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; background:transparent; }
 .btn-group{ display:inline-flex; gap:2px; }
 
 /* 统计页 · 上次离线：一行长摘要，值用次级色且不加粗，避免与列名抢视线 */
@@ -1758,6 +1760,11 @@ svg.bi.mk{ vertical-align:-2px; }
   font-size:12px; line-height:1.9; color:var(--ink-3);
   border:1px dashed var(--rule); border-radius:var(--r); background:var(--paper-3);
 }
+/* 空态里常带一枚指路钮（「去征伐」）。间距交给样式，不写内联 margin——
+   此前靠内联样式，换皮时它留在原地不动（v1.31.163）。 */
+.empty-note .btn{ margin-top:10px; }
+/* 单行空态不撑成大方块：日志框 / 小面板里的「暂无记录」只占一指高 */
+.empty-note:not(:has(.btn)):not(:has(br)){ padding:12px 16px; }
 
 /* ==========================================================================
    图鉴
@@ -20118,7 +20125,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.162',
+  version: '1.31.163',
   codename:'昼巡 · 对账',
   updated: '2026-10-28',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -33395,7 +33402,7 @@ UI.renderYushi = function(){
           <div class="bc-sub">按著录阶 ×${scale.toFixed(1)}　·　著录 ${rec.count} 次${Monsters[b.id]&&Monsters[b.id].pair?' · 成对，占两槽':''}</div>
         </span>
       </div>`;
-    }).join('') + more || `<div class="hint">尚无达标异兽——往讨异兽并累积著录度<br><button class="btn small" style="margin-top:10px" onclick="UI.switchTab('taofa')">${typeof markIcon==='function'?markIcon('bolt',14):'⚔️'} 去征伐</button></div>`;
+    }).join('') + more || `<div class="empty-note">尚无达标异兽——往讨异兽并累积著录度<br><button class="btn small" onclick="UI.switchTab('taofa')">${typeof markIcon==='function'?markIcon('bolt',14):'⚔️'} 去征伐</button></div>`;
     })()}
     </div>
   </div></div>
@@ -33409,7 +33416,7 @@ UI.renderYushi = function(){
       // 有进展的排在前面直接可见；一次没讨过的收进折叠区，免得开屏就是一堵 0/50 的墙
       return (started.length
           ? `<div class="mini-grid">${started.map(card).join('')}</div>`
-          : '<div class="hint">尚无著录中的异兽。往讨任意异兽，每次交手都会累积它的著录度（至通形 50 次可御使）。</div>')
+          : '<div class="empty-note">尚无著录中的异兽。往讨任意异兽，每次交手都会累积它的著录度（至通形 50 次可御使）。</div>')
         + (untouched.length
           ? `<details class="fold"><summary>其余 ${untouched.length} 种尚未著录</summary><div class="mini-grid">${untouched.map(card).join('')}</div></details>`
           : '');
@@ -36247,7 +36254,7 @@ UI.fetchRank = async function(){
     if (!res.ok){ box.innerHTML = '<div class="hint">榜单服务返回 ' + res.status + '</div>'; return; }
     const j = await res.json().catch(() => null);
     if (!j || !Array.isArray(j.rows)){ box.innerHTML = '<div class="hint">榜单数据异常</div>'; return; }
-    if (!j.rows.length){ box.innerHTML = '<div class="hint">榜上还没有人，去投下第一笔战绩吧。</div>'; return; }
+    if (!j.rows.length){ box.innerHTML = '<div class="empty-note">榜上还没有人，去投下第一笔战绩吧。</div>'; return; }
     const rows = j.rows.map(r => `<tr>
       <td class="rk">${r.rank}</td>
       <td class="nm">${esc(r.name)}</td>
@@ -36534,7 +36541,7 @@ UI.renderLog = function(){
   if (!box) return;
   const rows = this.logEntries.filter(e=>this.logFilter==='all'||e.cat===this.logFilter).slice(0, 300);
   box.innerHTML = rows.map(e=>`<div class="log-row" style="color:${LOG_COLORS[e.color]||'inherit'}">${markHtml(e.msg,14)}</div>`).join('')
-    || '<div class="hint">暂无记录</div>';
+    || '<div class="empty-note">暂无记录</div>';
 };
 function exportSave(){
   const txt = exportSaveText();

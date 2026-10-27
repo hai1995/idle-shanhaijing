@@ -1084,7 +1084,9 @@ html.theme-anim, html.theme-anim *{
 }
 .form-row select:hover,.form-row input:hover{ border-color:var(--ink-4); }
 .form-row select:focus,.form-row input:focus{ border-color:var(--qing); box-shadow:0 0 0 3px var(--qing-w); outline:none; }
-input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
+/* 滑块：Chromium 给 range 的默认背景是白的，夜间模式里露出一小块亮底（v1.31.163）。
+   background 归零不影响轨道与滑块——它们由 accent-color 绘制。 */
+input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; background:transparent; }
 .btn-group{ display:inline-flex; gap:2px; }
 
 /* 统计页 · 上次离线：一行长摘要，值用次级色且不加粗，避免与列名抢视线 */
@@ -1731,6 +1733,11 @@ svg.bi.mk{ vertical-align:-2px; }
   font-size:12px; line-height:1.9; color:var(--ink-3);
   border:1px dashed var(--rule); border-radius:var(--r); background:var(--paper-3);
 }
+/* 空态里常带一枚指路钮（「去征伐」）。间距交给样式，不写内联 margin——
+   此前靠内联样式，换皮时它留在原地不动（v1.31.163）。 */
+.empty-note .btn{ margin-top:10px; }
+/* 单行空态不撑成大方块：日志框 / 小面板里的「暂无记录」只占一指高 */
+.empty-note:not(:has(.btn)):not(:has(br)){ padding:12px 16px; }
 
 /* ==========================================================================
    图鉴

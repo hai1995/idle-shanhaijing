@@ -77,6 +77,33 @@ JS_CLIP = """() => {
 }"""
 
 
+# 夜间模式的「漏网亮块」：凡是夜间还在用固定浅色的大块元素，都会被这一条逮住
+# （v1.31.163 抓到 input[type=range] 的 Chromium 默认白底）。
+# .chip-btn 的青色是「选中态」，有意的高亮，进白名单。
+BRIGHT_OK = ('.chip-btn',)
+JS_BRIGHT = r"""() => {
+  const lum = (c) => {
+    const m = c.match(/[\d.]+/g); if (!m) return null;
+    const [r,g,b,a] = m.map(Number);
+    if (a !== undefined && a < 0.15) return null;
+    return (0.299*r + 0.587*g + 0.114*b) / 255;
+  };
+  const out = [];
+  document.querySelectorAll('#app *, #topbar *, #tabs *').forEach(el => {
+    const cs = getComputedStyle(el);
+    if (cs.display === 'none' || cs.visibility === 'hidden') return;
+    const r = el.getBoundingClientRect();
+    if (r.width < 8 || r.height < 8 || r.width * r.height < 400) return;
+    const bg = lum(cs.backgroundColor);
+    if (bg === null || bg <= 0.72) return;
+    let sel = el.tagName.toLowerCase() + (el.className ? '.' + String(el.className).split(' ')[0] : '');
+    if (%s.some(k => sel.indexOf(k) >= 0)) return;
+    out.push(sel + ' ' + cs.backgroundColor + ' ' + Math.round(r.width) + 'x' + Math.round(r.height));
+  });
+  return [...new Set(out)].slice(0, 6);
+}""" % (list(BRIGHT_OK),)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--file', default='idle-shanhaijing-standalone.html', help='要体检的页面（相对仓库根）')
@@ -149,6 +176,17 @@ def main():
             fails.append('朱色描边 token 没随主题变化')
         if args.out:
             pg.screenshot(path=os.path.join(args.out, 'night.png'))
+
+        # 4.5) 夜间漏网亮块：逐页扫一遍（只在夜间主题下有意义，故放在切回日间之前）
+        bright = []
+        for t in TABS:
+            pg.evaluate("t => UI.switchTab(t)", t)
+            pg.wait_for_timeout(80)
+            for hit in pg.evaluate(JS_BRIGHT):
+                bright.append(f'{t}: {hit}')
+        print('· 夜间漏网亮块扫描完毕' + ('：' + ' | '.join(bright[:4]) if bright else '（无）'))
+        if bright:
+            fails.append('夜间仍有固定浅色块：' + ' | '.join(bright[:4]))
 
         # 5) 窄屏：逐页查横向溢出（简洁化改动最容易在这里翻车）
         pg.set_viewport_size({'width': 390, 'height': 844})

@@ -10828,6 +10828,39 @@ pending.push((async()=>{
   }
 })());
 
+// ============ 137. 形态统一：空态 / 标题附注 / 日志行 ============
+// 简化的界面靠「同形」而不是靠每一处都调一遍：同一类东西长一样，才算收口。
+section('形态统一：空态 / 标题附注 / 日志行');
+{
+  const cssX = readText('style.css');
+  const stX = readText('src/ui/stats.js');
+  const cbX = readText('src/ui/combat.js');
+  const rkX = readText('src/ui/rank.js');
+  const msX = readText('src/ui/misc.js');
+  const quX = readText('src/ui/queue.js');
+  // 1) 整块空态一律 .empty-note（虚线框居中），不再拿行内 .hint 顶替
+  assert(cbX.includes('尚无达标异兽') && !/尚无达标异兽[^`]*class="hint"/.test(cbX), '御使空态改用 .empty-note');
+  assert(cbX.includes('class="empty-note">尚无著录中的异兽'), '「未达标」空态改用 .empty-note');
+  assert(msX.includes('class="empty-note">暂无记录'), '日志空态改用 .empty-note');
+  assert(rkX.includes('class="empty-note">榜上还没有人'), '榜单空态改用 .empty-note');
+  assert(/\.empty-note \.btn\{ margin-top:10px; \}/.test(cssX), '空态里的指路钮间距由样式给（不再靠内联 margin）');
+  // 2) 标题里的数字段不许在数字中间断开（「≈ 8 秒」的「秒」掉到下一行）
+  assert(quX.includes('class="h3-more"> · 预计一轮'), '队列标题的时长段可整体折行');
+  assert(/\.panel h3 \.h3-more\{ white-space:nowrap;/.test(cssX), '标题附注段 nowrap（不在数字中折断）');
+  assert(/\.panel h3\{[\s\S]*?flex-wrap:wrap;/.test(cssX), '面板标题允许折行（不压成孤字）');
+  // 3) 统计「近况」的说明独立成行，不再挤在标题右侧
+  assert(stX.includes('<h3>近况</h3><div class="h3-hint">'), '近况说明独立成行（不与标题抢一行）');
+  assert(/\.panel \.h3-hint\{[^}]*margin:-5px 0 10px;/.test(cssX), '标题下说明行的间距已定义');
+  // 4) 日志行与异迹面板同形：同为 solid 细线 + 5px 上下距（原先一虚一实、一 4px 一 5px）
+  assert(/\.log-row\{ padding:5px 0; border-bottom:1px solid var\(--rule-2\); line-height:1\.6; \}/.test(cssX), '日志行改用实线分隔（与异迹行同形）');
+  assert(/\.omen-log-line\{ padding:5px 0; font-size:12px; line-height:1\.6; border-bottom:1px solid var\(--rule-2\); \}/.test(cssX), '异迹行保持同形（对账基准）');
+  assert(/\.log-list\{ max-height:300px; overflow-y:auto; font-size:12px;/.test(cssX), '日志列表字号与异迹行一致（12px）');
+  // 5) 夜间漏网亮块：滑块默认白底修掉，并把这条写进浏览器体检
+  assert(/input\[type=range\]\{ accent-color:var\(--zhu\); height:20px; flex:1; background:transparent; \}/.test(cssX), '滑块背景透明（夜间不露白底）');
+  const smoke = readText('scripts/smoke-ui.py');
+  assert(smoke.includes('JS_BRIGHT') && smoke.includes('夜间仍有固定浅色块'), '浏览器体检含「夜间漏网亮块」守卫');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

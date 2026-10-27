@@ -459,7 +459,7 @@ UI.renderYushi = function(){
           <div class="bc-sub">按著录阶 ×${scale.toFixed(1)}　·　著录 ${rec.count} 次${Monsters[b.id]&&Monsters[b.id].pair?' · 成对，占两槽':''}</div>
         </span>
       </div>`;
-    }).join('') + more || `<div class="hint">尚无达标异兽——往讨异兽并累积著录度<br><button class="btn small" style="margin-top:10px" onclick="UI.switchTab('taofa')">${typeof markIcon==='function'?markIcon('bolt',14):'⚔️'} 去征伐</button></div>`;
+    }).join('') + more || `<div class="empty-note">尚无达标异兽——往讨异兽并累积著录度<br><button class="btn small" onclick="UI.switchTab('taofa')">${typeof markIcon==='function'?markIcon('bolt',14):'⚔️'} 去征伐</button></div>`;
     })()}
     </div>
   </div></div>
@@ -473,7 +473,7 @@ UI.renderYushi = function(){
       // 有进展的排在前面直接可见；一次没讨过的收进折叠区，免得开屏就是一堵 0/50 的墙
       return (started.length
           ? `<div class="mini-grid">${started.map(card).join('')}</div>`
-          : '<div class="hint">尚无著录中的异兽。往讨任意异兽，每次交手都会累积它的著录度（至通形 50 次可御使）。</div>')
+          : '<div class="empty-note">尚无著录中的异兽。往讨任意异兽，每次交手都会累积它的著录度（至通形 50 次可御使）。</div>')
         + (untouched.length
           ? `<details class="fold"><summary>其余 ${untouched.length} 种尚未著录</summary><div class="mini-grid">${untouched.map(card).join('')}</div></details>`
           : '');

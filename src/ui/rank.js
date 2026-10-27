@@ -119,7 +119,7 @@ UI.fetchRank = async function(){
     if (!res.ok){ box.innerHTML = '<div class="hint">榜单服务返回 ' + res.status + '</div>'; return; }
     const j = await res.json().catch(() => null);
     if (!j || !Array.isArray(j.rows)){ box.innerHTML = '<div class="hint">榜单数据异常</div>'; return; }
-    if (!j.rows.length){ box.innerHTML = '<div class="hint">榜上还没有人，去投下第一笔战绩吧。</div>'; return; }
+    if (!j.rows.length){ box.innerHTML = '<div class="empty-note">榜上还没有人，去投下第一笔战绩吧。</div>'; return; }
     const rows = j.rows.map(r => `<tr>
       <td class="rk">${r.rank}</td>
       <td class="nm">${esc(r.name)}</td>
