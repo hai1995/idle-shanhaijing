@@ -8995,7 +8995,8 @@ section('行旅见闻');
 
   // ⑤ 冷却随存档走：不存的话，刷新一次就能洗掉冷却、刷新即刷事件
   assert(/events: G\.events/.test(sSrc), '存档白名单里有 events');
-  assert(/g\.events = \{ at: 0, count: 0, lastId: '', seen: \{\}, awayAt: 0 \}/.test(eSrc), '新建档有 events 默认值（含逐条计数 seen 与离线见闻冷却 awayAt）');
+  assert(/g\.events = \{ at: 0, count: 0, lastId: '', seen: \{\}, awayAt: 0, lastAt: 0 \}/.test(eSrc),
+    '新建档有 events 默认值（含逐条计数 seen、离线冷却 awayAt、最近一次 lastAt）');
   assert(/Game\.events = \(d\.events/.test(eSrc), '读档恢复 events');
   assert(/EVENT_GAP/.test(evSrc) && /last && now - last < EVENT_GAP/.test(evSrc),
     '冷却判据：at=0 视为「还没触发过」，不能当时间戳用');
@@ -9337,6 +9338,17 @@ section('见闻成就');
   assert(typeof ms5.xp === 'number' && typeof msAll.yield === 'number', '加成字段是引擎认得的名字');
   assert(typeof ms5.how === 'string' && ms5.how.length > 10, '有「怎么达成」的说明（面板要显示）');
   assert(ms5.go && ms5.go.tab, '有跳转目标');
+
+  // 「最近一次」：计数只说多少，说不了上次是什么时候
+  ST.Game.events.lastId = 'canjian';
+  ST.Game.events.lastAt = Math.max(1, ST.gameTime() - 120);
+  const mSrc = readText('src/ui/misc.js');
+  assert(/最近一次/.test(mSrc) && /lastAt/.test(mSrc), '面板显示「最近一次」');
+  assert(/fmtDur\(ago\)/.test(mSrc), '用统一的时长口径 fmtDur（不另写一套）');
+  // 离线见闻也要写 lastId：玩家回来看到的那条就是最近的一条
+  const evSrc = readText('src/events.js');
+  const awayBlock = evSrc.slice(evSrc.indexOf('function maybeAwayEvent'));
+  assert(/st\.lastId = pick\.id/.test(awayBlock), '离线见闻也更新 lastId');
 
   G.resetToDefault();
   ST.__eventsMuted = true;

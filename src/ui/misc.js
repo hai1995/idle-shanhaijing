@@ -99,8 +99,18 @@ UI.renderStats = function(){
       const awayRows = awayEv.length
         ? `<div class="stat-sub">不在时</div>` + awayEv.map(cell).join('')
         : '';
+      // 最近一次：计数只说「多少」，说不了「上次是什么时候」。
+      // 挂机回来想知道「这一夜有没有遇到什么」，看的是这一行，不是总数。
+      let lastLine = '';
+      const lastId = (Game.events && Game.events.lastId) || '';
+      const lastAt = (Game.events && Game.events.lastAt) || 0;
+      const lastEv = lastId ? evs.find(e => e.id === lastId) : null;
+      if (lastEv && lastAt > 0){
+        const ago = Math.max(0, (typeof gameTime === 'function' ? gameTime() : 0) - lastAt);
+        lastLine = `<div class="stat-rows"><span class="hint">最近一次：${esc(lastEv.name || lastId)} · ${fmtDur(ago)}前</span></div>`;
+      }
       return `<div class="panel stat-panel"><h3>行旅见闻 <span class="hint">${kinds}/${evs.length} 种 · 共 ${total} 条</span></h3>
-        <div class="stat-rows">${rows}${awayRows}</div></div>`;
+        <div class="stat-rows">${rows}${awayRows}</div>${lastLine}</div>`;
     })()}
     ${(function(){
       // 「近况」：统计页其余都是累计数字，看不出「此刻」收益几何。

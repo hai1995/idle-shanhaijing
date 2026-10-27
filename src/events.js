@@ -309,12 +309,15 @@ function maybeAwayEvent(seconds, summary){
   st.awayAt = now || 1;
   st.seen = (st.seen && typeof st.seen === 'object') ? st.seen : {};
   st.seen[pick.id] = (st.seen[pick.id] || 0) + 1;
+  // 「最近一次」也认离线见闻：玩家回来看到的那一条，就是最近的一条
+  st.lastId = pick.id;
+  st.lastAt = now || 1;
   if (out.log && typeof log === 'function') log(out.log, 'gold', 'sys');
   return { id: pick.id, name: pick.name, text: out.text || '', rare: !!pick.rare };
 }
 
 function eventsState(){
-  if (!Game.events || typeof Game.events !== 'object') Game.events = { at: 0, count: 0, lastId: '', seen: {}, awayAt: 0 };
+  if (!Game.events || typeof Game.events !== 'object') Game.events = { at: 0, count: 0, lastId: '', seen: {}, awayAt: 0, lastAt: 0 };
   return Game.events;
 }
 
@@ -346,6 +349,7 @@ function maybeEvent(ctx, force){
   st.at = now;
   st.count = (st.count || 0) + 1;
   st.lastId = pick.id;
+  st.lastAt = now;      // 与 at 同值，但语义是「最近一次的见闻时刻」（离线见闻也写这里）
   // 逐条计数：见闻录要能说「这一条见过几次」，只记总数不够
   st.seen = (st.seen && typeof st.seen === 'object') ? st.seen : {};
   st.seen[pick.id] = (st.seen[pick.id] || 0) + 1;
