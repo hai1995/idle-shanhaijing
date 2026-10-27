@@ -9804,6 +9804,59 @@ section('见闻与异迹三处同源');
   ST.__eventsMuted = true;
 }
 
+
+// ============ 181. 征兆专属见闻（v1.31.119） ============
+// 见闻此前只认识「地方」（异迹）与「时间」（夜里 / 离线）；征兆条让它们认识「时势」——
+// 这座山此刻压着什么兆。凶兆条写「可以怎么办」，吉兆条写「趁现在」。
+section('征兆专属见闻');
+{
+  ST.__eventsMuted = false;
+  G.resetToDefault();
+  assert(typeof ST.activeOmenAt === 'function', 'activeOmenAt 可查（节点 → 活跃征兆）');
+
+  const xiong = ST.TRAVEL_EVENTS.find(e => e.id === 'zhao_xiong');
+  const ji   = ST.TRAVEL_EVENTS.find(e => e.id === 'zhao_ji');
+  assert(xiong && ji, '两条征兆见闻都在表里');
+
+  // ① 没有征兆时都不触发
+  assert(ST.activeOmenAt(undefined) === null && xiong.when({}) === false, '无征兆时不触发');
+
+  // ② 找一个有定义的凶兆节点，手工把它压到 Game.omens 上
+  const def = Object.values(ST.OMENS || {}).find(o => o.polarity === '凶' && o.node);
+  assert(def, '征兆表里有带产地的凶兆');
+  ST.Game.omens.push({ id: Object.keys(ST.OMENS).find(k => ST.OMENS[k] === def), until: ST.gameTime() + 3600 });
+  assert(xiong.when({ nodeId: def.node }) === true, '压着凶兆的山触发「凶兆压山」');
+  assert(ji.when({ nodeId: def.node }) === false, '凶兆山不触发「吉气临山」');
+  // 过期的不算
+  ST.Game.omens[ST.Game.omens.length-1].until = ST.gameTime() - 1;
+  assert(xiong.when({ nodeId: def.node }) === false, '过期征兆不再触发');
+
+  // ③ 吉兆同理
+  const jdef = Object.values(ST.OMENS || {}).find(o => o.polarity === '吉' && o.node);
+  if (jdef){
+    ST.Game.omens.push({ id: Object.keys(ST.OMENS).find(k => ST.OMENS[k] === jdef), until: ST.gameTime() + 3600 });
+    assert(ji.when({ nodeId: jdef.node }) === true, '压着吉兆的山触发「吉气临山」');
+  }
+
+  // ④ 奖励真实发放（凶兆 → 卜祀经验；吉兆 → 著录经验）
+  if (def){
+    ST.Game.omens[ST.Game.omens.length-1] = { id: Object.keys(ST.OMENS).find(k => ST.OMENS[k] === def), until: ST.gameTime() + 3600 };
+    const before = ST.levelOf('bushi');
+    const out = xiong.run({ kind:'gather', nodeId: def.node }) || {};
+    assert(/卜祀经验/.test(out.log || ''), '凶兆见闻文案带卜祀经验');
+    assert(ST.levelOf('bushi') >= before, '经验确实发到技艺上');
+    assert(/祓除|御兵/.test(out.log || ''), '凶兆见闻写「可以怎么办」');
+  }
+
+  // ⑤ 可视化与线索
+  assert(ST.EVENT_VIS.zhao_xiong && ST.EVENT_VIS.zhao_ji, '两条征兆见闻有现场字形');
+  assert(/id: 'zhao_xiong',[^}]*go: 'omen'/.test(readText('src/events.js')), '凶兆见闻的线索可点（跳祠祀）');
+  assert(readText('src/ui/misc.js').includes("e.go === 'omen'"), '见闻录渲染 omen 线索按钮');
+
+  G.resetToDefault();
+  ST.__eventsMuted = true;
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

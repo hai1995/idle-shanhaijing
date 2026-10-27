@@ -234,6 +234,43 @@ const TRAVEL_EVENTS = [
                toast: `🌱 苗有新色 · 贝 +${shells}` };
     },
   },
+  // ── 征兆专属（v1.31.119）：这座山此刻压着征兆时才可能出现。
+  //    凶兆条写「可以怎么办」（祠祀祓除 / 御使駮），吉兆条写「趁现在」——
+  //    征兆面板只报「有什么」，见闻负责说「这跟你脚下这座山有什么关系」。
+  {
+    id: 'zhao_xiong', name: '凶兆压山', weight: 2, hint: '在压着凶兆的山头做事才遇', go: 'omen',
+    when(ctx){
+      const d = activeOmenAt(ctx && ctx.nodeId);
+      return !!d && d.polarity === '凶';
+    },
+    run(ctx){
+      const lv = (typeof levelOf === 'function') ? levelOf('bushi') : 1;
+      const xp = 10 + Math.round(lv * 0.5);
+      if (typeof gainXp === 'function') gainXp('bushi', xp);
+      const d = activeOmenAt(ctx.nodeId) || {};
+      const where = (typeof nodeOf === 'function') ? (nodeOf(ctx.nodeId) || {}).name : '';
+      const canYi = d.war && typeof deployableBeasts === 'function';
+      const tip = canYi ? '御使駮可御兵灾' : '可往祠祀卜筮祓除';
+      return { log: `⚠️ ${where ? where + '的' : ''}鸟兽都在往山外走——${d.type || '凶'}之兆压着这座山（卜祀经验 +${xp} · ${tip}）`,
+               toast: `⚠️ 凶兆压山 · 卜祀经验 +${xp}` };
+    },
+  },
+  {
+    id: 'zhao_ji', name: '吉气临山', weight: 2, hint: '在压着吉兆的山头做事才遇', go: 'omen',
+    when(ctx){
+      const d = activeOmenAt(ctx && ctx.nodeId);
+      return !!d && d.polarity === '吉';
+    },
+    run(ctx){
+      const lv = (typeof levelOf === 'function') ? levelOf('zhulu') : 1;
+      const xp = 9 + Math.round(lv * 0.5);
+      if (typeof gainXp === 'function') gainXp('zhulu', xp);
+      const d = activeOmenAt(ctx.nodeId) || {};
+      const where = (typeof nodeOf === 'function') ? (nodeOf(ctx.nodeId) || {}).name : '';
+      return { log: `🌿 ${where ? where + '的' : ''}草木今天格外精神——${d.type || '吉'}之气正盛，趁现在多收些（著录经验 +${xp}）`,
+               toast: `🌿 吉气临山 · 著录经验 +${xp}` };
+    },
+  },
   {
     id: 'yiji_zhu', name: '祠前老祝', weight: 2, hint: '在有山祠（谒见）的山头做事才遇', go: 'hetero',
     when(ctx){ return heteroKindAt(ctx && ctx.nodeId) === '谒见'; },
@@ -273,6 +310,8 @@ const EVENT_VIS = {
   yiji_ling:{ glyph:'✨', wash:'star' },
   yiji_zhu: { glyph:'🕯️', wash:'glow' },
   yiji_miao:{ glyph:'🌱', wash:'' },
+  zhao_xiong:{ glyph:'⚠️', wash:'' },
+  zhao_ji:  { glyph:'🌿', wash:'glow' },
 };
 const EV_WASH_MS = 2600;   // 与 CSS 的动画时长对齐（见 style.css 的 .sc-ev-*）
 
@@ -386,6 +425,19 @@ function pickByWeight(pool, seen){
   let r = Math.random() * total, pick = from[from.length - 1];
   for (const e of from){ r -= e.weight; if (r <= 0){ pick = e; break; } }
   return pick;
+}
+
+// 活跃征兆查询（v1.31.119）：某节点此刻压着什么征兆（凶 / 吉）。
+// 征兆按「触发兽的产地」挂，查「该节点相关的活跃征兆」要看 Game.omens 里的 id → OMENS[k].node。
+// 引擎没挂上（OMENS 为空）时返回 null，事件自然不入选。
+function activeOmenAt(nodeId){
+  if (!nodeId || typeof OMENS === 'undefined' || !Game.omens) return null;
+  const now = (typeof gameTime === 'function') ? gameTime() : 0;
+  for (const o of Game.omens){
+    const def = OMENS[o.id];
+    if (def && def.node === nodeId && o.until > now) return def;
+  }
+  return null;
 }
 
 // 异迹 kind 查询：某节点是不是异迹之地（观瑞 / 观象 / 谒见 / 灌木），是哪一类。
@@ -520,6 +572,7 @@ if (typeof window !== 'undefined'){
   window.EV_WASH_MS = EV_WASH_MS;
   window.maybeEvent = maybeEvent;
   window.heteroKindAt = heteroKindAt;
+  window.activeOmenAt = activeOmenAt;
   window.flashEvent = flashEvent;
   window.eventCount = eventCount;
   window.eventKindsSeen = eventKindsSeen;

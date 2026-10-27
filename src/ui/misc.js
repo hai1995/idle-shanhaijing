@@ -96,7 +96,9 @@ UI.renderStats = function(){
                  : `<span class="hint ev-unseen">${esc(e.name || e.id)} · 未见${e.hint
                      ? `<em class="ev-hint">${e.go === 'hetero'
                          ? `<button class="linklike" type="button" onclick="UI.gotoHetero()">${esc(e.hint)}</button>`
-                         : esc(e.hint)}</em>`
+                         : (e.go === 'omen'
+                         ? `<button class="linklike" type="button" onclick="UI.switchTab('jisi')">${esc(e.hint)}</button>`
+                         : esc(e.hint))}</em>`
                      : ''}</span>`;
       };
       // 分两组：「路上遇见的」与「不在时错过的」是两种心情，
