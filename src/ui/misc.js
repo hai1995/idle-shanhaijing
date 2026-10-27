@@ -88,10 +88,12 @@ UI.renderStats = function(){
       // 调试时也可能只重置 count），求和是唯一自洽的口径。
       const total = evs.reduce((a, e) => a + (seen[e.id] || 0), 0);
       const kinds = evs.filter(e => seen[e.id]).length;
+      // 未见的条目带上「去哪儿能撞见」的线索（e.hint，v1.31.106）：
+      // 「未见」两个字只会让人干瞪眼，线索才让人动身。见过的不再啰嗦。
       const cell = (e) => {
         const n = seen[e.id] || 0;
         return n ? `<span>${esc(e.name || e.id)} <b>${n}</b></span>`
-                 : `<span class="hint">${esc(e.name || e.id)} · 未见</span>`;
+                 : `<span class="hint ev-unseen">${esc(e.name || e.id)} · 未见${e.hint ? `<em class="ev-hint">${esc(e.hint)}</em>` : ''}</span>`;
       };
       // 分两组：「路上遇见的」与「不在时错过的」是两种心情，
       // 混在一堆里读不出「我离开时山里发生过什么」。

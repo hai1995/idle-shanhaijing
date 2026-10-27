@@ -9664,6 +9664,13 @@ section('异迹专属见闻');
   // ④ 可视化条目配齐（现场反馈不该缺字形）
   assert(ST.EVENT_VIS.yiji_ling && ST.EVENT_VIS.yiji_zhu, '两条异迹见闻有现场可视化');
 
+  // ⑤′ 未见线索：统计页把「去哪儿能撞见」写在未见条目上（v1.31.106）
+  const evSrc179 = readText('src/events.js');
+  assert(/id: 'yiji_ling',[^}]*hint:/.test(evSrc179), '异迹见闻带未见线索（hint）');
+  assert(/id: 'gubei',[^}]*hint:/.test(evSrc179), '珍稀见闻带线索');
+  const mSrc179 = readText('src/ui/misc.js');
+  assert(mSrc179.includes('e.hint'), '见闻录渲染未见条目的线索');
+
   // ⑤ 总数计数自动跟上（成就判据不写死数字，加条目不用改成就）
   assert(ST.eventKindsTotal() === ST.TRAVEL_EVENTS.length + ST.AWAY_EVENTS.length,
     '总数 = 两张表长度之和（现 ' + ST.eventKindsTotal() + '）');

@@ -2119,6 +2119,14 @@ details.bulk-sell .bs-preview, details.bulk-sell .bs-act{ margin-left:11px; marg
 }
 .stat-rows > span:last-child{ border-bottom:none; }
 .stat-rows > span > b{ margin-left:auto; color:var(--ink); font-family:var(--f-num); font-size:12.5px; }
+/* 见闻录的「未见 · 线索」：线索独占一行、缩进一点，不与条目名挤在一起
+   （390px 下「祠前老祝 · 未见（在有山祠（谒见）的山头做事才遇）」会折成两行半） */
+.stat-rows > span.ev-unseen{ display:block; }
+.stat-rows > span.ev-unseen .ev-hint{
+  display:block; margin-top:1px; padding-left:2px;
+  font-style:normal; font-size:11px; color:var(--ink-4); line-height:1.45;
+}
+.stat-rows > span.ev-unseen .ev-hint::before{ content:'↳ '; opacity:.7; }
 .stat-rows > span > i{ font-size:10.5px; color:var(--ink-4); margin-left:6px; }
 .stat-rows.gather-rows{ margin-top:10px; border-top:1px solid var(--rule-2); padding-top:8px; }
 .stat-rows.ms-rows span.done{ color:var(--tai); }

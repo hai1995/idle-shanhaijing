@@ -162,7 +162,7 @@ const TRAVEL_EVENTS = [
     },
   },
   {
-    id: 'yese', name: '夜色如墨', weight: 2,
+    id: 'yese', name: '夜色如墨', weight: 2, hint: '只在夜里出现',
     // 只在夜间主题下出现：同一趟山，白天与夜里读到的句子不该一样。
     when(){ return (typeof sceneNight === 'function') && sceneNight(); },
     run(){
@@ -174,7 +174,7 @@ const TRAVEL_EVENTS = [
     },
   },
   {
-    id: 'gubei', name: '古碑可读', weight: 1, rare: true,
+    id: 'gubei', name: '古碑可读', weight: 1, rare: true, hint: '珍稀 · 概率极低，多走多遇',
     // 珍稀：三条技艺一起给，量不大但「一份顶三份」，稀有度靠 weight=1 与文案体现。
     run(){
       const g = (id) => ((typeof levelOf === 'function') ? levelOf(id) : 1);
@@ -204,7 +204,7 @@ const TRAVEL_EVENTS = [
   //    做事时才可能撞见。当 ctx.nodeId 是异迹节点、且该节点的事还没做完时才出手——
   //    「此事有灵」的暗示要能落到「还没做的那件事」上，不然是空话。
   {
-    id: 'yiji_ling', name: '此地有灵', weight: 2,
+    id: 'yiji_ling', name: '此地有灵', weight: 2, hint: '在观瑞 / 观象之地采集、讨伐才遇',
     when(ctx){
       const k = heteroKindAt(ctx && ctx.nodeId);
       return k === '观瑞' || k === '观象';
@@ -219,7 +219,7 @@ const TRAVEL_EVENTS = [
     },
   },
   {
-    id: 'yiji_zhu', name: '祠前老祝', weight: 2,
+    id: 'yiji_zhu', name: '祠前老祝', weight: 2, hint: '在有山祠（谒见）的山头做事才遇',
     when(ctx){ return heteroKindAt(ctx && ctx.nodeId) === '谒见'; },
     run(ctx){
       const lv = (typeof levelOf === 'function') ? levelOf('bushi') : 1;
@@ -270,7 +270,7 @@ const AWAY_GAP = 1800;        // 两次离线见闻至少隔半小时（游戏�
 
 const AWAY_EVENTS = [
   {
-    id: 'away_laike', name: '山客来访', weight: 3,
+    id: 'away_laike', name: '山客来访', weight: 3, hint: '离山归来才可能听说',
     run(sec, sum){
       // 按离山时长缩放，但封顶：挂 12 小时不该比挂 1 小时多出十倍彩头
       const h = Math.min(3, sec / 3600);
