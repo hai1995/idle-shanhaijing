@@ -2403,10 +2403,14 @@ body.no-scroll{ overflow:hidden; }
 .hint-close{
   position:absolute; top:5px; right:5px;
   border:0; background:transparent; color:var(--ink-4); cursor:pointer;
-  font-size:12px; line-height:1; padding:6px 8px; border-radius:var(--r);
+  font-size:12px; line-height:1;
+  /* 定尺方钮（v1.31.159）：原先靠 padding 撑开，✕ 在窄屏上量得 30px 却只有 26px 可用，被切掉一截 */
+  width:30px; height:30px; padding:0; flex:none;   /* flex:none：窄屏这条会变回流式元素，不锁住会被压到 20px */
+  display:flex; align-items:center; justify-content:center;
+  border-radius:var(--r);
   transition:color .15s, background .15s;
 }
-.hint-close:hover{ color:var(--zhu); background:rgba(31,29,25,.06); }
+.hint-close:hover{ color:var(--zhu); background:var(--rule-3); }
 
 /* ==========================================================================
    浮动提示
@@ -3253,7 +3257,9 @@ details.hetero-panel .hp-left{ margin-left:auto; font-style:normal; color:var(--
 .hetero-row .hr-ok{ font-style:normal; margin-left:5px; font-size:11px; color:var(--qing); }
 .hetero-row .hr-where{ color:var(--ink-3); font-size:11px; }
 .hetero-row .hr-gain{ color:var(--ink-3); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.hetero-row .hr-lock{ text-align:right; font-size:11px; color:var(--ink-4); white-space:nowrap; }
+/* 「需 16 级（差 15）」在桌面量得 87px，格子只有 79px——nowrap 又不给省略号，
+   末尾那几个字就这么没了。改成允许折行（v1.31.159）：这一列本来就右对齐，折一行不碍事。 */
+.hetero-row .hr-lock{ text-align:right; font-size:11px; color:var(--ink-4); line-height:1.35; }
 /* 窄屏：五列放不下（3.2+6+7+8+6.6em ≈ 400px），改成两行三列。
    宁可折成两行，也不要横向溢出——异迹表是「还差哪几处」的索引，滚丢一列就失去意义。 */
 @media (max-width:640px){
