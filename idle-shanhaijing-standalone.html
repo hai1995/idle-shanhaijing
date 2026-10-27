@@ -19642,7 +19642,7 @@ const Milestones = [
   { id:'pilgrim_5', name:'五系巡礼', desc:'走遍五个山系的诸山',
     prog:()=>[pilgrimFullCount(), 5], bonus:'采获 +3%', yield:0.03,
     how:'山系进度在舆地页每个山系方块上，诸山皆涉即满。满额那系右上角会亮一枚「赏」。', go:{ tab:'yudi' } },
-  // ---- 见闻（v1.31.94）：把「偶尔撞见的一句话」变成一个可见的收集目标 ----
+  // ---- 见闻（v1.31.95）：把「偶尔撞见的一句话」变成一个可见的收集目标 ----
   // 判据取「见过几种」而非「触发多少次」：见闻的价值在种类，重复同一条没有新信息。
   { id:'event_5', name:'见闻初录', desc:'行旅见闻见过 5 种',
     prog:()=>[eventKindsSeen(), 5], bonus:'经验 +1%', xp:0.01,
@@ -19883,7 +19883,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.94',
+  version: '1.31.95',
   codename:'昼巡 · 近况',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -28259,7 +28259,7 @@ function maybeAwayEvent(seconds, summary){
   // 「最近一次」也认离线见闻：玩家回来看到的那一条，就是最近的一条
   st.lastId = pick.id;
   st.lastAt = now || 1;
-  if (out.log && typeof log === 'function') log(out.log, 'gold', 'sys');
+  if (out.log && typeof log === 'function') log(out.log, 'gold', 'event');
   return { id: pick.id, name: pick.name, text: out.text || '', rare: !!pick.rare };
 }
 
@@ -28303,7 +28303,9 @@ function maybeEvent(ctx, force){
   Game.stats = Game.stats || {};
   Game.stats.seenEvents = (Game.stats.seenEvents || 0) + 1;
 
-  if (out.log && typeof log === 'function') log(out.log, 'gold', 'sys');
+  // 分类单列 'event'：见闻原先记在 'sys' 里，和「技能升级」「已存档」混作一堆，
+  // 想回看「这一夜遇见了什么」得在系统消息里翻。
+  if (out.log && typeof log === 'function') log(out.log, 'gold', 'event');
   if (out.toast && typeof UI !== 'undefined' && UI && UI.toast) UI.toast(out.toast);
   flashEvent(pick.id);
   return { id: pick.id, ...out };
@@ -35268,7 +35270,7 @@ UI.renderStats = function(){
     </div>
     <div class="panel log-panel"><h3>日志</h3>
       <div class="filter-row">
-        ${[['all','全部'],['skill','技能'],['combat','讨伐'],['trade','商旅'],['omen','征兆'],['sys','系统']].map(([k,v])=>
+        ${[['all','全部'],['skill','技能'],['combat','讨伐'],['trade','商旅'],['omen','征兆'],['event','见闻'],['sys','系统']].map(([k,v])=>
           `<button class="chip-btn ${this.logFilter===k?'on':''}" onclick="UI.logFilter='${k}';UI.renderLog()">${v}</button>`).join('')}
       </div>
       <div class="log-list" id="logList"></div>

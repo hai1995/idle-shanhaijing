@@ -312,7 +312,7 @@ function maybeAwayEvent(seconds, summary){
   // 「最近一次」也认离线见闻：玩家回来看到的那一条，就是最近的一条
   st.lastId = pick.id;
   st.lastAt = now || 1;
-  if (out.log && typeof log === 'function') log(out.log, 'gold', 'sys');
+  if (out.log && typeof log === 'function') log(out.log, 'gold', 'event');
   return { id: pick.id, name: pick.name, text: out.text || '', rare: !!pick.rare };
 }
 
@@ -356,7 +356,9 @@ function maybeEvent(ctx, force){
   Game.stats = Game.stats || {};
   Game.stats.seenEvents = (Game.stats.seenEvents || 0) + 1;
 
-  if (out.log && typeof log === 'function') log(out.log, 'gold', 'sys');
+  // 分类单列 'event'：见闻原先记在 'sys' 里，和「技能升级」「已存档」混作一堆，
+  // 想回看「这一夜遇见了什么」得在系统消息里翻。
+  if (out.log && typeof log === 'function') log(out.log, 'gold', 'event');
   if (out.toast && typeof UI !== 'undefined' && UI && UI.toast) UI.toast(out.toast);
   flashEvent(pick.id);
   return { id: pick.id, ...out };

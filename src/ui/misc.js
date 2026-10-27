@@ -263,7 +263,7 @@ UI.renderStats = function(){
     </div>
     <div class="panel log-panel"><h3>日志</h3>
       <div class="filter-row">
-        ${[['all','全部'],['skill','技能'],['combat','讨伐'],['trade','商旅'],['omen','征兆'],['sys','系统']].map(([k,v])=>
+        ${[['all','全部'],['skill','技能'],['combat','讨伐'],['trade','商旅'],['omen','征兆'],['event','见闻'],['sys','系统']].map(([k,v])=>
           `<button class="chip-btn ${this.logFilter===k?'on':''}" onclick="UI.logFilter='${k}';UI.renderLog()">${v}</button>`).join('')}
       </div>
       <div class="log-list" id="logList"></div>

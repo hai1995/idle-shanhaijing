@@ -8952,6 +8952,9 @@ section('行旅见闻');
     '每条见闻都有名字（面板要显示，不能只显示 id）');
   // 见闻录面板在统计页
   assert(/行旅见闻/.test(readText('src/ui/misc.js')), '统计页有「行旅见闻」一栏');
+  // 日志分类单列 'event'（原先记在 sys 里，和升级、存档混作一堆）
+  assert(/log\(out\.log, 'gold', 'event'\)/.test(evSrc), '见闻日志分类为 event');
+  assert(/'event','见闻'/.test(readText('src/ui/misc.js')), '日志筛选有「见闻」按钮');
   assert(/seen\[e\.id\]/.test(readText('src/ui/misc.js')), '面板按逐条计数渲染');
   assert(ST.Game.shells >= before.shells, '奖励不为负（只做正向）');
   assert(ST.Game.stats.totalXp >= before.xp, '经验不为负');
