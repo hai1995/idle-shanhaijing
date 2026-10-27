@@ -341,7 +341,9 @@ html.theme-anim, html.theme-anim *{
   line-height:1.25; color:#F2EDDF; letter-spacing:.02em; white-space:nowrap;
 }
 #topbar .stat[data-s="录"] b{ color:#E9C98A; }
-#topbar .stat[data-s="🐚"] b{ color:#E4C27E; }
+/* 选择器原写 data-s="🐚"，而顶栏贝币的取值是「贝」——这条等于从没生效过，
+   贝币数字一直是白而不是赭金（v1.31.161 修正）。 */
+#topbar .stat[data-s="贝"] b{ color:#E4C27E; }
 
 /* 已录进度：胶囊底部一道 2px 细线 */
 #topbar .stat .meter{
@@ -2538,7 +2540,9 @@ body.no-scroll{ overflow:hidden; }
   #topbar .stat .meter{ width:48px; }
 }
 @media (max-width:900px){
-  #topbar .stat[data-s="🐚"]{ display:none; }
+  /* 原为「隐藏贝币」，选择器写的 data-s="🐚" 与顶栏实际取值（贝）对不上，从未生效。
+     按现状写明：窄屏让位的是「总等级」（≤760px 那档），贝币留着——它是能花出去的，
+     而总等级只是个面子数，手机上挤掉了不心疼。 */
 }
 
 @media (max-width:760px){

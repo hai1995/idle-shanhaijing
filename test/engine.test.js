@@ -1237,6 +1237,16 @@ assert(/background:var\(--paper-2\)/.test(sbRule) && /border-bottom:1px solid va
 // 夜间基底换成深蓝黑后，写死的暖色补丁会很显眼（v1.31.152 收口）
 assert(/box-shadow:0 2px 10px rgba\(0,0,0,\.08\);/.test(sbRule), '状态条投影用中性黑（冷底上不浮暖色）');
 assert(/\.tab:hover\{ background:var\(--rule-3\);/.test(css), '页签悬浮色跟主题走（不再写死暖灰 rgba）');
+// data-s 取值对账（v1.31.161）：CSS 里出现过 `data-s="🐚"`，而顶栏实际写的是「贝」——
+// 那条「贝币数字用赭金」的规则等于从没生效过。这类死规则读代码看不出来，只能两边对着查。
+{
+  const pick = (src) => [...new Set((src.match(/data-s="([^"]+)"/g) || []).map(s => s.slice(8, -1)))];
+  // 先剔注释：说明旧写法的注释里也会出现 data-s="…"，那不是选择器
+  const inHtml = pick(html), inCss = pick(css.replace(/\/\*[\s\S]*?\*\//g, ''));
+  const stale = inCss.filter(d => !inHtml.includes(d));
+  assert(stale.length === 0, 'CSS 里的 data-s 选择器都能在 index.html 上找到（无死规则）' + (stale.length ? ('：' + stale.join('、')) : ''));
+  assert(['级', '录', '贝'].every(d => inHtml.includes(d)), '顶栏三盘的 data-s 取值都在（级 / 录 / 贝）');
+}
 // 圆角梯度（v1.31.153）：面 8px / 片 4px / 药丸 999px，不再各写各的
 assert(/--r: 8px;/.test(css), '全局圆角开关 --r 统一到 8px（面板 / 按钮 / 弹窗同弧）');
 assert(!/border-radius:2px/.test(css), '内联小片不再写死 2px（统一提到 4px）');
