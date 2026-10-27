@@ -9998,6 +9998,24 @@ section('征兆专属见闻');
   const seenBranch = cellSrc.slice(0, cellSrc.indexOf(':') > 0 ? cellSrc.indexOf('`<span class="hint ev-unseen">') : 700);
   assert(seenBranch.indexOf('condTag') < 0, '见过的条目不带条件标记');
 
+  // ---- 跨层一致：成就 how 里提到的标记，必须真的是标签表里的标记 ----
+  // 文案与数据分居两个文件，很容易各改各的（how 说「看小标记」，实际标记早改了字）。
+  {
+    const ms184 = (ST.Milestones || []).find(m => m.id === 'event_12');
+    const msAll184 = (ST.Milestones || []).find(m => m.id === 'event_all');
+    assert(!!ms184 && !!msAll184, '两条见闻成就都在');
+    // how 里点了名的单字标记，逐个要在 EVENT_COND 的 label 里找得到
+    const labels = Object.values(COND).map(d => d.label);
+    const named = (ms184.how.match(/（([^）]*(?:\/|、)[^）]*)）/g) || []);
+    assert(named.length > 0, 'event_12 的 how 里点名了标记');
+    const last = named[named.length - 1].replace(/^（|）$/g, '');
+    const tokens = last.split(/[\/、\s]+/).filter(Boolean);
+    assert(tokens.length >= 3, '至少点名三类标记（实际 ' + tokens.length + '）');
+    const missing = tokens.filter(t => labels.indexOf(t) < 0);
+    assert(missing.length === 0, 'how 点名的标记都在标签表里' + (missing.length ? ('，缺：' + missing.join(',')) : ''));
+    assert(/六小时/.test(msAll184.how), 'event_all 的 how 交代季节见闻的等待成本');
+  }
+
   const css184 = readText('style.css');
   // 配色必须带上父级选择器才压得过 `.stat-rows > span.ev-unseen`（实测才发现只写
   // `.ev-cond-*` 时算出来仍是父级灰），所以断言钉住的是「带 .ev-unseen 的完整选择器」。
