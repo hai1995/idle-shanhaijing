@@ -1565,6 +1565,10 @@ svg.bi.mk{ vertical-align:-2px; }
    图鉴
    ========================================================================== */
 .codex-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(104px,1fr)); gap:8px; }
+/* 「还有 N 条 · 展开」：横跨整行居中，否则会被塞进某一格里（图鉴是栅格） */
+.codex-more{ grid-column:1 / -1; justify-self:center; margin:4px 0 2px; }
+/* 行囊的「还有 N 件」同理：横跨整行，否则会挤进某一格里 */
+.pack-more{ grid-column:1 / -1; justify-self:center; margin:6px 0 2px; }
 .codex-card{
   text-align:center; cursor:pointer; padding:8px 6px; background:var(--paper-2);
   aspect-ratio:1/1; display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -19795,7 +19799,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.72',
+  version: '1.31.73',
   codename:'昼巡 · 近况',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -32273,9 +32277,19 @@ UI.gotoCodexNode = function(nodeId, regionId){
   UI.closeModal();
 };
 
+// 图鉴一页画多少张。全量一次铺出来在手机上要 370ms（实测 WebKit：433KB HTML、
+// 6600 个 DOM 节点），而几百张里玩家一眼能扫到的不到二十张——先给一屏多，
+// 底下放一颗「还有 N 条」。点它再放 120 张，已经画好的那些不重排。
+const CODEX_PAGE = 48;
 function codexGridInner(v){
   const q = v.q;
-  return v.shown.length ? v.shown.map(e=>{
+  const total = v.shown ? v.shown.length : 0;
+  const lim = Math.max(CODEX_PAGE, UI.codexLimit | 0);
+  const list = (v.shown || []).slice(0, lim);
+  const more = total > list.length
+    ? `<button class="btn codex-more" type="button" onclick="UI.codexMore()">还有 ${total - list.length} 条 · 展开</button>`
+    : '';
+  return list.length ? list.map(e=>{
     const rec = Game.records[e.id]||{count:0,tier:0};
     const seen = rec.count > 0;
     // 检索时把命中片段高亮；否则沿用常规 nameTag（含生僻字处理）
@@ -32321,7 +32335,7 @@ function codexGridInner(v){
       <div class="tier-dots" aria-hidden="true">${dots}</div>
       <div class="cc-tier">${TUNING.MASTERY.NAMES[rec.tier]}<span class="cc-count">${countHtml}</span></div>
     </div>`;
-  }).join('') : `<div class="empty-note">${v.onlyMiss
+  }).join('') + more : `<div class="empty-note">${v.onlyMiss
     ? (q ? '未录条目里没有匹配的。' : '本类已尽收——没有未著录的条目了。')
     : (()=>{
         // 本类没有、别类有时，直接说清在哪一类——这比让玩家自己看角标更省事
@@ -32336,6 +32350,7 @@ function codexGridInner(v){
 UI.renderCodex = function(){
   const box = $('content');
   if (!box) return;
+  UI.codexLimit = 0;                 // 换页/换分类从第一屏重新开始
   const v = codexView();
   box.innerHTML = codexAchBarHtml(v)
     + `<div class="filter-row"><span class="codex-tabs" id="codexTabs">${codexTabsInner(v)}</span>`
@@ -32350,10 +32365,19 @@ UI.renderCodex = function(){
 UI.onCodexQuery = function(el, ev){
   if (!el) return;
   UI.codexQuery = el.value;
+  UI.codexLimit = 0;                                   // 换了检索词，回到第一屏
   if (UI._codexComposing) return;                      // 组合中（拼音未上屏）
   if (ev && ev.isComposing) return;
   UI.patchCodexList();
 };
+// 展开更多：只把列表重画一遍（顶部分类栏、概览、进度条都不动）。
+// 用 patchCodexList 而不是 renderCodex——后者会把检索框重建成新节点，
+// 中文输入法正在输入时焦点会丢。
+UI.codexMore = function(){
+  UI.codexLimit = (UI.codexLimit | 0) + 120;
+  UI.patchCodexList();
+};
+
 UI.patchCodexList = function(){
   const v = codexView();
   const g = $('codexGrid');
@@ -33248,6 +33272,13 @@ UI.autoEquipBest = function(){
 };
 // 行囊清单：搜索与排序共用这一个生成器。整页渲染和「边打字边筛」都走它，
 // 两处各写一遍迟早会长歪（一边认别名一边不认）。
+const PACK_PAGE = 60;
+// 展开更多：只重画清单本身（顶部的筛选、检索框、清整区都不动）
+UI.packMore = function(){
+  UI.packLimit = (UI.packLimit | 0) + 120;
+  this.patchPackList();
+};
+
 UI.packListHtml = function(){
   const q = String(this.packQuery || '').trim().toLowerCase();
   // 装备按「件」存（每件自带淬炼档），材料按 id 计数——所以先摊成统一的 row 再排、再渲染。
@@ -33288,7 +33319,15 @@ UI.packListHtml = function(){
     return 0;
   });
   if (!rows.length) return q ? '<div class="hint">行囊里没有对上的物件</div>' : '<div class="hint">行囊空空</div>';
-  return rows.map(({ id, enh, qty }) => {
+  // 一屏画多少格：全量（六百多件）在手机上要 260ms 才切得过来，而真正在看的
+  // 永远是最上面那几行。先给 60 格，底下放一颗「还有 N 件」——与图鉴同一套做法。
+  const total = rows.length;
+  const lim = Math.max(PACK_PAGE, this.packLimit | 0);
+  const shownRows = rows.slice(0, lim);
+  const more = total > shownRows.length
+    ? `<button class="btn pack-more" type="button" onclick="UI.packMore()">还有 ${total - shownRows.length} 件 · 展开</button>`
+    : '';
+  return shownRows.map(({ id, enh, qty }) => {
     const it = Items[id] || {};
     const enhTag = (enh != null && enh > 0) ? `<span class="ic-enh" title="淬炼 +${enh}">+${enh}</span>` : '';
     // 「比身上强」角标：不标的话，玩家得逐件点开看详情里的对比才知道该换哪件。
@@ -33309,7 +33348,7 @@ UI.packListHtml = function(){
       <span class="ic-qty">×${qty}</span>
       <span class="ic-val">${(it.value||0)*qty} 贝</span>
     </div>`;
-  }).join('');
+  }).join('') + more;
 };
 // 只换清单本身：输入框不重建，光标和焦点才留得住
 UI.patchPackList = function(){
@@ -33321,6 +33360,7 @@ UI.patchPackList = function(){
 UI.renderPack = function(){
   const box = $('content');
   if (!box) return;
+  this.packLimit = 0;          // 换页/换筛选/换排序都从第一屏开始
   const allSlots = Object.keys(GearSlotLabels);
   // 次要槽（斧 / 镐 / 网 / 矢）平时用不上，全空时收成一格。
   // 手机上一屏本就窄，七格空槽排三行，把「装备在上」省下的位置又吃回去了。
@@ -33367,8 +33407,8 @@ UI.renderPack = function(){
         <label class="search-box" title="按名称 / 注音检索行囊">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4 4"/></svg>
           <input id="packQ" type="search" placeholder="检索名 / 注音" value="${esc(this.packQuery||'')}"
-            oninput="UI.packQuery=this.value;UI.patchPackList()"
-            onkeydown="if(event.key==='Escape'){this.value='';UI.packQuery='';UI.patchPackList()}">
+            oninput="UI.packQuery=this.value;UI.packLimit=0;UI.patchPackList()"
+            onkeydown="if(event.key==='Escape'){this.value='';UI.packQuery='';UI.packLimit=0;UI.patchPackList()}">
         </label>
       </div>
       <details class="bulk-sell">

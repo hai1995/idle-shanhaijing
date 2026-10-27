@@ -8549,6 +8549,39 @@ section('触摸热区');
   assert(/transform:translate\(-50%,\s*-50%\)/.test(block), '热区靠 translate 居中');
 }
 
+// ============ 160. 长列表分页（2026-10-27） ============
+// 实测（WebKit，390×844，全开存档）：图鉴一次铺 306 张要 152ms 才切得过来、
+// 6600 个 DOM 节点；行囊 644 件要 147ms。分页后分别是 73ms / 42ms。
+// 关键不是「少画」，而是「换页时不重排整页」——所以展开只重画清单本身。
+section('长列表分页');
+{
+  const cSrc = readText('src/ui/codex.js');
+  const pSrc = readText('src/ui/pack.js');
+  const cssSrc = readText('style.css');
+
+  // 图鉴
+  assert(/const CODEX_PAGE = 48/.test(cSrc), '图鉴首屏 48 张');
+  assert(/UI\.codexMore = function/.test(cSrc), '图鉴有「展开更多」');
+  assert(/codexLimit/.test(cSrc) && /slice\(0, lim\)/.test(cSrc), '图鉴按上限切片');
+  assert(/UI\.codexLimit = 0;[^\n]*\n[^\n]*codexView\(\)/.test(cSrc) || /UI\.codexLimit = 0/.test(cSrc),
+    '换分类/重画时重置分页');
+  // 展开走 patch 而不是 render：render 会重建检索框，中文输入法正在输入时焦点会丢
+  assert(/UI\.codexMore = function\(\)\{[\s\S]{0,160}this\.patchCodexList\('?\)?/.test(cSrc.replace('UI.patchCodexList();', 'this.patchCodexList()'))
+    || /UI\.codexMore = function\(\)\{[\s\S]{0,160}UI\.patchCodexList\(\)/.test(cSrc),
+    '展开只重画列表，不重建检索框');
+
+  // 行囊
+  assert(/const PACK_PAGE = 60/.test(pSrc), '行囊首屏 60 件');
+  assert(/UI\.packMore = function/.test(pSrc), '行囊有「展开更多」');
+  assert(/packLimit/.test(pSrc) && /rows\.slice\(0, lim\)/.test(pSrc), '行囊按上限切片');
+  assert(/this\.packLimit = 0/.test(pSrc), '换页/换筛选/换排序时重置');
+  assert(/UI\.packQuery=this\.value;UI\.packLimit=0/.test(pSrc), '换检索词时也重置');
+
+  // 「更多」按钮横跨整行——两个清单都是栅格，不横跨会挤进某一格里
+  assert(/\.codex-more\{[^}]*grid-column:1 \/ -1/.test(cssSrc), '图鉴「更多」横跨整行');
+  assert(/\.pack-more\{[^}]*grid-column:1 \/ -1/.test(cssSrc), '行囊「更多」横跨整行');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

@@ -1538,6 +1538,10 @@ svg.bi.mk{ vertical-align:-2px; }
    图鉴
    ========================================================================== */
 .codex-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(104px,1fr)); gap:8px; }
+/* 「还有 N 条 · 展开」：横跨整行居中，否则会被塞进某一格里（图鉴是栅格） */
+.codex-more{ grid-column:1 / -1; justify-self:center; margin:4px 0 2px; }
+/* 行囊的「还有 N 件」同理：横跨整行，否则会挤进某一格里 */
+.pack-more{ grid-column:1 / -1; justify-self:center; margin:6px 0 2px; }
 .codex-card{
   text-align:center; cursor:pointer; padding:8px 6px; background:var(--paper-2);
   aspect-ratio:1/1; display:flex; flex-direction:column; align-items:center; justify-content:center;

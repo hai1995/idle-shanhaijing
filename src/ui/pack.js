@@ -161,6 +161,13 @@ UI.autoEquipBest = function(){
 };
 // 行囊清单：搜索与排序共用这一个生成器。整页渲染和「边打字边筛」都走它，
 // 两处各写一遍迟早会长歪（一边认别名一边不认）。
+const PACK_PAGE = 60;
+// 展开更多：只重画清单本身（顶部的筛选、检索框、清整区都不动）
+UI.packMore = function(){
+  UI.packLimit = (UI.packLimit | 0) + 120;
+  this.patchPackList();
+};
+
 UI.packListHtml = function(){
   const q = String(this.packQuery || '').trim().toLowerCase();
   // 装备按「件」存（每件自带淬炼档），材料按 id 计数——所以先摊成统一的 row 再排、再渲染。
@@ -201,7 +208,15 @@ UI.packListHtml = function(){
     return 0;
   });
   if (!rows.length) return q ? '<div class="hint">行囊里没有对上的物件</div>' : '<div class="hint">行囊空空</div>';
-  return rows.map(({ id, enh, qty }) => {
+  // 一屏画多少格：全量（六百多件）在手机上要 260ms 才切得过来，而真正在看的
+  // 永远是最上面那几行。先给 60 格，底下放一颗「还有 N 件」——与图鉴同一套做法。
+  const total = rows.length;
+  const lim = Math.max(PACK_PAGE, this.packLimit | 0);
+  const shownRows = rows.slice(0, lim);
+  const more = total > shownRows.length
+    ? `<button class="btn pack-more" type="button" onclick="UI.packMore()">还有 ${total - shownRows.length} 件 · 展开</button>`
+    : '';
+  return shownRows.map(({ id, enh, qty }) => {
     const it = Items[id] || {};
     const enhTag = (enh != null && enh > 0) ? `<span class="ic-enh" title="淬炼 +${enh}">+${enh}</span>` : '';
     // 「比身上强」角标：不标的话，玩家得逐件点开看详情里的对比才知道该换哪件。
@@ -222,7 +237,7 @@ UI.packListHtml = function(){
       <span class="ic-qty">×${qty}</span>
       <span class="ic-val">${(it.value||0)*qty} 贝</span>
     </div>`;
-  }).join('');
+  }).join('') + more;
 };
 // 只换清单本身：输入框不重建，光标和焦点才留得住
 UI.patchPackList = function(){
@@ -234,6 +249,7 @@ UI.patchPackList = function(){
 UI.renderPack = function(){
   const box = $('content');
   if (!box) return;
+  this.packLimit = 0;          // 换页/换筛选/换排序都从第一屏开始
   const allSlots = Object.keys(GearSlotLabels);
   // 次要槽（斧 / 镐 / 网 / 矢）平时用不上，全空时收成一格。
   // 手机上一屏本就窄，七格空槽排三行，把「装备在上」省下的位置又吃回去了。
@@ -280,8 +296,8 @@ UI.renderPack = function(){
         <label class="search-box" title="按名称 / 注音检索行囊">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4 4"/></svg>
           <input id="packQ" type="search" placeholder="检索名 / 注音" value="${esc(this.packQuery||'')}"
-            oninput="UI.packQuery=this.value;UI.patchPackList()"
-            onkeydown="if(event.key==='Escape'){this.value='';UI.packQuery='';UI.patchPackList()}">
+            oninput="UI.packQuery=this.value;UI.packLimit=0;UI.patchPackList()"
+            onkeydown="if(event.key==='Escape'){this.value='';UI.packQuery='';UI.packLimit=0;UI.patchPackList()}">
         </label>
       </div>
       <details class="bulk-sell">

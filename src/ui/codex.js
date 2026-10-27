@@ -308,9 +308,19 @@ UI.gotoCodexNode = function(nodeId, regionId){
   UI.closeModal();
 };
 
+// 图鉴一页画多少张。全量一次铺出来在手机上要 370ms（实测 WebKit：433KB HTML、
+// 6600 个 DOM 节点），而几百张里玩家一眼能扫到的不到二十张——先给一屏多，
+// 底下放一颗「还有 N 条」。点它再放 120 张，已经画好的那些不重排。
+const CODEX_PAGE = 48;
 function codexGridInner(v){
   const q = v.q;
-  return v.shown.length ? v.shown.map(e=>{
+  const total = v.shown ? v.shown.length : 0;
+  const lim = Math.max(CODEX_PAGE, UI.codexLimit | 0);
+  const list = (v.shown || []).slice(0, lim);
+  const more = total > list.length
+    ? `<button class="btn codex-more" type="button" onclick="UI.codexMore()">还有 ${total - list.length} 条 · 展开</button>`
+    : '';
+  return list.length ? list.map(e=>{
     const rec = Game.records[e.id]||{count:0,tier:0};
     const seen = rec.count > 0;
     // 检索时把命中片段高亮；否则沿用常规 nameTag（含生僻字处理）
@@ -356,7 +366,7 @@ function codexGridInner(v){
       <div class="tier-dots" aria-hidden="true">${dots}</div>
       <div class="cc-tier">${TUNING.MASTERY.NAMES[rec.tier]}<span class="cc-count">${countHtml}</span></div>
     </div>`;
-  }).join('') : `<div class="empty-note">${v.onlyMiss
+  }).join('') + more : `<div class="empty-note">${v.onlyMiss
     ? (q ? '未录条目里没有匹配的。' : '本类已尽收——没有未著录的条目了。')
     : (()=>{
         // 本类没有、别类有时，直接说清在哪一类——这比让玩家自己看角标更省事
@@ -371,6 +381,7 @@ function codexGridInner(v){
 UI.renderCodex = function(){
   const box = $('content');
   if (!box) return;
+  UI.codexLimit = 0;                 // 换页/换分类从第一屏重新开始
   const v = codexView();
   box.innerHTML = codexAchBarHtml(v)
     + `<div class="filter-row"><span class="codex-tabs" id="codexTabs">${codexTabsInner(v)}</span>`
@@ -385,10 +396,19 @@ UI.renderCodex = function(){
 UI.onCodexQuery = function(el, ev){
   if (!el) return;
   UI.codexQuery = el.value;
+  UI.codexLimit = 0;                                   // 换了检索词，回到第一屏
   if (UI._codexComposing) return;                      // 组合中（拼音未上屏）
   if (ev && ev.isComposing) return;
   UI.patchCodexList();
 };
+// 展开更多：只把列表重画一遍（顶部分类栏、概览、进度条都不动）。
+// 用 patchCodexList 而不是 renderCodex——后者会把检索框重建成新节点，
+// 中文输入法正在输入时焦点会丢。
+UI.codexMore = function(){
+  UI.codexLimit = (UI.codexLimit | 0) + 120;
+  UI.patchCodexList();
+};
+
 UI.patchCodexList = function(){
   const v = codexView();
   const g = $('codexGrid');
