@@ -43,6 +43,7 @@ const TRAVEL_EVENTS = [
   },
   {
     id: 'zongji', weight: 2,
+    when(ctx){ return !ctx || !ctx.kind || ctx.kind === 'gather'; },
     run(ctx){
       const lv = (typeof levelOf === 'function') ? levelOf('taofa') : 1;
       const xp = 10 + Math.round(lv * 0.5);
@@ -54,6 +55,7 @@ const TRAVEL_EVENTS = [
   },
   {
     id: 'laomu', weight: 2,
+    when(ctx){ return !ctx || !ctx.kind || ctx.kind === 'gather'; },
     run(){
       const lv = (typeof levelOf === 'function') ? levelOf('caiyao') : 1;
       const xp = 9 + Math.round(lv * 0.5);
@@ -64,12 +66,38 @@ const TRAVEL_EVENTS = [
   },
   {
     id: 'yunqi', weight: 2,
+    when(ctx){ return !ctx || !ctx.kind || ctx.kind === 'gather'; },
     run(){
       const lv = (typeof levelOf === 'function') ? levelOf('guanxiang') : 1;
       const xp = 9 + Math.round(lv * 0.5);
       if (typeof gainXp === 'function') gainXp('guanxiang', xp);
       return { log: `☁️ 云气自西来，其色如赭（观象 +${xp}）`,
                toast: `☁️ 云气可观\n观象 +${xp}` };
+    },
+  },
+  {
+    id: 'cangyu', weight: 3,
+    when(ctx){ return ctx && ctx.kind === 'fight'; },
+    run(){
+      // 战后的「残迹」：不给战利品（那由掉落表管），只给一点「读得懂」的东西
+      const lv = (typeof levelOf === 'function') ? levelOf('taofa') : 1;
+      const xp = 12 + Math.round(lv * 0.5);
+      const shells = 14 + lv * 3;
+      if (typeof gainXp === 'function') gainXp('taofa', xp);
+      Game.shells = (Game.shells || 0) + shells;
+      Game.stats.totalEarned = (Game.stats.totalEarned || 0) + shells;
+      return { log: `🦴 战后拾其残骨一片，纹如符篆（讨伐 +${xp} · 贝 +${shells}）`,
+               toast: `🦴 拾得残骨\n讨伐 +${xp} · 贝 +${shells}` };
+    },
+  },
+  {
+    id: 'qiaoshou', weight: 3,
+    when(ctx){ return ctx && ctx.kind === 'craft' && ctx.itemId && Items[ctx.itemId]; },
+    run(ctx){
+      // 巧手偶得：多做出一件。制作本来就付过料，这里等于「省了一份料」
+      const it = Items[ctx.itemId];
+      if (typeof giveItem === 'function') giveItem(ctx.itemId, 1, false);
+      return { log: `🪶 手熟，收尾时又成 ${it.name} ×1`, toast: `🪶 巧手偶得\n${it.name} ×1` };
     },
   },
   {

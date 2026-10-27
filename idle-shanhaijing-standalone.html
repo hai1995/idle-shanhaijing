@@ -19811,7 +19811,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.82',
+  version: '1.31.83',
   codename:'昼巡 · 近况',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -24058,6 +24058,8 @@ window.meetKill = meetKill;   // 导出给回归测试：击杀结算的掉落�
 function meetKill(c, m){
   const isBoss = !!m.boss;
   Game.stats.kills++;
+  // 行旅见闻：战后小插曲（只做正向；掉落表另管，这里只给「读得懂」的一点东西）
+  if (typeof maybeEvent === 'function') maybeEvent({ kind:'fight', monsterId: m.id, nodeId: Game.node });
   Game.stats.deathStreak = 0; Game.stats.deathStreakOf = null;   // 打下来了，连败清零
   // 连胜计数与轻量庆祝
   Game.stats.winStreak = (Game.stats.winStreak||0) + 1;
@@ -24635,6 +24637,7 @@ function doRecipeAction(a){
     return;
   }
   const done = processRecipe(a.recipe, 1);
+  if (done && typeof maybeEvent === 'function') maybeEvent({ kind:'craft', itemId: a.recipe.out });
   // 限量制作（如单件武器）：做够件数就收手，不再无限连做
   if (done && a.remain != null){
     a.remain--;
@@ -27909,6 +27912,7 @@ const TRAVEL_EVENTS = [
   },
   {
     id: 'zongji', weight: 2,
+    when(ctx){ return !ctx || !ctx.kind || ctx.kind === 'gather'; },
     run(ctx){
       const lv = (typeof levelOf === 'function') ? levelOf('taofa') : 1;
       const xp = 10 + Math.round(lv * 0.5);
@@ -27920,6 +27924,7 @@ const TRAVEL_EVENTS = [
   },
   {
     id: 'laomu', weight: 2,
+    when(ctx){ return !ctx || !ctx.kind || ctx.kind === 'gather'; },
     run(){
       const lv = (typeof levelOf === 'function') ? levelOf('caiyao') : 1;
       const xp = 9 + Math.round(lv * 0.5);
@@ -27930,12 +27935,38 @@ const TRAVEL_EVENTS = [
   },
   {
     id: 'yunqi', weight: 2,
+    when(ctx){ return !ctx || !ctx.kind || ctx.kind === 'gather'; },
     run(){
       const lv = (typeof levelOf === 'function') ? levelOf('guanxiang') : 1;
       const xp = 9 + Math.round(lv * 0.5);
       if (typeof gainXp === 'function') gainXp('guanxiang', xp);
       return { log: `☁️ 云气自西来，其色如赭（观象 +${xp}）`,
                toast: `☁️ 云气可观\n观象 +${xp}` };
+    },
+  },
+  {
+    id: 'cangyu', weight: 3,
+    when(ctx){ return ctx && ctx.kind === 'fight'; },
+    run(){
+      // 战后的「残迹」：不给战利品（那由掉落表管），只给一点「读得懂」的东西
+      const lv = (typeof levelOf === 'function') ? levelOf('taofa') : 1;
+      const xp = 12 + Math.round(lv * 0.5);
+      const shells = 14 + lv * 3;
+      if (typeof gainXp === 'function') gainXp('taofa', xp);
+      Game.shells = (Game.shells || 0) + shells;
+      Game.stats.totalEarned = (Game.stats.totalEarned || 0) + shells;
+      return { log: `🦴 战后拾其残骨一片，纹如符篆（讨伐 +${xp} · 贝 +${shells}）`,
+               toast: `🦴 拾得残骨\n讨伐 +${xp} · 贝 +${shells}` };
+    },
+  },
+  {
+    id: 'qiaoshou', weight: 3,
+    when(ctx){ return ctx && ctx.kind === 'craft' && ctx.itemId && Items[ctx.itemId]; },
+    run(ctx){
+      // 巧手偶得：多做出一件。制作本来就付过料，这里等于「省了一份料」
+      const it = Items[ctx.itemId];
+      if (typeof giveItem === 'function') giveItem(ctx.itemId, 1, false);
+      return { log: `🪶 手熟，收尾时又成 ${it.name} ×1`, toast: `🪶 巧手偶得\n${it.name} ×1` };
     },
   },
   {

@@ -8958,6 +8958,20 @@ section('行旅见闻');
   assert(miss === null, '随机数 0.999 时不触发（概率阈值生效）');
   assert(hitOne && hitOne.id === ST.TRAVEL_EVENTS[0].id, '随机数 0 时触发权重最靠前的那条（' + (hitOne && hitOne.id) + '）');
 
+  // ③b 场景过滤：见闻要「跟着正在做的事」说话。
+  // 这里验的是**候选池**而不是随机命中的那一条——按随机数断言「必出某条」，
+  // 会被权重顺序牵着走（第一次写就是这么红的：Math.random()=0 时权重最高的「残简」总先中）。
+  const poolOf = (ctx) => ST.TRAVEL_EVENTS.filter(e => !e.when || e.when(ctx)).map(e => e.id);
+  const fightPool = poolOf({ kind:'fight', monsterId:'baiyuan' });
+  const craftPool = poolOf({ kind:'craft', itemId:'migu' });
+  const gatherPool = poolOf({ kind:'gather', itemId:'migu' });
+  assert(fightPool.includes('cangyu'), '讨伐的候选里有「残骨」');
+  assert(!fightPool.includes('qiaoshou'), '讨伐时不会「巧手偶得」（那是制作的事）');
+  assert(craftPool.includes('qiaoshou'), '制作的候选里有「巧手」');
+  assert(!gatherPool.includes('cangyu') && !gatherPool.includes('qiaoshou'),
+    '采集时既不出战骨也不出巧手');
+  assert(gatherPool.includes('yuhou'), '采集池包含「雨后」');
+
   // ④ 空档（没有 itemId）也不该抛：雨后那条要 itemId，缺了就该被 when 过滤掉
   err = null;
   try { ST.maybeEvent({ kind:'gather' }, true); } catch(e){ err = e.message; }

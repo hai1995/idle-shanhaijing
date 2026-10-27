@@ -2802,6 +2802,8 @@ window.meetKill = meetKill;   // 导出给回归测试：击杀结算的掉落�
 function meetKill(c, m){
   const isBoss = !!m.boss;
   Game.stats.kills++;
+  // 行旅见闻：战后小插曲（只做正向；掉落表另管，这里只给「读得懂」的一点东西）
+  if (typeof maybeEvent === 'function') maybeEvent({ kind:'fight', monsterId: m.id, nodeId: Game.node });
   Game.stats.deathStreak = 0; Game.stats.deathStreakOf = null;   // 打下来了，连败清零
   // 连胜计数与轻量庆祝
   Game.stats.winStreak = (Game.stats.winStreak||0) + 1;
@@ -3379,6 +3381,7 @@ function doRecipeAction(a){
     return;
   }
   const done = processRecipe(a.recipe, 1);
+  if (done && typeof maybeEvent === 'function') maybeEvent({ kind:'craft', itemId: a.recipe.out });
   // 限量制作（如单件武器）：做够件数就收手，不再无限连做
   if (done && a.remain != null){
     a.remain--;
