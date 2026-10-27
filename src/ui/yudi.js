@@ -117,6 +117,14 @@ UI.gotoHetero = function(){
 // 每处的按钮只在该山的详情里出现。统计页写着「观象处 3/9」，玩家却没有办法
 // 知道差的那 6 处在哪——只能一座一座山点开看。这里一张表列全：
 // 点一行即选中那座山（看它周围有什么），右侧「往」直接动身。
+// 见闻 id → 名字（索引里挂「此处可遇某条见闻」用；表找不到就回落成 id，不抛）
+function evNameOf(id){
+  const all = (typeof TRAVEL_EVENTS !== 'undefined' ? TRAVEL_EVENTS : [])
+    .concat(typeof AWAY_EVENTS !== 'undefined' ? AWAY_EVENTS : []);
+  const e = all.find(x => x.id === id);
+  return e ? (e.name || id) : id;
+}
+
 function heteroPanelHtml(){
   if (typeof heteroSites !== 'function') return '';
   const list = heteroSites();
@@ -136,11 +144,18 @@ function heteroPanelHtml(){
     ${list.map(x => {
       const gap = Math.max(0, x.level - yl);
       const prog = x.prog ? ` · ${Math.min(x.prog.got, x.prog.total)}/${x.prog.total}` : '';
+      // 这一处关联的见闻（v1.31.108）：观象 / 观瑞地关联「此地有灵」，谒见地关联「祠前老祝」。
+      // 索引与见闻录自此互为两面：在这边看得见「还差哪条见闻」，在见闻录那边点线索又能回来。
+      const evId = (x.kind === '谒见') ? 'yiji_zhu' : ((x.kind === '观象' || x.kind === '观瑞') ? 'yiji_ling' : '');
+      const evSeen = evId && Game.events && Game.events.seen ? (Game.events.seen[evId] || 0) : 0;
+      const evTag = !evId ? ''
+        : (evSeen ? `<i class="hr-ev on" title="此处可遇见闻「${esc(evNameOf(evId))}」，已遇 ${evSeen} 次">✦</i>`
+                  : `<i class="hr-ev" title="在此做事有机会遇到见闻「${esc(evNameOf(evId))}」">✦</i>`);
       return `<div class="hetero-row ${x.done ? 'done' : ''} ${x.unlocked ? '' : 'lock'} ${UI.heteroFocus === x.nodeId ? 'focus' : ''}"
           title="${esc(x.gain)}${prog}"
           onclick="UI.selRegion='${esc(x.regionId)}';UI.selNode='${esc(x.nodeId)}';UI.renderYudi()">
         <span class="hr-kind k-${x.kind}">${x.kind}</span>
-        <span class="hr-name">${esc(x.name)}${x.done ? '<i class="hr-ok">已得</i>' : ''}</span>
+        <span class="hr-name">${esc(x.name)}${evTag}${x.done ? '<i class="hr-ok">已得</i>' : ''}</span>
         <span class="hr-where">${esc(x.nodeName)}${x.regionName ? ` · ${esc(x.regionName)}` : ''}</span>
         <span class="hr-gain">${esc(x.gain)}${prog}</span>
         ${x.unlocked
@@ -595,8 +610,5 @@ function relicText(r){
   return Object.entries(r.bonus || {}).map(([k, v]) => `${NAME[k] || k} +${Math.round(v * 100)}%`).join(' · ');
 }
 
-// ================= 技能 =================
-// ---------- 制作配方的「默认分类」（v1.31.40） ----------
-// 原先写死停在「燔燎」：玩家练到 70 级，每次进技能页都得先点三四下才找到要做的配方。
-// 现在的口径是「能做的最高级配方在哪一栏，就停在哪一栏」——这一栏几乎总是玩家想要的；
-// 手动选过之后则记住那次选择（Prefs.recipeSkill），不再自动跳。
+// 见闻名字查询给测试与浮层用（同文件内的索引渲染直接调）
+if (typeof window !== 'undefined') window.evNameOf = evNameOf;

@@ -2136,6 +2136,10 @@ details.bulk-sell .bs-preview, details.bulk-sell .bs-act{ margin-left:11px; marg
 .stat-rows .linklike::after{ content:' ›'; opacity:.55; }
 /* 异迹索引里被「点线索」跳过来的那一行：左边一道朱线，一眼找到 */
 .hetero-row.focus{ background:var(--tai-w); box-shadow:inset 3px 0 0 var(--tai); }
+/* 异迹索引里的「此处可遇见闻」小星：未遇是空心灰、已遇是实心金
+   ——它是「还能不能捡到新东西」的记号，不抢名字的主位，所以做成 11px 贴在名字后面 */
+.hr-ev{ font-style:normal; font-size:10.5px; margin-left:4px; color:var(--ink-4); opacity:.75; }
+.hr-ev.on{ color:var(--jin); opacity:1; }
 .stat-rows > span > i{ font-size:10.5px; color:var(--ink-4); margin-left:6px; }
 .stat-rows.gather-rows{ margin-top:10px; border-top:1px solid var(--rule-2); padding-top:8px; }
 .stat-rows.ms-rows span.done{ color:var(--tai); }

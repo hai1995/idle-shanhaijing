@@ -9679,6 +9679,14 @@ section('异迹专属见闻');
   const css179 = readText('style.css');
   assert(css179.includes('.hetero-row.focus{') && css179.includes('.stat-rows .linklike{'), '高亮行与可点线索都有样式');
 
+  // ⑤‴ 反向：异迹索引里标出「此处可遇见闻」（v1.31.108）——两边互为两面
+  assert(ySrc179.includes('evNameOf') && ySrc179.includes('hr-ev'), '异迹行挂见闻记号');
+  assert(css179.includes('.hr-ev.on{'), '已遇的记号有区分样式');
+  if (typeof ST.evNameOf === 'function') {
+    assert(ST.evNameOf('yiji_ling') === '此地有灵', '见闻 id 能换回名字');
+    assert(ST.evNameOf('不存在') === '不存在', '查不到时回落 id（不抛）');
+  }
+
   // ⑤ 总数计数自动跟上（成就判据不写死数字，加条目不用改成就）
   assert(ST.eventKindsTotal() === ST.TRAVEL_EVENTS.length + ST.AWAY_EVENTS.length,
     '总数 = 两张表长度之和（现 ' + ST.eventKindsTotal() + '）');
