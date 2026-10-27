@@ -9379,6 +9379,32 @@ section('加载清单守卫');
   assert(/index\.html/.test(build), '单文件构建从 index.html 取清单');
 }
 
+// ============ 175. 存档体积守卫（2026-10-27） ============
+// localStorage 上限通常 5MB，全开档实测 56KB（占 1%），本来不是问题。
+// 但存档是「只增不减」的结构：records 一项就 34KB，谁往里面塞一份缓存
+// （比如把 CODEX 副本、图鉴全文、日志全量存进去）都会静默涨十倍，
+// 而症状要等到「写不进 localStorage」才出现——那时丢的是玩家进度。
+// 所以这里放一条会变红的线，不做优化，只做预警。
+section('存档体积守卫');
+{
+  G.resetToDefault();
+  try { ST.devSim('lv81'); ST.devSim('all'); } catch(e){}
+  const raw = JSON.stringify(ST.Game);
+  const kb = Math.round(raw.length / 1024);
+  assert(raw.length < 200000, '全开档序列化后小于 200KB（实测 ' + kb + 'KB）');
+
+  const parts = {};
+  for (const k in ST.Game) parts[k] = JSON.stringify(ST.Game[k] == null ? null : ST.Game[k]).length;
+  const recLen = parts.records || 0;
+  assert(recLen / raw.length < 0.75, 'records 占比不到 75%（实测 ' +
+    Math.round(recLen / raw.length * 100) + '%）——再往里塞东西就要重新考虑结构了');
+
+  // 大字段不该出现：日志是内存态（300 条上限），不进档
+  assert(parts.logEntries === undefined || parts.logEntries < 100, '日志不进存档（或体积极小）');
+
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
