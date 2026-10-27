@@ -9658,6 +9658,19 @@ section('异迹专属见闻');
   // ⑥ 脚下这一座山：节点详情也写「此处可遇某条见闻」（v1.31.114）
   //    与索引那头的 ✦ 是同一事实的两个视角（上帝视角 / 脚下视角），文案不同、来源同一张表。
   assert(ySrc111.includes('function nodeEventNote'), '节点详情有见闻提示函数');
+
+  // 映射表唯一来源（v1.31.115）：索引与详情都查同一张表，不许各写一份
+  assert(typeof ST.HETERO_EVENT === 'object', 'HETERO_EVENT 挂在全局（唯一来源）');
+  const heKeys = Object.keys(ST.HETERO_EVENT).sort().join(',');
+  assert(heKeys.split(',').length === 4 && ['观象','观瑞','谒见','灌木'].every(k => k in ST.HETERO_EVENT),
+    '四类异迹全在映射表里（' + heKeys + '）');
+  assert((ySrc111.match(/const HETERO_EVENT = \{/g) || []).length === 1, '映射表只声明一次');
+  // 幂等：这条断言在唯一来源就写在它上面时必须为真（早期版本拿「源码里含某串」当反例，
+  // 而唯一来源那行本身就含该串，一加就红——负向断言要挑「只可能出现在旧写法里的形状」）
+  assert(!/const map = \{ '观象':'yiji_ling'/.test(ySrc111), '不再有第二份内联映射（会分叉）');
+  // 表里的每个 id 都要是真见闻
+  const evIds115 = ST.TRAVEL_EVENTS.map(e => e.id);
+  Object.values(ST.HETERO_EVENT).forEach(id => assert(evIds115.includes(id), '映射目标 ' + id + ' 是真见闻'));
   assert(/nodeEventNote\(sel\)/.test(ySrc111), '节点详情的两处渲染都调用它');
   const evNoteMap = { '观象':'yiji_ling', '观瑞':'yiji_ling', '谒见':'yiji_zhu', '灌木':'yiji_miao' };
   ['观象','观瑞','谒见','灌木'].forEach(k => assert(
