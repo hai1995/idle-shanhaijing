@@ -373,6 +373,11 @@ html.theme-anim, html.theme-anim *{
    Safari 对 SVG 元素的 CSS transform 支持不可靠，三次栽在这里。
    will-change 在 Safari 的 SVG 上还有「元素不重绘」的旧 bug。 */
 .sc-tool{ color:inherit; }
+/* 全场景像素：现场所有元素 sharp 渲染；工具端点改方头（块状）以贴合像素风。
+   工具的 stroke-linecap="round" 是 SVG 表现属性，被这里的 CSS 覆盖为 butt。 */
+.sc-worker, .sc-foe, .sc-tool, .sc-tool path,
+.sc-mound, .sc-anvil, .sc-sprout, .sc-gate, .sc-hills, .sc-stars{ shape-rendering:crispEdges; }
+.sc-tool path{ stroke-linecap:butt; }
 
 @keyframes scBreath{
   0%,100%{ transform:translateY(0); }

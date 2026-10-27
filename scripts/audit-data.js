@@ -35,10 +35,11 @@ const ctx = {
 };
 ctx.window.UI = UIstub;
 vm.createContext(ctx);
-for (const f of ['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','zhongshanData.js',
-  'gameData.js','affix.js','engine.js','game.js','queue.js','interact.js','events.js','fx.js']){
-  // events.js 要在这里：成就判据（eventKindsSeen）住在见闻表里。
-  // 漏掉它不会报「文件缺失」，只会让两条成就的 prog 抛错——审计靠 try/catch 才抓到。
+// 单一来源：从 index.html 解析脚本清单（与单文件构建、测试共用同一解析器），
+// 按规则派生本脚本需要的子集——审计只看数据/引擎层，不含 ui。
+// 「抄一份就漏一份」的漂移在源头被消灭：新增文件只需改 index.html。
+const { scriptOrder } = require('./build-standalone');
+for (const f of scriptOrder().filter(f => !f.startsWith('ui/'))){
   vm.runInContext(fs.readFileSync(path.join(root, 'src', f), 'utf8'), ctx, { filename: f });
 }
 const W = ctx.window, I = W.Items;

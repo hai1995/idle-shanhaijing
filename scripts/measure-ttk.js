@@ -39,8 +39,9 @@ const ctx = {
 };
 ctx.window.UI = UIstub;
 vm.createContext(ctx);
-for (const f of ['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','zhongshanData.js',
-  'gameData.js','affix.js','engine.js','game.js','queue.js','interact.js','events.js','fx.js']){
+// 单一来源：从 index.html 解析脚本清单，取数据/引擎层（不含 ui）。
+const { scriptOrder } = require('./build-standalone');
+for (const f of scriptOrder().filter(f => !f.startsWith('ui/'))){
   vm.runInContext(fs.readFileSync(path.join(root, 'src', f), 'utf8'), ctx, { filename: f });
 }
 const W = ctx.window;

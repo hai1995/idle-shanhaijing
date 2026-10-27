@@ -43,10 +43,10 @@ const ctx = {
 };
 ctx.window.UI = UIstub;
 vm.createContext(ctx);
-for (const f of ['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','zhongshanData.js',
-  'gameData.js','affix.js','save.js','engine.js','game.js','queue.js','interact.js','events.js','fx.js',
-  'beastIcon.js','riteIcon.js','structureIcon.js','skillIcon.js','itemIcon.js','markIcon.js',
-  'ui/core.js','ui/yudi.js','ui/skills.js','ui/combat.js','ui/codex.js','ui/shrine.js','ui/trade.js','ui/queue.js','ui/pack.js','ui/item.js','ui/enhance.js','ui/stats.js','ui/misc.js','ui/boot.js']){
+// 单一来源：从 index.html 解析全部脚本（与单文件构建、测试共用同一解析器），
+// 加载全部以尽量压测每条代码路径——此前这份手写清单漏了 scene/settings/tutorial/hud/modal/rank 六个 ui 文件。
+const { scriptOrder } = require('./build-standalone');
+for (const f of scriptOrder()){
   vm.runInContext(fs.readFileSync(path.join(root, 'src', f), 'utf8'), ctx, { filename: f });
 }
 const S = ctx.window;

@@ -40,9 +40,13 @@ vm.createContext(context);
 const base = path.join(__dirname, '..', 'src');
 function loadJS(file){ vm.runInContext(fs.readFileSync(path.join(base, file), 'utf8'), context, {filename:file}); }
 // ui.js 已按页拆成 7 个文件（v1.31.8），顺序与 index.html 一致；core 必须最先。
-const UI_FILES = ['ui/core.js','ui/meta.js','ui/hud.js','ui/modal.js','ui/settings.js','ui/tutorial.js','ui/scene.js','ui/yudi.js','ui/skills.js','ui/combat.js','ui/codex.js','ui/shrine.js','ui/trade.js','ui/queue.js','ui/pack.js','ui/item.js','ui/enhance.js','ui/stats.js','ui/rank.js','ui/misc.js','ui/boot.js'];
+// 单一来源：从 index.html 解析 ui 脚本清单（与单文件构建、各脚本共用同一解析器），
+// 不再手抄——新增 ui 文件只需改 index.html，这里自动同步。
+const UI_FILES = require(path.join(__dirname, '..', 'scripts', 'build-standalone.js')).scriptOrder().filter(f => f.startsWith('ui/'));
 const uiSrcAll = UI_FILES.map(f => fs.readFileSync(path.join(base, f), 'utf8')).join('\n');
-['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','zhongshanData.js','gameData.js','affix.js','save.js','engine.js','game.js','queue.js','interact.js','events.js','fx.js','beastIcon.js','riteIcon.js','structureIcon.js','skillIcon.js','itemIcon.js','markIcon.js'].forEach(loadJS);
+// 单一来源：从 index.html 解析引擎层脚本（与单文件构建、各脚本共用同一解析器），不再手抄。
+require(path.join(__dirname, '..', 'scripts', 'build-standalone.js')).scriptOrder()
+  .filter(f => !f.startsWith('ui/')).forEach(loadJS);
 const G = context;
 const ST = context.window;
 
@@ -9425,41 +9429,37 @@ section('加载清单守卫');
   while ((m = re.exec(idx))){ if (m[1].indexOf('ui/') !== 0) nonUi.push(m[1]); }
   assert(nonUi.length > 10, 'index.html 里的引擎脚本共 ' + nonUi.length + ' 个');
 
-  // 审计脚本只加载「算数据用得上的」一撮（图标族、存档不需要），所以判据是**子集**：
-  // 不许出现 index.html 里已经没有的文件名（那种漏是删文件后忘改清单）。
-  // 「漏了必需模块」由审计自己兜——prog 抛错会被它记成「发现 N 处问题」（本次就是这么抓到的）。
-  // 逐脚本查：scripts/ 下每个自带加载清单的（审计、压测）都必须
-  //   ① 是 index.html 的子集（没有已删文件名的残留）
-  //   ② 含 events.js（成就判据住在那里——这条被踩了两次，才写成显式断言）
+  // 各脚本的「加载清单」现已统一从 index.html 单一来源派生（build-standalone.scriptOrder），
+  // 不再手抄——「抄一份就漏一份」的漂移在源头被消灭。下面守住两件事：
+  //   ① 凡是加载游戏文件的脚本，都必须走 scriptOrder 派生（而不是另起一份手写清单）；
+  //   ② 个别仍手抄清单的脚本（如有），必须是 index.html 的子集且含 events.js。
   const fs2 = require('fs');
   const scriptFiles = fs2.readdirSync(path.join(__dirname, '..', 'scripts'))
     .filter(f => f.endsWith('.js') && f !== 'check.js' && f !== 'build-standalone.js');
-  let checkedLists = 0;
+  let derived = 0;          // 从 index.html 单一来源派生的脚本数
   scriptFiles.forEach(sf => {
     const src = readText('scripts/' + sf);
+    if (/scriptOrder\(\)/.test(src)){ derived++; return; }   // 派生清单：filter 只从 scriptOrder 里挑，不可能含已删文件名
     const m2 = src.match(/for \(const f of \[([\s\S]*?)\]\)/);
-    if (!m2) return;                              // 没有清单的脚本（gen-world / measure-*）跳过
-    checkedLists++;
+    if (!m2) return;                              // 既不派生也无清单的脚本（gen-world 等）跳过
     const list = (m2[1].match(/'([^']+\.js)'/g) || []).map(x => x.replace(/'/g, ''));
     // ui/* 由 UI_FILES 管，这里只查引擎层；两边都算「index.html 里有的文件」
     const known = nonUi.concat(UI_FILES.map(f => f.replace(/^ui\//, 'ui/')));
     const ghosts = list.filter(f => known.indexOf(f) < 0);
     assert(ghosts.length === 0, 'scripts/' + sf + ' 的清单里没有 index.html 之外的文件（多余：' +
       (ghosts.join(',') || '无') + '）');
-    // 只有「跑业务逻辑」的脚本（清单里有 game.js）才需要 events.js；
-    // measure-* 只算数值曲线，不该被这条守卫绑住。
     if (list.indexOf('game.js') >= 0){
       assert(list.indexOf('events.js') >= 0, 'scripts/' + sf + ' 跑业务逻辑，清单须含 events.js');
     }
   });
-  assert(checkedLists >= 2, '至少检查了两份脚本清单（实测 ' + checkedLists + '）');
+  assert(derived >= 2, '至少两个脚本从 index.html 单一来源派生清单（实测 ' + derived + '）');
 
-  // 测试自己的加载清单也要覆盖（否则「测试里能跑、页面里不跑」）
-  const testSrc = readText('test/engine.test.js');
-  const loadLine = (testSrc.match(/\[([^\]]*Data\.js[^\]]*)\]\.forEach\(loadJS\)/) || ['',''])[1];
-  assert(loadLine.length > 0, '找得到测试的加载清单');
-  const missTest = nonUi.filter(f => loadLine.indexOf("'" + f + "'") < 0 && f.indexOf('gameData') !== 0 ? loadLine.indexOf("'" + f + "'") < 0 : false);
-  assert(missTest.length === 0, '测试加载清单覆盖全部引擎脚本（缺：' + (missTest.join(',') || '无') + '）');
+  // 测试自身的引擎加载清单也已改为从 index.html 派生（scriptOrder），不再手抄。
+  // 覆盖由构造保证；下面确认派生口径与 index.html 引擎脚本数一致。
+  const orderChk = require(path.join(__dirname, '..', 'scripts', 'build-standalone.js')).scriptOrder();
+  const engFromOrder = orderChk.filter(f => !f.startsWith('ui/'));
+  assert(engFromOrder.length === nonUi.length,
+    '测试从 index.html 派生的引擎脚本覆盖全部引擎脚本（' + engFromOrder.length + ' / ' + nonUi.length + '）');
 
   // 构建脚本只从 index.html 读，不许自带清单
   const build = readText('scripts/build-standalone.js');
