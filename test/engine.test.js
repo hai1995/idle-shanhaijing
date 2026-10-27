@@ -40,7 +40,7 @@ vm.createContext(context);
 const base = path.join(__dirname, '..', 'src');
 function loadJS(file){ vm.runInContext(fs.readFileSync(path.join(base, file), 'utf8'), context, {filename:file}); }
 // ui.js 已按页拆成 7 个文件（v1.31.8），顺序与 index.html 一致；core 必须最先。
-const UI_FILES = ['ui/core.js','ui/scene.js','ui/world.js','ui/combat.js','ui/codex.js','ui/trade.js','ui/pack.js','ui/misc.js'];
+const UI_FILES = ['ui/core.js','ui/settings.js','ui/scene.js','ui/world.js','ui/combat.js','ui/codex.js','ui/trade.js','ui/pack.js','ui/misc.js'];
 const uiSrcAll = UI_FILES.map(f => fs.readFileSync(path.join(base, f), 'utf8')).join('\n');
 ['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','zhongshanData.js','gameData.js','affix.js','save.js','engine.js','game.js','queue.js','interact.js','fx.js','beastIcon.js','riteIcon.js','structureIcon.js','skillIcon.js','itemIcon.js','markIcon.js'].forEach(loadJS);
 const G = context;
@@ -7867,7 +7867,7 @@ section('道里数据');
 section('行动现场');
 {
   const gSrc145 = readText('src/game.js');
-  const cSrc145 = readText('src/ui/core.js');
+  const cSrc145 = readText('src/ui/core.js') + readText('src/ui/settings.js');   // 设置页已搬到 settings.js
   const sSrc145 = readText('src/ui/scene.js');
   const hSrc145 = readText('index.html');
   const cssSrc145 = readText('style.css');
@@ -8022,7 +8022,7 @@ section('现场驱动自愈');
 {
   const sSrc146 = readText('src/ui/scene.js');
   const cssSrc146 = readText('style.css');
-  const cSrc146 = readText('src/ui/core.js');
+  const cSrc146 = readText('src/ui/core.js') + readText('src/ui/settings.js');   // 设置页已搬到 settings.js
 
   // ---- 1. 自调度放在「画完」之后，且后台不排 ----
   assert(/finally\s*\{[\s\S]{0,420}requestAnimationFrame\(step\)/.test(sSrc146),
@@ -8424,7 +8424,8 @@ section('轮回边界');
 // 说明文字一律另起一行（.set-hint），label 只放名字。
 section('设置页版面');
 {
-  const cSrc156 = readText('src/ui/core.js');
+  // 设置页的标记已搬到 ui/settings.js（v1.31.81），这里跟着改口径
+  const cSrc156 = readText('src/ui/settings.js');
   const cssSrc156 = readText('style.css');
   assert(!/<span>[^<]{0,12}<span class="hint"/.test(cSrc156),
     '设置项的说明不嵌在 label 的 span 里（否则撑成 max-content）');
@@ -8468,6 +8469,7 @@ section('名号与工具');
 {
   const hSrc158 = readText('index.html');
   const cSrc158 = readText('src/ui/core.js');
+  const sSrc158 = readText('src/ui/settings.js');   // 设置页搬出去之后（v1.31.81）
 
   // ---- 1. 默认名号 ----
   assert(typeof ST.DEFAULT_NICK === 'string' && ST.DEFAULT_NICK.length > 0, '有默认名号');
@@ -8606,7 +8608,7 @@ section('长列表分页');
 section('移动端视口与重载');
 {
   const cssSrc161 = readText('style.css');
-  const cSrc161 = readText('src/ui/core.js');
+  const cSrc161 = readText('src/ui/settings.js');   // forceReload 与设置页标记都在这里（v1.31.81）
   const hSrc161 = readText('index.html');
 
   // ---- 1. 输入控件一律 ≥ 16px（手机媒体查询里） ----
