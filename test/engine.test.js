@@ -655,7 +655,11 @@ const mkTarget = (init)=>{
       contains:(c)=>set.has(c) },
     textContent:'', value:'', checked:false, appendChild(){}, remove(){} };
 };
-['content','tabs','toasts','modal','modalBox','logList','actionProg','actionProgFill','activityText','hpDisplay','buffDisplay','buffBtn','buffCount','buffPop','shellCount','totalLevel','recordCount','guidance','btnSettings','btnStop','fab','drawerMask','topdock'].forEach(t=>renderTargets[t]=mkTarget());
+// 队列芯片（v1.31.146 起）要是持久目标：否则每次取用都返回新桩，
+// 断言读不到刚写进去的文本与 class。
+// （#statusbar / #sceneBar 不在此列——现场容器要用到 querySelector，持久桩给不了，
+//   交给下面的兜底桩反而与真实 DOM 行为一致。）
+['content','tabs','toasts','modal','modalBox','logList','actionProg','actionProgFill','activityText','hpDisplay','buffDisplay','buffBtn','buffCount','buffPop','shellCount','totalLevel','recordCount','guidance','btnSettings','btnStop','fab','drawerMask','topdock','queueChip'].forEach(t=>renderTargets[t]=mkTarget());
 renderTargets.modal.classList.add('hidden');            // 未开弹窗：与真实 DOM 初始一致
 renderTargets.buffPop.classList.add('hidden');           // 默认视为收起，closeBuffPop 不重复动作
 renderTargets.tabs.innerHTML = '';
@@ -697,6 +701,46 @@ G.startCombat('shengsheng', { focus:true });
 assert(ST.UI.currentTab === 'taofa', '手动往讨才切到征伐页');
 ST.Game.combat = null;
 ST.Game.combat = null;
+
+// ============ 16.4 状态条上的队列芯片（v1.31.146 起，v1.31.151 加受阻 / 轮次） ============
+section('状态条队列芯片');
+{
+  G.resetToDefault();
+  const chip = renderTargets.queueChip;
+  // 造一个「当前能跑」的采集项：取一处已解锁的山，再取其上的 1 级物产
+  const openNode = Object.keys(ST.Game.map).find(n => ST.nodeOf(n) && ST.nodeUnlocked(ST.nodeOf(n)));
+  const gid = openNode && Object.keys(ST.Items).find(id =>
+    ST.Items[id] && ST.Items[id].node === openNode && (ST.Items[id].lvl || 1) <= 1);
+  assert(!!gid, '取到一个当前可采的物产（用于造正常队列）-> ' + gid);
+
+  ST.Game.queue = [ { kind:'qiaocai', target:gid, qty:5, done:0 } ];
+  ST.Game.queueIdx = 0; ST.Game.queueRunning = true; ST.Game.queueLoop = false; ST.Game.queueRound = 0;
+  ST.UI.patchQueueChip();
+  assert(!chip.classList.contains('hidden'), '队列在跑：芯片显示');
+  assert(/^队列 1\/1/.test(chip.textContent), '芯片写「队列 1/1」-> ' + chip.textContent);
+  assert(chip.textContent.includes('约'), '芯片带预计剩余 -> ' + chip.textContent);
+
+  // 循环模式标出「第几轮」：挂一整夜回来只看见「队列 3/5」，不知道已经跑完两圈
+  ST.Game.queueLoop = true; ST.Game.queueRound = 2;
+  ST.UI.patchQueueChip();
+  assert(chip.textContent.includes('第 3 轮'), '循环模式标出轮次 -> ' + chip.textContent);
+
+  // 受阻：目标不存在 → 转朱色，整句原因进 title（芯片上放不下）
+  ST.Game.queue = [ { kind:'qiaocai', target:'__no_such_item__', qty:1, done:0 } ];
+  ST.Game.queueIdx = 0; ST.Game.queueRunning = true;
+  ST.UI.patchQueueChip();
+  assert(chip.classList.contains('warn') && chip.textContent === '队列受阻', '受阻时芯片转「队列受阻」-> ' + chip.textContent);
+  assert(String(chip.title).length > 0, '受阻原因进 title -> ' + chip.title);
+  // 此处 readText 依赖的 root 还没初始化，直接读文件
+  assert(fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8').includes('#queueChip.warn{'), '受阻芯片有朱色样式');
+
+  // 停跑：芯片收起，不占状态条
+  ST.Game.queueRunning = false;
+  ST.UI.patchQueueChip();
+  assert(chip.classList.contains('hidden'), '队列停跑：芯片收起');
+  // 此处 uiSrc 还没初始化（它在更下面才定义），用 uiSrcAll
+  assert(uiSrcAll.includes('UI.patchQueueChip = function'), '队列芯片有独立刷新入口（跨页每秒同步）');
+}
 
 // ============ 16.5 新手引导 · 离线汇总 ============
 section('新手引导 · 离线汇总');

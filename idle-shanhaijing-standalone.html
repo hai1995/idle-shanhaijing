@@ -389,6 +389,9 @@ html.theme-anim, html.theme-anim *{
   color:var(--qing-d); background:var(--paper-3); border:1px solid var(--rule-2);
   border-radius:999px; padding:0 8px; white-space:nowrap;
 }
+/* 受阻（v1.31.151）：转朱色。芯片上放不下整句原因，标红即为「去看队列页」，
+   具体原因留在 title 里（悬停 / 长按需看才看）。 */
+#queueChip.warn{ color:var(--zhu); background:var(--zhu-w); border-color:var(--zhu); }
 /* —— 融入现场：现场开启时，状态条不再单独成带，而是叠在现场顶部、融入动画画面（v1.31.145）。
    仅 .scene-on 时切换为绝对定位覆盖；空闲 / 现场关闭时仍退化为独立带状（兜底显示）。
    覆盖层只在最顶一小条留半透纸色保证文字可读，下方透出动画，因此不再额外占用纵向高度。 */
@@ -20056,8 +20059,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.150',
-  codename:'昼巡 · 均速',
+  version: '1.31.151',
+  codename:'昼巡 · 受阻',
   updated: '2026-10-28',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
@@ -34692,10 +34695,25 @@ UI.patchQueueChip = function(){
   const show = Game.queueRunning && Game.queue.length > 0;
   if (!show){ el.classList.add('hidden'); return; }   // add 幂等，真实 DOM 与测试桩都安全
   el.classList.remove('hidden');
+  // 受阻优先：这一项跑不动（等级不够 / 材料不足 / 地点不可达）时，
+  // 再报「还差多久」是自欺——先说卡住了，原因放 title（芯片上放不下整句）。
+  const cur = Game.queue[Game.queueIdx];
+  const st = (cur && typeof entryCanRun === 'function') ? entryCanRun(cur) : { ok:true };
+  if (!st.ok){
+    el.classList.add('warn');
+    const w = '队列受阻';
+    if (el.textContent !== w) el.textContent = w;
+    if (el.title !== (st.reason || '')) el.title = st.reason || '';
+    return;
+  }
+  el.classList.remove('warn');
   const pos = `${Game.queueIdx + 1}/${Game.queue.length}`;
   const rem = (typeof queueRemainSeconds === 'function') ? queueRemainSeconds() : 0;
-  const t = `队列 ${pos}` + (rem >= 1 ? ` · 约 ${fmtTime(rem)}` : '');
+  // 循环模式标出「第几轮」：否则挂一整夜回来，只看见「队列 3/5」，不知道已经跑完两圈
+  const loop = Game.queueLoop ? ` · 第 ${(Game.queueRound|0) + 1} 轮` : '';
+  const t = `队列 ${pos}${loop}` + (rem >= 1 ? ` · 约 ${fmtTime(rem)}` : '');
   if (el.textContent !== t) el.textContent = t;
+  if (el.title) el.title = '';
 };
 function addQueueTask(){
   const target = $('queueTarget') ? $('queueTarget').value : (UI.queueTarget || '');

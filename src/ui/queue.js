@@ -134,10 +134,25 @@ UI.patchQueueChip = function(){
   const show = Game.queueRunning && Game.queue.length > 0;
   if (!show){ el.classList.add('hidden'); return; }   // add 幂等，真实 DOM 与测试桩都安全
   el.classList.remove('hidden');
+  // 受阻优先：这一项跑不动（等级不够 / 材料不足 / 地点不可达）时，
+  // 再报「还差多久」是自欺——先说卡住了，原因放 title（芯片上放不下整句）。
+  const cur = Game.queue[Game.queueIdx];
+  const st = (cur && typeof entryCanRun === 'function') ? entryCanRun(cur) : { ok:true };
+  if (!st.ok){
+    el.classList.add('warn');
+    const w = '队列受阻';
+    if (el.textContent !== w) el.textContent = w;
+    if (el.title !== (st.reason || '')) el.title = st.reason || '';
+    return;
+  }
+  el.classList.remove('warn');
   const pos = `${Game.queueIdx + 1}/${Game.queue.length}`;
   const rem = (typeof queueRemainSeconds === 'function') ? queueRemainSeconds() : 0;
-  const t = `队列 ${pos}` + (rem >= 1 ? ` · 约 ${fmtTime(rem)}` : '');
+  // 循环模式标出「第几轮」：否则挂一整夜回来，只看见「队列 3/5」，不知道已经跑完两圈
+  const loop = Game.queueLoop ? ` · 第 ${(Game.queueRound|0) + 1} 轮` : '';
+  const t = `队列 ${pos}${loop}` + (rem >= 1 ? ` · 约 ${fmtTime(rem)}` : '');
   if (el.textContent !== t) el.textContent = t;
+  if (el.title) el.title = '';
 };
 function addQueueTask(){
   const target = $('queueTarget') ? $('queueTarget').value : (UI.queueTarget || '');
