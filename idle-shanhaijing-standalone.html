@@ -126,54 +126,66 @@
 }
 
 /* ==========================================================================
-   昼夜切换：夜间为「夜读本」——暖炭为底、墨白为字，三色微提亮以承夜光。
+   昼夜切换：夜间为「夜航本」——深蓝黑星空为底、月白为字（v1.31.147 简洁化）。
    仅覆盖基底 token；顶栏书脊在昼夜皆为最深一档（书脊不随室光而变）。
    ========================================================================== */
 [data-theme="night"]{
-  --paper:      #17140F;   /* 夜纸底（最深） */
-  --paper-2:    #201B14;   /* 承载面（卡） */
-  --paper-3:    #2A241B;   /* 高亮面（输入、悬浮） */
-  --ink:        #ECE6D8;   /* 墨白正文 */
-  --ink-2:      #D2CBB9;
-  --ink-3:      #9C9179;   /* 次级文字（暗底可读性下限） */
-  --ink-4:      #7E745F;   /* 标签 */
-  --rule:       rgba(236,230,216,.14);
-  --rule-2:     rgba(236,230,216,.08);
-  --rule-3:     rgba(236,230,216,.04);
+  --paper:      #12151C;   /* 夜空底：暖炭改深蓝黑（简洁化参考） */
+  --paper-2:    #1A1F29;   /* 承载面（卡）：比底略浮一档 */
+  --paper-3:    #242B38;   /* 高亮面（输入、悬浮） */
+  --ink:        #E8ECF4;   /* 月白正文 */
+  --ink-2:      #CDD3E0;
+  --ink-3:      #97A0B4;   /* 次级文字（暗底可读性下限） */
+  --ink-4:      #78829A;   /* 标签 */
+  --rule:       rgba(232,236,244,.14);
+  --rule-2:     rgba(232,236,244,.08);
+  --rule-3:     rgba(232,236,244,.04);
 
-  --zhu:        #DD5742;   /* 朱砂微提亮，夜中承光 */
-  --zhu-d:      #B73E2C;
-  --zhu-w:      rgba(221,87,66,.16);
-  --qing:       #6FA0BD;   /* 石青提亮 */
-  --qing-d:     #8FB6CF;
-  --qing-w:     rgba(111,160,189,.15);
-  --tai:        #84A872;   /* 苔绿提亮 */
-  --tai-w:      rgba(132,168,114,.16);
-  --jin:        #D6B36A;   /* 赭金提亮 */
+  --zhu:        #E06A55;   /* 朱砂在蓝黑底上微提亮 */
+  --zhu-d:      #C04E3B;
+  --zhu-w:      rgba(224,106,85,.16);
+  --qing:       #7FB2D8;   /* 石青提亮，与夜空同调 */
+  --qing-d:     #9CC6E4;
+  --qing-w:     rgba(127,178,216,.16);
+  --tai:        #8FB57C;   /* 苔绿提亮 */
+  --tai-w:      rgba(143,181,124,.16);
+  --jin:        #E0C078;   /* 赭金提亮 */
 
-  --chrome:     #0E0B07;   /* 书脊（昼夜皆最深） */
-  --chrome-2:   #1A160F;
-  --chrome-tx:  #ECE6D8;
+  --chrome:     #0A0D13;   /* 书脊（昼夜皆最深） */
+  --chrome-2:   #141924;
+  --chrome-tx:  #E8ECF4;
 
-  --shadow:0 2px 12px rgba(0,0,0,.45);
-  --on-accent:#14110A;   /* 夜间的强调色是浅底，配近黑字 */
+  --shadow:0 2px 12px rgba(0,0,0,.5);
+  --on-accent:#10131A;   /* 夜间的强调色是浅底，配近黑字 */
+}
+/* 夜空星点：静态平铺、不做动画——装饰归装饰，不与引擎相位争时序。
+   参考简洁化手游的深空观感：极小的亮点、极低的密度，扫过才察觉。 */
+[data-theme="night"] body{
+  background-image:
+    radial-gradient(1.5px 1.5px at 18% 22%, rgba(232,236,244,.32) 50%, transparent 51%),
+    radial-gradient(1px 1px at 64% 12%, rgba(232,236,244,.24) 50%, transparent 51%),
+    radial-gradient(1px 1px at 84% 46%, rgba(232,236,244,.18) 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 38% 68%, rgba(232,236,244,.2) 50%, transparent 51%),
+    radial-gradient(1px 1px at 8% 82%, rgba(232,236,244,.22) 50%, transparent 51%);
+  background-size:520px 520px, 380px 380px, 460px 460px, 560px 560px, 420px 420px;
+  background-attachment:fixed;
 }
 /* 滚动条与若干浅色 hover/边框在暗底需反相，否则隐没 */
 /* 暗底上的小字：11–12px 用 ink-3 在 #201B14 上只有约 4.8:1，实机截图偏糊。
    这两类（弹窗信息行、交易区标签）在暗色下提一档到 ink-2。 */
 [data-theme="night"] .meta,
 [data-theme="night"] .trade-block > b{ color:var(--ink-2); }
-[data-theme="night"] ::-webkit-scrollbar-thumb{ background:rgba(236,230,216,.2); }
-[data-theme="night"] ::-webkit-scrollbar-thumb:hover{ background:rgba(236,230,216,.34); }
+[data-theme="night"] ::-webkit-scrollbar-thumb{ background:rgba(232,236,244,.2); }
+[data-theme="night"] ::-webkit-scrollbar-thumb:hover{ background:rgba(232,236,244,.34); }
 [data-theme="night"] .tab:hover,
 [data-theme="night"] .region-tile:hover,
 [data-theme="night"] .node-tile:hover,
-[data-theme="night"] .gear-tile:hover{ background:rgba(236,230,216,.055); }
-[data-theme="night"] #tipLayer{ border-color:rgba(236,230,216,.22); }
+[data-theme="night"] .gear-tile:hover{ background:rgba(232,236,244,.055); }
+[data-theme="night"] #tipLayer{ border-color:rgba(232,236,244,.22); }
 [data-theme="night"] .fx-float{ text-shadow:0 1px 0 rgba(0,0,0,.5), 0 0 12px rgba(0,0,0,.4); }
 /* 夜间现场：天光从「压白」改成「压暗」，否则顶上一条亮带像没关的灯。
    底色已走 token；这里只补两处写死过的光。 */
-[data-theme="night"] .sc-wrap{ --sc-sky:rgba(236,230,216,.045); }
+[data-theme="night"] .sc-wrap{ --sc-sky:rgba(232,236,244,.045); }
 [data-theme="night"] .sc-flash{
   background:radial-gradient(circle at 22% 78%, rgba(221,87,66,.26), rgba(221,87,66,.06) 42%, transparent 62%);
 }
@@ -382,7 +394,7 @@ html.theme-anim, html.theme-anim *{
   background:linear-gradient(180deg, rgba(245,242,232,.9) 0%, rgba(245,242,232,.72) 44%, rgba(245,242,232,0) 100%);
 }
 [data-theme="night"] #statusbar.scene-on{
-  background:linear-gradient(180deg, rgba(28,26,22,.9) 0%, rgba(28,26,22,.66) 44%, rgba(28,26,22,0) 100%);
+  background:linear-gradient(180deg, rgba(13,17,24,.9) 0%, rgba(13,17,24,.66) 44%, rgba(13,17,24,0) 100%);
 }
 /* 覆盖层上进度条已收（见下方 .scene-on #actionProg）；窄屏同样去掉圆角留白，贴住画面 */
 #statusbar.scene-on{ gap:10px; }
@@ -1337,13 +1349,14 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
 
 /* ===== 方形小卡（借鉴手游「一格一味」的识别方式）=====
    正方形格、图标为主、名字在下、角标放阶位；一眼扫过靠图形认物，不靠读字。 */
-.tile-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(104px,1fr)); gap:6px; }
+.tile-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(104px,1fr)); gap:8px; }
 .tile{
   position:relative; aspect-ratio:1/1; display:flex; flex-direction:column;
   align-items:center; justify-content:center; gap:5px; padding:10px 6px 8px;
   /* 网格项默认 min-width:auto 会被内容顶宽，三列时把整块挤出屏幕；显式归零由列宽说了算 */
   min-width:0;
-  background:var(--paper-2); border:1px solid var(--rule); border-radius:var(--r);
+  /* 简洁化（参考手游方卡）：更大的圆角、更轻的描边——卡面靠底色浮起，不靠重线框 */
+  background:var(--paper-2); border:1px solid var(--rule); border-radius:12px;
   cursor:pointer; text-align:center; transition:border-color .12s, background .12s, transform .12s;
 }
 .tile:hover{ border-color:var(--ink-4); background:var(--paper-3); }
@@ -1354,9 +1367,9 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
 .tile.lock .tile-nm{ color:var(--ink-3); }
 .tile.lock .tile-tag{ color:var(--ink-4); }
 .tile.lock:active{ transform:none; }
-.tile-ic{ font-size:27px; line-height:1; }
+.tile-ic{ font-size:30px; line-height:1; }
 /* 绘形图标（内联 SVG）版 tile-ic：定尺方盒居中，作为方块视觉主体 */
-.tile-ic.bi-ic{ width:44px; height:44px; display:inline-flex; align-items:center; justify-content:center;
+.tile-ic.bi-ic{ width:48px; height:48px; display:inline-flex; align-items:center; justify-content:center;
   margin:-1px 0 -2px; }
 .tile-ic.bi-ic svg.bi{ width:100%; height:100%; }
 /* 绘形图标：兽体走 currentColor（昼墨夜白），与纸墨主题同步；特征件仍取五行色 */
@@ -1390,7 +1403,7 @@ svg.bi.mk{ vertical-align:-2px; }
 .tile-more{
   position:absolute; top:3px; right:3px; padding:0 4px; min-width:16px; height:16px;
   font-size:9.5px; line-height:14px; color:var(--ink-3); cursor:pointer;
-  background:var(--paper-3); border:1px solid var(--rule-2); border-radius:2px;
+  background:var(--paper-3); border:1px solid var(--rule-2); border-radius:6px;
 }
 .tile-more:hover{ color:var(--zhu); border-color:var(--zhu-w); background:var(--zhu-w); }
 /* 配方区沿用方形卡：桌面稍大，窄屏三列 */
@@ -2788,7 +2801,7 @@ body.no-scroll{ overflow:hidden; }
 .to-top svg{ width:18px; height:18px; }
 [data-theme="night"] .to-top{
   background:var(--chrome); color:var(--chrome-tx);
-  border-color:rgba(236,230,216,.16);
+  border-color:rgba(232,236,244,.16);
 }
 @media (max-width:760px){
   .to-top{ width:34px; height:34px; right:12px; bottom:calc(env(safe-area-inset-bottom, 0px) + 14px); }
@@ -20029,7 +20042,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.146',
+  version: '1.31.147',
   codename:'昼巡 · 队列',
   updated: '2026-10-27',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
