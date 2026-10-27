@@ -40,7 +40,7 @@ vm.createContext(context);
 const base = path.join(__dirname, '..', 'src');
 function loadJS(file){ vm.runInContext(fs.readFileSync(path.join(base, file), 'utf8'), context, {filename:file}); }
 // ui.js 已按页拆成 7 个文件（v1.31.8），顺序与 index.html 一致；core 必须最先。
-const UI_FILES = ['ui/core.js','ui/hud.js','ui/modal.js','ui/settings.js','ui/tutorial.js','ui/scene.js','ui/yudi.js','ui/skills.js','ui/combat.js','ui/codex.js','ui/trade.js','ui/queue.js','ui/pack.js','ui/item.js','ui/enhance.js','ui/stats.js','ui/misc.js','ui/boot.js'];
+const UI_FILES = ['ui/core.js','ui/hud.js','ui/modal.js','ui/settings.js','ui/tutorial.js','ui/scene.js','ui/yudi.js','ui/skills.js','ui/combat.js','ui/codex.js','ui/shrine.js','ui/trade.js','ui/queue.js','ui/pack.js','ui/item.js','ui/enhance.js','ui/stats.js','ui/misc.js','ui/boot.js'];
 const uiSrcAll = UI_FILES.map(f => fs.readFileSync(path.join(base, f), 'utf8')).join('\n');
 ['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','zhongshanData.js','gameData.js','affix.js','save.js','engine.js','game.js','queue.js','interact.js','events.js','fx.js','beastIcon.js','riteIcon.js','structureIcon.js','skillIcon.js','itemIcon.js','markIcon.js'].forEach(loadJS);
 const G = context;
@@ -9866,6 +9866,20 @@ section('征兆专属见闻');
 
   G.resetToDefault();
   ST.__eventsMuted = true;
+}
+
+// ============ 182. 拆分守卫：UI 层没有千行文件 ============
+// 拆分的目的是可读，不是为拆而拆：单个 UI 文件超千行就该再分。
+// 阈值放在 1000（业务层 game.js 另算——它是规则本体，拆开反而看不出全貌）。
+{
+  const fat = UI_FILES.map(f => ({ f, n: fs.readFileSync(path.join(base, f), 'utf8').split('\n').length }))
+    .filter(x => x.n > 1000);
+  assert(fat.length === 0, 'UI 层没有千行文件' + (fat.length ? ('，超：' + fat.map(x => x.f + '(' + x.n + ')').join(',')) : ''));
+  // 拆出去的段要有归属：祠祀不在图鉴里，图鉴也不在祠祀里（防止两边各留半份）
+  const cx = readText('src/ui/codex.js'), sh = readText('src/ui/shrine.js');
+  assert(!/function omenPanelHtml/.test(cx) && /function omenPanelHtml/.test(sh), '祠祀面板只在 shrine.js');
+  assert(/function showCodexDetail/.test(cx) && !/function showCodexDetail/.test(sh), '图鉴详情只在 codex.js');
+  assert(/buffDefText/.test(sh) && !/function buffDefText/.test(cx), '增益口径只在 shrine.js');
 }
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
