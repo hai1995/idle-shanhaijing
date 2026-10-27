@@ -29,7 +29,10 @@ const TAB_RENDER = { yudi:'renderYudi', skills:'renderSkills', taofa:'renderTaof
   queue:'renderQueue', pack:'renderPack', stats:'renderStats', settings:'renderSettings',
   about:'renderAbout' };
 const CAT_EMOJI = { 兽:'🐾', 鸟:'🪶', 水族:'🐟', 蛇:'🐍' };
-const LOG_COLORS = { good:'#4A7C59', bad:'#C3272B', gold:'#D9A521', sys:'#8C5A3C' };
+// gold 原为 #D9A521：当浮字用没问题（有描边），但做日志正文色时在纸底上只有 2.04:1，
+// 几乎看不清（v1.31.136 对比度扫描抓到的）。压到 #8C6B15（4.51:1）。
+// 浮字另用硬编码亮色，不受影响。
+const LOG_COLORS = { good:'#4A7C59', bad:'#C3272B', gold:'#8C6B15', sys:'#8C5A3C' };
 
 // ---------- DOM 辅助 ----------
 function $(id){ return document.getElementById(id); }

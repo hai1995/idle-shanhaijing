@@ -115,6 +115,49 @@ CLIP_PROBE = """() => {
 }"""
 
 
+# 文字对比度（WCAG AA：正文 4.5:1，大字 3:1）。
+# 为什么查：本项目大量用淡灰小字做标签，「看着还在」和「读得清」是两件事。
+# v1.31.136 第一次跑这个扫描，33 类不达标——其中日志的稻黄只有 2.04:1（几乎看不见），
+# 而 CSS 里那句「仍保证可读」的注释已经躺了很久没人验过。
+CONTRAST_PROBE = """() => {
+  const lum = (c) => {
+    const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]);
+  };
+  const ratio = (a, b) => { const L1 = lum(a), L2 = lum(b); return (Math.max(L1,L2)+0.05)/(Math.min(L1,L2)+0.05); };
+  const parse = (s) => { const m = s.match(/rgba?\\(([^)]+)\\)/); if (!m) return null;
+    const p = m[1].split(',').map(Number); return { rgb: [p[0],p[1],p[2]], a: p.length > 3 ? p[3] : 1 }; };
+  const bgOf = (el) => { let n = el;
+    while (n && n !== document.documentElement){ const c = parse(getComputedStyle(n).backgroundColor);
+      if (c && c.a > 0.5) return c.rgb; n = n.parentElement; }
+    return [252,251,246]; };
+  const c = document.getElementById('content');
+  if (!c) return { n: 0, bad: [] };
+  const bad = [];
+  let checked = 0;
+  c.querySelectorAll('*').forEach(el => {
+    const hasText = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim().length > 1);
+    if (!hasText) return;
+    const r = el.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) return;
+    const cs = getComputedStyle(el);
+    if (cs.visibility === 'hidden' || cs.display === 'none') return;
+    if (parseFloat(cs.opacity) < 0.5) return;
+    const fg = parse(cs.color); if (!fg) return;
+    checked++;
+    const size = parseFloat(cs.fontSize);
+    const bold = parseInt(cs.fontWeight, 10) >= 700;
+    const need = (size >= 24 || (size >= 18.66 && bold)) ? 3 : 4.5;
+    const got = ratio(fg.rgb, bgOf(el));
+    if (got < need){
+      bad.push({ cls: (el.className || '').toString().slice(0, 18), got: +got.toFixed(2), need,
+                 size: +size.toFixed(1), txt: (el.textContent || '').trim().slice(0, 18) });
+    }
+  });
+  return { n: checked, bad };
+}"""
+
+
 async def main():
     results, bad_state = [], []
     async with async_playwright() as p:
@@ -152,6 +195,8 @@ async def main():
                     r = await pg.evaluate(PROBE, t)
                     r["vp"], r["state"] = vname, state
                     r["clip"] = await pg.evaluate(CLIP_PROBE)
+                    # 对比度对所有页都查（不只是晚期）：淡字在各页共用同一批变量
+                    r["contrast"] = await pg.evaluate(CONTRAST_PROBE)
                     results.append(r)
 
             # 数据联动（每个视口跑一次）：统计页的数字真的跟着数据走吗
@@ -192,6 +237,11 @@ async def main():
             c0 = r["clip"][0]
             bad.append(tag + f" 有 {len(r['clip'])} 处文字被截断（如 .{c0['cls']} "
                        f"{c0['sw']}>{c0['cw']}「{c0['txt']}」）")
+        elif (r.get("contrast") or {}).get("bad"):
+            cb = r["contrast"]["bad"]
+            b0 = cb[0]
+            bad.append(tag + f" 有 {len(cb)} 处文字对比度不足 4.5:1（如 .{b0['cls']} "
+                       f"{b0['got']} 「{b0['txt']}」）")
 
     print(f"巡检 {n} 组，坏 {len(bad)} 组")
     for x in bad:
