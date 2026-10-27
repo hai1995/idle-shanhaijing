@@ -1234,6 +1234,9 @@ assert(/background:var\(--paper-2\)/.test(sbRule) && /border-bottom:1px solid va
 // 夜间基底换成深蓝黑后，写死的暖色补丁会很显眼（v1.31.152 收口）
 assert(/box-shadow:0 2px 10px rgba\(0,0,0,\.08\);/.test(sbRule), '状态条投影用中性黑（冷底上不浮暖色）');
 assert(/\.tab:hover\{ background:var\(--rule-3\);/.test(css), '页签悬浮色跟主题走（不再写死暖灰 rgba）');
+// 圆角梯度（v1.31.153）：面 8px / 片 4px / 药丸 999px，不再各写各的
+assert(/--r: 8px;/.test(css), '全局圆角开关 --r 统一到 8px（面板 / 按钮 / 弹窗同弧）');
+assert(!/border-radius:2px/.test(css), '内联小片不再写死 2px（统一提到 4px）');
 assert(/padding:0 16px var\(--app-pad-b, var\(--app-pad-b-base\)\)/.test((css.match(/#app\{[^}]*\}/) || [''])[0]), '#app 底部不再为状态条预留空间（留白变量化，可被抑制）');
 // 20.4b 滚动条审查：消除「不必要」的内部滚动条
 // (1) 竖排古籍不得有左外边距：竖排时 margin-left 是物理左外边距，会把整块推出父容器内容盒

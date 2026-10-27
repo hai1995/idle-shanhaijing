@@ -95,7 +95,10 @@
   --f-num: "Songti SC","STSong","Georgia","Times New Roman",var(--f-song);
 
   /* —— 尺度 —— */
-  --r: 2px;
+  /* 简洁化（v1.31.153）：卡片类圆角从 2px 提到 8px。
+     这是全局总开关——面板 / 按钮 / 输入框 / 弹窗等 45 条规则共用它，
+     改一处即全站同弧度；原先「栏是一种弧度、卡是另一种」的割裂感由此消掉。 */
+  --r: 8px;
   --r-lg: 3px;
   --dock-h: 96px;
   /* 小屏左侧图标栏宽度。集中一处，窄屏整体缩放只改这一个值 */
@@ -590,7 +593,7 @@ html.theme-anim, html.theme-anim *{
   position:absolute; left:10px; bottom:6px;
   font-family:var(--f-num); font-size:9.5px; color:var(--ink-3);
   letter-spacing:.02em; pointer-events:none;
-  background:var(--paper-3); padding:0 4px; border-radius:2px; box-shadow:0 0 0 1px var(--rule-2);
+  background:var(--paper-3); padding:0 4px; border-radius:4px; box-shadow:0 0 0 1px var(--rule-2);
 }
 
 /* 产出闪光：以人脚下为中心的一层朱色淡光，0.5 秒退去。
@@ -725,7 +728,7 @@ html.theme-anim, html.theme-anim *{
   flex:0 0 auto; position:relative; width:28px; height:28px; padding:0; margin-left:2px;
   display:grid; place-items:center;
   color:rgba(232,228,216,.5);
-  background:transparent; border:1px solid rgba(232,228,216,.16); border-radius:2px;
+  background:transparent; border:1px solid rgba(232,228,216,.16); border-radius:4px;
   cursor:pointer; transition:color .15s, border-color .15s, background .15s;
 }
 .buff-btn svg{ width:16px; height:16px; }
@@ -770,7 +773,7 @@ html.theme-anim, html.theme-anim *{
 .buff-pop .bp-desc{ margin-top:1px; font-size:11.5px; color:var(--ink-3); }
 .buff-pop .bp-time{ margin-left:auto; font-family:var(--f-num); font-size:10.5px; color:var(--ink-4); white-space:nowrap; }
 .buff-pop .bp-time.warn{ color:var(--zhu); }
-.buff-pop .bp-pol{ flex:0 0 auto; padding:0 3px; font-size:10px; line-height:1.45; border-radius:2px; }
+.buff-pop .bp-pol{ flex:0 0 auto; padding:0 3px; font-size:10px; line-height:1.45; border-radius:4px; }
 .buff-pop .bp-pol.吉{ color:#4A6340; background:rgba(86,110,76,.14); }
 .buff-pop .bp-pol.凶{ color:#B03A2B; background:rgba(176,58,43,.14); }
 .buff-pop .bp-pol.中{ color:var(--ink-3); background:var(--rule-3); }
@@ -1057,7 +1060,7 @@ html.theme-anim, html.theme-anim *{
 .update-bar.hidden{ display:none; }
 .update-bar b{ font-weight:600; }
 .update-bar i{ font-style:normal; opacity:.55; padding:0 2px; font-size:14px; }
-.set-hint code{ font-family:var(--f-num); background:var(--paper-3); padding:0 3px; border-radius:2px; }
+.set-hint code{ font-family:var(--f-num); background:var(--paper-3); padding:0 3px; border-radius:4px; }
 .form-row b{ color:var(--ink); }
 .form-row select,.form-row input[type=number],.form-row input[type=text],.form-row input[type=password]{
   font-family:inherit; font-size:13.5px; padding:6px 9px;
@@ -1133,7 +1136,7 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
 /* 巡礼印记：右上角一方小印。未领为朱底白字（催你点），已领转淡墨（只记个痕） */
 .region-tile{ position:relative; }
 .rg-seal{
-  position:absolute; top:3px; right:3px; width:14px; height:14px; border-radius:2px;
+  position:absolute; top:3px; right:3px; width:14px; height:14px; border-radius:4px;
   font-family:var(--f-kai); font-size:9px; line-height:14px; text-align:center; font-weight:700;
 }
 .rg-seal.ready{ background:var(--zhu); color:#fff; border:none; padding:0; cursor:pointer; }
@@ -1187,7 +1190,7 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
 }
 .ab-flow span{
   padding:2px 7px; background:var(--zhu-w); border:1px solid rgba(176,58,43,.25);
-  border-radius:2px; color:var(--zhu-d);
+  border-radius:4px; color:var(--zhu-d);
 }
 .ab-flow i{ color:var(--ink-4); font-style:normal; }
 .ab-list div{ margin-bottom:5px; font-family:var(--f-song); font-size:12.5px; line-height:1.85; color:var(--ink-2); }
@@ -1231,7 +1234,7 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
 .node-tile.here .nt-name{ color:var(--tai); font-weight:700; }
 .node-tile .nt-haz{ position:absolute; top:3px; left:4px; font-size:9.5px; color:var(--zhu); }
 .node-tile .nt-mark{
-  position:absolute; top:2px; right:3px; padding:0 3px; border-radius:2px;
+  position:absolute; top:2px; right:3px; padding:0 3px; border-radius:4px;
   font-size:9px; line-height:1.5; color:#FCFBF6; background:var(--qing);
 }
 .node-tile .nt-mark.tame{ background:var(--zhu); }
@@ -1315,7 +1318,7 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; }
   }
   .quote::-webkit-scrollbar{ height:4px; }
   .quote::-webkit-scrollbar-track{ background:transparent; }
-  .quote::-webkit-scrollbar-thumb{ background:var(--rule-2); border-radius:2px; }
+  .quote::-webkit-scrollbar-thumb{ background:var(--rule-2); border-radius:4px; }
   .quote cite{ margin:0; letter-spacing:.14em; }
   .quote cite::before{ content:'——'; margin-right:0; }
 }
@@ -1467,7 +1470,7 @@ svg.bi.mk{ vertical-align:-2px; }
 .farm-tile.empty .tile-ic{ font-size:24px; color:var(--ink-4); }
 .farm-tile.growing{ border-style:solid; }
 .farm-tile.growing.ripe{ border-color:rgba(156,118,40,.55); background:rgba(156,118,40,.06); }
-.ft-bar{ width:100%; height:3px; margin-top:auto; background:var(--rule-2); border-radius:2px; overflow:hidden; }
+.ft-bar{ width:100%; height:3px; margin-top:auto; background:var(--rule-2); border-radius:4px; overflow:hidden; }
 .ft-bar i{ display:block; height:100%; background:var(--tai); transition:width .3s; }
 .farm-tile.ripe .ft-bar i{ background:var(--jin); }
 /* 择种：一行 = 主体按钮 + 右侧「全种」 */
@@ -1570,7 +1573,7 @@ svg.bi.mk{ vertical-align:-2px; }
 .deploy-tile.inslot{ border-color:rgba(86,110,76,.5); background:rgba(86,110,76,.05); cursor:default; }
 .deploy-tile.inslot .tile-ic{ opacity:.75; }
 .beast-tile .bt-el{
-  position:absolute; top:3px; left:3px; padding:1px 3px; border-radius:2px;
+  position:absolute; top:3px; left:3px; padding:1px 3px; border-radius:4px;
   font-size:9.5px; line-height:1.25; font-family:var(--f-num);
 }
 .beast-tile .el-jin{ color:#8C6A2E; background:rgba(156,118,40,.14); }
@@ -1579,13 +1582,13 @@ svg.bi.mk{ vertical-align:-2px; }
 .beast-tile .el-huo{ color:#B03A2B; background:rgba(176,58,43,.14); }
 .beast-tile .el-tu{ color:#8C6A4E; background:rgba(140,106,78,.16); }
 .beast-tile .bt-pick{
-  position:absolute; top:3px; right:3px; padding:1px 3px; border-radius:2px;
+  position:absolute; top:3px; right:3px; padding:1px 3px; border-radius:4px;
   font-size:9px; line-height:1.3; color:#FCFBF6; background:var(--zhu);
 }
 .beast-tile .bt-el-hint{
   position:absolute; bottom:3px; left:3px; height:14px; padding:0 3px;
   font-size:8.5px; line-height:12px; color:var(--qing); background:var(--qing-w);
-  border:1px solid transparent; border-radius:2px; cursor:pointer;
+  border:1px solid transparent; border-radius:4px; cursor:pointer;
 }
 .beast-tile .bt-el-hint:hover{ border-color:rgba(46,82,105,.4); }
 .beast-tile .bt-decay{
@@ -1751,7 +1754,7 @@ svg.bi.mk{ vertical-align:-2px; }
 .cc-go{
   margin-top:4px; padding:2px 8px; font-family:var(--f-kai); font-size:10.5px;
   color:var(--zhu-d); background:transparent;
-  border:1px solid var(--zhu); border-radius:2px; cursor:pointer;
+  border:1px solid var(--zhu); border-radius:4px; cursor:pointer;
   transition:background .15s, color .15s;
 }
 .cc-go:hover{ background:var(--zhu); color:var(--paper); }
@@ -1802,7 +1805,7 @@ svg.bi.mk{ vertical-align:-2px; }
 }
 .cx-src{
   display:flex; align-items:baseline; gap:6px;
-  padding:2px 3px; border-radius:2px;
+  padding:2px 3px; border-radius:4px;
   font-size:11.5px; color:var(--ink-4); line-height:1.5;
 }
 .cx-src.ok{ cursor:pointer; color:var(--ink-2); }
@@ -1818,7 +1821,7 @@ svg.bi.mk{ vertical-align:-2px; }
 }
 /* 图鉴「系产」小印：朱底细字，与「已录/阶位」不抢眼但看得出来 */
 .cc-sp{
-  display:inline-block; margin-left:3px; padding:0 2px; border-radius:2px;
+  display:inline-block; margin-left:3px; padding:0 2px; border-radius:4px;
   font-family:var(--f-kai); font-size:8.5px; line-height:1.5; letter-spacing:0;
   color:var(--zhu-d); background:rgba(176,58,43,.10); vertical-align:1px;
 }
@@ -1866,7 +1869,7 @@ svg.bi.mk{ vertical-align:-2px; }
   position:absolute; top:3px; right:3px; width:24px; height:24px;
   display:flex; align-items:center; justify-content:center;
   font-family:var(--f-kai); font-size:10.5px; line-height:1;
-  color:var(--ink-4); background:var(--paper-3); border:1px solid var(--rule-2); border-radius:2px;
+  color:var(--ink-4); background:var(--paper-3); border:1px solid var(--rule-2); border-radius:4px;
   cursor:pointer; z-index:2; transition:all .12s;
 }
 /* 点击热区（v1.31.135）：原来只有 18×18，手机上手指落点直径约 9mm≈34px，
@@ -1896,14 +1899,14 @@ svg.bi.mk{ vertical-align:-2px; }
 .m-spec{
   display:inline-block; margin-left:6px; padding:0 5px; vertical-align:1px;
   font-family:var(--f-kai); font-size:10.5px; line-height:16px; letter-spacing:0;
-  color:#FCFBF6; background:var(--zhu); border-radius:2px; cursor:help;
+  color:#FCFBF6; background:var(--zhu); border-radius:4px; cursor:help;
 }
 .hm-spec b{ color:var(--zhu); font-family:var(--f-kai); }
 /* 品阶徽标：单字方印，凡灰良绿精青珍赭神朱 */
 .gd{
   display:inline-block; flex:0 0 auto; margin-left:4px; padding:0 4px;
   font-family:var(--f-kai); font-size:10.5px; line-height:15px; letter-spacing:0;
-  color:#FCFBF6; border-radius:2px; vertical-align:1px; cursor:help;
+  color:#FCFBF6; border-radius:4px; vertical-align:1px; cursor:help;
 }
 .gd-common{ background:#8a8577; }
 .gd-fine{ background:#4A7C59; }
@@ -1942,9 +1945,9 @@ svg.bi.mk{ vertical-align:-2px; }
 }
 .ef-mid{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:3px; }
 .ef-txt{ font-size:11px; color:var(--ink-3); letter-spacing:.04em; }
-.ef-bar{ height:3px; background:var(--rule-2); border-radius:2px; overflow:hidden; }
+.ef-bar{ height:3px; background:var(--rule-2); border-radius:4px; overflow:hidden; }
 .ef-bar i{
-  display:block; height:100%; border-radius:2px;
+  display:block; height:100%; border-radius:4px;
   background:linear-gradient(90deg,#C99A3A,#B03A2B);
   transition:width .12s linear;
 }
@@ -1985,7 +1988,7 @@ svg.bi.mk{ vertical-align:-2px; }
 /* 神兵：详情里的特性行、讨伐弹窗的掉落提示 */
 .dv-tag{
   flex:0 0 auto; font-family:var(--f-kai); font-size:11px; line-height:16px; padding:0 6px;
-  color:#2a1d0d; background:linear-gradient(180deg,#f2d492,#d9a521); border-radius:2px;
+  color:#2a1d0d; background:linear-gradient(180deg,#f2d492,#d9a521); border-radius:4px;
 }
 .dv-text{ font-size:12px; color:var(--ink-2); }
 .hm-divine{ color:var(--jin); font-size:11.5px; }
@@ -1997,7 +2000,7 @@ svg.bi.mk{ vertical-align:-2px; }
 .enh-hd{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 .enh-lv{ font-family:var(--f-num); font-size:17px; color:var(--zhu); }
 .enh-lv i{ font-style:normal; font-size:11px; color:var(--ink-4); }
-.enh-rate{ font-family:var(--f-num); font-size:11px; padding:1px 7px; border-radius:2px;
+.enh-rate{ font-family:var(--f-num); font-size:11px; padding:1px 7px; border-radius:4px;
   border:1px solid var(--rule-2); background:var(--paper-3); color:var(--ink-3); }
 .enh-rate.ok{ color:var(--tai); border-color:rgba(74,124,89,.35); background:rgba(74,124,89,.08); }
 .enh-rate.mid{ color:var(--jin); border-color:rgba(156,118,40,.35); background:rgba(156,118,40,.08); }
@@ -2010,7 +2013,7 @@ svg.bi.mk{ vertical-align:-2px; }
 .enh-btns{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .enh-to{ display:inline-flex; align-items:center; gap:5px; }
 .enh-to input{ width:74px; padding:3px 6px; font-family:var(--f-num); font-size:11.5px;
-  background:var(--paper); border:1px solid var(--rule); border-radius:2px; color:var(--ink); }
+  background:var(--paper); border:1px solid var(--rule); border-radius:4px; color:var(--ink); }
 .enh-stone{ display:inline-flex; align-items:center; gap:4px; font-size:11px; color:var(--ink-3); cursor:pointer; }
 .enh-max{ color:var(--jin); font-family:var(--f-num); font-size:11.5px; }
 .af-recost{ font-size:11px; color:var(--ink-4); }
@@ -2018,7 +2021,7 @@ svg.bi.mk{ vertical-align:-2px; }
 .geo-tags{ display:flex; flex-wrap:wrap; gap:5px; margin-top:5px; }
 .geo-tag{
   font-size:10.5px; line-height:1.5; padding:1px 6px; color:var(--ink-3);
-  background:var(--paper-3); border:1px solid var(--rule-2); border-radius:2px;
+  background:var(--paper-3); border:1px solid var(--rule-2); border-radius:4px;
 }
 /* 缺料清单：一项一行，缺多少 + 去哪儿找 */
 .lack-row{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;
@@ -2057,7 +2060,7 @@ svg.bi.mk{ vertical-align:-2px; }
 .tile-seal{
   width:34px; height:34px; display:flex; align-items:center; justify-content:center;
   font-family:var(--f-kai); font-size:19px; line-height:1; color:#FCFBF6;
-  background:var(--zhu); border-radius:2px;
+  background:var(--zhu); border-radius:4px;
 }
 /* 征兆方块：印记字按吉凶中着色（凶即朱、吉青、中金），生效中整卡描金 */
 .omen-tile .tile-seal{ background:var(--jin); }
@@ -2101,7 +2104,7 @@ svg.bi.mk{ vertical-align:-2px; }
 .shop-nav .nav-lbl{ flex:none; font-family:var(--f-kai); font-size:12.5px; letter-spacing:.14em; color:var(--ink-3); margin-right:2px; }
 .shop-chip{ flex:none; display:inline-flex; align-items:baseline; gap:4px; padding:3px 10px;
   font-size:12px; color:var(--ink-2); background:transparent; border:1px solid var(--rule-2);
-  border-radius:2px; cursor:pointer; transition:border-color .12s, color .12s, background .12s; }
+  border-radius:4px; cursor:pointer; transition:border-color .12s, color .12s, background .12s; }
 .shop-chip:hover{ border-color:var(--ink-4); color:var(--ink); }
 .shop-chip.on{ background:var(--paper-3); border-color:rgba(156,118,40,.5); color:var(--jin); }
 .shop-chip i{ font-style:normal; font-family:var(--f-num); font-size:10px; color:var(--ink-4); }
@@ -2333,7 +2336,7 @@ details.bulk-sell .bs-preview, details.bulk-sell .bs-act{ margin-left:11px; marg
 /* 弹窗打开时锁住背景滚动（移动端尤其明显：手指一滑，底下的页面跟着跑） */
 body.no-scroll{ overflow:hidden; }
 /* 键盘焦点：只在键盘操作时现形（鼠标点击不闪框），朱色描边与印章同色 */
-[role="button"][tabindex]:focus-visible{ outline:2px solid var(--zhu); outline-offset:2px; border-radius:2px; }
+[role="button"][tabindex]:focus-visible{ outline:2px solid var(--zhu); outline-offset:2px; border-radius:4px; }
 #modalBox h3{
   font-family:var(--f-kai); font-size:17px; color:var(--qing-d); letter-spacing:.1em;
   margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid var(--rule-2);
@@ -3200,7 +3203,7 @@ mark.hit{
 .relic-box > summary b{ color:var(--gamboge); }
 .relic-list{ display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; }
 .relic{ font-size:11px; line-height:1.5; padding:4px 9px; border:1px solid var(--rule-2);
-  border-radius:2px; background:var(--paper-3); white-space:nowrap; }
+  border-radius:4px; background:var(--paper-3); white-space:nowrap; }
 .relic b{ display:block; font-family:var(--f-kai); font-size:12px; letter-spacing:.06em; }
 .relic i{ font-style:normal; color:var(--ink-3); }
 .relic.on{ border-color:rgba(156,118,40,.55); background:rgba(217,165,33,.10); }
@@ -3234,7 +3237,7 @@ details.hetero-panel .hp-left{ margin-left:auto; font-style:normal; color:var(--
 .hetero-row.done{ opacity:.62; }
 .hetero-row.lock{ cursor:default; }
 .hetero-row.lock:hover{ background:transparent; }
-.hr-kind{ font-size:11px; text-align:center; padding:1px 0; border-radius:2px; color:var(--paper); background:var(--ink-3); }
+.hr-kind{ font-size:11px; text-align:center; padding:1px 0; border-radius:4px; color:var(--paper); background:var(--ink-3); }
 .hr-kind.k-观瑞{ background:var(--zhu); }
 .hr-kind.k-谒见{ background:var(--tai); }
 .hr-kind.k-灌木{ background:var(--qing); }
@@ -20060,8 +20063,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.152',
-  codename:'昼巡 · 圆栏',
+  version: '1.31.153',
+  codename:'昼巡 · 同弧',
   updated: '2026-10-28',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
