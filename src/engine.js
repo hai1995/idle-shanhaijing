@@ -330,6 +330,8 @@ function applySave(d){
     // 校正御使：槽位数随「御使」等级走，坏档或跨版本可能塞超了。
     // 超出的不生效却仍算加成（`deployedBonuses` 是全量求和），必须在读档时收干净。
     if (typeof trimDeployedToSlots === 'function') trimDeployedToSlots();
+    // 田块数随圃艺等级走，坏档/跨版本同样会多出来（多出来的田照常出产，界面却不画）
+    if (typeof trimFarmsToPlots === 'function') trimFarmsToPlots();
 
     // 校正当前行动：行动里引用的技能 / 物品 / 配方必须还在。
     // 一个缺 `skill` 的采集行动会让 `currentActivityLabel` 抛

@@ -8832,6 +8832,50 @@ section('御使槽位一致性');
   G.resetToDefault();
 }
 
+// ============ 165. 田块随圃艺收拢（2026-10-27） ============
+// 田块数 = 6 + ⌊圃艺/12⌋（至 9）。轮回把圃艺打回起手，多出来的 p6..p8 不会消失：
+// `farmTick` 遍历 `Game.farms` 全部键，界面只画 `farmPlots()` 块——
+// 于是三块看不见的田照常出产。与御使槽位是同一类错（容量缩了，容器没缩）。
+section('田块容量');
+{
+  const seedId = Object.keys(ST.Items).find(id => ST.Items[id].crop);
+  assert(!!seedId, '数据里有作物种子（' + seedId + '）');
+
+  // ① 只剩 6 块田时，p6..p8 要被撂荒
+  G.resetToDefault();
+  ST.Game.skills.puyi.level = 81;              // 9 块
+  for (let i = 0; i < 9; i++) ST.Game.farms['p' + i] = { seedId, remain: 99, grow: 0 };
+  assert(ST.farmPlots() === 9, '圃艺 81 级时 9 块田');
+  ST.Game.skills.puyi.level = 8;               // 退回 6 块
+  const dropped = ST.trimFarmsToPlots();
+  assert(dropped === 3, '多出来的 3 块被撂荒（实测 ' + dropped + '）');
+  assert(Object.keys(ST.Game.farms).sort().join(',') === 'p0,p1,p2,p3,p4,p5', '保留的是前 6 块');
+  assert(ST.farmPlots() === 6, '此时只该有 6 块');
+
+  // ② 撂荒之后 farmTick 不能再替它们出产（这是这个 bug 的「收益」面）
+  const h0 = ST.Game.stats.harvests;
+  ST.Game.farms.p0.remain = 0.01;
+  ST.farmTick(10);
+  assert(ST.Game.stats.harvests === h0 + 1, '只有留下的那块田能收（实测 +' + (ST.Game.stats.harvests - h0) + '）');
+
+  // ③ 田块够时不误伤
+  ST.Game.skills.puyi.level = 81;
+  for (let i = 0; i < 9; i++) ST.Game.farms['p' + i] = { seedId, remain: 99, grow: 0 };
+  assert(ST.trimFarmsToPlots() === 0 && Object.keys(ST.Game.farms).length === 9, '9 块全在时一块不动');
+
+  // ④ 轮回时自动收（玩家不必自己发现）
+  G.resetToDefault();
+  ST.devSim('all');
+  for (let i = 0; i < 9; i++) ST.Game.farms['p' + i] = { seedId, remain: 99, grow: 0 };
+  assert(Object.keys(ST.Game.farms).length === 9, '轮回前 9 块田');
+  ST.doRebirth();
+  assert(ST.farmPlots() === 6, '轮回后圃艺回落，只有 6 块');
+  assert(Object.keys(ST.Game.farms).length <= 6,
+    '轮回后田块不超过 6（实测 ' + Object.keys(ST.Game.farms).length + '）');
+
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
