@@ -211,6 +211,15 @@ function init(){
     onScroll();
   })();
   $('btnStop') && $('btnStop').addEventListener('click', ()=>{ stopActivity(); if (typeof pauseQueue==='function') pauseQueue('手动停止'); UI.refreshActivity(); });
+  // 动作卡片（原动作条）整卡可点 → 跳到当前行动所在页。
+  // 设 role=button + onclick，复用下方既有键盘可达逻辑（聚焦后回车 / 空格即点按）。
+  const sb = $('statusbar');
+  if (sb){
+    sb.setAttribute('role', 'button');
+    sb.tabIndex = 0;
+    sb.title = '点击前往当前行动所在页';
+    sb.onclick = function(){ UI.gotoActivity(); };
+  }
   // 点遮罩关弹窗（点内容区不关）：手机上右下角「闭」有时够不着，遮罩是最顺手的出口
   $('modal') && $('modal').addEventListener('click', e => { if (e.target && e.target.id === 'modal') UI.closeModal(); });
   $('modal') && $('modal').addEventListener('click', (e)=>{ if (e.target === $('modal')) UI.closeModal(); });
