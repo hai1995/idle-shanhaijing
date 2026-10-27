@@ -10182,6 +10182,35 @@ section('征兆专属见闻');
   toasts.length = 0;
 }
 
+// ============ 188. 离线不推进游戏时间，所以离线不会换季 ============
+// 起因：想给「离线八小时回来发现换季了」加一行账单。写到测试才发现**这件事不会发生**——
+// settleAway 全程不碰 Game.stats.time，而季节就是 time 的函数。
+// 这段代码如果留着，summary.seasonFlipped 永远是 undefined，是死代码。
+// 与其删掉了事，不如把这个事实钉成断言：以后谁改了 settleAway 去推进时间，
+// 这里会立刻失败，提醒他「季节、日相、见闻的夜间条件都会跟着变，得一起想」。
+{
+  const SEC188 = ST.TUNING.SEASON.SEC;
+  const keepT = ST.Game.stats.time;
+  ST.stopActivity(); ST.Game.combat = null;
+
+  ST.Game.stats.time = 100;                         // 旱季出发
+  const t0 = ST.Game.stats.time, phase0 = ST.seasonPhase();
+  G.startActivity('gather', 'gui');
+  const rec188 = G.settleAway(SEC188 + 600);        // 离山超过一候
+  assert(rec188 && rec188.seconds > SEC188, '离线结算确实跨过了一候的时长');
+  assert(ST.Game.stats.time === t0,
+    '离线结算不推进游戏内时间（' + t0 + ' → ' + ST.Game.stats.time + '）');
+  assert(ST.seasonPhase() === phase0,
+    '因此离线不会换季（季相 ' + phase0 + ' → ' + ST.seasonPhase() + '）');
+  assert(rec188.seasonFlipped === undefined, '账单里没有「离线换季」这一项（它不会发生）');
+
+  // 反向锚点：真推进时间就一定会换季——这条保证上面的结论不是「季节坏了」而是「时间没动」
+  ST.Game.stats.time = SEC188 + 100;
+  assert(ST.seasonPhase() !== phase0, '时间真跨过一候时季相确实会变（季节本身没坏）');
+
+  ST.Game.stats.time = keepT;
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
