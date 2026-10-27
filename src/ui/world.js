@@ -714,6 +714,31 @@ UI.patchRecipeList = function(){
   }
 };
 
+// 技能卡浮层的内容（v1.31.90 从 renderSkills 的内联模板里抽出来）。
+// 抽出来的唯一理由：它此前是 26 份隐藏 DOM，占技能页 HTML 的六成、切页 197ms。
+// 现在由 Tip 层在「点开那一刻」调用一次，每次只生成一份。
+// ⚠️ 这里允许读 Game 的即时状态（材料持有、下一阶解锁），因为它是**打开时才求值**的——
+//    比内联版本还准一点：内联那份是整页渲染那一刻的快照。
+function skillTipHtml(id){
+  const sk = (typeof Skills !== 'undefined' && Skills[id]) ? Skills[id] : { id, name:id, desc:'' };
+  const nf = (typeof nodeForSkill === 'function') ? nodeForSkill(id) : null;
+  const mns = nf ? null : ((typeof materialNodesForSkill === 'function') ? materialNodesForSkill(id) : null);
+  const mst = nf ? null : ((typeof materialStatusForSkill === 'function') ? materialStatusForSkill(id) : null);
+  // 材料来源：每项材料列出产地，已解锁的排前面；锁着的写明门槛（v1.31.50）
+  const matBtns = (mns && mns.length) ? `<div class="mat-src">材料来源：${mns.slice(0,3).map(m=>`<button class="btn-mini skill-go ${m.ok?'':'lock'}" title="${esc(m.itemName)}·${esc(m.nodeName||'')}${m.ok?'':'（尚未开通）'}"
+    onclick="UI.selRegion='${m.regionId}';UI.selNode='${m.nodeId}';UI.switchTab('yudi')">${typeof markIcon==='function'?markIcon('pin',13):'📍'} ${esc(m.itemName)}·${esc(m.nodeName||'')}</button>`).join('')}${mns.length>3?`<span class="hint">等 ${mns.length} 处</span>`:''}</div>` : '';
+  const matInv = (mst && mst.length) ? `<div class="mat-inv">${mst.map(m=>`<span class="${m.ok?'ok':'gap'}">${typeof itemIc==='function'?itemIc(m.id,13):''}${esc(m.name)} ${m.have}/${m.need}${m.ok?(typeof markIcon==='function'?markIcon('check',12):'✓'):(typeof markIcon==='function'?markIcon('warn',12):'✗')}</span>`).join(' · ')}</div>` : '';
+  const srcNodes = (typeof skillSourceNodes === 'function') ? skillSourceNodes(id) : [];
+  const outBtn = nf
+    ? `<button class="btn-mini skill-go" title="${esc((nodeOf(nf.nodeId)||{}).name||'')}${srcNodes.length>1?` 等 ${srcNodes.length} 山`:''}" onclick="UI.selRegion='${nf.regionId}';UI.selNode='${nf.nodeId}';UI.switchTab('yudi')">${typeof markIcon==='function'?markIcon('pin',13):'📍'} 产出地</button>${srcNodes.length>1?`<span class="hint">${esc((nodeOf(nf.nodeId)||{}).name||'')} 等 ${srcNodes.length} 山</span>`:''}`
+    : '';
+  const nx = (typeof nextUnlocks === 'function') ? nextUnlocks(id, 6) : [];
+  const nextBlock = nx.length
+    ? `<div class="sc-next" title="再练几级便能采到 / 做到"><b>将至</b>${esc(nextUnlockText(nx))}</div>` : '';
+  return `<div class="sc-desc">${esc(sk.desc||'')}</div>${outBtn}${matBtns}${matInv}${nextBlock}`;
+}
+if (typeof window !== 'undefined') window.skillTipHtml = skillTipHtml;
+
 UI.renderSkills = function(){
   const box = $('content');
   if (!box) return;
@@ -766,15 +791,10 @@ UI.renderSkills = function(){
     ${    ids.map(id=>{
       const sk = Skills[id];
       const active = cur && ((cur.kind==='gather' && cur.skill===id) || (cur.kind==='craft' && mapRecipeSkill(cur.recipe.type)===id));
-      const nf = nodeForSkill(id);
-      const mns = nf ? null : materialNodesForSkill(id);
-      const mst = nf ? null : materialStatusForSkill(id);
-      // 材料来源：每项材料列出产地，已解锁的排前面；锁着的写明门槛（v1.31.50）
-      const matBtns = (mns && mns.length) ? `<div class="mat-src">材料来源：${mns.slice(0,3).map(m=>`<button class="btn-mini skill-go ${m.ok?'':'lock'}" title="${esc(m.itemName)}·${esc(m.nodeName||'')}${m.ok?'':'（尚未开通）'}"
-        onclick="UI.selRegion='${m.regionId}';UI.selNode='${m.nodeId}';UI.switchTab('yudi')">${typeof markIcon==='function'?markIcon('pin',13):'📍'} ${esc(m.itemName)}·${esc(m.nodeName||'')}</button>`).join('')}${mns.length>3?`<span class="hint">等 ${mns.length} 处</span>`:''}</div>` : '';
-      const matInv = (mst && mst.length) ? `<div class="mat-inv">${mst.map(m=>`<span class="${m.ok?'ok':'gap'}">${typeof itemIc==='function'?itemIc(m.id,13):''}${esc(m.name)} ${m.have}/${m.need}${m.ok?(typeof markIcon==='function'?markIcon('check',12):'✓'):(typeof markIcon==='function'?markIcon('warn',12):'✗')}</span>`).join(' · ')}</div>` : '';
-      // 方块：图标 + 名 + 阶位，右上角等级，底部一条经验进度；
-      // 描述 / 产出地 / 材料来源与持有缺口全在浮层（点按即开）
+      // 方块：图标 + 名 + 阶位，右上角等级，底部一条经验进度。
+      // ⚠️ 浮层内容**不再内联**（v1.31.90）：26 张卡每张都塞一份隐藏的
+      // 「描述 + 产出地 + 材料来源 + 持有缺口 + 将至」，那是 153KB HTML 里的六成，
+      // 技能页切页因此要 197ms（全站最慢）。改成点开时再生成（见 skillTipHtml）。
       const lv = levelOf(id);
       const raw = Game.skills[id];
       const xc = xpForLevel(raw.level), xn = xpForLevel(raw.level + 1);
@@ -786,15 +806,7 @@ UI.renderSkills = function(){
         <span class="tile-nm">${esc(sk.name)}</span>
         <span class="tile-tag">${TUNING.TIER_NAMES[tierOfLevel(lv)]}</span>
         <span class="sk-bar"><i style="width:${pct.toFixed(1)}%"></i></span>
-        <span class="tip-body hidden">
-          <div class="sc-desc">${esc(sk.desc||'')}</div>
-          ${nf?`<button class="btn-mini skill-go" title="${esc((nodeOf(nf.nodeId)||{}).name||'')}${(typeof skillSourceNodes==='function')&&skillSourceNodes(id).length>1?` 等 ${skillSourceNodes(id).length} 山`:''}" onclick="UI.selRegion='${nf.regionId}';UI.selNode='${nf.nodeId}';UI.switchTab('yudi')">${typeof markIcon==='function'?markIcon('pin',13):'📍'} 产出地</button>${(typeof skillSourceNodes==='function')&&skillSourceNodes(id).length>1?`<span class="hint">${esc((nodeOf(nf.nodeId)||{}).name||'')} 等 ${skillSourceNodes(id).length} 山</span>`:''}`:''}
-          ${matBtns}${matInv}
-          ${(() => {
-            const nx = nextUnlocks(id, 6);
-            return nx.length ? `<div class="sc-next" title="再练几级便能采到 / 做到"><b>将至</b>${esc(nextUnlockText(nx))}</div>` : '';
-          })()}
-        </span>
+        <span class="tip-body hidden" data-tip-lazy="skill:${id}"></span>
       </div>`;
     }).join('')}
   </div>

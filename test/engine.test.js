@@ -857,7 +857,10 @@ try {
   sgTxt = renderTargets.content.innerHTML;
 } catch(e){ sgOk = false; console.error('技能页跳转异常：'+e.stack); }
 assert(sgOk && nf && nf.nodeId, 'nodeForSkill 返回采集节点');
-assert(sgTxt.indexOf('产出地') >= 0 && sgTxt.indexOf('switchTab') >= 0, '技能卡显示前往产出地按钮（紧凑文案）');
+// v1.31.90：浮层内容改为点开时生成，判据从「页面 HTML」改成「skillTipHtml 的输出」
+const sgTip = ST.skillTipHtml('qiaocai');
+assert(sgTip.indexOf('产出地') >= 0 && sgTip.indexOf('switchTab') >= 0, '技能卡显示前往产出地按钮（紧凑文案）');
+assert(sgTxt.indexOf('data-tip-lazy') >= 0, '技能卡只留占位，浮层正文不内联');
 
 // ============ 16.16 图鉴分类完成度 ============
 section('图鉴分类完成度');
@@ -905,10 +908,10 @@ assert(omModal.indexOf('征兆总效应') >= 0 && omModal.indexOf('总效应') >
 
 // ============ 16.17 制作技能材料来源跳转 ============
 section('制作技能材料来源');
-let msOk = true, msTxt = '', mn = null;
+let msOk = true, msTxt = '', mn = null, craftSkill = null;
 try {
   // 找一个有配方的制作技能（如 burn），并确认其材料有节点
-  const craftSkill = Object.keys(ST.RECIPE_SKILL).length ? (function(){
+  craftSkill = Object.keys(ST.RECIPE_SKILL).length ? (function(){
     const inv = {}; ST.Recipes.forEach(r=>{ inv[ST.RECIPE_SKILL[r.type]] = true; });
     return Object.keys(inv)[0];
   })() : null;
@@ -917,9 +920,10 @@ try {
   msTxt = renderTargets.content.innerHTML;
 } catch(e){ msOk = false; console.error('材料来源异常：'+e.stack); }
 assert(msOk, 'renderSkills 不抛错');
-assert(msTxt.indexOf('材料') >= 0 && msTxt.indexOf('来源') >= 0, '制作技能卡显示材料来源');
-assert(msTxt.indexOf('mat-src') >= 0, '制作技能卡以多来源行渲染材料地点');
-assert(msTxt.indexOf('mat-inv') >= 0 && (msTxt.indexOf('/') >= 0), '制作技能卡显示材料持有/缺口');
+const msTip = craftSkill ? ST.skillTipHtml(craftSkill) : '';
+assert(msTip.indexOf('材料') >= 0 && msTip.indexOf('来源') >= 0, '制作技能卡显示材料来源（浮层输出）');
+assert(msTip.indexOf('mat-src') >= 0, '制作技能卡以多来源行渲染材料地点');
+assert(msTip.indexOf('mat-inv') >= 0 && (msTip.indexOf('/') >= 0), '制作技能卡显示材料持有/缺口');
 
 // ============ 16.18 图鉴详情前往节点 ============
 section('图鉴详情前往节点');
@@ -9202,6 +9206,49 @@ section('离线见闻');
 
   G.resetToDefault();
   ST.__eventsMuted = true;
+}
+
+// ============ 171. 技能浮层延迟生成（2026-10-27） ============
+// 技能页曾把 26 份「描述 + 产出地 + 材料来源 + 持有缺口 + 将至」全内联进隐藏的
+// .tip-body 里：153KB HTML、1874 个节点，而玩家一次只看得到一份。
+// 这一节锁三件事：不再内联、点开才生成、生成的内容与原来一致。
+section('技能浮层延迟生成');
+{
+  const wSrc = readText('src/ui/world.js');
+  const mSrc = readText('src/ui/misc.js');
+  const wI = wSrc.indexOf('UI.renderSkills = function');
+  const body = wSrc.slice(wI, wSrc.indexOf('<div class="panel recipe-panel">', wI));
+
+  // ① 网格里不再有内联浮层正文
+  assert(!/class="tip-body hidden">/.test(body), '技能卡不再内联 tip-body 正文');
+  assert(/data-tip-lazy="skill:\$\{id\}"/.test(body), '技能卡改成 data-tip-lazy 占位');
+
+  // ② 生成函数独立存在，且内容齐全
+  assert(typeof ST.skillTipHtml === 'function', 'skillTipHtml 挂在 window 上（Tip 层要调）');
+  G.resetToDefault();
+  const html = ST.skillTipHtml('qiaocai');
+  assert(typeof html === 'string' && html.length > 40, '返回非空 HTML（实测 ' + html.length + ' 字符）');
+  assert(html.indexOf('sc-desc') >= 0, '含描述段');
+  assert(html.indexOf('产出地') >= 0, '含产出地按钮');
+  assert(html.indexOf('sc-next') >= 0, '含「将至」段');
+  // 未知 id 不许抛（数据改动 / 旧档残留）
+  let err = null;
+  try { ST.skillTipHtml('不存在的技能'); } catch(e){ err = e.message; }
+  assert(!err, '未知技艺不抛（' + err + '）');
+
+  // ③ Tip 层会填充，且属性从 .tip-body 自己身上读
+  //    （第一版写成从 anchor 读——锚点是 .skill-tile，属性在子元素上，于是永远填不上，
+  //      表现是「浮层开了但空白」，测试里必须钉住这一点）
+  assert(/function fillLazyTip\(anchor, body\)/.test(mSrc), '有 fillLazyTip');
+  assert(/body\.getAttribute && body\.getAttribute\('data-tip-lazy'\)/.test(mSrc),
+    '从 .tip-body 自己身上读 data-tip-lazy（不是从锚点）');
+  assert(/fillLazyTip\(anchor, body\)/.test(mSrc), 'showTipFor 里调用填充');
+  assert(/body\.innerHTML && body\.innerHTML\.trim\(\)\) return;/.test(mSrc), '已填过就不重复生成');
+
+  // ④ 屏外跳过绘制（与 beast-card 同一套手法）
+  assert(/\.skill-tile\{ content-visibility:auto/.test(readText('style.css')), '技能卡加 content-visibility');
+
+  G.resetToDefault();
 }
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）

@@ -599,9 +599,27 @@ function ensureTipEl(){
   return el;
 }
 function tipNarrow(){ return window.matchMedia && window.matchMedia('(max-width:720px)').matches; }
+// 延迟生成的浮层（v1.31.90）：正文为空、锚点带 data-tip-lazy 时才现做。
+// 技能页 26 张卡原先各带一份隐藏浮层，占该页 HTML 六成、切页 197ms；
+// 现在只有被点开的那一张会生成。约定：`domain:id`，域名为函数名前缀（skill → skillTipHtml）。
+function fillLazyTip(anchor, body){
+  if (!body) return;
+  if (body.innerHTML && body.innerHTML.trim()) return;      // 已经填过就不重复做
+  // 属性挂在 .tip-body 自己身上（不是锚点）：一个锚点只有一个正文，不必穿透查找
+  const key = body.getAttribute && body.getAttribute('data-tip-lazy');
+  if (!key) return;
+  const i = String(key).indexOf(':');
+  const domain = i > 0 ? key.slice(0, i) : key;
+  const id = i > 0 ? key.slice(i + 1) : '';
+  const fn = (domain === 'skill' && typeof skillTipHtml === 'function') ? skillTipHtml : null;
+  if (!fn) return;
+  const html = fn(id);
+  body.innerHTML = html || '';
+}
 function showTipFor(anchor){
   const body = tipBodyOf(anchor);
   if (!body) return;
+  fillLazyTip(anchor, body);
   const el = ensureTipEl();
   el.querySelector('.tip-content').innerHTML = body.innerHTML;
   const title = anchor.getAttribute && anchor.getAttribute('data-tip-title');
