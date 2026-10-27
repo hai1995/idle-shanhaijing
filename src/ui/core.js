@@ -953,6 +953,7 @@ UI.renderSettings = function(){
             <button class="btn" type="button" onclick="devSim('lv+10')">技艺 +10</button>
             <button class="btn" type="button" onclick="devSim('away1h')">离山 1 小时</button>
             <button class="btn" type="button" onclick="devSim('clear')">停掉行动</button>
+            <button class="btn" type="button" onclick="devSim('rebirth+1')">轮回 +1 转</button>
           </div>
           <div class="form-row"><span>重置本档</span>
             <button class="btn" type="button" onclick="devSim('wipe')">清空并重开</button>
@@ -1070,6 +1071,15 @@ function devSim(what){
       const g = simGear();
       if (typeof autoDeployBest === 'function') autoDeployBest();
       msg = `全开：技艺 81 / 著录满 / 全图到访 / 贝币 +10 万 / 装备 ${g} 件`;
+    } else if (what === 'rebirth+1'){
+      // 只加转数与起手等级，**不**做真正的重置：这个按钮是用来「看高转数的界面」的
+      // （轮回印、遗物、下一转起点），不是用来模拟一次完整轮回——那种用「一键全开 + 轮回」。
+      const rb = Game.rebirth || (Game.rebirth = { count: 0 });
+      rb.count = (rb.count | 0) + 1;
+      const start = Math.min(TUNING.REBIRTH.START_CAP, rb.count * TUNING.REBIRTH.START_PER);
+      simSetLevel(start);
+      const relics = (typeof relicOwned === 'function') ? relicOwned().length : 0;
+      msg = `已至第 ${rb.count} 转（起手 ${start} 级 · 修为 +${Math.round(rebirthGain()*100)}% · 遗物 ${relics} 件）`;
     } else if (what === 'away1h'){
       const sum = (typeof settleAway === 'function') ? settleAway(3600) : null;
       if (!sum){ UI.toast('🧪 离山不足 30 秒，未结算'); return; }

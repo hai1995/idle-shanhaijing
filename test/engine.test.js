@@ -8876,6 +8876,35 @@ section('田块容量');
   G.resetToDefault();
 }
 
+// ============ 166. 数据模拟：轮回 +1 转（2026-10-27） ============
+// 要看高转数的界面（轮回印、遗物、下一转起点）时，靠「全开 + 真轮回」一次只加一转，
+// 且会把技艺真重置。这颗按钮只推转数与起手等级，不碰著录与装备。
+section('模拟轮回转数');
+{
+  G.resetToDefault();
+  ST.devSim('codex');                       // 先有著录，用来验证「不被清掉」
+  const recBefore = Object.keys(ST.Game.records).length;
+  assert(recBefore > 900, '前置：著录已满（' + recBefore + '）');
+
+  ST.devSim('rebirth+1');
+  assert(ST.Game.rebirth.count === 1, '第一次：1 转');
+  assert(ST.Game.skills.qiaocai.level === Math.min(ST.TUNING.REBIRTH.START_CAP, 1 * ST.TUNING.REBIRTH.START_PER),
+    '起手等级 = 转数 × START_PER（封顶 START_CAP）');
+  assert(ST.rebirthGain() > 0, '轮回印立即生效（+' + Math.round(ST.rebirthGain()*100) + '%）');
+
+  ST.devSim('rebirth+1'); ST.devSim('rebirth+1');
+  assert(ST.Game.rebirth.count === 3, '第三次：3 转');
+  assert(Math.abs(ST.rebirthGain() - 3 * ST.TUNING.REBIRTH.XP) < 1e-9, '修为乘区 = 3 × XP');
+  assert(Object.keys(ST.Game.records).length === recBefore, '著录不被清（这不是真轮回）');
+
+  // 起手等级封顶
+  for (let i = 0; i < 20; i++) ST.devSim('rebirth+1');
+  assert(ST.Game.skills.qiaocai.level === ST.TUNING.REBIRTH.START_CAP,
+    '起手等级封顶 ' + ST.TUNING.REBIRTH.START_CAP + '（实测 ' + ST.Game.skills.qiaocai.level + '）');
+
+  G.resetToDefault();
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
