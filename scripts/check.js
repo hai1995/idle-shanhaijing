@@ -82,6 +82,22 @@ step('单文件产物版本（与 GAME_META 一致）', () => {
   return 'v' + m[1] + ' ' + (fs.statSync(p).size / 1024).toFixed(0) + ' KB';
 });
 
+// 2. 页面巡检（真浏览器）。默认**不跑**：它要 python + playwright + 一个本地端口，
+//    克隆仓库的人未必有；缺环境时跳过而不是报错，免得一上来就红。
+//    加 --patrol 才跑，且要求本地已在 8899 端口起了静态服务。
+if (process.argv.includes('--patrol')){
+  step('页面巡检（页签 × 视口 × 状态）', () => {
+    const py = spawnSync('python3', [path.join('scripts', 'patrol.py')], { cwd: root, encoding: 'utf8' });
+    if (py.error) return true;                     // 没有 python3：跳过
+    const out = (py.stdout || '') + (py.stderr || '');
+    if (/ModuleNotFoundError/.test(out)) return true;   // 没装 playwright：跳过
+    if (py.status !== 0){
+      throw new Error(out.split('\n').filter(l => l.trim().startsWith('[')).slice(0, 4).join(' | ') || '退出码 ' + py.status);
+    }
+    return out.split('\n').find(l => l.includes('巡检')) || 'ok';
+  });
+}
+
 const total = ((Date.now() - t0) / 1000).toFixed(1);
 if (failed){
   console.log(`\n✗ ${failed} 步未通过（${total}s）`);

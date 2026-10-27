@@ -115,12 +115,17 @@ onSecond(1)                         // 每秒：计数、统计、日志节流�
 
 | 命令 | 做什么 | 什么时候用 |
 |---|---|---|
-| `npm test` | `test/engine.test.js`：2027 条断言 / 111 节 / 约 1.5 秒 | 每次改完 |
+| `npm test` | `test/engine.test.js`：3347 条断言 / 162 节 / 约 2 秒 | 每次改完 |
 | `npm run audit` | 跨表引用、死链、三签 key、物产产地、配方溢价、战斗节奏 | 改数据后 |
-| `npm run build` | 由 `index.html` 的顺序出单文件版，自检 20 个脚本横幅 | 发布前 |
-| `npm run check` | 上三步 + 版本一致性，一条命令 1.6 秒 | **提交前默认跑这个** |
+| `npm run build` | 由 `index.html` 的顺序出单文件版，自检全部脚本横幅 | 发布前 |
+| `npm run check` | 上三步 + 版本一致性 + 单文件产物版本，一条命令约 2.5 秒 | **提交前默认跑这个** |
+| `scripts/patrol.py` | 真浏览器巡检：9 页签 × 2 视口 × 3 状态，抓 JS 错误 / 空白页 / 破版 | 改 UI 后（需 `--patrol`） |
 | `npm run ttk` | 按等级段给 TTK 中位 / p90 / 最大（`--detail` 列离群） | 调怪数值后 |
 | `npm run rebirth` | 轮回曲线：每转所需经验、乘区、单位时间修为 | 调 `TUNING.REBIRTH` 后 |
 | `npm run serve` | 起自托管云端存档参考后端（默认 8787） | 试多端合并 |
 
 > 三个 `measure-*` 脚本都是**只读**：加载同一套数据、算完打印，不改存档、不写文件。
+>
+> `check.js` 有两步依赖「本地产物 / 本地环境」：单文件产物版本比对的是仓库根目录那份
+> `idle-shanhaijing-standalone.html`（构建产物不入库，但线上有过一份直链，落后会让直链用户拿到旧版）；
+> 页面巡检要 python + playwright + 8899 端口，加 `--patrol` 才跑，缺环境自动跳过而不是报错。
