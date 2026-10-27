@@ -9985,6 +9985,33 @@ section('征兆专属见闻');
   });
 }
 
+// ============ 185. 切页不做同步强制重排 ============
+// v1.31.126 实测：`void content.offsetWidth`（为重启动画强排）在 webkit 上要 151ms，
+// 而技能页真正的 HTML 构建只要 8ms——「切页卡」几乎全花在这一行。
+// 同一个效果不必同步强排：摘 class → 下一帧再挂，浏览器自然在帧间重算。
+// 这里钉住「不许在切页路径里同步读几何/强排」。
+{
+  const coreSrc = readText('src/ui/core.js');
+  // ⚠️ 负向断言要挑只可能出现在**旧写法**里的形状：本文件里那句 `void c.offsetWidth`
+  // 还留在注释里讲历史，`this.fitGhostScrollbar()` 也还出现在延后包装里。所以先把
+  // 注释剥掉再判，否则守卫生的是注释、不是代码。
+  const codeOnly = coreSrc.replace(/^\s*\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+  // 反例：`void xxx.offsetWidth` 这类只为强排的读（注释已剥，剩下的就是真代码）
+  assert(!/void\s+\w+\.offsetWidth/.test(codeOnly), '切页不再用 void offsetWidth 强制重排');
+  // 正面：入场动画改由 requestAnimationFrame 触发
+  assert(/requestAnimationFrame/.test(coreSrc), '入场动画排到下一帧');
+  // 幽灵滚动条：测量也要延后（读 scrollHeight 会强排整页）
+  assert(/fitGhostScrollbarSoon/.test(coreSrc), '幽灵滚动条延后测量');
+  // 取出 renderCurrent 的函数体（到下一个顶层方法 `\n  },\n` 为止），别用固定长度切片——
+  // 切片会把下面别的方法一起带进来，判断对象就错了。
+  const rcStart = codeOnly.indexOf('renderCurrent(){');
+  const rcBody = codeOnly.slice(rcStart, codeOnly.indexOf('\n  },', rcStart));
+  assert(!/this\.fitGhostScrollbar\(\)/.test(rcBody), 'renderCurrent 不再同步调 fitGhostScrollbar');
+  assert(/fitGhostScrollbarSoon\(\)/.test(rcBody), 'renderCurrent 走延后版本');
+  // 连点页签不该排队多次测量
+  assert(/_ghostRAF/.test(coreSrc), '延后测量有「每帧一次」的闸门');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

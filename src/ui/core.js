@@ -473,14 +473,24 @@ const UI = {
     // 切页入场：整块内容一次性归位，取代逐元素延迟造成的拖沓
     const c = $('content');
     if (c && changed && c.classList){
+      // v1.31.126：原先用 `void c.offsetWidth` 强制重排来重启动画——而这里刚做完
+      // `content.innerHTML = ...`，那次重排要排版整页，webkit 实测 151ms，全花在
+      // 「点了页签→页面出现」之间，就是切页卡的元凶。同一个效果不必同步强排：
+      // 先把 class 摘掉，到下一帧再挂上，浏览器自然会在两帧之间重算，动画照样从头播。
       c.classList.remove('enter');
-      void c.offsetWidth;          // 重排以重启动画
-      c.classList.add('enter');
+      clearTimeout(this._enterTimer);
+      const addEnter = ()=>{
+        // 期间又切了别的页：这次入场就算了，免得两页的动画互相打断
+        if (this.currentTab !== tab) return;
+        c.classList.add('enter');
+        this._enterTimer = setTimeout(()=>c.classList.remove('enter'), 480);
+      };
+      const raf = (typeof requestAnimationFrame === 'function') ? requestAnimationFrame : null;
+      if (raf) raf(addEnter);
+      else if (typeof setTimeout === 'function') setTimeout(addEnter, 16);
       // ⚠️ 动画播完必须摘掉 class：`#content.enter > *` 是「任何直接子元素」，
       // 留着它，之后每次局部重绘（战斗结束重建目标列表等）新节点都会重新匹配、
       // 再播一遍淡入 + 位移——连战时整页每几秒闪一下，正是「征伐页卡顿」的观感来源
-      clearTimeout(this._enterTimer);
-      this._enterTimer = setTimeout(()=>c.classList.remove('enter'), 480);
     }
     scrollActiveTabIntoView();
     this.closeDrawer();
@@ -526,7 +536,18 @@ const UI = {
     if (fn && this[fn]) this[fn]();                  // 包装层已负责补页头条
     this.renderTopbar();
     this.refreshActivity();
-    this.fitGhostScrollbar();
+    // 幽灵滚动条的测量延到下一帧（v1.31.126）：它要读 scrollHeight，而刚改完 DOM 的
+    // 第一次读会强制整页布局——webkit 实测 131ms，正好夹在「点了页签」和「页面出现」
+    // 之间，体感就是切页卡。它只是为了收掉一条几乎滑不动的滚动条，晚一帧完全够。
+    this.fitGhostScrollbarSoon();
+  },
+  // 每帧只排一次：连续切页时不必排队多次测量
+  fitGhostScrollbarSoon(){
+    if (this._ghostRAF) return;
+    const run = ()=>{ this._ghostRAF = 0; try { this.fitGhostScrollbar(); } catch (e) {} };
+    const raf = (typeof requestAnimationFrame === 'function') ? requestAnimationFrame : null;
+    if (raf) this._ghostRAF = raf(run) || 1;
+    else if (typeof setTimeout === 'function') this._ghostRAF = setTimeout(run, 16) || 1;
   },
   // 页头等级条 + 页尾下一步：各页渲染完后就地插入（不侵入各页 HTML 模板）
   renderPageLevel(){
@@ -545,19 +566,32 @@ const UI = {
   // 浏览器于是画出一条「几乎滑不动」的竖滚动条。这里量一次真实溢出：
   //   溢出 ≤ 留白量 → 说明多出来的正是留白，收窄留白即可让页面正好贴住视口底；
   //   溢出 > 留白量 → 内容本身就超高，滚动条是必要的，留白保持不动。
+  //
+  // v1.31.126 性能修正：原实现每次都先 `apply(base)` 写回基准、再读 scrollHeight，
+  // 是 4 次**强制同步布局**串成一条依赖链（写→读→写→读）。webkit 上实测 130ms，
+  // 而技能页真正的渲染只要 8ms——「切页卡」几乎全花在这里。
+  // 现在：只在「结果与当前值不同」时写一次；值没变就直接返回，一次重排都不触发。
   fitGhostScrollbar(){
     const de = document.documentElement;
     const app = document.getElementById('app');
     if (!de || !app) return;
     const base = parseFloat(getComputedStyle(de).getPropertyValue('--app-pad-b-base')) || 28;
-    const apply = (v)=>{ de.style.setProperty('--app-pad-b', Math.max(0, v) + 'px'); };
-    apply(base);                                   // 先回到基准，避免沿用上一次的收窄值
+    // 上次已经定过的值：同一页反复刷（挂机时的定时重绘）不该再量一遍
+    const curRaw = de.style.getPropertyValue('--app-pad-b');
+    const cur = curRaw ? parseFloat(curRaw) : NaN;
+    const apply = (v)=>{
+      const s = Math.max(0, v) + 'px';
+      if (de.style.getPropertyValue('--app-pad-b') !== s) de.style.setProperty('--app-pad-b', s);
+    };
+    // 回到基准只是为了量得准。若当前已经在基准上，这次写可以省掉。
+    if (!(cur >= base - 0.5)) apply(base);
     const over = de.scrollHeight - de.clientHeight;
     if (over <= 0) return;                         // 本来就不溢出，留白照旧
     if (over > base) return;                       // 内容自身超高，滚动条必要，不动
-    apply(base - over);                            // 溢出全在留白里：收窄到刚好贴住底
+    const want = Math.max(0, base - over);
+    apply(want);                                   // 溢出全在留白里：收窄到刚好贴住底
     const over2 = de.scrollHeight - de.clientHeight;
-    if (over2 > 0) apply(Math.max(0, base - over - over2));
+    if (over2 > 0) apply(Math.max(0, want - over2));
   },
   // 相邻页签切换（移动端左右滑）
   switchTabNeighbor(dir){
