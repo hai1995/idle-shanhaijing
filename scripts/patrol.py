@@ -66,6 +66,33 @@ STATE_PROBE = """() => ({
 })"""
 
 
+# 「改数据 → patchStats → 值必须变」。
+# 为什么不满足于「静态渲染与 patch 两处一致」：如果 patch 里某个字段名写错，
+# 它找不到元素就静默跳过，元素保留了静态渲染的值 —— 两者照样相等，
+# 但玩家看到的数字永远不会更新。只有「真的改一次数据，看它动不动」才能抓到。
+LIVE_PROBE = """() => {
+  UI.currentTab = 'stats'; UI.renderStats();
+  const snap = () => { const o = {}; document.querySelectorAll('[data-stat]').forEach(e => { o[e.dataset.stat] = e.textContent; }); return o; };
+  const before = snap();
+  Game.stats.kills += 7; Game.stats.deaths += 3; Game.stats.actions += 11;
+  Game.stats.harvests += 5; Game.stats.crafts += 2; Game.stats.rites += 1;
+  Game.stats.observes += 1; Game.stats.divines += 2; Game.stats.purchases += 4;
+  Game.stats.sales += 3; Game.stats.damageDealt += 1000; Game.stats.damageTaken += 500;
+  Game.stats.totalEarned += 2000; Game.shells += 333;
+  Game.stats.offlineCount += 1; Game.stats.offlineSec += 600;
+  Game.stats.offlineXp += 1234; Game.stats.offlineItems += 9;
+  Game.stats.time += 100;
+  UI.patchStats();
+  const after = snap();
+  // session / season 依赖真实时钟或「秒」边界，1 秒内本来就不该变，不列入
+  const keys = ['kills','deaths','actions','harvests','crafts','rites','observes','divines',
+                'purchases','sales','damageDealt','damageTaken','totalEarned','shells',
+                'offlineCount','offlineSec','offlineXp','offlineItems','time'];
+  const stuck = keys.filter(k => before[k] !== undefined && before[k] === after[k]);
+  return { checked: keys.filter(k => before[k] !== undefined).length, stuck, total: Object.keys(before).length };
+}"""
+
+
 async def main():
     results, bad_state = [], []
     async with async_playwright() as p:
@@ -103,6 +130,10 @@ async def main():
                     r = await pg.evaluate(PROBE, t)
                     r["vp"], r["state"] = vname, state
                     results.append(r)
+
+            # 数据联动（每个视口跑一次）：统计页的数字真的跟着数据走吗
+            live = await pg.evaluate(LIVE_PROBE)
+            results.append({"vp": vname, "live": live})
             results.append({"vp": vname, "errors": list(errs)})
             await pg.close()
         await b.close()
@@ -110,6 +141,15 @@ async def main():
     bad = list(bad_state)
     n = 0
     for r in results:
+        if "live" in r:
+            lv = r["live"]
+            n += 1
+            if lv["checked"] < 15:
+                bad.append(f"[{r['vp']}] 数据联动只验了 {lv['checked']} 个字段（字段缺失，不是空转）")
+            if lv["stuck"]:
+                bad.append(f"[{r['vp']}] 统计页有 {len(lv['stuck'])} 个字段改数据后不更新："
+                           + "、".join(lv["stuck"][:5]))
+            continue
         if "errors" in r:
             if r["errors"]:
                 bad.append(f"[{r['vp']}] JS 错误 {len(r['errors'])}: {r['errors'][:2]}")
