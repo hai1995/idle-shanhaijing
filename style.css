@@ -2127,6 +2127,15 @@ details.bulk-sell .bs-preview, details.bulk-sell .bs-act{ margin-left:11px; marg
   font-style:normal; font-size:11px; color:var(--ink-4); line-height:1.45;
 }
 .stat-rows > span.ev-unseen .ev-hint::before{ content:'↳ '; opacity:.7; }
+/* 线索里能点的（异迹两条）：字色往上提一档、下划线点睛，说明「这块能按」
+   ——与正文同色会让人以为是灰字注释，不会去按。 */
+.stat-rows .linklike{
+  background:none; border:none; padding:0; font:inherit; color:var(--ink-3);
+  text-decoration:underline dotted; text-underline-offset:2px; cursor:pointer;
+}
+.stat-rows .linklike::after{ content:' ›'; opacity:.55; }
+/* 异迹索引里被「点线索」跳过来的那一行：左边一道朱线，一眼找到 */
+.hetero-row.focus{ background:var(--tai-w); box-shadow:inset 3px 0 0 var(--tai); }
 .stat-rows > span > i{ font-size:10.5px; color:var(--ink-4); margin-left:6px; }
 .stat-rows.gather-rows{ margin-top:10px; border-top:1px solid var(--rule-2); padding-top:8px; }
 .stat-rows.ms-rows span.done{ color:var(--tai); }

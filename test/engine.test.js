@@ -9671,6 +9671,14 @@ section('异迹专属见闻');
   const mSrc179 = readText('src/ui/misc.js');
   assert(mSrc179.includes('e.hint'), '见闻录渲染未见条目的线索');
 
+  // ⑤″ 线索可点：异迹那条一路跳到异迹索引，且把那一处高亮出来（v1.31.107）
+  assert(mSrc179.includes("e.go === 'hetero'") && mSrc179.includes('UI.gotoHetero()'), '异迹线索可点，跳到异迹索引');
+  const ySrc179 = readText('src/ui/yudi.js');
+  assert(ySrc179.includes('UI.gotoHeteroNode') || ySrc179.includes('heteroFocus'), '有「跳到某一处」的入口');
+  assert(ySrc179.includes('UI.heteroFocus === x.nodeId'), '被点的那一行有 focus 标记');
+  const css179 = readText('style.css');
+  assert(css179.includes('.hetero-row.focus{') && css179.includes('.stat-rows .linklike{'), '高亮行与可点线索都有样式');
+
   // ⑤ 总数计数自动跟上（成就判据不写死数字，加条目不用改成就）
   assert(ST.eventKindsTotal() === ST.TRAVEL_EVENTS.length + ST.AWAY_EVENTS.length,
     '总数 = 两张表长度之和（现 ' + ST.eventKindsTotal() + '）');

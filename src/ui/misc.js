@@ -93,7 +93,11 @@ UI.renderStats = function(){
       const cell = (e) => {
         const n = seen[e.id] || 0;
         return n ? `<span>${esc(e.name || e.id)} <b>${n}</b></span>`
-                 : `<span class="hint ev-unseen">${esc(e.name || e.id)} · 未见${e.hint ? `<em class="ev-hint">${esc(e.hint)}</em>` : ''}</span>`;
+                 : `<span class="hint ev-unseen">${esc(e.name || e.id)} · 未见${e.hint
+                     ? `<em class="ev-hint">${e.go === 'hetero'
+                         ? `<button class="linklike" type="button" onclick="UI.gotoHetero()">${esc(e.hint)}</button>`
+                         : esc(e.hint)}</em>`
+                     : ''}</span>`;
       };
       // 分两组：「路上遇见的」与「不在时错过的」是两种心情，
       // 混在一堆里读不出「我离开时山里发生过什么」。

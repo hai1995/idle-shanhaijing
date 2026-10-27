@@ -91,6 +91,20 @@ UI.faunaChipHtml = function(sel, f){
 
 // 统计页「异迹」那一格点进来：展开索引并滚到它跟前。
 // 光给数字不给去路，玩家看完还是得一座座山翻。
+// 跳到异迹索引里的**某一处**并选中它（v1.31.107）：
+// 「异迹专属见闻」说了「在观象之地才遇」，玩家下一步自然是「那哪儿有观象地」。
+// 与 gotoHetero 的分别只在最后一步——这里把那一行高亮出来，别让人在 36 行里找。
+UI.gotoHeteroNode = function(nodeId){
+  this.heteroOpen = true;
+  this.heteroFocus = nodeId || '';
+  if (this.currentTab !== 'yudi') this.switchTab('yudi');
+  else this.renderYudi();
+  const el = document.querySelector('details.hetero-panel');
+  if (el && el.scrollIntoView) el.scrollIntoView({ block:'center', behavior:'smooth' });
+  const row = (nodeId && document.querySelector(`.hetero-row.focus`)) || null;
+  if (row && row.scrollIntoView) setTimeout(() => { try { row.scrollIntoView({ block:'center', behavior:'smooth' }); } catch(e){} }, 260);
+};
+
 UI.gotoHetero = function(){
   this.heteroOpen = true;
   if (this.currentTab !== 'yudi') this.switchTab('yudi');
@@ -122,7 +136,7 @@ function heteroPanelHtml(){
     ${list.map(x => {
       const gap = Math.max(0, x.level - yl);
       const prog = x.prog ? ` · ${Math.min(x.prog.got, x.prog.total)}/${x.prog.total}` : '';
-      return `<div class="hetero-row ${x.done ? 'done' : ''} ${x.unlocked ? '' : 'lock'}"
+      return `<div class="hetero-row ${x.done ? 'done' : ''} ${x.unlocked ? '' : 'lock'} ${UI.heteroFocus === x.nodeId ? 'focus' : ''}"
           title="${esc(x.gain)}${prog}"
           onclick="UI.selRegion='${esc(x.regionId)}';UI.selNode='${esc(x.nodeId)}';UI.renderYudi()">
         <span class="hr-kind k-${x.kind}">${x.kind}</span>

@@ -204,7 +204,7 @@ const TRAVEL_EVENTS = [
   //    做事时才可能撞见。当 ctx.nodeId 是异迹节点、且该节点的事还没做完时才出手——
   //    「此事有灵」的暗示要能落到「还没做的那件事」上，不然是空话。
   {
-    id: 'yiji_ling', name: '此地有灵', weight: 2, hint: '在观瑞 / 观象之地采集、讨伐才遇',
+    id: 'yiji_ling', name: '此地有灵', weight: 2, hint: '在观瑞 / 观象之地采集、讨伐才遇', go: 'hetero',
     when(ctx){
       const k = heteroKindAt(ctx && ctx.nodeId);
       return k === '观瑞' || k === '观象';
@@ -219,7 +219,7 @@ const TRAVEL_EVENTS = [
     },
   },
   {
-    id: 'yiji_zhu', name: '祠前老祝', weight: 2, hint: '在有山祠（谒见）的山头做事才遇',
+    id: 'yiji_zhu', name: '祠前老祝', weight: 2, hint: '在有山祠（谒见）的山头做事才遇', go: 'hetero',
     when(ctx){ return heteroKindAt(ctx && ctx.nodeId) === '谒见'; },
     run(ctx){
       const lv = (typeof levelOf === 'function') ? levelOf('bushi') : 1;
