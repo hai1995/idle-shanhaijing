@@ -78,6 +78,23 @@ UI.renderStats = function(){
       </div>
       <div class="stat-rows gather-rows">${gatherRows}</div></div>
     ${(function(){
+      // 行旅见闻：触发过的按次数列，没见过的也列出来（「还差几条」本身就是目的）
+      const evs = (window.TRAVEL_EVENTS || []);
+      if (!evs.length) return '';
+      const seen = (Game.events && Game.events.seen) || {};
+      // 总数用 seen 求和，不用 events.count：两者可能不一致（旧档只记 count，
+      // 调试时也可能只重置 count），求和是唯一自洽的口径。
+      const total = evs.reduce((a, e) => a + (seen[e.id] || 0), 0);
+      const kinds = evs.filter(e => seen[e.id]).length;
+      const rows = evs.map(e => {
+        const n = seen[e.id] || 0;
+        return n ? `<span>${esc(e.name || e.id)} <b>${n}</b></span>`
+                 : `<span class="hint">${esc(e.name || e.id)} · 未见</span>`;
+      }).join('');
+      return `<div class="panel stat-panel"><h3>行旅见闻 <span class="hint">${kinds}/${evs.length} 种 · 共 ${total} 条</span></h3>
+        <div class="stat-rows">${rows}</div></div>`;
+    })()}
+    ${(function(){
       // 「近况」：统计页其余都是累计数字，看不出「此刻」收益几何。
       // 换配装 / 换兽 / 开兆之后效率变好变坏，原先全凭感觉。
       const r = (typeof rateSummary === 'function') ? rateSummary(600) : null;

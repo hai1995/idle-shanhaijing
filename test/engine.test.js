@@ -637,6 +637,10 @@ UI_FILES.forEach(loadJS);
 // 词法绑定同为真实 UI；沙箱里 window 只是普通对象，需手动对齐，否则 game.js
 // 等先加载脚本里的 UI 仍指向桩对象。
 context.UI = ST.UI;
+// 见闻（奇遇）默认静音：它会在采集/击杀/制作后随机加经验与物品，
+// 而本项目大量用例断言的是精确数值（经验递减、掉落表、离线结算）。
+// 第 167 节会临时解除静音来测它本身。
+ST.__eventsMuted = true;
 const renderTargets = {};
 // classList 用真实 Set 实现：`contains` 恒 false 的假对象会让「是否已有弹窗」的守卫全部误判
 const mkTarget = (init)=>{
@@ -8912,6 +8916,7 @@ section('模拟轮回转数');
 // 只正向 / 有冷却 / 只改已有字段 / 冷却随存档走（刷新不能洗）。
 section('行旅见闻');
 {
+  ST.__eventsMuted = false;      // 本节要测它本身
   const evSrc = readText('src/events.js');
   const gSrc = readText('src/game.js');
   const sSrc = readText('src/save.js');
@@ -8937,6 +8942,12 @@ section('行旅见闻');
   assert(out && ids.indexOf(out.id) >= 0, '返回的是一条表内事件（' + (out && out.id) + '）');
   assert(typeof out.log === 'string' && out.log.length > 6, '有可读的日志文案');
   assert(ST.Game.events.count === 1 && ST.Game.stats.seenEvents === 1, '计数 +1');
+  assert(ST.Game.events.seen && ST.Game.events.seen[out.id] === 1, '逐条计数 +1（见闻录要用）');
+  assert(typeof out.name === 'string' || (ST.TRAVEL_EVENTS.find(e => e.id === out.id) || {}).name,
+    '每条见闻都有名字（面板要显示，不能只显示 id）');
+  // 见闻录面板在统计页
+  assert(/行旅见闻/.test(readText('src/ui/misc.js')), '统计页有「行旅见闻」一栏');
+  assert(/seen\[e\.id\]/.test(readText('src/ui/misc.js')), '面板按逐条计数渲染');
   assert(ST.Game.shells >= before.shells, '奖励不为负（只做正向）');
   assert(ST.Game.stats.totalXp >= before.xp, '经验不为负');
 
@@ -8979,12 +8990,13 @@ section('行旅见闻');
 
   // ⑤ 冷却随存档走：不存的话，刷新一次就能洗掉冷却、刷新即刷事件
   assert(/events: G\.events/.test(sSrc), '存档白名单里有 events');
-  assert(/g\.events = \{ at: 0, count: 0, lastId: '' \}/.test(eSrc), '新建档有 events 默认值');
+  assert(/g\.events = \{ at: 0, count: 0, lastId: '', seen: \{\} \}/.test(eSrc), '新建档有 events 默认值（含逐条计数 seen）');
   assert(/Game\.events = \(d\.events/.test(eSrc), '读档恢复 events');
   assert(/EVENT_GAP/.test(evSrc) && /last && now - last < EVENT_GAP/.test(evSrc),
     '冷却判据：at=0 视为「还没触发过」，不能当时间戳用');
 
   G.resetToDefault();
+  ST.__eventsMuted = true;       // 恢复静音，别影响后面的精确数值用例
 }
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）

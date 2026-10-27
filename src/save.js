@@ -128,7 +128,7 @@ function serializeSave(){
     mobStreak: G.mobStreak || {}, orders: G.orders || [], ordersAt: G.ordersAt || 0,
     pilgrim: G.pilgrim || {},
     // 行旅见闻的冷却与次数（v1.31.82）：不存的话，刷新一次就能洗掉冷却重新刷事件
-    events: G.events || { at: 0, count: 0, lastId: '' },
+    events: G.events || { at: 0, count: 0, lastId: '', seen: {} },
     enhance: G.enhance || {}, enhanceHeat: G.enhanceHeat || {}, affixSalt: G.affixSalt || {},
     // 行囊装备：同 id 同淬炼档合并成一条 { id, enh, n }。
     // 按件存是为了让「+2」与「+0」分得开，但存档没必要真写 n 条——

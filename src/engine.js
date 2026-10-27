@@ -85,7 +85,7 @@ function cloneDefaultGame(){
   g.enhance = {}; g.enhanceHeat = {};
   g.packGear = [];   // 行囊里的装备实例（每件自带淬炼等级；v1.31.22 起）
   g.pilgrim = {};    // 山系巡礼：走遍一系诸山后的领赏记录（v1.31.24）
-  g.events = { at: 0, count: 0, lastId: '' };   // 行旅见闻：上次触发的游戏秒与累计次数
+  g.events = { at: 0, count: 0, lastId: '', seen: {} };   // 行旅见闻：上次触发的游戏秒与累计次数
   // 装备槽必须显式清空：cloneDefaultGame 是「深拷贝当前状态再覆盖字段」，
   // 漏了这一项的话，重开新档时身上还穿着上一局那件（连淬炼阶数一起）——
   // 装备改成按件存实例之后，这个漏洞才看得出来。
@@ -235,7 +235,8 @@ function applySave(d){
     // 同目标连续讨伐计数（旧档无此字段，缺省为空）
     Game.mobStreak = (d.mobStreak && typeof d.mobStreak === 'object') ? d.mobStreak : {};
     Game.pilgrim = (d.pilgrim && typeof d.pilgrim === 'object') ? d.pilgrim : {};
-    Game.events = (d.events && typeof d.events === 'object') ? d.events : { at: 0, count: 0, lastId: '' };
+    Game.events = (d.events && typeof d.events === 'object') ? d.events : { at: 0, count: 0, lastId: '', seen: {} };
+    if (Game.events && !Game.events.seen) Game.events.seen = {}
     // 装备淬炼等级（旧档无此字段，缺省为空；非法值剔除）
     // 上限取当前 ENHANCE_MAX——这里曾写死 9，强化上限提到 30 时忘了同步，
     // 结果强到 +20 的装备一刷新就掉回 +9。凡是「另一处定义的常量」，

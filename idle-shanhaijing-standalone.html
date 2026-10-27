@@ -19811,7 +19811,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.83',
+  version: '1.31.84',
   codename:'昼巡 · 近况',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -20160,7 +20160,7 @@ function serializeSave(){
     mobStreak: G.mobStreak || {}, orders: G.orders || [], ordersAt: G.ordersAt || 0,
     pilgrim: G.pilgrim || {},
     // 行旅见闻的冷却与次数（v1.31.82）：不存的话，刷新一次就能洗掉冷却重新刷事件
-    events: G.events || { at: 0, count: 0, lastId: '' },
+    events: G.events || { at: 0, count: 0, lastId: '', seen: {} },
     enhance: G.enhance || {}, enhanceHeat: G.enhanceHeat || {}, affixSalt: G.affixSalt || {},
     // 行囊装备：同 id 同淬炼档合并成一条 { id, enh, n }。
     // 按件存是为了让「+2」与「+0」分得开，但存档没必要真写 n 条——
@@ -20694,7 +20694,7 @@ function cloneDefaultGame(){
   g.enhance = {}; g.enhanceHeat = {};
   g.packGear = [];   // 行囊里的装备实例（每件自带淬炼等级；v1.31.22 起）
   g.pilgrim = {};    // 山系巡礼：走遍一系诸山后的领赏记录（v1.31.24）
-  g.events = { at: 0, count: 0, lastId: '' };   // 行旅见闻：上次触发的游戏秒与累计次数
+  g.events = { at: 0, count: 0, lastId: '', seen: {} };   // 行旅见闻：上次触发的游戏秒与累计次数
   // 装备槽必须显式清空：cloneDefaultGame 是「深拷贝当前状态再覆盖字段」，
   // 漏了这一项的话，重开新档时身上还穿着上一局那件（连淬炼阶数一起）——
   // 装备改成按件存实例之后，这个漏洞才看得出来。
@@ -20844,7 +20844,8 @@ function applySave(d){
     // 同目标连续讨伐计数（旧档无此字段，缺省为空）
     Game.mobStreak = (d.mobStreak && typeof d.mobStreak === 'object') ? d.mobStreak : {};
     Game.pilgrim = (d.pilgrim && typeof d.pilgrim === 'object') ? d.pilgrim : {};
-    Game.events = (d.events && typeof d.events === 'object') ? d.events : { at: 0, count: 0, lastId: '' };
+    Game.events = (d.events && typeof d.events === 'object') ? d.events : { at: 0, count: 0, lastId: '', seen: {} };
+    if (Game.events && !Game.events.seen) Game.events.seen = {}
     // 装备淬炼等级（旧档无此字段，缺省为空；非法值剔除）
     // 上限取当前 ENHANCE_MAX——这里曾写死 9，强化上限提到 30 时忘了同步，
     // 结果强到 +20 的装备一刷新就掉回 +9。凡是「另一处定义的常量」，
@@ -27887,7 +27888,7 @@ const EVENT_CHANCE = 0.05;    // 每次采集的触发概率
 // ctx: { kind, itemId, skillId, nodeId }
 const TRAVEL_EVENTS = [
   {
-    id: 'canjian', weight: 3,
+    id: 'canjian', name: '拾得残简', weight: 3,
     run(ctx){
       const lv = (typeof levelOf === 'function') ? levelOf('zhulu') : 1;
       const xp = 8 + Math.round(lv * 0.6);
@@ -27900,7 +27901,7 @@ const TRAVEL_EVENTS = [
     },
   },
   {
-    id: 'yuhou', weight: 3,
+    id: 'yuhou', name: '雨后菌出', weight: 3,
     when(ctx){ return !!(ctx && ctx.itemId && Items[ctx.itemId]); },
     run(ctx){
       const it = Items[ctx.itemId];
@@ -27911,7 +27912,7 @@ const TRAVEL_EVENTS = [
     },
   },
   {
-    id: 'zongji', weight: 2,
+    id: 'zongji', name: '见兽踪迹', weight: 2,
     when(ctx){ return !ctx || !ctx.kind || ctx.kind === 'gather'; },
     run(ctx){
       const lv = (typeof levelOf === 'function') ? levelOf('taofa') : 1;
@@ -27923,7 +27924,7 @@ const TRAVEL_EVENTS = [
     },
   },
   {
-    id: 'laomu', weight: 2,
+    id: 'laomu', name: '老木可辨', weight: 2,
     when(ctx){ return !ctx || !ctx.kind || ctx.kind === 'gather'; },
     run(){
       const lv = (typeof levelOf === 'function') ? levelOf('caiyao') : 1;
@@ -27934,7 +27935,7 @@ const TRAVEL_EVENTS = [
     },
   },
   {
-    id: 'yunqi', weight: 2,
+    id: 'yunqi', name: '云气可观', weight: 2,
     when(ctx){ return !ctx || !ctx.kind || ctx.kind === 'gather'; },
     run(){
       const lv = (typeof levelOf === 'function') ? levelOf('guanxiang') : 1;
@@ -27945,7 +27946,7 @@ const TRAVEL_EVENTS = [
     },
   },
   {
-    id: 'cangyu', weight: 3,
+    id: 'cangyu', name: '拾得残骨', weight: 3,
     when(ctx){ return ctx && ctx.kind === 'fight'; },
     run(){
       // 战后的「残迹」：不给战利品（那由掉落表管），只给一点「读得懂」的东西
@@ -27960,7 +27961,7 @@ const TRAVEL_EVENTS = [
     },
   },
   {
-    id: 'qiaoshou', weight: 3,
+    id: 'qiaoshou', name: '巧手偶得', weight: 3,
     when(ctx){ return ctx && ctx.kind === 'craft' && ctx.itemId && Items[ctx.itemId]; },
     run(ctx){
       // 巧手偶得：多做出一件。制作本来就付过料，这里等于「省了一份料」
@@ -27970,7 +27971,7 @@ const TRAVEL_EVENTS = [
     },
   },
   {
-    id: 'guyu', weight: 1,
+    id: 'guyu', name: '拾得古玉', weight: 1,
     run(){
       // 古玉：有「育沛」就给实物，没有就折贝（数据改动时不至于静默无奖励）
       const shells = 40 + ((typeof levelOf === 'function' ? levelOf('yudi') : 1) * 6);
@@ -27986,7 +27987,7 @@ const TRAVEL_EVENTS = [
 ];
 
 function eventsState(){
-  if (!Game.events || typeof Game.events !== 'object') Game.events = { at: 0, count: 0, lastId: '' };
+  if (!Game.events || typeof Game.events !== 'object') Game.events = { at: 0, count: 0, lastId: '', seen: {} };
   return Game.events;
 }
 
@@ -27994,6 +27995,9 @@ function eventsState(){
 // force = true 时跳过概率与冷却（数据模拟用）。
 function maybeEvent(ctx, force){
   if (typeof Game === 'undefined' || !Game) return null;
+  // 测试开关：断言精确数值的用例（经验递减、掉落表）不该被「随机插曲」搅乱。
+  // 与 `?probe=1` 同类：一行开关，省掉给每条用例都摆阵的麻烦。
+  if (typeof window !== 'undefined' && window.__eventsMuted) return null;
   const st = eventsState();
   const now = (typeof gameTime === 'function') ? gameTime() : 0;
   if (!force){
@@ -28015,6 +28019,9 @@ function maybeEvent(ctx, force){
   st.at = now;
   st.count = (st.count || 0) + 1;
   st.lastId = pick.id;
+  // 逐条计数：见闻录要能说「这一条见过几次」，只记总数不够
+  st.seen = (st.seen && typeof st.seen === 'object') ? st.seen : {};
+  st.seen[pick.id] = (st.seen[pick.id] || 0) + 1;
   Game.stats = Game.stats || {};
   Game.stats.seenEvents = (Game.stats.seenEvents || 0) + 1;
 
@@ -34677,6 +34684,23 @@ UI.renderStats = function(){
         <span>卜筮 <b data-stat="divines">${s.divines}</b></span>
       </div>
       <div class="stat-rows gather-rows">${gatherRows}</div></div>
+    ${(function(){
+      // 行旅见闻：触发过的按次数列，没见过的也列出来（「还差几条」本身就是目的）
+      const evs = (window.TRAVEL_EVENTS || []);
+      if (!evs.length) return '';
+      const seen = (Game.events && Game.events.seen) || {};
+      // 总数用 seen 求和，不用 events.count：两者可能不一致（旧档只记 count，
+      // 调试时也可能只重置 count），求和是唯一自洽的口径。
+      const total = evs.reduce((a, e) => a + (seen[e.id] || 0), 0);
+      const kinds = evs.filter(e => seen[e.id]).length;
+      const rows = evs.map(e => {
+        const n = seen[e.id] || 0;
+        return n ? `<span>${esc(e.name || e.id)} <b>${n}</b></span>`
+                 : `<span class="hint">${esc(e.name || e.id)} · 未见</span>`;
+      }).join('');
+      return `<div class="panel stat-panel"><h3>行旅见闻 <span class="hint">${kinds}/${evs.length} 种 · 共 ${total} 条</span></h3>
+        <div class="stat-rows">${rows}</div></div>`;
+    })()}
     ${(function(){
       // 「近况」：统计页其余都是累计数字，看不出「此刻」收益几何。
       // 换配装 / 换兽 / 开兆之后效率变好变坏，原先全凭感觉。

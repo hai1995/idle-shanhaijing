@@ -18,7 +18,7 @@ const EVENT_CHANCE = 0.05;    // 每次采集的触发概率
 // ctx: { kind, itemId, skillId, nodeId }
 const TRAVEL_EVENTS = [
   {
-    id: 'canjian', weight: 3,
+    id: 'canjian', name: '拾得残简', weight: 3,
     run(ctx){
       const lv = (typeof levelOf === 'function') ? levelOf('zhulu') : 1;
       const xp = 8 + Math.round(lv * 0.6);
@@ -31,7 +31,7 @@ const TRAVEL_EVENTS = [
     },
   },
   {
-    id: 'yuhou', weight: 3,
+    id: 'yuhou', name: '雨后菌出', weight: 3,
     when(ctx){ return !!(ctx && ctx.itemId && Items[ctx.itemId]); },
     run(ctx){
       const it = Items[ctx.itemId];
@@ -42,7 +42,7 @@ const TRAVEL_EVENTS = [
     },
   },
   {
-    id: 'zongji', weight: 2,
+    id: 'zongji', name: '见兽踪迹', weight: 2,
     when(ctx){ return !ctx || !ctx.kind || ctx.kind === 'gather'; },
     run(ctx){
       const lv = (typeof levelOf === 'function') ? levelOf('taofa') : 1;
@@ -54,7 +54,7 @@ const TRAVEL_EVENTS = [
     },
   },
   {
-    id: 'laomu', weight: 2,
+    id: 'laomu', name: '老木可辨', weight: 2,
     when(ctx){ return !ctx || !ctx.kind || ctx.kind === 'gather'; },
     run(){
       const lv = (typeof levelOf === 'function') ? levelOf('caiyao') : 1;
@@ -65,7 +65,7 @@ const TRAVEL_EVENTS = [
     },
   },
   {
-    id: 'yunqi', weight: 2,
+    id: 'yunqi', name: '云气可观', weight: 2,
     when(ctx){ return !ctx || !ctx.kind || ctx.kind === 'gather'; },
     run(){
       const lv = (typeof levelOf === 'function') ? levelOf('guanxiang') : 1;
@@ -76,7 +76,7 @@ const TRAVEL_EVENTS = [
     },
   },
   {
-    id: 'cangyu', weight: 3,
+    id: 'cangyu', name: '拾得残骨', weight: 3,
     when(ctx){ return ctx && ctx.kind === 'fight'; },
     run(){
       // 战后的「残迹」：不给战利品（那由掉落表管），只给一点「读得懂」的东西
@@ -91,7 +91,7 @@ const TRAVEL_EVENTS = [
     },
   },
   {
-    id: 'qiaoshou', weight: 3,
+    id: 'qiaoshou', name: '巧手偶得', weight: 3,
     when(ctx){ return ctx && ctx.kind === 'craft' && ctx.itemId && Items[ctx.itemId]; },
     run(ctx){
       // 巧手偶得：多做出一件。制作本来就付过料，这里等于「省了一份料」
@@ -101,7 +101,7 @@ const TRAVEL_EVENTS = [
     },
   },
   {
-    id: 'guyu', weight: 1,
+    id: 'guyu', name: '拾得古玉', weight: 1,
     run(){
       // 古玉：有「育沛」就给实物，没有就折贝（数据改动时不至于静默无奖励）
       const shells = 40 + ((typeof levelOf === 'function' ? levelOf('yudi') : 1) * 6);
@@ -117,7 +117,7 @@ const TRAVEL_EVENTS = [
 ];
 
 function eventsState(){
-  if (!Game.events || typeof Game.events !== 'object') Game.events = { at: 0, count: 0, lastId: '' };
+  if (!Game.events || typeof Game.events !== 'object') Game.events = { at: 0, count: 0, lastId: '', seen: {} };
   return Game.events;
 }
 
@@ -125,6 +125,9 @@ function eventsState(){
 // force = true 时跳过概率与冷却（数据模拟用）。
 function maybeEvent(ctx, force){
   if (typeof Game === 'undefined' || !Game) return null;
+  // 测试开关：断言精确数值的用例（经验递减、掉落表）不该被「随机插曲」搅乱。
+  // 与 `?probe=1` 同类：一行开关，省掉给每条用例都摆阵的麻烦。
+  if (typeof window !== 'undefined' && window.__eventsMuted) return null;
   const st = eventsState();
   const now = (typeof gameTime === 'function') ? gameTime() : 0;
   if (!force){
@@ -146,6 +149,9 @@ function maybeEvent(ctx, force){
   st.at = now;
   st.count = (st.count || 0) + 1;
   st.lastId = pick.id;
+  // 逐条计数：见闻录要能说「这一条见过几次」，只记总数不够
+  st.seen = (st.seen && typeof st.seen === 'object') ? st.seen : {};
+  st.seen[pick.id] = (st.seen[pick.id] || 0) + 1;
   Game.stats = Game.stats || {};
   Game.stats.seenEvents = (Game.stats.seenEvents || 0) + 1;
 
