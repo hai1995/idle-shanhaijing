@@ -1,4 +1,15 @@
 // ================= 祠祀 =================
+// 礼名折行（v1.31.134）：礼名是「区域·礼名」（如「北次一·瘗礼」），窄格子（320px 下约 60px）
+// 一行放不下。直接让它折行，中文会在任意字间断——变成「北次一·瘗」/「礼」，剩一个孤字。
+// 用 `<wbr>` 不管用：CJK 本来就能随处断，浏览器会挑最填满的那个位置，轮不到 wbr。
+// 所以把「·」两侧各包成一个 inline-block：两块之间可以断行，块内不拆，
+// 断点就自然落在「·」后。单段的名字（无「·」）原样输出。
+function riteNameHtml(name){
+  const s = String(name == null ? '' : name);
+  const i = s.indexOf('·');
+  if (i <= 0) return esc(s);
+  return `<span class="nm-seg">${esc(s.slice(0, i + 1))}</span><span class="nm-seg">${esc(s.slice(i + 1))}</span>`;
+}
 // 征兆面板 HTML（整页渲染与就地补绘共用）：总效应 / 分档 chips / 方块网格 / 禳解行
 function omenPanelHtml(){
   const xiong = Game.omens.filter(o=>OMENS[o.id]&&OMENS[o.id].polarity==='凶');
@@ -143,7 +154,7 @@ UI.renderJisi = function(){
           onclick="event.stopPropagation();UI.toggleRiteAuto('${id}')">续</span>
         ${st.active?`<span class="rite-left" title="余 ${fmtTime(st.left)}">${fmtClock(st.left)}</span>`:''}
         <span class="tile-ic bi-ic">${(typeof riteIcon==='function')?riteIcon(id, riteName):`<span class="tile-seal">${esc((String(riteName).split('·')[1] || String(riteName)).trim().slice(0,1))}</span>`}</span>
-        <span class="tile-nm">${esc(riteName)}</span>
+        <span class="tile-nm">${riteNameHtml(riteName)}</span>
         <span class="tile-tag">祭祀 ${rec.lvl}</span>
         <span class="tip-body hidden">
           <div class="rc-sub">${esc(region?region.regionName:'常祭')}</div>

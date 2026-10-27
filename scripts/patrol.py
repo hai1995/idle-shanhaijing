@@ -93,6 +93,28 @@ LIVE_PROBE = """() => {
 }"""
 
 
+# 文字被容器截断（overflow:hidden / ellipsis 且 scrollWidth > clientWidth）。
+# 为什么单独查：横向溢出是「破版」（元素跑出视口），截断是「信息少了」——
+# 页面看着完好，但标签被切掉一截（320px 下「北次一·瘗礼」69px 挤进 60px 的格子，
+# 玩家看到「北次一·瘗…」，等于没说清是哪一礼）。溢出检查抓不到这一类。
+CLIP_PROBE = """() => {
+  const c = document.getElementById('content');
+  if (!c) return [];
+  const out = [];
+  c.querySelectorAll('*').forEach(el => {
+    const cs = getComputedStyle(el);
+    const hidden = cs.overflow === 'hidden' || cs.overflowX === 'hidden' || cs.textOverflow === 'ellipsis';
+    if (!hidden) return;
+    if (el.clientWidth > 0 && el.scrollWidth > el.clientWidth + 2){
+      out.push({ cls: (el.className || '').toString().slice(0, 24),
+                 sw: el.scrollWidth, cw: el.clientWidth,
+                 txt: (el.textContent || '').trim().slice(0, 30) });
+    }
+  });
+  return out;
+}"""
+
+
 async def main():
     results, bad_state = [], []
     async with async_playwright() as p:
@@ -129,6 +151,7 @@ async def main():
                     await pg.wait_for_timeout(230)
                     r = await pg.evaluate(PROBE, t)
                     r["vp"], r["state"] = vname, state
+                    r["clip"] = await pg.evaluate(CLIP_PROBE)
                     results.append(r)
 
             # 数据联动（每个视口跑一次）：统计页的数字真的跟着数据走吗
@@ -164,6 +187,11 @@ async def main():
             bad.append(tag + f" 有 {r['wide']} 个元素溢出视口")
         elif r.get("active") != 1:
             bad.append(tag + f" 高亮页签数 = {r.get('active')}（应恰好 1）")
+        elif r.get("clip"):
+            # 只报第一条，避免一次刷几十行（同一类问题通常成片出现）
+            c0 = r["clip"][0]
+            bad.append(tag + f" 有 {len(r['clip'])} 处文字被截断（如 .{c0['cls']} "
+                       f"{c0['sw']}>{c0['cw']}「{c0['txt']}」）")
 
     print(f"巡检 {n} 组，坏 {len(bad)} 组")
     for x in bad:

@@ -1490,6 +1490,10 @@ svg.bi.mk{ vertical-align:-2px; }
   font-family:var(--f-num); font-size:8.5px; color:var(--zhu);
 }
 .beast-tile .tile-tag i{ font-style:normal; }
+/* 「录 N · Lv N」作为一个整体（v1.31.134）：窄屏要靠 flex-wrap 换行，
+   但原来它和「宜金」按钮是三个并列的 flex 项，「录 0」与「· Lv 1」会被拆到两行，
+   留下一个孤零零的「· Lv 1」。包成一项后，断行只会发生在「宜金」与它之间。 */
+.beast-tile .bt-meta{ font-style:normal; white-space:nowrap; }
 .beast-tile.danger{ border-color:rgba(176,58,43,.45); }
 .beast-tile.recommend{ border-color:rgba(86,110,76,.5); }
 .beast-tile.pick{ background:var(--zhu-w); }
@@ -2636,13 +2640,24 @@ body.no-scroll{ overflow:hidden; }
   .tile{ padding:8px 4px 6px; gap:4px; }
   .tile-ic.bi-ic{ width:38px; height:38px; margin:-1px 0 -1px; }
   .tile-nm{ font-size:11.5px; }
+  /* 长名字在窄格子里被省略号吃掉（v1.31.134）：「北次一·瘗礼」69px、「鵕鸟（鼓所化）」80px，
+     格宽只有 60px —— 玩家看到「北次一·瘗…」等于没说清是哪一礼。允许折两行，
+     短名字（绝大多数）仍然一行，只有超长的才会占第二行。 */
+  /* 长名字折行而不是省略（v1.31.134）。原先 `white-space:nowrap` + 省略号，
+     320px 下「北次一·瘗礼」(69px) / 「鵕鸟（鼓所化）」(80px) 被格子(60px)切掉一截，
+     玩家根本看不出是哪一礼、哪只兽 —— 名字被切比多占一行糟得多。
+     不用 -webkit-line-clamp：它与下面的 inline-block 分段冲突，会把第二段再截一次。 */
+  .tile-nm{ white-space:normal; line-height:1.3; word-break:break-word; }
+  /* 礼名「区域·礼名」在「·」后断行：两块各自不可拆，断点只落在它们之间，
+     不会出现「北次一·瘗」/「礼」这种孤字。见 shrine.js 的 riteNameHtml。 */
+  .tile-nm .nm-seg{ display:inline-block; }
   .tile-tag{ font-size:9px; }
   .beast-tile .bt-el{ top:2px; left:2px; font-size:9px; padding:0 2px; }
   /* 窄卡上「宜金 / ×0.76」若仍按绝对定位钉在四角，会压住「录 N · Lv N」——
      改为与它同排居中，一行读完，不叠字。 */
-  .beast-tile .tile-tag{ display:flex; align-items:center; justify-content:center; gap:3px; }
+  .beast-tile .tile-tag{ display:flex; align-items:center; justify-content:center; gap:3px; flex-wrap:wrap; row-gap:0; }
   .beast-tile .bt-el-hint{ position:static; order:-1; height:auto; padding:1px 3px; line-height:1.25;
-    font-size:9px; min-height:16px; }
+    font-size:9px; min-height:16px; white-space:nowrap; }
   .beast-tile .bt-decay{ position:static; }
 
   /* 名号在窄屏要留（v1.31.70）：这条原本 `#nickTag{display:none}`，

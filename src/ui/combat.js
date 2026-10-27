@@ -123,7 +123,7 @@ function beastCardHtml(x, pick){
       ${x.el?`<span class="bt-el el-${x.el}">${x.el}</span>`:''}
       <span class="tile-ic bi-ic">${(typeof beastIcon==='function')?beastIcon(x):(CAT_EMOJI[x.category]||'🐾')}</span>
       <span class="tile-nm">${esc(xb.name)}</span>
-      <span class="tile-tag"><i class="bt-rec">录 ${rec.count}</i> · Lv ${xb.bandLv || x.needLvl || 1}${counterEl?`<button class="bt-el-hint" type="button" title="一键切到${counterEl}属（${counterEl}克${x.el}，伤害 ×${TUNING.WUXING.KE}）"
+      <span class="tile-tag"><i class="bt-meta"><i class="bt-rec">录 ${rec.count}</i> · Lv ${xb.bandLv || x.needLvl || 1}</i>${counterEl?`<button class="bt-el-hint" type="button" title="一键切到${counterEl}属（${counterEl}克${x.el}，伤害 ×${TUNING.WUXING.KE}）"
         onclick="event.stopPropagation();setCombatStyle('zhu');setZhuEl('${counterEl}');UI.renderTaofa()">宜${counterEl}</button>`:''}${decayTag?`<span class="bt-decay" title="连续讨伐 ${streakN} 次，经验递减；换一只异兽即恢复全额">×${mobStreakMult(x.id).toFixed(2)}</span>`:''}</span>
       ${x===pick?'<span class="bt-pick">宜讨</span>':''}
       <span class="tip-body hidden">
