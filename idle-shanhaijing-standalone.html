@@ -289,6 +289,19 @@ html.theme-anim, html.theme-anim *{
 }
 #nickTag::before{ content:'— '; opacity:.5; }
 
+/* 季名（v1.31.124）：替掉原先写死的「南山经」。旱偏赭、雨偏青，
+   与顶栏其余文字的灰度区分，一眼能看出今儿是哪个季。 */
+/* 具体度要压过 `#topbar .title small`（0,2,1），否则季名只剩默认灰 */
+#topbar .title small#seasonTag{ letter-spacing:.18em; color:rgba(226,178,120,.86); }
+/* 季名后紧跟名号：基础样式里季名有左边框当分隔，名号侧靠 `#nickTag::before` 的「— 」；
+   窄屏把那道「— 」去掉了，季名与名号会黏成「雨季著录客」——补一个间隔 */
+#topbar .title small#seasonTag + #nickTag{ margin-left:8px; }
+#topbar .title small#seasonTag.wet{ color:rgba(150,196,206,.9); }
+@media (max-width:520px){
+  /* 窄屏书名隐去，季名留一格宽度即可 */
+  #topbar #seasonTag{ margin-left:0; padding-left:0; border-left:0; font-size:10px; letter-spacing:.1em; }
+}
+
 /* 三项状态盘：标签在上、数值在下，不再是「标签 值」串成一排 */
 #topbar .stat{
   display:grid; grid-template-columns:auto; gap:0; min-width:0;
@@ -2146,6 +2159,51 @@ details.bulk-sell .bs-preview, details.bulk-sell .bs-act{ margin-left:11px; marg
 }
 .stat-rows > span:last-child{ border-bottom:none; }
 .stat-rows > span > b{ margin-left:auto; color:var(--ink); font-family:var(--f-num); font-size:12.5px; }
+/* 见闻录的「未见 · 线索」：线索独占一行、缩进一点，不与条目名挤在一起
+   （390px 下「祠前老祝 · 未见（在有山祠（谒见）的山头做事才遇）」会折成两行半） */
+.stat-rows > span.ev-unseen{ display:block; }
+.stat-rows > span.ev-unseen .ev-hint{
+  display:block; margin-top:1px; padding-left:2px;
+  font-style:normal; font-size:11px; color:var(--ink-4); line-height:1.45;
+}
+.stat-rows > span.ev-unseen .ev-hint::before{ content:'↳ '; opacity:.7; }
+/* 限定条件小标记（v1.31.125）：一条见闻要挑时间 / 挑地点才遇得上，
+   标记比一整句线索更容易扫。只有九个字号大小，别抢了名字的位置。 */
+.ev-cond{
+  display:inline-block; min-width:14px; margin-right:4px; padding:0 3px;
+  font-style:normal; font-size:10px; line-height:14px; text-align:center;
+  border-radius:3px; border:1px solid currentColor; vertical-align:1px;
+  opacity:.85;
+}
+/* 选择器要带上 `.stat-rows > span.ev-unseen`（0,3,0），否则被父级的灰字压掉——
+   实测确认：只写 .ev-cond-* 时算出来还是 rgb(126,120,106)。 */
+.stat-rows > span.ev-unseen .ev-cond-night{ color:#8fa4c4; }   /* 夜：偏靛 */
+.stat-rows > span.ev-unseen .ev-cond-dry{ color:#c79a63; }     /* 旱：偏赭 */
+.stat-rows > span.ev-unseen .ev-cond-wet{ color:#7fa8b4; }     /* 雨：偏青 */
+.stat-rows > span.ev-unseen .ev-cond-rare{ color:#c08a4a; }    /* 稀：偏金 */
+.stat-rows > span.ev-unseen .ev-cond-away{ color:#9a9a92; }    /* 离：中性灰 */
+/* 线索里能点的（异迹两条）：字色往上提一档、下划线点睛，说明「这块能按」
+   ——与正文同色会让人以为是灰字注释，不会去按。 */
+.stat-rows .linklike{
+  background:none; border:none; padding:0; font:inherit; color:var(--ink-3);
+  text-decoration:underline dotted; text-underline-offset:2px; cursor:pointer;
+}
+.stat-rows .linklike::after{ content:' ›'; opacity:.55; }
+/* 异迹索引里被「点线索」跳过来的那一行：左边一道朱线，一眼找到 */
+.hetero-row.focus{ background:var(--tai-w); box-shadow:inset 3px 0 0 var(--tai); }
+/* 异迹索引里的「此处可遇见闻」小星：未遇是空心灰、已遇是实心金
+   ——它是「还能不能捡到新东西」的记号，不抢名字的主位，所以做成 11px 贴在名字后面 */
+.hr-ev{ font-style:normal; font-size:10.5px; margin-left:4px; color:var(--ink-4); opacity:.75; }
+.hr-ev.on{ color:var(--jin); opacity:1; }
+/* 节点详情里的「此处可遇某条见闻」：坐在行动按钮下面一行，未遇时偏灰（是机会不是成就），
+   已遇时转赭金并带次数（是记录）。11.5px，不抢按钮的视线。 */
+.nd-ev-note{ margin:8px 0 2px; font-size:11.5px; color:var(--ink-4); line-height:1.5; }
+.nd-ev-note i{ font-style:normal; margin-right:3px; opacity:.8; }
+.nd-ev-note.got{ color:var(--jin); }
+/* 节点详情里的征兆行：凶红吉绿各占一头，与顶栏 buff 的红绿口径一致 */
+.nd-omen-note{ margin:6px 0 2px; font-size:11.5px; line-height:1.5; }
+.nd-omen-note.bad{ color:var(--zhu); }
+.nd-omen-note.good{ color:var(--tai); }
 .stat-rows > span > i{ font-size:10.5px; color:var(--ink-4); margin-left:6px; }
 .stat-rows.gather-rows{ margin-top:10px; border-top:1px solid var(--rule-2); padding-top:8px; }
 .stat-rows.ms-rows span.done{ color:var(--tai); }
@@ -2390,7 +2448,7 @@ body.no-scroll{ overflow:hidden; }
   #topbar .title{ display:inline-flex; align-items:center; font-size:11px; letter-spacing:.02em; }
   #topbar .title > b:not(#nickTag),
   #topbar .title > i,
-  #topbar .title > small{ display:none; }
+  #topbar .title > small:not(#seasonTag){ display:none; }
   #topbar #nickTag{ margin-left:0; max-width:5.5em; font-size:11px; }
   #topbar #nickTag::before{ content:''; }   /* 书名隐去后，前面那道「— 」成了孤零零一横 */
   #topbar::after{ left:16px; right:8px; }
@@ -2400,7 +2458,7 @@ body.no-scroll{ overflow:hidden; }
   }
   #topbar .left::-webkit-scrollbar{ display:none; }
   #topbar .title{ font-size:16px; letter-spacing:.14em; }
-  #topbar .title small{ display:none; }
+  #topbar .title small:not(#seasonTag){ display:none; }   /* 季名要留（v1.31.124）：它是玩法状态，不是装饰 */
   #topbar .stat{ padding-left:10px; }
   #topbar .stat .lb{ font-size:9px; letter-spacing:.1em; }
   #topbar .stat b{ font-size:13.5px; }
@@ -3217,7 +3275,7 @@ details.hetero-panel .hp-left{ margin-left:auto; font-style:normal; color:var(--
     <header id="topbar">
       <div class="left">
         <span class="seal" aria-hidden="true"><i>山</i><i>海</i></span>
-        <span class="title"><b>山海经</b><i>著录</i><small>南山经</small><b id="nickTag" class="hidden"></b></span>
+        <span class="title"><b>山海经</b><i>著录</i><small id="seasonTag">旱季</small><b id="nickTag" class="hidden"></b></span>
         <span class="stat" data-s="级" title="总等级：二十六门技艺之和">
           <i class="lb">总等级</i><b id="totalLevel">0</b>
         </span>
@@ -17233,6 +17291,13 @@ const TUNING = {
     XP: 0.30,           // 每转：修为 +30%
     YIELD: 0.10,        // 每转：采获 +10%（折算产量约合 +5%）
   },
+  // 季节（v1.31.129）：六小时一候，旱 / 雨轮转。原先三个消费点各写一遍 ±30%——
+  // 顶栏 title、山志节点标签、采集结算，任何一处改数都会立刻分叉。
+  // 收进 TUNING 之后只有这一个数，三处都读它。
+  SEASON: {
+    SEC: 6 * 3600,     // 一候六小时
+    RIVER: 0.30,       // 教山「冬干而夏流」：雨季渔获 +30%、旱季 −30%
+  },
   // 二周目难度带（卷二，v1.31.17）：玩家战力上限就在九九（81 级满装）——轮回印只加修为与采获，
   // 遗物只加防御气血，所以卷二**不能**按「再来 81 级」排（162 级的怪对满装玩家无解）。
   // 改为固定一条 82–90 的带：原 Lv1–9 → 82、Lv10–18 → 83 … Lv73–81 → 90，
@@ -19650,9 +19715,12 @@ const Milestones = [
   { id:'event_5', name:'见闻初录', desc:'行旅见闻见过 5 种',
     prog:()=>[eventKindsSeen(), 5], bonus:'经验 +1%', xp:0.01,
     how:'采集、讨伐、制作时偶有见闻；离山归来也可能有一条「不在时」。挂机就会遇到，不必刻意刷。', go:{ tab:'stats' } },
+  { id:'event_12', name:'山海谈客', desc:'行旅见闻见过 12 种',
+    prog:()=>[eventKindsSeen(), 12], bonus:'经验 +2%', xp:0.02,
+    how:'过半即成谈客。异迹之地（观象 / 山祠 / 灌木）、压着征兆的山、以及旱 / 雨两季各有专属见闻——见闻录里未见的那几条前面有小标记（夜 / 旱 / 雨 / 稀 / 离），照着标记挑时间去。', go:{ tab:'stats' } },
   { id:'event_all', name:'山海谈丛', desc:'行旅见闻见全（路上与不在时）',
     prog:()=>[eventKindsSeen(), eventKindsTotal()], bonus:'采获 +2%', yield:0.02,
-    how:'统计页「行旅见闻」按两组列出未见的那几条。珍稀的两条概率低，急不得——这本书本来就是慢慢翻的。', go:{ tab:'stats' } },
+    how:'统计页「行旅见闻」按两组列出未见的那几条，前面的小标记就是它等的条件。珍稀的两条概率低，季节两条要等六小时一转——急不得，这本书本来就是慢慢翻的。', go:{ tab:'stats' } },
   { id:'pilgrim_13', name:'半壁山河', desc:'走遍十三个山系的诸山',
     prog:()=>[pilgrimFullCount(), 13], bonus:'采集速度 +5%', gather:0.05,
     how:'全书二十六系，走完一半。北山三系与东山四系各有一条长线，正好凑够十三。', go:{ tab:'yudi' } },
@@ -19886,7 +19954,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.103',
+  version: '1.31.129',
   codename:'昼巡 · 近况',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -20924,6 +20992,20 @@ function applySave(d){
     Game.events = Object.assign({ at: 0, count: 0, lastId: '', seen: {}, awayAt: 0, lastAt: 0 },
                                 (d.events && typeof d.events === 'object') ? d.events : {});
     if (Game.events && !Game.events.seen) Game.events.seen = {}
+    // 清掉「表里已没有」的旧见闻 id（v1.31.128）：改名 / 下架的见闻会在 seen 里留键，
+    // 虽然求和只扫当前表、不会算错，但这些键会一直跟着存档走，越攒越多。
+    // 判据取「当前两张表」——见闻表的唯一来源在 events.js，这里只读不抄。
+    {
+      const known = new Set(
+        ((typeof window !== 'undefined' && window.TRAVEL_EVENTS) || [])
+          .concat((typeof window !== 'undefined' && window.AWAY_EVENTS) || [])
+          .map(e => e && e.id).filter(Boolean)
+      );
+      if (known.size && Game.events.seen && typeof Game.events.seen === 'object'){
+        Object.keys(Game.events.seen).forEach(k => { if (!known.has(k)) delete Game.events.seen[k]; });
+        if (Game.events.lastId && !known.has(Game.events.lastId)) Game.events.lastId = '';
+      }
+    }
     // 装备淬炼等级（旧档无此字段，缺省为空；非法值剔除）
     // 上限取当前 ENHANCE_MAX——这里曾写死 9，强化上限提到 30 时忘了同步，
     // 结果强到 +20 的装备一刷新就掉回 +9。凡是「另一处定义的常量」，
@@ -22158,8 +22240,14 @@ window.useConsumable = useConsumable;
 // ---------- 地理特性 ----------
 // 三处山在数据里写了设定（白沙山「尽沙」、洹山「三桑百仞」、教山「冬干而夏流」），
 // 此前只有 note 文案、没有机制。此处各给一个轻量效果，山志上也会标出来。
-const SEASON_SEC = 6 * 3600;                                     // 一候六小时，旱 / 雨轮转
-function seasonPhase(){ return Math.floor(gameTime() / SEASON_SEC) % 2; }   // 0 旱 1 雨
+// 一候六小时（数值在 TUNING.SEASON，别在这里再写一份）
+const SEASON_SEC = (typeof TUNING !== 'undefined' && TUNING.SEASON && TUNING.SEASON.SEC) || 6 * 3600;
+// 季节（v1.31.124 修）：原来直接 `Math.floor(t/SEC) % 2`，而 JS 的 % 对负数返回负值——
+// 读档把 time 归零之前（或旧档里 time 极小、被扣成负数时）会得到 **-1**。
+// 旧消费方写的是 `seasonPhase() ? A : B`，-1 是真值 → 错判成雨季；新消费方写
+// `=== 0` / `=== 1`，-1 两头都不算 → 季节见闻整季消失。两种错都很隐蔽。
+// 归一到 0/1 是 helper 的责任，不该让每个消费方各写一遍防负。
+function seasonPhase(){ const n = Math.floor(gameTime() / SEASON_SEC); return ((n % 2) + 2) % 2; }   // 0 旱 1 雨
 function seasonName(){ return seasonPhase() ? '雨季' : '旱季'; }
 function geoOf(nodeId){ return (window.SPECIAL_NODES || {})[nodeId] || null; }
 function hasBeast(id){ return Object.values(Game.deployed || {}).indexOf(id) >= 0; }
@@ -22176,10 +22264,15 @@ function geoGatherBonus(nodeId){
   if (!sp) return 0;
   let b = 0;
   if (sp.climb) b += 0.10;                             // 登高而取，所得更丰
-  if (sp.seasonalRiver) b += seasonPhase() ? 0.30 : -0.30;   // 冬干而夏流
+  // 冬干而夏流：雨季 +、旱季 −。数值只有 TUNING.SEASON.RIVER 一份。
+  if (sp.seasonalRiver){
+    const r = (typeof TUNING !== 'undefined' && TUNING.SEASON && TUNING.SEASON.RIVER) || 0.30;
+    b += seasonPhase() ? r : -r;
+  }
   return b;
 }
 window.seasonPhase = seasonPhase; window.seasonName = seasonName;
+window.seasonRiverBonus = function(){ return (typeof TUNING !== 'undefined' && TUNING.SEASON && TUNING.SEASON.RIVER) || 0.30; };
 window.geoGatherMul = geoGatherMul; window.geoGatherBonus = geoGatherBonus; window.hasBeast = hasBeast;
 
 // ---------- 采集 ----------
@@ -28115,7 +28208,7 @@ const TRAVEL_EVENTS = [
     },
   },
   {
-    id: 'yese', name: '夜色如墨', weight: 2,
+    id: 'yese', name: '夜色如墨', weight: 2, hint: '只在夜里出现', cond: 'night',
     // 只在夜间主题下出现：同一趟山，白天与夜里读到的句子不该一样。
     when(){ return (typeof sceneNight === 'function') && sceneNight(); },
     run(){
@@ -28127,7 +28220,31 @@ const TRAVEL_EVENTS = [
     },
   },
   {
-    id: 'gubei', name: '古碑可读', weight: 1, rare: true,
+    id: 'hanjing', name: '旱井见底', weight: 3, hint: '只在旱季出现', cond: 'dry',
+    // 季节（v1.31.124）：旱 / 雨六小时轮转，山上的物候本来就该跟着变。
+    // 与「夜里」同理——后者看主题，前者看 seasonPhase()，两者互不影响、可叠加。
+    when(){ return (typeof seasonPhase === 'function') && seasonPhase() === 0; },
+    run(){
+      const lv = (typeof levelOf === 'function') ? levelOf('puyi') : 1;
+      const xp = 11 + Math.round(lv * 0.5);
+      if (typeof gainXp === 'function') gainXp('puyi', xp);
+      return { log: `🏜️ 旱得久了，井底只剩一层湿泥，倒是认得出土色（圃艺 +${xp}）`,
+               toast: `🏜️ 旱井见底\n圃艺 +${xp}` };
+    },
+  },
+  {
+    id: 'yuzu', name: '雨后新涨', weight: 3, hint: '只在雨季出现', cond: 'wet',
+    when(){ return (typeof seasonPhase === 'function') && seasonPhase() === 1; },
+    run(){
+      const lv = (typeof levelOf === 'function') ? levelOf('caiyu') : 1;
+      const xp = 12 + Math.round(lv * 0.5);
+      if (typeof gainXp === 'function') gainXp('caiyu', xp);
+      return { log: `🌊 雨过溪涨，浑水裹着落叶往下冲，鱼都浮到浅处（采渔 +${xp}）`,
+               toast: `🌊 雨后新涨\n采渔 +${xp}` };
+    },
+  },
+  {
+    id: 'gubei', name: '古碑可读', weight: 1, rare: true, hint: '珍稀 · 概率极低，多走多遇', cond: 'rare',
     // 珍稀：三条技艺一起给，量不大但「一份顶三份」，稀有度靠 weight=1 与文案体现。
     run(){
       const g = (id) => ((typeof levelOf === 'function') ? levelOf(id) : 1);
@@ -28153,12 +28270,109 @@ const TRAVEL_EVENTS = [
       return { log: `🪙 拾得旧贝一串（贝 +${shells}）`, toast: `🪙 贝 +${shells}` };
     },
   },
+  // ── 异迹专属（v1.31.105）：站在「异迹之地」（观瑞 / 观象 / 谒见 / 灌木所在的山头）
+  //    做事时才可能撞见。当 ctx.nodeId 是异迹节点、且该节点的事还没做完时才出手——
+  //    「此事有灵」的暗示要能落到「还没做的那件事」上，不然是空话。
+  {
+    id: 'yiji_ling', name: '此地有灵', weight: 2, hint: '在观瑞 / 观象之地采集、讨伐才遇', go: 'hetero',
+    when(ctx){
+      const k = heteroKindAt(ctx && ctx.nodeId);
+      return k === '观瑞' || k === '观象';
+    },
+    run(ctx){
+      const lv = (typeof levelOf === 'function') ? levelOf('guanxiang') : 1;
+      const xp = 11 + Math.round(lv * 0.5);
+      if (typeof gainXp === 'function') gainXp('guanxiang', xp);
+      const where = (typeof nodeOf === 'function') ? (nodeOf(ctx.nodeId) || {}).name : '';
+      return { log: `✨ ${where ? where + '的' : ''}云气不散，像有谁在看你——观象悟得些门道（观象经验 +${xp}）`,
+               toast: `✨ 观象经验 +${xp}` };
+    },
+  },
+  {
+    // 灌木（养成）地：玉膏 / 器酸 / 精卫填海这类「一天一点」的长线。
+    // 它最缺的从来不是奖励，而是「有人在看着它长」的感觉——所以这条见闻给的东西很轻
+    // （一点点贝 + 一句看着它变了的描述），重在「有人陪你等」。
+    id: 'yiji_miao', name: '苗有新色', weight: 2, hint: '在灌木 / 养成之地做事才遇', go: 'hetero',
+    when(ctx){ return heteroKindAt(ctx && ctx.nodeId) === '灌木'; },
+    run(ctx){
+      const lv = (typeof levelOf === 'function') ? levelOf('zhulu') : 1;
+      const shells = 10 + lv * 2;
+      Game.shells = (Game.shells || 0) + shells;
+      Game.stats.totalEarned = (Game.stats.totalEarned || 0) + shells;
+      const where = (typeof nodeOf === 'function') ? (nodeOf(ctx.nodeId) || {}).name : '';
+      return { log: `🌱 ${where ? where + '的' : ''}灌木比昨日厚了一指，叶背翻出新色（贝 +${shells}）`,
+               toast: `🌱 苗有新色 · 贝 +${shells}` };
+    },
+  },
+  // ── 征兆专属（v1.31.119）：这座山此刻压着征兆时才可能出现。
+  //    凶兆条写「可以怎么办」（祠祀祓除 / 御使駮），吉兆条写「趁现在」——
+  //    征兆面板只报「有什么」，见闻负责说「这跟你脚下这座山有什么关系」。
+  {
+    id: 'zhao_xiong', name: '凶兆压山', weight: 2, hint: '在压着凶兆的山头做事才遇', go: 'omen',
+    when(ctx){
+      const d = activeOmenAt(ctx && ctx.nodeId);
+      return !!d && d.polarity === '凶';
+    },
+    run(ctx){
+      const lv = (typeof levelOf === 'function') ? levelOf('bushi') : 1;
+      const xp = 10 + Math.round(lv * 0.5);
+      if (typeof gainXp === 'function') gainXp('bushi', xp);
+      const d = activeOmenAt(ctx.nodeId) || {};
+      const where = (typeof nodeOf === 'function') ? (nodeOf(ctx.nodeId) || {}).name : '';
+      const canYi = d.war && typeof deployableBeasts === 'function';
+      const tip = canYi ? '御使駮可御兵灾' : '可往祠祀卜筮祓除';
+      return { log: `⚠️ ${where ? where + '的' : ''}鸟兽都在往山外走——${d.type || '凶'}之兆压着这座山（卜祀经验 +${xp} · ${tip}）`,
+               toast: `⚠️ 凶兆压山 · 卜祀经验 +${xp}` };
+    },
+  },
+  {
+    id: 'zhao_ji', name: '吉气临山', weight: 2, hint: '在压着吉兆的山头做事才遇', go: 'omen',
+    when(ctx){
+      const d = activeOmenAt(ctx && ctx.nodeId);
+      return !!d && d.polarity === '吉';
+    },
+    run(ctx){
+      const lv = (typeof levelOf === 'function') ? levelOf('zhulu') : 1;
+      const xp = 9 + Math.round(lv * 0.5);
+      if (typeof gainXp === 'function') gainXp('zhulu', xp);
+      const d = activeOmenAt(ctx.nodeId) || {};
+      const where = (typeof nodeOf === 'function') ? (nodeOf(ctx.nodeId) || {}).name : '';
+      return { log: `🌿 ${where ? where + '的' : ''}草木今天格外精神——${d.type || '吉'}之气正盛，趁现在多收些（著录经验 +${xp}）`,
+               toast: `🌿 吉气临山 · 著录经验 +${xp}` };
+    },
+  },
+  {
+    id: 'yiji_zhu', name: '祠前老祝', weight: 2, hint: '在有山祠（谒见）的山头做事才遇', go: 'hetero',
+    when(ctx){ return heteroKindAt(ctx && ctx.nodeId) === '谒见'; },
+    run(ctx){
+      const lv = (typeof levelOf === 'function') ? levelOf('bushi') : 1;
+      const xp = 10 + Math.round(lv * 0.5);
+      if (typeof gainXp === 'function') gainXp('bushi', xp);
+      const shells = 8 + lv * 2;
+      Game.shells = (Game.shells || 0) + shells;
+      Game.stats.totalEarned = (Game.stats.totalEarned || 0) + shells;
+      const where = (typeof nodeOf === 'function') ? (nodeOf(ctx.nodeId) || {}).name : '';
+      return { log: `🕯️ ${where ? where + '的' : ''}山祠前有老祝扫叶，与你说起山神的脾气（卜祀经验 +${xp} · 贝 +${shells}）`,
+               toast: `🕯️ 卜祀经验 +${xp} · 贝 +${shells}` };
+    },
+  },
 ];
 
 // 见闻的「可视化」：glyph 浮在现场画面上，wash 给现场罩一层短暂的气候/光线。
 // 单列一张表而不是塞回每条事件里——这是纯表现，和「给什么奖励」正交，
 // 改配色时不该碰奖励逻辑（反之亦然）。
 // wash 只有三种：rain（雨）/ glow（光）/ star（星）。多了就不是「一层薄雾」，是换皮肤。
+// 限定条件的标签表（v1.31.125）：见闻表里写成结构化的 cond，界面靠这张表出小标记。
+// 为什么不用 hint 文案反推：文案是给玩家读的句子，随时可能改字；条件是数据，
+// 改文案不该让标记消失。表在 events.js（跟着见闻表走），界面只读，不自己维护一份。
+const EVENT_COND = {
+  night: { label:'夜',  title:'只在夜间出现' },
+  dry:   { label:'旱',  title:'只在旱季出现（六小时一转）' },
+  wet:   { label:'雨',  title:'只在雨季出现（六小时一转）' },
+  rare:  { label:'稀',  title:'珍稀 · 概率极低' },
+  away:  { label:'离',  title:'离山归来才可能听说' },
+};
+
 const EVENT_VIS = {
   canjian:  { glyph:'📜', wash:'glow' },
   yuhou:    { glyph:'🌧️', wash:'rain' },
@@ -28174,6 +28388,13 @@ const EVENT_VIS = {
   lianhuo:  { glyph:'🔥', wash:'glow' },
   yese:     { glyph:'🌙', wash:'star' },
   gubei:    { glyph:'🗿', wash:'star' },
+  yiji_ling:{ glyph:'✨', wash:'star' },
+  yiji_zhu: { glyph:'🕯️', wash:'glow' },
+  yiji_miao:{ glyph:'🌱', wash:'' },
+  zhao_xiong:{ glyph:'⚠️', wash:'' },
+  zhao_ji:  { glyph:'🌿', wash:'glow' },
+  hanjing:  { glyph:'🏜️', wash:'' },
+  yuzu:     { glyph:'🌊', wash:'rain' },
 };
 const EV_WASH_MS = 2600;   // 与 CSS 的动画时长对齐（见 style.css 的 .sc-ev-*）
 
@@ -28188,7 +28409,7 @@ const AWAY_GAP = 1800;        // 两次离线见闻至少隔半小时（游戏�
 
 const AWAY_EVENTS = [
   {
-    id: 'away_laike', name: '山客来访', weight: 3,
+    id: 'away_laike', name: '山客来访', weight: 3, hint: '离山归来才可能听说', cond: 'away',
     run(sec, sum){
       // 按离山时长缩放，但封顶：挂 12 小时不该比挂 1 小时多出十倍彩头
       const h = Math.min(3, sec / 3600);
@@ -28268,7 +28489,7 @@ function maybeAwayEvent(seconds, summary){
 }
 
 // 抽取：先分「见过 / 没见过」两层，再在层内按原权重轮盘（v1.31.98）。
-// 缘由：18 条见闻 + 90 秒冷却，挂一小时能撞三十多次，于是同一条反复出现——
+// 缘由：二十来条见闻 + 90 秒冷却，挂一小时能撞三十多次，于是同一条反复出现——
 // 玩家记住的会是「又是残简」，而不是「这本书里有多少种事」。
 //
 // 为什么不是「按已见次数给权重打折」：试过。折扣一开，没见过的每一分都相对变重，
@@ -28287,6 +28508,29 @@ function pickByWeight(pool, seen){
   let r = Math.random() * total, pick = from[from.length - 1];
   for (const e of from){ r -= e.weight; if (r <= 0){ pick = e; break; } }
   return pick;
+}
+
+// 活跃征兆查询（v1.31.119）：某节点此刻压着什么征兆（凶 / 吉）。
+// 征兆按「触发兽的产地」挂，查「该节点相关的活跃征兆」要看 Game.omens 里的 id → OMENS[k].node。
+// 引擎没挂上（OMENS 为空）时返回 null，事件自然不入选。
+function activeOmenAt(nodeId){
+  if (!nodeId || typeof OMENS === 'undefined' || !Game.omens) return null;
+  const now = (typeof gameTime === 'function') ? gameTime() : 0;
+  for (const o of Game.omens){
+    const def = OMENS[o.id];
+    // 把「还剩多久」（o.until，实例上的）合进返回值——定义里没有这个字段，
+    // 最初版漏了它，节点详情的「应验期满」显示成 0 秒。
+    if (def && def.node === nodeId && o.until > now) return Object.assign({}, def, { until: o.until });
+  }
+  return null;
+}
+
+// 异迹 kind 查询：某节点是不是异迹之地（观瑞 / 观象 / 谒见 / 灌木），是哪一类。
+// 供「异迹专属见闻」的 when 用；引擎没挂上时返回空串（事件自然不入选）。
+function heteroKindAt(nodeId){
+  if (!nodeId || typeof heteroSites !== 'function') return '';
+  const s = heteroSites().find(x => x.nodeId === nodeId);
+  return s ? s.kind : '';
 }
 
 function eventsState(){
@@ -28331,7 +28575,7 @@ function maybeEvent(ctx, force){
   // 分类单列 'event'：见闻原先记在 'sys' 里，和「技能升级」「已存档」混作一堆，
   // 想回看「这一夜遇见了什么」得在系统消息里翻。
   if (out.log && typeof log === 'function') log(out.log, 'gold', 'event');
-  // toast 里带上「已见 N/18 种」：见闻的价值在种类，这个数就是收集进度。
+  // toast 里带上「已见 N/总数 种」：见闻的价值在种类，这个数就是收集进度。
   // 只加在 toast 上，日志文案不动——日志是回溯用的，多一个数字反而打断句子。
   if (out.toast && typeof UI !== 'undefined' && UI && UI.toast){
     const k = (typeof eventKindsSeen === 'function') ? eventKindsSeen() : 0;
@@ -28342,6 +28586,12 @@ function maybeEvent(ctx, force){
     UI.toast(lines.join('\n'));
   }
   flashEvent(pick.id);
+  // 首次见到珍稀的那一条，单独再说一句（v1.31.112）：
+  // 珍稀权重 1，见一次可能就是几小时的运气；只混在普通 toast 里过一眼太可惜。
+  // 判据用「本次之前见过几次」——必须在上面 st.seen 自增之后仍能判，所以取 ===1。
+  if (pick.rare && st.seen[pick.id] === 1 && typeof UI !== 'undefined' && UI && UI.toast){
+    setTimeout(() => { try { UI.toast('珍稀见闻 · ' + (pick.name || pick.id) + '\n这一条极难遇上，已记入见闻录'); } catch(e){} }, 900);
+  }
   return { id: pick.id, ...out };
 }
 
@@ -28404,8 +28654,11 @@ if (typeof window !== 'undefined'){
   window.maybeAwayEvent = maybeAwayEvent;
   window.pickByWeight = pickByWeight;
   window.EVENT_VIS = EVENT_VIS;
+  window.EVENT_COND = EVENT_COND;
   window.EV_WASH_MS = EV_WASH_MS;
   window.maybeEvent = maybeEvent;
+  window.heteroKindAt = heteroKindAt;
+  window.activeOmenAt = activeOmenAt;
   window.flashEvent = flashEvent;
   window.eventCount = eventCount;
   window.eventKindsSeen = eventKindsSeen;
@@ -29068,14 +29321,24 @@ const UI = {
     // 切页入场：整块内容一次性归位，取代逐元素延迟造成的拖沓
     const c = $('content');
     if (c && changed && c.classList){
+      // v1.31.126：原先用 `void c.offsetWidth` 强制重排来重启动画——而这里刚做完
+      // `content.innerHTML = ...`，那次重排要排版整页，webkit 实测 151ms，全花在
+      // 「点了页签→页面出现」之间，就是切页卡的元凶。同一个效果不必同步强排：
+      // 先把 class 摘掉，到下一帧再挂上，浏览器自然会在两帧之间重算，动画照样从头播。
       c.classList.remove('enter');
-      void c.offsetWidth;          // 重排以重启动画
-      c.classList.add('enter');
+      clearTimeout(this._enterTimer);
+      const addEnter = ()=>{
+        // 期间又切了别的页：这次入场就算了，免得两页的动画互相打断
+        if (this.currentTab !== tab) return;
+        c.classList.add('enter');
+        this._enterTimer = setTimeout(()=>c.classList.remove('enter'), 480);
+      };
+      const raf = (typeof requestAnimationFrame === 'function') ? requestAnimationFrame : null;
+      if (raf) raf(addEnter);
+      else if (typeof setTimeout === 'function') setTimeout(addEnter, 16);
       // ⚠️ 动画播完必须摘掉 class：`#content.enter > *` 是「任何直接子元素」，
       // 留着它，之后每次局部重绘（战斗结束重建目标列表等）新节点都会重新匹配、
       // 再播一遍淡入 + 位移——连战时整页每几秒闪一下，正是「征伐页卡顿」的观感来源
-      clearTimeout(this._enterTimer);
-      this._enterTimer = setTimeout(()=>c.classList.remove('enter'), 480);
     }
     scrollActiveTabIntoView();
     this.closeDrawer();
@@ -29121,7 +29384,18 @@ const UI = {
     if (fn && this[fn]) this[fn]();                  // 包装层已负责补页头条
     this.renderTopbar();
     this.refreshActivity();
-    this.fitGhostScrollbar();
+    // 幽灵滚动条的测量延到下一帧（v1.31.126）：它要读 scrollHeight，而刚改完 DOM 的
+    // 第一次读会强制整页布局——webkit 实测 131ms，正好夹在「点了页签」和「页面出现」
+    // 之间，体感就是切页卡。它只是为了收掉一条几乎滑不动的滚动条，晚一帧完全够。
+    this.fitGhostScrollbarSoon();
+  },
+  // 每帧只排一次：连续切页时不必排队多次测量
+  fitGhostScrollbarSoon(){
+    if (this._ghostRAF) return;
+    const run = ()=>{ this._ghostRAF = 0; try { this.fitGhostScrollbar(); } catch (e) {} };
+    const raf = (typeof requestAnimationFrame === 'function') ? requestAnimationFrame : null;
+    if (raf) this._ghostRAF = raf(run) || 1;
+    else if (typeof setTimeout === 'function') this._ghostRAF = setTimeout(run, 16) || 1;
   },
   // 页头等级条 + 页尾下一步：各页渲染完后就地插入（不侵入各页 HTML 模板）
   renderPageLevel(){
@@ -29140,19 +29414,32 @@ const UI = {
   // 浏览器于是画出一条「几乎滑不动」的竖滚动条。这里量一次真实溢出：
   //   溢出 ≤ 留白量 → 说明多出来的正是留白，收窄留白即可让页面正好贴住视口底；
   //   溢出 > 留白量 → 内容本身就超高，滚动条是必要的，留白保持不动。
+  //
+  // v1.31.126 性能修正：原实现每次都先 `apply(base)` 写回基准、再读 scrollHeight，
+  // 是 4 次**强制同步布局**串成一条依赖链（写→读→写→读）。webkit 上实测 130ms，
+  // 而技能页真正的渲染只要 8ms——「切页卡」几乎全花在这里。
+  // 现在：只在「结果与当前值不同」时写一次；值没变就直接返回，一次重排都不触发。
   fitGhostScrollbar(){
     const de = document.documentElement;
     const app = document.getElementById('app');
     if (!de || !app) return;
     const base = parseFloat(getComputedStyle(de).getPropertyValue('--app-pad-b-base')) || 28;
-    const apply = (v)=>{ de.style.setProperty('--app-pad-b', Math.max(0, v) + 'px'); };
-    apply(base);                                   // 先回到基准，避免沿用上一次的收窄值
+    // 上次已经定过的值：同一页反复刷（挂机时的定时重绘）不该再量一遍
+    const curRaw = de.style.getPropertyValue('--app-pad-b');
+    const cur = curRaw ? parseFloat(curRaw) : NaN;
+    const apply = (v)=>{
+      const s = Math.max(0, v) + 'px';
+      if (de.style.getPropertyValue('--app-pad-b') !== s) de.style.setProperty('--app-pad-b', s);
+    };
+    // 回到基准只是为了量得准。若当前已经在基准上，这次写可以省掉。
+    if (!(cur >= base - 0.5)) apply(base);
     const over = de.scrollHeight - de.clientHeight;
     if (over <= 0) return;                         // 本来就不溢出，留白照旧
     if (over > base) return;                       // 内容自身超高，滚动条必要，不动
-    apply(base - over);                            // 溢出全在留白里：收窄到刚好贴住底
+    const want = Math.max(0, base - over);
+    apply(want);                                   // 溢出全在留白里：收窄到刚好贴住底
     const over2 = de.scrollHeight - de.clientHeight;
-    if (over2 > 0) apply(Math.max(0, base - over - over2));
+    if (over2 > 0) apply(Math.max(0, want - over2));
   },
   // 相邻页签切换（移动端左右滑）
   switchTabNeighbor(dir){
@@ -29686,6 +29973,20 @@ UI.renderTopbar = function(){
     if (nt.textContent !== nn) nt.textContent = nn;
     nt.title = nn;
     nt.classList.remove('hidden');
+  }
+  // 季节（v1.31.124）：原先书脊上写死「南山经」四个字，永远不变、也不指任何东西。
+  // 换成旱 / 雨轮转的季名：它真影响玩法（教山渔获 ±30%、两条季节见闻），
+  // 而玩家此前只有在山志里点开节点才看得到——一条影响收益的状态不该藏那么深。
+  const sn = $('seasonTag');
+  if (sn){
+    const wet = (typeof seasonPhase === 'function') && seasonPhase() === 1;
+    const name = (typeof seasonName === 'function') ? seasonName() : (wet ? '雨季' : '旱季');
+    if (sn.textContent !== name) sn.textContent = name;
+    sn.classList.toggle('wet', !!wet);
+    // 百分比也只有一个来源：seasonRiverBonus() 读 TUNING.SEASON.RIVER。
+    // 原先这里写死「+30%」，改数值时顶栏会说谎。
+    const rb = Math.round(((typeof seasonRiverBonus === 'function') ? seasonRiverBonus() : 0.30) * 100);
+    sn.title = (wet ? '雨季' : '旱季') + '：教山渔获 ' + (wet ? '+' : '−') + rb + '%（六小时一转）';
   }
   // 增益图标处于书脊最右：这里只更新计数与明暗，内容在点开浮层时才生成。
   this.renderBuffBtn();
@@ -30971,10 +31272,11 @@ if (typeof window !== 'undefined'){
   window.sceneSig = sceneSig;
 }
 
-// ===== ui/world.js =====
-// ===== ui/world.js — 舆地（区域 / 节点 / 异迹索引）与技能页（技能卡 / 配方 / 田地 / 三签） =====
-// 由 src/ui.js 拆分而来（v1.31.8）。加载顺序见 index.html：core 必须最先（UI 对象在这里定义），
-// 其余按页顺序；跨文件调用的函数与常量都在全局词法环境里，运行时才求值，先后不影响调用。
+// ===== ui/yudi.js =====
+// ===== ui/yudi.js — 舆地（区域 / 节点 / 异迹索引 / 采集模态） =====
+// 由 ui/world.js 拆分而来（v1.31.104）：舆地归舆地，技能页归 ui/skills.js。
+// 加载顺序见 index.html：core 必须最先（UI 对象在这里定义）；跨文件调用的函数与
+// 常量都在全局词法环境里，运行时才求值，先后不影响调用。
 
 // ================= 舆地 =================
 // 节点著录进度：统计该节点可著录的物产/异兽中已著录数量
@@ -31064,6 +31366,20 @@ UI.faunaChipHtml = function(sel, f){
 
 // 统计页「异迹」那一格点进来：展开索引并滚到它跟前。
 // 光给数字不给去路，玩家看完还是得一座座山翻。
+// 跳到异迹索引里的**某一处**并选中它（v1.31.107）：
+// 「异迹专属见闻」说了「在观象之地才遇」，玩家下一步自然是「那哪儿有观象地」。
+// 与 gotoHetero 的分别只在最后一步——这里把那一行高亮出来，别让人在 36 行里找。
+UI.gotoHeteroNode = function(nodeId){
+  this.heteroOpen = true;
+  this.heteroFocus = nodeId || '';
+  if (this.currentTab !== 'yudi') this.switchTab('yudi');
+  else this.renderYudi();
+  const el = document.querySelector('details.hetero-panel');
+  if (el && el.scrollIntoView) el.scrollIntoView({ block:'center', behavior:'smooth' });
+  const row = (nodeId && document.querySelector(`.hetero-row.focus`)) || null;
+  if (row && row.scrollIntoView) setTimeout(() => { try { row.scrollIntoView({ block:'center', behavior:'smooth' }); } catch(e){} }, 260);
+};
+
 UI.gotoHetero = function(){
   this.heteroOpen = true;
   if (this.currentTab !== 'yudi') this.switchTab('yudi');
@@ -31076,6 +31392,14 @@ UI.gotoHetero = function(){
 // 每处的按钮只在该山的详情里出现。统计页写着「观象处 3/9」，玩家却没有办法
 // 知道差的那 6 处在哪——只能一座一座山点开看。这里一张表列全：
 // 点一行即选中那座山（看它周围有什么），右侧「往」直接动身。
+// 见闻 id → 名字（索引里挂「此处可遇某条见闻」用；表找不到就回落成 id，不抛）
+function evNameOf(id){
+  const all = (typeof TRAVEL_EVENTS !== 'undefined' ? TRAVEL_EVENTS : [])
+    .concat(typeof AWAY_EVENTS !== 'undefined' ? AWAY_EVENTS : []);
+  const e = all.find(x => x.id === id);
+  return e ? (e.name || id) : id;
+}
+
 function heteroPanelHtml(){
   if (typeof heteroSites !== 'function') return '';
   const list = heteroSites();
@@ -31095,11 +31419,18 @@ function heteroPanelHtml(){
     ${list.map(x => {
       const gap = Math.max(0, x.level - yl);
       const prog = x.prog ? ` · ${Math.min(x.prog.got, x.prog.total)}/${x.prog.total}` : '';
-      return `<div class="hetero-row ${x.done ? 'done' : ''} ${x.unlocked ? '' : 'lock'}"
+      // 这一处关联的见闻（v1.31.108）：观象 / 观瑞地关联「此地有灵」，谒见地关联「祠前老祝」。
+      // 索引与见闻录自此互为两面：在这边看得见「还差哪条见闻」，在见闻录那边点线索又能回来。
+      const evId = HETERO_EVENT[x.kind] || '';
+      const evSeen = evId && Game.events && Game.events.seen ? (Game.events.seen[evId] || 0) : 0;
+      const evTag = !evId ? ''
+        : (evSeen ? `<i class="hr-ev on" title="此处可遇见闻「${esc(evNameOf(evId))}」，已遇 ${evSeen} 次">✦</i>`
+                  : `<i class="hr-ev" title="在此做事有机会遇到见闻「${esc(evNameOf(evId))}」">✦</i>`);
+      return `<div class="hetero-row ${x.done ? 'done' : ''} ${x.unlocked ? '' : 'lock'} ${UI.heteroFocus === x.nodeId ? 'focus' : ''}"
           title="${esc(x.gain)}${prog}"
           onclick="UI.selRegion='${esc(x.regionId)}';UI.selNode='${esc(x.nodeId)}';UI.renderYudi()">
         <span class="hr-kind k-${x.kind}">${x.kind}</span>
-        <span class="hr-name">${esc(x.name)}${x.done ? '<i class="hr-ok">已得</i>' : ''}</span>
+        <span class="hr-name">${esc(x.name)}${evTag}${x.done ? '<i class="hr-ok">已得</i>' : ''}</span>
         <span class="hr-where">${esc(x.nodeName)}${x.regionName ? ` · ${esc(x.regionName)}` : ''}</span>
         <span class="hr-gain">${esc(x.gain)}${prog}</span>
         ${x.unlocked
@@ -31266,6 +31597,8 @@ UI.renderYudi = function(){
         ${combatButtonsForNode(sel)}
         ${un && !here && !nodeHasUsableAction(sel) ? `<button class="btn" onclick="travelTo('${sel.id}')">涉足此山</button>` : ''}
       </div>
+      ${nodeEventNote(sel)}
+      ${nodeOmenNote(sel)}
       <div class="nd-body">
         ${sel.terrain?`<p class="nd-terrain">${esc(sel.terrain)}</p>`:''}
         ${specialNodeNote(sel)||''}
@@ -31514,6 +31847,39 @@ function growButtonForNode(node){
 }
 // 特殊节点的「地气」：原文设定之外，把它实际影响什么写清楚。
 // 尽沙 / 百仞 / 干河三处原先只有一句原文，玩家不知道走进去会怎样。
+// 异迹类别 → 该地可遇的见闻 id。**唯一来源**（v1.31.115）：
+// 索引的 ✦ 与节点详情的提示都查这张表。此前两处各写一份三元嵌套，
+// 加灌木那一条时差点只改了一处——两份口径一旦分叉，玩家会看到「索引说有、详情说没有」。
+const HETERO_EVENT = { '观象':'yiji_ling', '观瑞':'yiji_ling', '谒见':'yiji_zhu', '灌木':'yiji_miao' };
+if (typeof window !== 'undefined') window.HETERO_EVENT = HETERO_EVENT;
+
+// 此山可遇的见闻（v1.31.114）：站在观象 / 祠 / 灌木之地时，把「在这里接着做事还能撞见什么」
+// 写在行动按钮下面。索引那一头已经能在上帝视角看全，这里补的是**脚下这一座山**的视角——
+// 「我人都到这儿了，还能得点什么」是玩家此刻最想知道的。
+function nodeEventNote(node){
+  const kind = (typeof heteroKindAt === 'function') ? heteroKindAt(node && node.id) : '';
+  if (!kind) return '';
+  const id = HETERO_EVENT[kind];
+  if (!id || typeof evNameOf !== 'function') return '';
+  const n = (Game.events && Game.events.seen) ? (Game.events.seen[id] || 0) : 0;
+  return `<div class="nd-ev-note${n ? ' got' : ''}" title="见闻：${esc(evNameOf(id))}">
+    <i>✦</i> 在此处做事${n ? '，已遇见过闻「' : '，有机会遇见闻「'}${esc(evNameOf(id))}${n ? `」（${n} 次）` : '」'}
+  </div>`;
+}
+
+// 此山此刻的征兆（v1.31.120）：压着活跃征兆时，详情里写明类型、吉凶与还剩多久。
+// 顶栏 buff 图标是「全站视角」，这里是「脚下视角」——玩家正看着这座山时，
+// 不该要他想起来去点右上角。过往的（已过期）不显示，避免详情页堆尸体。
+function nodeOmenNote(node){
+  if (typeof activeOmenAt !== 'function') return '';
+  const d = activeOmenAt(node && node.id);
+  if (!d) return '';
+  const ago = Math.max(0, (d.until || 0) - (typeof gameTime === 'function' ? gameTime() : 0));
+  const mark = d.polarity === '凶' ? '🔴' : d.polarity === '吉' ? '🟢' : '🟡';
+  const rem = (typeof fmtDur === 'function') ? fmtDur(ago) : Math.round(ago / 60) + ' 分';
+  return `<div class="nd-omen-note ${d.polarity === '凶' ? 'bad' : 'good'}">${mark} 征兆·${esc(d.type)}（${esc(d.beast)}）压着此山 · ${rem} 后应验期满</div>`;
+}
+
 function specialNodeNote(node){
   const sp = SPECIAL_NODES[node.id];
   if (!sp) return '';
@@ -31525,7 +31891,9 @@ function specialNodeNote(node){
   if (sp.climb) tags.push('百仞：采集迟缓 ×1.18，所得更丰 +10%');
   if (sp.seasonalRiver){
     const wet = typeof seasonPhase === 'function' && seasonPhase();
-    tags.push(`${typeof seasonName === 'function' ? seasonName() : '旱季'}：渔获 ${wet ? '+30%' : '−30%'}（六小时一转）`);
+    // 百分比不在此处写死：读 TUNING.SEASON.RIVER（经 seasonRiverBonus 暴露）
+    const rb = Math.round(((typeof seasonRiverBonus === 'function') ? seasonRiverBonus() : 0.30) * 100);
+    tags.push(`${typeof seasonName === 'function' ? seasonName() : '旱季'}：渔获 ${wet ? '+' : '−'}${rb}%（六小时一转）`);
   }
   return `<div class="special-note">★ ${esc(sp.note||'')}${tags.length
     ? `<div class="geo-tags">${tags.map(t=>`<span class="geo-tag">${esc(t)}</span>`).join('')}</div>` : ''}</div>`;
@@ -31538,6 +31906,31 @@ function nodeMythBlock(node){
 // ⚠️ v1.31.50：此前只给池里第一件物的**主产地**——「金」明明产于 42 座山，
 // 技能卡却只写「招摇之山」。现在走引擎的 skillSourceNodes（候选集）
 // 与 pickReachableNode（挑一处现在能去的），与采集、图鉴两层同源。
+function codexNode(e){
+  if (!e) return null;
+  const nodeId = (typeof codexReachableNode === 'function') ? codexReachableNode(e) : null;
+  if (!nodeId) return null;
+  for (const r of (WORLD.regions||[])){
+    const n = (r.nodes||[]).find(nn=>nn.id===nodeId);
+    if (n) return { nodeId:n.id, regionId:r.regionId };
+  }
+  return null;
+}
+// 遗物加成的人话版：{ xp:0.02 } → 「经验 +2%」
+function relicText(r){
+  const NAME = { xp:'经验', yield:'采获', def:'防御', hp:'气血' };
+  return Object.entries(r.bonus || {}).map(([k, v]) => `${NAME[k] || k} +${Math.round(v * 100)}%`).join(' · ');
+}
+
+// 见闻名字查询给测试与浮层用（同文件内的索引渲染直接调）
+if (typeof window !== 'undefined') window.evNameOf = evNameOf;
+
+// ===== ui/skills.js =====
+// ===== ui/skills.js — 技能页（技能卡 / 配方 / 田地 / 三签 / 轮回） =====
+// 由 ui/world.js 拆分而来（v1.31.104）。
+
+// 以下三组自 ui/world.js 拆分而来（v1.31.104）：技能材料的产地定位、配方式样记忆与滚动保持，
+// 都只服务于技能页（图鉴 / 行囊的浮层也复用 nodeForSkill 系）。
 function nodeForSkill(skillId){
   const nodeId = (typeof skillReachableNode === 'function') ? skillReachableNode(skillId) : null;
   if (!nodeId) return null;
@@ -31625,27 +32018,7 @@ function materialStatusForSkill(skillId){
 // 已经改成认 nodes[] 全集 —— 同一件事两个口径。46 件物的主产地锁着、别的山已开着，
 // 图鉴却指着主产地说「需 41 级」，玩家以为要练到 41 级。
 // 现在产地候选集统一由引擎的 codexSourceNodes 给，这里只负责挑一处并补上 regionId。
-function codexNode(e){
-  if (!e) return null;
-  const nodeId = (typeof codexReachableNode === 'function') ? codexReachableNode(e) : null;
-  if (!nodeId) return null;
-  for (const r of (WORLD.regions||[])){
-    const n = (r.nodes||[]).find(nn=>nn.id===nodeId);
-    if (n) return { nodeId:n.id, regionId:r.regionId };
-  }
-  return null;
-}
-// 遗物加成的人话版：{ xp:0.02 } → 「经验 +2%」
-function relicText(r){
-  const NAME = { xp:'经验', yield:'采获', def:'防御', hp:'气血' };
-  return Object.entries(r.bonus || {}).map(([k, v]) => `${NAME[k] || k} +${Math.round(v * 100)}%`).join(' · ');
-}
 
-// ================= 技能 =================
-// ---------- 制作配方的「默认分类」（v1.31.40） ----------
-// 原先写死停在「燔燎」：玩家练到 70 级，每次进技能页都得先点三四下才找到要做的配方。
-// 现在的口径是「能做的最高级配方在哪一栏，就停在哪一栏」——这一栏几乎总是玩家想要的；
-// 手动选过之后则记住那次选择（Prefs.recipeSkill），不再自动跳。
 function pickRecipeKind(){
   // 判定在引擎层（game.js 的 defaultRecipeKind）：只有一处定义，测试也能直接跑
   if (typeof defaultRecipeKind === 'function') return defaultRecipeKind();
@@ -32233,6 +32606,7 @@ function estimateOfflineGains(hours){
   return { seconds:sec, xp, items };
 }
 
+
 // ===== ui/combat.js =====
 // ===== ui/combat.js — 征伐（异兽列表 / 竞技场 / 战斗估值）与御使（入槽 / 卸下） =====
 // 由 src/ui.js 拆分而来（v1.31.8）。加载顺序见 index.html：core 必须最先（UI 对象在这里定义），
@@ -32754,7 +33128,7 @@ function refreshTabBadges(){
 }
 
 // ===== ui/codex.js =====
-// ===== ui/codex.js — 图鉴（五阶揭示 / 未录筛选）与祠祀（礼制 / 征兆 / 卜筮） =====
+// ===== ui/codex.js — 图鉴（五阶揭示 / 未录筛选）。祠祀已拆至 shrine.js（v1.31.123） =====
 // 由 src/ui.js 拆分而来（v1.31.8）。加载顺序见 index.html：core 必须最先（UI 对象在这里定义），
 // 其余按页顺序；跨文件调用的函数与常量都在全局词法环境里，运行时才求值，先后不影响调用。
 
@@ -33240,6 +33614,8 @@ function showCodexDetail(id){
 }
 window.showCodexDetail = showCodexDetail;
 
+
+// ===== ui/shrine.js =====
 // ================= 祠祀 =================
 // 征兆面板 HTML（整页渲染与就地补绘共用）：总效应 / 分档 chips / 方块网格 / 禳解行
 function omenPanelHtml(){
@@ -33904,7 +34280,11 @@ UI.openBuildModal = function(id){
     <div class="modal-btns">${actions}<button class="btn" onclick="UI.closeModal()">取消</button></div>`);
 };
 
-// ===== ui/pack.js =====
+// ===== ui/queue.js =====
+// ===== ui/queue.js — 行动（巡历队列：编排 / 兜底 / 进度） =====
+// 由 ui/pack.js 拆分而来（v1.31.118）：队列归队列，行装归 pack，物品详情归 item。
+// 加载顺序见 index.html：core 必须最先（UI 对象在这里定义）；跨文件调用的函数与
+// 常量都在全局词法环境里，运行时才求值，先后不影响调用。
 // ===== ui/pack.js — 行动（巡历队列）与行装（装备 / 行囊 / 物品详情） =====
 // 由 src/ui.js 拆分而来（v1.31.8）。加载顺序见 index.html：core 必须最先（UI 对象在这里定义），
 // 其余按页顺序；跨文件调用的函数与常量都在全局词法环境里，运行时才求值，先后不影响调用。
@@ -34056,6 +34436,10 @@ function queueDropBlockedWithToast(){
 window.queueDupWithToast = queueDuplicateWithToast;
 window.queueDropWithToast = queueDropBlockedWithToast;
 window.addQueueTask = addQueueTask;
+
+// ===== ui/pack.js =====
+// ===== ui/pack.js — 行装（装备 / 行囊清单 / 清整） =====
+// v1.31.118：队列拆去 ui/queue.js，物品详情拆去 ui/item.js——本文件只留「背包本体」。
 
 // ================= 行装 =================
 // 一键最优装：换上行囊中同槽位最强的一件（按装备评分比较，等级不足者不换）
@@ -34277,6 +34661,10 @@ function gearSubText(g){
   if (g.effect) parts.push(g.effect);
   return parts.join(' · ');
 }
+
+// ===== ui/item.js =====
+// ===== ui/item.js — 物品详情（用途 / 出处 / 淬炼面板 / 买卖 / 配方详情） =====
+// 由 ui/pack.js 拆分而来（v1.31.118）。点开一件东西的「这有什么用」全在这。
 // 「这东西有什么用」——671 件物品里有 514 件不参与任何配方，玩家点开只见出处，
 // 采完之后不知道该留着还是卖掉。这里把用途一次说清：哪些配方拿它当料、
 // 是否祠礼祭品、能否作种，若一无所用则直说「暂无合用之方」并给出回收价。
@@ -34878,6 +35266,10 @@ UI.refreshItemModal = function(itemId){
   else if (box2) box2.scrollTop = y;
 };
 
+
+// ===== ui/enhance.js =====
+// ===== ui/enhance.js — 淬炼（等待演出 / 品阶权重 / 强化一次到顶 / 重铸） =====
+// 由 ui/pack.js 拆分而来（v1.31.118）：「落锤→揭晓」的仪式自成一段，与详情渲染正交。
 // 锁定面板上的强化按钮：演出期间不接受第二次点击
 // ---------- 淬炼的「等待」（v1.31.42） ----------
 // 强化原先只在动效为「全」时才有 1.25 秒演出；设为「轻」或「关」（省电、老设备）就退回瞬间出结果——
@@ -35059,7 +35451,10 @@ UI.reforgeNow = function(itemId){
 
 window.showItemDetail = showItemDetail;
 
-// ===== ui/misc.js =====
+
+// ===== ui/stats.js =====
+// ===== ui/stats.js — 统计（四栏总账 / 行旅见闻 / 成就 / 近况）与祠礼开关 =====
+// 由 ui/misc.js 拆分而来（v1.31.122）：统计归统计，叙录归 misc，浮层与启动归 boot。
 // ===== ui/misc.js — 统计、叙录、详情浮层、初始化（init） =====
 // 由 src/ui.js 拆分而来（v1.31.8）。加载顺序见 index.html：core 必须最先（UI 对象在这里定义），
 // 其余按页顺序；跨文件调用的函数与常量都在全局词法环境里，运行时才求值，先后不影响调用。
@@ -35150,10 +35545,25 @@ UI.renderStats = function(){
       // 调试时也可能只重置 count），求和是唯一自洽的口径。
       const total = evs.reduce((a, e) => a + (seen[e.id] || 0), 0);
       const kinds = evs.filter(e => seen[e.id]).length;
+      // 未见的条目带上「去哪儿能撞见」的线索（e.hint，v1.31.106）：
+      // 「未见」两个字只会让人干瞪眼，线索才让人动身。见过的不再啰嗦。
+      // 限定条件的小标记（v1.31.125）：25 条见闻里有一半要挑时间 / 挑地点，
+      // 原先只有读完整句线索才知道「这条要蹲雨季」——扫一眼看不出哪条在等什么。
+      // 标记只在未见时出现：见过的条目已经是战绩，不需要再提醒怎么弄到。
+      const condTag = (e) => {
+        const d = (window.EVENT_COND || {})[e.cond];
+        return d ? `<i class="ev-cond ev-cond-${esc(e.cond)}" title="${esc(d.title)}">${esc(d.label)}</i>` : '';
+      };
       const cell = (e) => {
         const n = seen[e.id] || 0;
         return n ? `<span>${esc(e.name || e.id)} <b>${n}</b></span>`
-                 : `<span class="hint">${esc(e.name || e.id)} · 未见</span>`;
+                 : `<span class="hint ev-unseen">${condTag(e)}${esc(e.name || e.id)} · 未见${e.hint
+                     ? `<em class="ev-hint">${e.go === 'hetero'
+                         ? `<button class="linklike" type="button" onclick="UI.gotoHetero()">${esc(e.hint)}</button>`
+                         : (e.go === 'omen'
+                         ? `<button class="linklike" type="button" onclick="UI.switchTab('jisi')">${esc(e.hint)}</button>`
+                         : esc(e.hint))}</em>`
+                     : ''}</span>`;
       };
       // 分两组：「路上遇见的」与「不在时错过的」是两种心情，
       // 混在一堆里读不出「我离开时山里发生过什么」。
@@ -35340,6 +35750,10 @@ UI.renderStats = function(){
     UI.patchStats();
   }, 800);
 };
+
+// ===== ui/misc.js =====
+// ===== ui/misc.js — 叙录（关于本作）/ 日志 / 存档导入导出 / 划动手势 =====
+// v1.31.122：统计拆去 stats.js，详情浮层与 init 拆去 boot.js——本文件只留「杂项本项」。
 // ================= 叙录（关于本作） =================
 // 「叙录」者，古者校书，每一书毕，条其篇目、撮其指意而奏之。
 // 此页答三问：此为何书、书中所志何物、此刻是何版本。
@@ -35648,6 +36062,10 @@ function bindSwipeGestures(){
   }, { passive:true });
 }
 
+
+// ===== ui/boot.js =====
+// ===== ui/boot.js — 详情浮层（Tip）与应用启动（init / 无障碍清扫） =====
+// 由 ui/misc.js 拆分而来（v1.31.122）。加载顺序必须在最后：init 会触碰所有页面的渲染器。
 // ================= 详情浮层（PC 悬停 / 移动端底部抽屉） =================
 // 用法：<button class="..." data-tip>摘要<span class="tip-body hidden">详情HTML</span></button>
 // PC：悬停锚点即出浮层；移动端 / 触屏：点按锚点切换。窄屏下浮层贴底变为
@@ -35989,6 +36407,7 @@ window.structureEffectRows = structureEffectRows;
 
 window.init = init;
 window.UI = UI;
+
 
 </script>
 </body>

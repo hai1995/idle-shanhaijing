@@ -66,6 +66,22 @@ if (process.argv.includes('--full')){
 step('数据审计', () => run(path.join('scripts', 'audit-data.js')));
 step('单文件版构建', () => run(path.join('scripts', 'build-standalone.js')));
 
+// 1.8 单文件产物版本：.gitignore 写着「构建产物不入库」，但线上仓库里确实躺着
+//     一份历史遗留的 idle-shanhaijing-standalone.html（有人收藏了直链）。产物一旦
+//     落后，从那个链接打开的人拿到的是旧版，页面上还没有任何提示。
+//     这里在每次构建后比对产物内的 GAME_META 版本，落后就报出来。
+step('单文件产物版本（与 GAME_META 一致）', () => {
+  const p = path.join(root, 'idle-shanhaijing-standalone.html');
+  if (!fs.existsSync(p)) throw new Error('单文件产物不存在（先跑构建）');
+  const out = fs.readFileSync(p, 'utf8');
+  const m = /version:\s*'([0-9.]+)'/.exec(out);
+  if (!m) throw new Error('单文件产物里找不到 version');
+  if (m[1] !== pkg.version) throw new Error(`产物 v${m[1]} ≠ package.json ${pkg.version}（重新构建）`);
+  // 抽查一个当期特征串：只有版本号对、内容却没跟上时（比如手工改过产物）也能发现
+  if (!out.includes('seasonTag')) throw new Error('产物缺少当期标记 seasonTag，内容不是最新源码');
+  return 'v' + m[1] + ' ' + (fs.statSync(p).size / 1024).toFixed(0) + ' KB';
+});
+
 const total = ((Date.now() - t0) / 1000).toFixed(1);
 if (failed){
   console.log(`\n✗ ${failed} 步未通过（${total}s）`);
