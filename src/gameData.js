@@ -2449,6 +2449,9 @@ const Milestones = [
   { id:'event_5', name:'见闻初录', desc:'行旅见闻见过 5 种',
     prog:()=>[eventKindsSeen(), 5], bonus:'经验 +1%', xp:0.01,
     how:'采集、讨伐、制作时偶有见闻；离山归来也可能有一条「不在时」。挂机就会遇到，不必刻意刷。', go:{ tab:'stats' } },
+  { id:'event_12', name:'山海谈客', desc:'行旅见闻见过 12 种',
+    prog:()=>[eventKindsSeen(), 12], bonus:'经验 +2%', xp:0.02,
+    how:'过半即成谈客。异迹之地（观象 / 山祠 / 灌木）与压着征兆的山各有专属见闻，专往那儿走收得快。', go:{ tab:'stats' } },
   { id:'event_all', name:'山海谈丛', desc:'行旅见闻见全（路上与不在时）',
     prog:()=>[eventKindsSeen(), eventKindsTotal()], bonus:'采获 +2%', yield:0.02,
     how:'统计页「行旅见闻」按两组列出未见的那几条。珍稀的两条概率低，急不得——这本书本来就是慢慢翻的。', go:{ tab:'stats' } },
@@ -2685,7 +2688,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.120',
+  version: '1.31.121',
   codename:'昼巡 · 近况',
   updated: '2026-10-26',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',

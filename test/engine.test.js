@@ -9341,8 +9341,13 @@ section('见闻成就');
   assert(ST.eventKindsSeen() === 5, '离线见闻也计入（5 种）');
 
   const ms5 = (ST.Milestones || []).find(m => m.id === 'event_5');
+  const ms12 = (ST.Milestones || []).find(m => m.id === 'event_12');
   const msAll = (ST.Milestones || []).find(m => m.id === 'event_all');
-  assert(ms5 && msAll, '两条见闻成就都在表里');
+  assert(ms5 && ms12 && msAll, '三档见闻成就都在表里');
+  // 三档的门槛递增且都在可达范围（12 档的 how 引导去异迹 / 征兆地，v1.31.119 的联动要接上）
+  assert(ms12.xp === 0.02 && ms12.prog()[1] === 12, '「山海谈客」门槛 12、奖励经验 +2%');
+  assert(/异迹|征兆/.test(ms12.how), '中间档的说明给出专属见闻的收集路径');
+  assert(ms5.prog()[1] < ms12.prog()[1] && ms12.prog()[1] < 23, '三档门槛递增');
   assert(ms5.check() === true, '见过 5 种时「见闻初录」达成');
   assert(msAll.check() === false, '未集齐时「山海谈丛」未达成');
 
