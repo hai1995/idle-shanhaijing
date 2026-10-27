@@ -121,7 +121,9 @@ UI.patchQueueProgress = function(){
   });
   const hint = box.querySelector('.queue-ctrl .hint');
   if (hint){
-    const t = `已完成 ${Game.queueRound} 轮`;
+    // 轮次之外再给一个「几点跑完」：相对时长要自己在心里换算，绝对时刻才好安排。
+    const clock = (typeof queueFinishClock === 'function') ? queueFinishClock() : '';
+    const t = `已完成 ${Game.queueRound} 轮` + (clock ? ` · 约 ${clock} 完` : '');
     if (hint.textContent !== t) hint.textContent = t;
   }
 };
@@ -150,7 +152,10 @@ UI.patchQueueChip = function(){
   const rem = (typeof queueRemainSeconds === 'function') ? queueRemainSeconds() : 0;
   // 循环模式标出「第几轮」：否则挂一整夜回来，只看见「队列 3/5」，不知道已经跑完两圈
   const loop = Game.queueLoop ? ` · 第 ${(Game.queueRound|0) + 1} 轮` : '';
-  const t = `队列 ${pos}${loop}` + (rem >= 1 ? ` · 约 ${fmtTime(rem)}` : '');
+  // 剩余时长之外再带一个「几点完」：芯片上放得下「约 19:42」，
+  // 而「还差 1 小时 20 分」要玩家自己换算——挂机时最想知道的就是这个。
+  const clock = (typeof queueFinishClock === 'function') ? queueFinishClock() : '';
+  const t = `队列 ${pos}${loop}` + (rem >= 1 ? (clock ? ` · 约 ${clock} 完` : ` · 约 ${fmtTime(rem)}`) : '');
   if (el.textContent !== t) el.textContent = t;
   // 芯片可点（v1.31.156）：title 兼作「点了去哪」的说明；受阻时会被上面的原因文案顶掉，正合用
   const tip = '前往巡历队列';

@@ -719,6 +719,18 @@ section('状态条队列芯片');
   assert(!chip.classList.contains('hidden'), '队列在跑：芯片显示');
   assert(/^队列 1\/1/.test(chip.textContent), '芯片写「队列 1/1」-> ' + chip.textContent);
   assert(chip.textContent.includes('约'), '芯片带预计剩余 -> ' + chip.textContent);
+  // 「几点跑完」比「还差多久」更有用：挂机的人要拿它安排下一步（v1.31.164）
+  assert(/\d{2}:\d{2}/.test(chip.textContent), '芯片给出完成时刻（HH:MM）-> ' + chip.textContent);
+  {
+    const fx = new Date('2026-03-01T10:00:00').getTime();
+    const ck = ST.queueFinishClock(fx);
+    assert(/^\d{2}:\d{2}$/.test(ck), 'queueFinishClock 返回 HH:MM -> ' + ck);
+    const remS = ST.queueRemainSeconds();
+    const exp = new Date(fx + remS * 1000);
+    const want = String(exp.getHours()).padStart(2, '0') + ':' + String(exp.getMinutes()).padStart(2, '0');
+    assert(ck === want, '完成时刻 = 现在 + 队列剩余 -> ' + ck + ' / ' + want);
+    assert(ST.queueFinishClock(fx) === ck, '同一时刻重复取值稳定（每秒刷新不会抖动）');
+  }
 
   // 循环模式标出「第几轮」：挂一整夜回来只看见「队列 3/5」，不知道已经跑完两圈
   ST.Game.queueLoop = true; ST.Game.queueRound = 2;

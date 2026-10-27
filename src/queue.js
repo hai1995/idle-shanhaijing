@@ -125,6 +125,18 @@ function queueRemainSeconds(){
   return s;
 }
 
+// 完成时刻（HH:MM）：「还差 1 小时 20 分」要自己在心里换算成几点，
+// 「19:42 完」才是一眼能用来安排事的答案——挂机游戏最常问的就是「几点能跑完」。
+function queueFinishClock(now){
+  if (!Game.queueRunning) return '';
+  const s = queueRemainSeconds();
+  if (!(s >= 1)) return '';
+  const d = new Date((typeof now === 'number' ? now : Date.now()) + s * 1000);
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return hh + ':' + mm;
+}
+
 // ---------- 可执行性 ----------
 function entryCanRun(e){
   if (!e) return { ok:false, reason:'空任务' };
@@ -560,6 +572,7 @@ if (typeof window !== 'undefined'){
   window.estimateQueueSeconds = estimateQueueSeconds;
   window.estimateEntrySeconds = estimateEntrySeconds;
   window.queueRemainSeconds = queueRemainSeconds;
+  window.queueFinishClock = queueFinishClock;
   window.entryCanRun = entryCanRun;
   window.startQueue = startQueue;
   window.pauseQueue = pauseQueue;
