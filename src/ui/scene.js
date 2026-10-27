@@ -384,14 +384,20 @@ function sceneSig(s){
 UI.renderScene = function(){
   const bar = (typeof document !== 'undefined') ? document.getElementById('sceneBar') : null;
   if (!bar) return;
+  // #statusbar 是 #sceneBar 的常驻兄弟节点（v1.31.145）：叠在现场顶部、融入动画画面。
+  // 这里只重建 .sc-wrap，绝不动 #statusbar——否则动作条会被清掉，动画也随之归零。
+  const sb = (typeof document !== 'undefined') ? document.getElementById('statusbar') : null;
   const on = !(typeof Prefs !== 'undefined' && Prefs.sceneOn === false);
   const s = on ? sceneState() : null;
   // 现场显示时，仪表带那根细进度条要收起来（v1.31.55）：
   // 同一件事（挖到几分）在屏幕上下各画一根，是纯冗余。进度改由现场底部那根承担。
-  const sb = (typeof document !== 'undefined') ? document.getElementById('statusbar') : null;
   if (sb && sb.classList) sb.classList.toggle('scene-on', !!s);
   if (!s){
-    bar.classList.add('hidden'); bar.innerHTML = ''; UI._sceneSig = 'none';
+    // 没有现场：去掉 .sc-wrap（状态条仍在，作为独立带状显示当前行动）；容器始终可见。
+    const wrap = bar.querySelector('.sc-wrap');
+    if (wrap) wrap.remove();
+    bar.classList.remove('hidden');
+    UI._sceneSig = 'none';
     if (UI.stopSceneMotion) UI.stopSceneMotion();
     return;
   }
@@ -401,7 +407,10 @@ UI.renderScene = function(){
     UI._sceneSig = sig;
     UI._sceneKind = s.kind;
     UI._sceneIv = s.iv;
-    bar.innerHTML = sceneHtml(s);
+    // 只换 .sc-wrap：旧的有就删、没有就建，状态条（兄弟节点）原样保留。
+    let wrap = bar.querySelector('.sc-wrap');
+    if (!wrap){ wrap = document.createElement('div'); bar.appendChild(wrap); }
+    wrap.outerHTML = sceneHtml(s);          // 整体替换外壳，内部 id / 动画节点随之刷新
     if (UI.startSceneMotion) UI.startSceneMotion();     // 重建后重新接管
   }
   if (UI.startSceneWatch) UI.startSceneWatch();         // 心跳监护只开一个，重复调用无副作用

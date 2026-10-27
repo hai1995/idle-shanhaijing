@@ -363,6 +363,21 @@ html.theme-anim, html.theme-anim *{
 #btnStop.act-stop:hover{ background:var(--zhu-w); color:var(--zhu); border-color:var(--zhu); }
 /* 空闲时不显示停止，卡片更轻；忙碌态给一点浮起感 */
 #statusbar:not(.running){ opacity:.9; }
+/* —— 融入现场：现场开启时，状态条不再单独成带，而是叠在现场顶部、融入动画画面（v1.31.145）。
+   仅 .scene-on 时切换为绝对定位覆盖；空闲 / 现场关闭时仍退化为独立带状（兜底显示）。
+   覆盖层只在最顶一小条留半透纸色保证文字可读，下方透出动画，因此不再额外占用纵向高度。 */
+#statusbar.scene-on{
+  position:absolute; top:0; left:0; right:0; z-index:3;
+  margin:0; border:none; border-radius:0; box-shadow:none;
+  min-height:0; height:auto; padding:6px 12px;
+  color:var(--ink-2);
+  background:linear-gradient(180deg, rgba(245,242,232,.9) 0%, rgba(245,242,232,.72) 44%, rgba(245,242,232,0) 100%);
+}
+[data-theme="night"] #statusbar.scene-on{
+  background:linear-gradient(180deg, rgba(28,26,22,.9) 0%, rgba(28,26,22,.66) 44%, rgba(28,26,22,0) 100%);
+}
+/* 覆盖层上进度条已收（见下方 .scene-on #actionProg）；窄屏同样去掉圆角留白，贴住画面 */
+#statusbar.scene-on{ gap:10px; }
 
 /* —— 现场：仪表带下方的行动画面（v1.31.54） ——
    采集是这个游戏最核心的动作，此前全部视觉反馈只有仪表带上那根细进度条，
@@ -370,7 +385,7 @@ html.theme-anim, html.theme-anim *{
    山、人、锄、土、收成。纯 SVG / CSS 手写，不引任何图片资源。
    ⚠️ 挂在 index.html 的静态节点上、由 UI.renderScene 增量更新。
       各页是 innerHTML 整块重绘，若现场也在重绘范围内，动画每渲染一次就归零。 */
-#sceneBar{ flex:0 0 auto; }
+#sceneBar{ position:relative; flex:0 0 auto; }
 #sceneBar.hidden{ display:none; }
 
 .sc-wrap{
@@ -3345,17 +3360,19 @@ details.hetero-panel .hp-left{ margin-left:auto; font-style:normal; color:var(--
       </button>
     </header>
 
-    <!-- 动作卡片：原「动作条」收成的一张卡片（v1.31.144）。
-         整卡可点 → 跳到当前行动所在页；右上角 ✕ 停止（阻止冒泡，不触发跳转）。
-         内部 id / class 全部保留，以满足既有测试对动作条结构的硬约束。 -->
-    <div id="statusbar">
-      <span id="activityText" class="act-link">空闲</span>
-      <div id="actionProg" class="hidden"><div id="actionProgFill"></div></div>
-      <button id="btnStop" class="btn-mini act-stop" type="button" title="停止" onclick="event.stopPropagation()">✕</button>
-    </div>
     <!-- 现场：当前行动的小画面（v1.31.54）。静态节点 + 增量更新——
-         若随页面一起 innerHTML 重绘，动画每渲染一次就归零，等于没有动画。 -->
-    <div id="sceneBar" class="hidden"></div>
+         若随页面一起 innerHTML 重绘，动画每渲染一次就归零，等于没有动画。
+         现场内部只重建 .sc-wrap；#statusbar 是它的常驻兄弟节点，绝不被重绘冲掉。
+         状态条由此叠在现场顶部、融入动画画面（v1.31.145）：现场开着时它覆盖在画面上方，
+         空闲 / 现场关闭时退回为独立带状（兜底显示当前行动与停止）。
+         内部 id / class 全部保留，以满足既有测试对动作条结构的硬约束。 -->
+    <div id="sceneBar" class="hidden">
+      <div id="statusbar">
+        <span id="activityText" class="act-link">空闲</span>
+        <div id="actionProg" class="hidden"><div id="actionProgFill"></div></div>
+        <button id="btnStop" class="btn-mini act-stop" type="button" title="停止" onclick="event.stopPropagation()">✕</button>
+      </div>
+    </div>
     <div id="guidance" class="hint-banner hidden"></div>
   </div>
 
@@ -20003,7 +20020,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.144',
+  version: '1.31.145',
   codename:'昼巡 · 近况',
   updated: '2026-10-27',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -31096,14 +31113,20 @@ function sceneSig(s){
 UI.renderScene = function(){
   const bar = (typeof document !== 'undefined') ? document.getElementById('sceneBar') : null;
   if (!bar) return;
+  // #statusbar 是 #sceneBar 的常驻兄弟节点（v1.31.145）：叠在现场顶部、融入动画画面。
+  // 这里只重建 .sc-wrap，绝不动 #statusbar——否则动作条会被清掉，动画也随之归零。
+  const sb = (typeof document !== 'undefined') ? document.getElementById('statusbar') : null;
   const on = !(typeof Prefs !== 'undefined' && Prefs.sceneOn === false);
   const s = on ? sceneState() : null;
   // 现场显示时，仪表带那根细进度条要收起来（v1.31.55）：
   // 同一件事（挖到几分）在屏幕上下各画一根，是纯冗余。进度改由现场底部那根承担。
-  const sb = (typeof document !== 'undefined') ? document.getElementById('statusbar') : null;
   if (sb && sb.classList) sb.classList.toggle('scene-on', !!s);
   if (!s){
-    bar.classList.add('hidden'); bar.innerHTML = ''; UI._sceneSig = 'none';
+    // 没有现场：去掉 .sc-wrap（状态条仍在，作为独立带状显示当前行动）；容器始终可见。
+    const wrap = bar.querySelector('.sc-wrap');
+    if (wrap) wrap.remove();
+    bar.classList.remove('hidden');
+    UI._sceneSig = 'none';
     if (UI.stopSceneMotion) UI.stopSceneMotion();
     return;
   }
@@ -31113,7 +31136,10 @@ UI.renderScene = function(){
     UI._sceneSig = sig;
     UI._sceneKind = s.kind;
     UI._sceneIv = s.iv;
-    bar.innerHTML = sceneHtml(s);
+    // 只换 .sc-wrap：旧的有就删、没有就建，状态条（兄弟节点）原样保留。
+    let wrap = bar.querySelector('.sc-wrap');
+    if (!wrap){ wrap = document.createElement('div'); bar.appendChild(wrap); }
+    wrap.outerHTML = sceneHtml(s);          // 整体替换外壳，内部 id / 动画节点随之刷新
     if (UI.startSceneMotion) UI.startSceneMotion();     // 重建后重新接管
   }
   if (UI.startSceneWatch) UI.startSceneWatch();         // 心跳监护只开一个，重复调用无副作用

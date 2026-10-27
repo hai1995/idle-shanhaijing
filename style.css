@@ -336,6 +336,21 @@ html.theme-anim, html.theme-anim *{
 #btnStop.act-stop:hover{ background:var(--zhu-w); color:var(--zhu); border-color:var(--zhu); }
 /* 空闲时不显示停止，卡片更轻；忙碌态给一点浮起感 */
 #statusbar:not(.running){ opacity:.9; }
+/* —— 融入现场：现场开启时，状态条不再单独成带，而是叠在现场顶部、融入动画画面（v1.31.145）。
+   仅 .scene-on 时切换为绝对定位覆盖；空闲 / 现场关闭时仍退化为独立带状（兜底显示）。
+   覆盖层只在最顶一小条留半透纸色保证文字可读，下方透出动画，因此不再额外占用纵向高度。 */
+#statusbar.scene-on{
+  position:absolute; top:0; left:0; right:0; z-index:3;
+  margin:0; border:none; border-radius:0; box-shadow:none;
+  min-height:0; height:auto; padding:6px 12px;
+  color:var(--ink-2);
+  background:linear-gradient(180deg, rgba(245,242,232,.9) 0%, rgba(245,242,232,.72) 44%, rgba(245,242,232,0) 100%);
+}
+[data-theme="night"] #statusbar.scene-on{
+  background:linear-gradient(180deg, rgba(28,26,22,.9) 0%, rgba(28,26,22,.66) 44%, rgba(28,26,22,0) 100%);
+}
+/* 覆盖层上进度条已收（见下方 .scene-on #actionProg）；窄屏同样去掉圆角留白，贴住画面 */
+#statusbar.scene-on{ gap:10px; }
 
 /* —— 现场：仪表带下方的行动画面（v1.31.54） ——
    采集是这个游戏最核心的动作，此前全部视觉反馈只有仪表带上那根细进度条，
@@ -343,7 +358,7 @@ html.theme-anim, html.theme-anim *{
    山、人、锄、土、收成。纯 SVG / CSS 手写，不引任何图片资源。
    ⚠️ 挂在 index.html 的静态节点上、由 UI.renderScene 增量更新。
       各页是 innerHTML 整块重绘，若现场也在重绘范围内，动画每渲染一次就归零。 */
-#sceneBar{ flex:0 0 auto; }
+#sceneBar{ position:relative; flex:0 0 auto; }
 #sceneBar.hidden{ display:none; }
 
 .sc-wrap{
