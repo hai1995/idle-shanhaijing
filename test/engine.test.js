@@ -9528,6 +9528,58 @@ section('见闻抽取分层');
   G.resetToDefault();
 }
 
+// ============ 178. 见闻的「文案数字 = 账上数字」（2026-10-27） ============
+// 见闻给的是「一句文案 + 一点东西」。文案里写着「贝 +80」，账上就必须是 +80——
+// 这两者一旦漂移，玩家无从发现（数字小、又不进统计口径），
+// 但「说的话不算数」是这类小事件最伤人的失败模式。
+section('见闻账目与文案一致');
+{
+  ST.__eventsMuted = false;
+  const cases = [
+    { id: 'canjian',  ctx: { kind:'gather', itemId:'migu', skillId:'qiaocai' } },
+    { id: 'cangyu',   ctx: { kind:'fight',  monsterId:'baiyuan' } },
+    { id: 'shiyu',    ctx: { kind:'gather', itemId:'migu', skillId:'caiyu' } },
+    { id: 'yuyin',    ctx: { kind:'gather', itemId:'migu', skillId:'yu' } },
+    { id: 'gubei',    ctx: { kind:'gather', itemId:'migu', skillId:'caiyao' } },
+    { id: 'lianhuo',  ctx: { kind:'craft',  itemId:'migu', recipeType:'smith' } },
+  ];
+  let checked = 0;
+  cases.forEach(c => {
+    G.resetToDefault();
+    const ev = ST.TRAVEL_EVENTS.find(e => e.id === c.id);
+    assert(!!ev, '找得到见闻 ' + c.id);
+    if (!ev) return;
+    const beforeShells = ST.Game.shells;
+    const beforeXp = ST.Game.stats.totalXp;
+    const out = ev.run(c.ctx) || {};
+    const logTxt = String(out.log || '');
+    checked++;
+
+    // 贝：文案写「贝 +N」，账上就得是 +N
+    const mShell = /贝 \+(\d+)/.exec(logTxt);
+    if (mShell){
+      const want = parseInt(mShell[1], 10);
+      const delta = ST.Game.shells - beforeShells;
+      assert(delta === want, c.id + '：文案「贝 +' + want + '」实际 +' + delta);
+      assert(ST.Game.stats.totalEarned >= want, c.id + '：贝币计入累计收入（统计页要算进去）');
+    }
+    // 经验：文案里所有「某某 +N」的 N 之和，应等于经验增量（同一条可能给多种技艺）。
+    // ⚠️ 先把「贝 +N」从文案里剔掉，否则贝币会被当成经验算进去（第一版就是这么红的）
+    const noShell = logTxt.replace(/贝 \+\d+/g, '');
+    const nums = [...noShell.matchAll(/\+([\d,]+)(?=\s*(?:·|）|\)|$))/g)].map(m => parseInt(m[1].replace(/,/g, ''), 10));
+    if (nums.length){
+      const wantXp = nums.reduce((a, b) => a + b, 0);
+      const deltaXp = Math.round(ST.Game.stats.totalXp - beforeXp);
+      assert(Math.abs(deltaXp - wantXp) <= 1, c.id + '：文案数字合计 ' + wantXp + '，实际经验 +' + deltaXp);
+    }
+    assert(logTxt.length > 6, c.id + ' 有可读文案');
+  });
+  assert(checked >= 6, '确实逐条跑过 ' + checked + ' 条（不是空转）');
+
+  G.resetToDefault();
+  ST.__eventsMuted = true;
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
