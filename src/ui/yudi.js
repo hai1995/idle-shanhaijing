@@ -97,6 +97,7 @@ UI.faunaChipHtml = function(sel, f){
 UI.gotoHeteroNode = function(nodeId){
   this.heteroOpen = true;
   this.heteroFocus = nodeId || '';
+  this.yudiTab = 'detail';
   if (this.currentTab !== 'yudi') this.switchTab('yudi');
   else this.renderYudi();
   const el = document.querySelector('details.hetero-panel');
@@ -153,7 +154,7 @@ function heteroPanelHtml(){
                   : `<i class="hr-ev" title="在此做事有机会遇到见闻「${esc(evNameOf(evId))}」">✦</i>`);
       return `<div class="hetero-row ${x.done ? 'done' : ''} ${x.unlocked ? '' : 'lock'} ${UI.heteroFocus === x.nodeId ? 'focus' : ''}"
           title="${esc(x.gain)}${prog}"
-          onclick="UI.selRegion='${esc(x.regionId)}';UI.selNode='${esc(x.nodeId)}';UI.renderYudi()">
+          onclick="UI.selRegion='${esc(x.regionId)}';UI.selNode='${esc(x.nodeId)}';UI.yudiTab='detail';UI.renderYudi()">
         <span class="hr-kind k-${x.kind}">${x.kind}</span>
         <span class="hr-name">${esc(x.name)}${evTag}${x.done ? '<i class="hr-ok">已得</i>' : ''}</span>
         <span class="hr-where">${esc(x.nodeName)}${x.regionName ? ` · ${esc(x.regionName)}` : ''}</span>
@@ -179,11 +180,20 @@ UI.renderYudi = function(){
   const h = nextHint();
   const recNodes = recommendedNodes();
 
-  // 指引条只控制自身显隐，地图/山系/节点/详情必须始终渲染（曾因三元表达式包住整页导致关闭指引条后界面全空）
+  // 标签页：山系 / 诸山 / 此山详情（v1.31.179 改上下布局，上方 tabs 下方卡片，替代三栏）
+  let tab = this.yudiTab || 'regions';
+  if (tab === 'detail' && !sel) tab = 'nodes';
+  this.yudiTab = tab;
+  // 指引条只控制自身显隐，山系/节点/详情三面板始终渲染，靠 data-tab 切换显隐（非三元包整页，避免关指引后界面空）
   let html = ((typeof Prefs !== 'undefined' && Prefs.hideHint) ? '' :
     `<div class="hint-banner"><span class="mi-ic">${typeof markIcon==='function'?markIcon(hintMark(h),15):h.icon}</span> <span>${esc(h.text)}</span><button class="hint-close" title="关闭指引条（设置中可重开）" onclick="UI.dismissHint()">✕</button></div>`)
     + gatherAgainBar()
-    + `<div class="map-wrap">
+    + `<div class="yudi-tabs" role="tablist">
+        <button class="ytab ${tab==='regions'?'on':''}" type="button" data-tip data-tip-title="舆地 · 山川" data-wiki="mechanic:yudi" onclick="UI.yudiTab='regions';UI.renderYudi()">山系<span class="tip-body hidden">五经山系之下诸山可点：每座山列出物产、异兽与山志原文；选「采集 / 讨伐」即动身前往。著录阶位愈高，可往的山川愈远。</span></button>
+        <button class="ytab ${tab==='nodes'?'on':''}" type="button" onclick="UI.yudiTab='nodes';UI.renderYudi()">诸山${unlocked?` · ${esc(region.regionName)}`:''}</button>
+        <button class="ytab ${tab==='detail'?'on':''}" type="button" onclick="UI.yudiTab='detail';UI.renderYudi()">此山详情${sel?` · ${esc(sel.name)}`:''}</button>
+      </div>`
+    + `<div class="yudi-body" data-tab="${tab}">
     <div class="panel regions">
       <h3 data-tip data-tip-title="舆地 · 山川" data-wiki="mechanic:yudi">山系<span class="tip-body hidden">五经山系之下诸山可点：每座山列出物产、异兽与山志原文；选「采集 / 讨伐」即动身前往。著录阶位愈高，可往的山川愈远。</span></h3>
       <button type="button" class="locked-toggle" title="展开/收起尚未解锁的山系" onclick="document.body.classList.toggle('show-locked');this.classList.toggle('on')">${typeof markIcon==='function'?markIcon('lock',14):'🔒'} 未解锁山系 ${CHAPTERS.filter(ch=>!regions.filter(r=>ch.regionIds.includes(r.regionId)).some(r=>regionUnlocked(r))).length} 章</button>
@@ -207,7 +217,7 @@ UI.renderYudi = function(){
             // 方块：山系名 + 涉山进度；未解锁只留一把锁与所需等级
             return `<div class="tile region-tile ${r.regionId===this.selRegion?'on':''} ${un?'':'lock'} ${full?'full':''}"
                 title="${esc(r.regionName)}${un ? (todo ? ` · 已涉 ${done}/${r.nodes.length} 山` : ' · 原文已备，诸山待补录') : ` · 需舆地 ${r.unlockLevel} 级`}"
-                onclick="UI.selRegion='${r.regionId}';UI.selNode=null;UI.renderYudi()">
+                onclick="UI.selRegion='${r.regionId}';UI.selNode=null;UI.yudiTab='nodes';UI.renderYudi()">
               <span class="rg-name">${esc(r.regionName)}</span>
               <span class="rg-sub">${un ? (todo ? `${done}/${r.nodes.length} 山` : '待补录') : `${typeof markIcon==='function'?markIcon('lock',13):'🔒'} ${r.unlockLevel} 级`}</span>
               ${un && todo && done > 0 ? `<span class="rg-bar"><i style="width:${(done/r.nodes.length*100).toFixed(0)}%"></i></span>` : ''}
@@ -255,7 +265,7 @@ UI.renderYudi = function(){
         // 方块：山名 + 著录进度；角上挂「在 / 御 / 荐 / ⚠」
         return `<div class="tile node-tile ${this.selNode===n.id?'on':''} ${un?'':'lock'} ${cur?'here':''} ${reason?'rec '+reason:''}"
              title="${esc(n.name)}${rp.total?` · 已著录 ${rp.done}/${rp.total} 种`:''}${!un?' · '+esc(nodeLockReason(n)):''}"
-             onclick="UI.selNode='${n.id}';UI.renderYudi()">
+             onclick="UI.selNode='${n.id}';UI.yudiTab='detail';UI.renderYudi()">
           ${n.hazard?`<span class="nt-haz" title="${esc(n.hazard.detail||n.hazard.type)}">${typeof markIcon==='function'?markIcon('warn',15):'⚠'}</span>`:''}
           ${cur?'<span class="nt-mark here">在</span>'
             : reason==='tame'?'<span class="nt-mark tame" title="可御使的异兽在此">御</span>'

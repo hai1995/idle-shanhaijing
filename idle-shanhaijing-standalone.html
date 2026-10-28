@@ -1178,33 +1178,47 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; background:tran
 .modal-btns{ display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; align-items:center; }
 
 /* ==========================================================================
-   舆地
+   舆地（v1.31.179：改上下布局——上方 tabs 选「山系/诸山/此山详情」，下方卡片区；
+   替代原先 PC 三栏并排，交互更顺）
    ========================================================================== */
-.map-wrap{ display:grid; grid-template-columns:186px 232px minmax(0,1fr); gap:14px; align-items:start; }
+.yudi-body{ position:relative; }
 
-/* 宽屏「书案」布局：三栏各自成卷，各自滚动，整屏不出现大片空白，
-   左侧山系与中间诸山不会把页面拉成一长条 */
+/* 宽屏「书案」布局：标签栏固定，下方卡片区限制在视口内滚动；
+   三面板始终渲染，靠 .yudi-body[data-tab] 切换显隐，避免关指引后整页清空 */
 @media (min-width:1001px){
-  .map-wrap{ align-items:stretch; }
-  .map-wrap > .panel{
-    display:flex; flex-direction:column; min-height:380px;
-    max-height:calc(100vh - var(--topdock-h, 96px) - 108px);
+  .yudi-body{
+    max-height:calc(100vh - var(--topdock-h, 96px) - 168px);
+    overflow-y:auto; padding-right:6px;
   }
-  .region-scroll{ flex:1 1 auto; min-height:0; overflow-y:auto; margin:0 -6px; padding:0 6px; }
-  .map-wrap .node-list{ flex:1 1 auto; min-height:0; overflow-y:auto; }
-  .region-summary{ margin-top:auto; }
-  .node-detail .nd-body{
-    flex:1 1 auto; min-height:0; overflow-y:auto;
-    margin-right:-6px; padding-right:6px;
-  }
-  /* 底部渐隐：提示「下面还有」，避免内容在面板底边被硬切 */
-  .map-wrap > .nodes::after,
-  .map-wrap > .node-detail::after{
-    content:''; position:absolute; left:1px; right:1px; bottom:1px; height:26px;
+  /* 底部渐隐：提示「下面还有」，避免内容在卡片区底边被硬切 */
+  .yudi-body::after{
+    content:''; position:absolute; left:1px; right:7px; bottom:0; height:26px;
     background:linear-gradient(180deg, rgba(246,244,237,0), var(--paper-2) 78%);
-    pointer-events:none; border-radius:0 0 var(--r) var(--r);
+    pointer-events:none;
   }
 }
+
+/* 标签页切换：仅显示当前页面板，其余隐藏 */
+.yudi-body[data-tab="regions"] .nodes,
+.yudi-body[data-tab="regions"] .node-detail{ display:none; }
+.yudi-body[data-tab="nodes"] .regions,
+.yudi-body[data-tab="nodes"] .node-detail{ display:none; }
+.yudi-body[data-tab="detail"] .regions,
+.yudi-body[data-tab="detail"] .nodes{ display:none; }
+
+/* 标签栏 */
+.yudi-tabs{
+  display:flex; gap:4px; margin:0 0 12px; padding:0;
+  border-bottom:1px solid var(--rule);
+}
+.ytab{
+  appearance:none; border:1px solid transparent; background:transparent; cursor:pointer;
+  font-family:var(--f-kai); font-size:14px; letter-spacing:.08em; color:var(--ink-3);
+  padding:7px 14px 9px; margin-bottom:-1px; border-bottom:2px solid transparent;
+  white-space:nowrap; line-height:1;
+}
+.ytab:hover{ color:var(--ink); }
+.ytab.on{ color:var(--zhu-d); border-bottom-color:var(--zhu); font-weight:600; }
 
 /* 山系：小方卡。名在上、涉山进度在下，底部一条细进度线 */
 .region-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(78px,1fr)); gap:6px; padding:2px 0 4px; }
@@ -2769,7 +2783,8 @@ body.no-scroll{ overflow:hidden; }
 
   .panel{ padding:12px 14px 14px; }
   .panel h3{ font-size:15px; }
-  .map-wrap{ grid-template-columns:1fr; gap:12px; }
+  .yudi-tabs{ gap:2px; }
+  .ytab{ padding:7px 10px 8px; font-size:13px; }
   .chapter-block.ch-locked{ display:none; }
   body.show-locked .chapter-block.ch-locked{ display:block; }
   .locked-toggle{
@@ -20278,7 +20293,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.178',
+  version: '1.31.179',
   codename:'昼巡 · 对账',
   updated: '2026-10-28',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -32064,6 +32079,7 @@ UI.faunaChipHtml = function(sel, f){
 UI.gotoHeteroNode = function(nodeId){
   this.heteroOpen = true;
   this.heteroFocus = nodeId || '';
+  this.yudiTab = 'detail';
   if (this.currentTab !== 'yudi') this.switchTab('yudi');
   else this.renderYudi();
   const el = document.querySelector('details.hetero-panel');
@@ -32120,7 +32136,7 @@ function heteroPanelHtml(){
                   : `<i class="hr-ev" title="在此做事有机会遇到见闻「${esc(evNameOf(evId))}」">✦</i>`);
       return `<div class="hetero-row ${x.done ? 'done' : ''} ${x.unlocked ? '' : 'lock'} ${UI.heteroFocus === x.nodeId ? 'focus' : ''}"
           title="${esc(x.gain)}${prog}"
-          onclick="UI.selRegion='${esc(x.regionId)}';UI.selNode='${esc(x.nodeId)}';UI.renderYudi()">
+          onclick="UI.selRegion='${esc(x.regionId)}';UI.selNode='${esc(x.nodeId)}';UI.yudiTab='detail';UI.renderYudi()">
         <span class="hr-kind k-${x.kind}">${x.kind}</span>
         <span class="hr-name">${esc(x.name)}${evTag}${x.done ? '<i class="hr-ok">已得</i>' : ''}</span>
         <span class="hr-where">${esc(x.nodeName)}${x.regionName ? ` · ${esc(x.regionName)}` : ''}</span>
@@ -32146,11 +32162,20 @@ UI.renderYudi = function(){
   const h = nextHint();
   const recNodes = recommendedNodes();
 
-  // 指引条只控制自身显隐，地图/山系/节点/详情必须始终渲染（曾因三元表达式包住整页导致关闭指引条后界面全空）
+  // 标签页：山系 / 诸山 / 此山详情（v1.31.179 改上下布局，上方 tabs 下方卡片，替代三栏）
+  let tab = this.yudiTab || 'regions';
+  if (tab === 'detail' && !sel) tab = 'nodes';
+  this.yudiTab = tab;
+  // 指引条只控制自身显隐，山系/节点/详情三面板始终渲染，靠 data-tab 切换显隐（非三元包整页，避免关指引后界面空）
   let html = ((typeof Prefs !== 'undefined' && Prefs.hideHint) ? '' :
     `<div class="hint-banner"><span class="mi-ic">${typeof markIcon==='function'?markIcon(hintMark(h),15):h.icon}</span> <span>${esc(h.text)}</span><button class="hint-close" title="关闭指引条（设置中可重开）" onclick="UI.dismissHint()">✕</button></div>`)
     + gatherAgainBar()
-    + `<div class="map-wrap">
+    + `<div class="yudi-tabs" role="tablist">
+        <button class="ytab ${tab==='regions'?'on':''}" type="button" data-tip data-tip-title="舆地 · 山川" data-wiki="mechanic:yudi" onclick="UI.yudiTab='regions';UI.renderYudi()">山系<span class="tip-body hidden">五经山系之下诸山可点：每座山列出物产、异兽与山志原文；选「采集 / 讨伐」即动身前往。著录阶位愈高，可往的山川愈远。</span></button>
+        <button class="ytab ${tab==='nodes'?'on':''}" type="button" onclick="UI.yudiTab='nodes';UI.renderYudi()">诸山${unlocked?` · ${esc(region.regionName)}`:''}</button>
+        <button class="ytab ${tab==='detail'?'on':''}" type="button" onclick="UI.yudiTab='detail';UI.renderYudi()">此山详情${sel?` · ${esc(sel.name)}`:''}</button>
+      </div>`
+    + `<div class="yudi-body" data-tab="${tab}">
     <div class="panel regions">
       <h3 data-tip data-tip-title="舆地 · 山川" data-wiki="mechanic:yudi">山系<span class="tip-body hidden">五经山系之下诸山可点：每座山列出物产、异兽与山志原文；选「采集 / 讨伐」即动身前往。著录阶位愈高，可往的山川愈远。</span></h3>
       <button type="button" class="locked-toggle" title="展开/收起尚未解锁的山系" onclick="document.body.classList.toggle('show-locked');this.classList.toggle('on')">${typeof markIcon==='function'?markIcon('lock',14):'🔒'} 未解锁山系 ${CHAPTERS.filter(ch=>!regions.filter(r=>ch.regionIds.includes(r.regionId)).some(r=>regionUnlocked(r))).length} 章</button>
@@ -32174,7 +32199,7 @@ UI.renderYudi = function(){
             // 方块：山系名 + 涉山进度；未解锁只留一把锁与所需等级
             return `<div class="tile region-tile ${r.regionId===this.selRegion?'on':''} ${un?'':'lock'} ${full?'full':''}"
                 title="${esc(r.regionName)}${un ? (todo ? ` · 已涉 ${done}/${r.nodes.length} 山` : ' · 原文已备，诸山待补录') : ` · 需舆地 ${r.unlockLevel} 级`}"
-                onclick="UI.selRegion='${r.regionId}';UI.selNode=null;UI.renderYudi()">
+                onclick="UI.selRegion='${r.regionId}';UI.selNode=null;UI.yudiTab='nodes';UI.renderYudi()">
               <span class="rg-name">${esc(r.regionName)}</span>
               <span class="rg-sub">${un ? (todo ? `${done}/${r.nodes.length} 山` : '待补录') : `${typeof markIcon==='function'?markIcon('lock',13):'🔒'} ${r.unlockLevel} 级`}</span>
               ${un && todo && done > 0 ? `<span class="rg-bar"><i style="width:${(done/r.nodes.length*100).toFixed(0)}%"></i></span>` : ''}
@@ -32222,7 +32247,7 @@ UI.renderYudi = function(){
         // 方块：山名 + 著录进度；角上挂「在 / 御 / 荐 / ⚠」
         return `<div class="tile node-tile ${this.selNode===n.id?'on':''} ${un?'':'lock'} ${cur?'here':''} ${reason?'rec '+reason:''}"
              title="${esc(n.name)}${rp.total?` · 已著录 ${rp.done}/${rp.total} 种`:''}${!un?' · '+esc(nodeLockReason(n)):''}"
-             onclick="UI.selNode='${n.id}';UI.renderYudi()">
+             onclick="UI.selNode='${n.id}';UI.yudiTab='detail';UI.renderYudi()">
           ${n.hazard?`<span class="nt-haz" title="${esc(n.hazard.detail||n.hazard.type)}">${typeof markIcon==='function'?markIcon('warn',15):'⚠'}</span>`:''}
           ${cur?'<span class="nt-mark here">在</span>'
             : reason==='tame'?'<span class="nt-mark tame" title="可御使的异兽在此">御</span>'

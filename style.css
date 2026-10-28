@@ -1151,33 +1151,47 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; background:tran
 .modal-btns{ display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; align-items:center; }
 
 /* ==========================================================================
-   舆地
+   舆地（v1.31.179：改上下布局——上方 tabs 选「山系/诸山/此山详情」，下方卡片区；
+   替代原先 PC 三栏并排，交互更顺）
    ========================================================================== */
-.map-wrap{ display:grid; grid-template-columns:186px 232px minmax(0,1fr); gap:14px; align-items:start; }
+.yudi-body{ position:relative; }
 
-/* 宽屏「书案」布局：三栏各自成卷，各自滚动，整屏不出现大片空白，
-   左侧山系与中间诸山不会把页面拉成一长条 */
+/* 宽屏「书案」布局：标签栏固定，下方卡片区限制在视口内滚动；
+   三面板始终渲染，靠 .yudi-body[data-tab] 切换显隐，避免关指引后整页清空 */
 @media (min-width:1001px){
-  .map-wrap{ align-items:stretch; }
-  .map-wrap > .panel{
-    display:flex; flex-direction:column; min-height:380px;
-    max-height:calc(100vh - var(--topdock-h, 96px) - 108px);
+  .yudi-body{
+    max-height:calc(100vh - var(--topdock-h, 96px) - 168px);
+    overflow-y:auto; padding-right:6px;
   }
-  .region-scroll{ flex:1 1 auto; min-height:0; overflow-y:auto; margin:0 -6px; padding:0 6px; }
-  .map-wrap .node-list{ flex:1 1 auto; min-height:0; overflow-y:auto; }
-  .region-summary{ margin-top:auto; }
-  .node-detail .nd-body{
-    flex:1 1 auto; min-height:0; overflow-y:auto;
-    margin-right:-6px; padding-right:6px;
-  }
-  /* 底部渐隐：提示「下面还有」，避免内容在面板底边被硬切 */
-  .map-wrap > .nodes::after,
-  .map-wrap > .node-detail::after{
-    content:''; position:absolute; left:1px; right:1px; bottom:1px; height:26px;
+  /* 底部渐隐：提示「下面还有」，避免内容在卡片区底边被硬切 */
+  .yudi-body::after{
+    content:''; position:absolute; left:1px; right:7px; bottom:0; height:26px;
     background:linear-gradient(180deg, rgba(246,244,237,0), var(--paper-2) 78%);
-    pointer-events:none; border-radius:0 0 var(--r) var(--r);
+    pointer-events:none;
   }
 }
+
+/* 标签页切换：仅显示当前页面板，其余隐藏 */
+.yudi-body[data-tab="regions"] .nodes,
+.yudi-body[data-tab="regions"] .node-detail{ display:none; }
+.yudi-body[data-tab="nodes"] .regions,
+.yudi-body[data-tab="nodes"] .node-detail{ display:none; }
+.yudi-body[data-tab="detail"] .regions,
+.yudi-body[data-tab="detail"] .nodes{ display:none; }
+
+/* 标签栏 */
+.yudi-tabs{
+  display:flex; gap:4px; margin:0 0 12px; padding:0;
+  border-bottom:1px solid var(--rule);
+}
+.ytab{
+  appearance:none; border:1px solid transparent; background:transparent; cursor:pointer;
+  font-family:var(--f-kai); font-size:14px; letter-spacing:.08em; color:var(--ink-3);
+  padding:7px 14px 9px; margin-bottom:-1px; border-bottom:2px solid transparent;
+  white-space:nowrap; line-height:1;
+}
+.ytab:hover{ color:var(--ink); }
+.ytab.on{ color:var(--zhu-d); border-bottom-color:var(--zhu); font-weight:600; }
 
 /* 山系：小方卡。名在上、涉山进度在下，底部一条细进度线 */
 .region-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(78px,1fr)); gap:6px; padding:2px 0 4px; }
@@ -2742,7 +2756,8 @@ body.no-scroll{ overflow:hidden; }
 
   .panel{ padding:12px 14px 14px; }
   .panel h3{ font-size:15px; }
-  .map-wrap{ grid-template-columns:1fr; gap:12px; }
+  .yudi-tabs{ gap:2px; }
+  .ytab{ padding:7px 10px 8px; font-size:13px; }
   .chapter-block.ch-locked{ display:none; }
   body.show-locked .chapter-block.ch-locked{ display:block; }
   .locked-toggle{

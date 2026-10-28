@@ -1287,7 +1287,8 @@ assert(/overflow-x:auto/.test(quoteRule) && /scrollbar-width:thin/.test(quoteRul
 // (2) 节点列表：任何宽度都不限高（窄屏页面已在滚，再加内滚就是双层滚动条）
 const nodeListBase = [...css.matchAll(/(?:^|[};])\s*\.node-list\{([^}]*)\}/g)].map(m=>m[1])[0] || '';
 assert(!/max-height/.test(nodeListBase) && !/overflow-y/.test(nodeListBase), '节点列表基础规则不限高也不内滚（窄屏无双层滚动条）');
-assert(/\.map-wrap \.node-list\{[^}]*overflow-y:auto/.test(css), '宽屏书案三栏下节点列表仍保留内滚动（刻意设计）');
+assert(/\.yudi-body\{[^}]*max-height/.test(css), '宽屏舆地上下布局：卡片区限制在视口内滚动（刻意为之，标签栏常驻）');
+assert(/\.yudi-body\[data-tab="detail"\][^{]*\.nodes\{[^}]*display:none/.test(css), '舆地标签页：非当前面板隐藏（靠 data-tab 切换显隐）');
 // (3) 幽灵竖滚动条：底部留白可被收窄到刚好贴住视口底
 assert(/--app-pad-b-base:\s*28px/.test(css), '底部留白有基准值 --app-pad-b-base');
 assert(uiSrc.includes('fitGhostScrollbar'), 'UI 提供幽灵滚动条收敛逻辑');
@@ -1313,9 +1314,9 @@ try {
 } catch(e){ y21ok = false; console.error('舆地页回归异常：' + e.stack); }
 finally { ST.Prefs.hideHint = _hide21; }
 assert(y21ok, 'renderYudi 两种指引条状态均不抛错');
-assert(y21hide.indexOf('map-wrap') >= 0 && y21hide.indexOf('山系') >= 0 && y21hide.indexOf('诸山') >= 0, '关闭指引条后舆地页仍渲染山系/节点（不再整页清空）');
+assert(y21hide.indexOf('yudi-tabs') >= 0 && y21hide.indexOf('山系') >= 0 && y21hide.indexOf('诸山') >= 0, '关闭指引条后舆地页仍渲染山系/节点（不再整页清空）');
 assert(y21hide.indexOf('hint-banner') < 0, 'hideHint=true 时不显示指引条');
-assert(y21show.indexOf('hint-banner') >= 0 && y21show.indexOf('map-wrap') >= 0, '默认状态指引条与地图内容并存');
+assert(y21show.indexOf('hint-banner') >= 0 && y21show.indexOf('yudi-tabs') >= 0, '默认状态指引条与地图内容并存');
 assert(y21hide.indexOf('locked-toggle') >= 0 && y21hide.indexOf('ch-locked') >= 0, '山系列表含未解锁章节折叠开关与标记');
 assert(css.includes('.chapter-block.ch-locked{ display:none; }'), '窄屏默认收起未解锁山系章节');
 assert(css.includes('body.show-locked .chapter-block.ch-locked'), '窄屏可展开未解锁山系章节');
