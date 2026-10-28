@@ -2433,6 +2433,14 @@ details.bulk-sell .bs-preview, details.bulk-sell .bs-act{ margin-left:11px; marg
 .nd-omen-note{ margin:6px 0 2px; font-size:11.5px; line-height:1.5; }
 .nd-omen-note.bad{ color:var(--zhu); }
 .nd-omen-note.good{ color:var(--tai); }
+/* 吉凶点（v1.31.186）：原先用 🟢🔴🟡，各平台字号与色相都不统一，也不跟本作的色板走。
+   改成与 --zhu / --tai / --jin 同源的实心点——吉青、凶朱、中金，与顶栏 buff 同口径。 */
+.nd-omen-note .nd-omen-dot{
+  display:inline-block; width:7px; height:7px; margin-right:4px;
+  border-radius:50%; vertical-align:1px; background:var(--jin);
+}
+.nd-omen-note .nd-omen-dot.bad{ background:var(--zhu); }
+.nd-omen-note .nd-omen-dot.good{ background:var(--tai); }
 .stat-rows > span > i{ font-size:10.5px; color:var(--ink-4); margin-left:6px; }
 .stat-rows.gather-rows{ margin-top:10px; border-top:1px solid var(--rule-2); padding-top:8px; }
 .stat-rows.ms-rows span.done{ color:var(--tai); }

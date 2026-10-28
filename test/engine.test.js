@@ -5591,11 +5591,16 @@ section('问神');
   ST.Game.records = {};
   ST.UI.selRegion = 'xishan-3'; ST.UI.selNode = nid; ST.UI.renderYudi();
   const h1 = (renderTargets.content || {}).innerHTML || '';
-  assert(h1.includes('🕯️ 谒见'), '未录满时按钮仍是「谒见」');
+  // v1.31.186：按钮前缀由 emoji 换成矢量绘形（markIcon 灯形）。
+  // 图形本身在 vm 里验不到——测试的 window 是普通对象，markIcon 只挂在它上面、
+  // 不是全局词法绑定，`typeof markIcon` 在这里恒为 undefined（实机由 e2e 脚本复核）。
+  // 这里验两件能验的：文字仍在位，emoji 已绝迹。
+  assert(h1.includes('谒见'), '未录满时按钮仍是「谒见」');
+  assert(!/🕯|🌅|🪓|🌱/.test(h1), '舆地节点按钮不再印 emoji（统一走 markIcon / skillIcon）');
   site.deities.forEach(d => { ST.Game.records[d.id] = { count: 1, tier: 1 }; });
   ST.UI.renderYudi();
   const h2 = (renderTargets.content || {}).innerHTML || '';
-  assert(h2.includes('🕯️ 问神') && h2.includes('此地未录之物'), '录满后改称「问神」并说明去问什么');
+  assert(h2.includes('问神') && h2.includes('此地未录之物'), '录满后改称「问神」并说明去问什么');
 }
 
 // ============ 89. 构建产物：单文件版必须和多文件版是同一部书 ============

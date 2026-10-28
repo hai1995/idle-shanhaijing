@@ -504,8 +504,10 @@ function gatherAgainBar(){
   const it = Items[id];
   const times = Prefs.lastGatherTimes;
   const n = (times && times > 0) ? ` · ${times} 次` : ' · ♾';
+  // 图标与「采集物」按钮同源（v1.31.186）：同一件物的技能绘形，不另印 emoji
+  const ic = (typeof skillIcon === 'function' && it.skill) ? skillIcon(it.skill, 15) : '';
   return `<div class="rematch-bar gather-bar">
-    <button class="btn primary" type="button" onclick="UI.regather()">🪓 再采 ${esc(it.name)}${n}</button>
+    <button class="btn primary" type="button" onclick="UI.regather()">${ic} 再采 ${esc(it.name)}${n}</button>
     <span class="hint">沿用上次的物${times && times > 0 ? '与次数' : ''}；要改次数点下方那件物</span>
   </div>`;
 }
@@ -523,7 +525,7 @@ function observeButtonForNode(node){
   if (!site) return '';
   const done = !!Game.observed[Object.keys(OBSERVE_SITES).find(k=>OBSERVE_SITES[k].nodeId===node.id)];
   return `<button class="btn ${done?'':'primary'}" onclick="startObserve('${Object.keys(OBSERVE_SITES).find(k=>OBSERVE_SITES[k].nodeId===node.id)}')">
-    🌅 ${site.kind}·${esc(site.name)}${done?'（再观）':''}</button>`;
+    ${typeof markIcon==='function'?markIcon('compass',15):''} ${site.kind}·${esc(site.name)}${done?'（再观）':''}</button>`;
 }
 function combatButtonsForNode(node){
   const beasts = Object.values(Monsters).filter(m=>m.nodeId === node.id);
@@ -542,7 +544,7 @@ function audienceButtonForNode(node){
   const un = nodeUnlocked(node);
   const done = (site.deities || []).every(d => ((Game.records || {})[d.id] || {}).count > 0);
   return `<button class="btn ${un && !done ? 'primary' : ''}" ${un?'':'disabled'} onclick="startAudience('${node.id}')"
-    title="${done ? '诸神已录：问此地未录之物' : '神祇不可讨伐，以谒见入录'}">🕯️ ${done ? '问神' : '谒见'} ${esc(site.name)}<i>${done ? '此地未录之物' : (site.deities.length + ' 位神祇')}</i></button>`;
+    title="${done ? '诸神已录：问此地未录之物' : '神祇不可讨伐，以谒见入录'}">${typeof markIcon==='function'?markIcon('lamp',15):''} ${done ? '问神' : '谒见'} ${esc(site.name)}<i>${done ? '此地未录之物' : (site.deities.length + ' 位神祇')}</i></button>`;
 }
 // 养成点（峚山丹木 / 器酸 / 精卫填海）
 // ⚠️ 这里原先写死 `Game.danmu`：于是精卫填海与器酸的按钮显示的永远是丹木的阶数，
@@ -578,7 +580,7 @@ function growButtonForNode(node){
   const segTips = Array.isArray(site.segments) ? site.segments.map(s2 => `${s2.at} 阶·${s2.name}：${s2.text}`).join('\n') : '';
   const tip = esc(site.desc) + (segTips ? `\n\n${esc(segTips)}` : '');
   return `<button class="btn ${un && !done?'primary':''}" ${un && !done?'':'disabled'} onclick="startGrow('${key}')"
-    title="${tip}">🌱 灌木 ${esc(site.name)}<i>${sub}</i></button>`;
+    title="${tip}">${typeof skillIcon==='function'?skillIcon('puyi',15):''} 灌木 ${esc(site.name)}<i>${sub}</i></button>`;
 }
 // 特殊节点的「地气」：原文设定之外，把它实际影响什么写清楚。
 // 尽沙 / 百仞 / 干河三处原先只有一句原文，玩家不知道走进去会怎样。
@@ -610,9 +612,11 @@ function nodeOmenNote(node){
   const d = activeOmenAt(node && node.id);
   if (!d) return '';
   const ago = Math.max(0, (d.until || 0) - (typeof gameTime === 'function' ? gameTime() : 0));
-  const mark = d.polarity === '凶' ? '🔴' : d.polarity === '吉' ? '🟢' : '🟡';
+  // 吉凶用实心点而非 emoji 圆形（v1.31.186）：🟢🔴🟡 在各平台的字号 / 色相都不一致，
+  // 而本作的吉凶色是 --tai / --zhu / --jin 三个固定 token，点也该跟着它们走。
+  const dot = `<i class="nd-omen-dot ${d.polarity === '凶' ? 'bad' : d.polarity === '吉' ? 'good' : 'mid'}"></i>`;
   const rem = (typeof fmtDur === 'function') ? fmtDur(ago) : Math.round(ago / 60) + ' 分';
-  return `<div class="nd-omen-note ${d.polarity === '凶' ? 'bad' : 'good'}">${mark} 征兆·${esc(d.type)}（${esc(d.beast)}）压着此山 · ${rem} 后应验期满</div>`;
+  return `<div class="nd-omen-note ${d.polarity === '凶' ? 'bad' : 'good'}">${dot} 征兆·${esc(d.type)}（${esc(d.beast)}）压着此山 · ${rem} 后应验期满</div>`;
 }
 
 function specialNodeNote(node){
