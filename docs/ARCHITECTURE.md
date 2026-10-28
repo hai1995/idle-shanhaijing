@@ -29,7 +29,7 @@
 | 21 | `ui/core.js` | **界面骨架**：`UI` 对象定义、DOM 辅助、页签切换、日志入队、键盘可达性。顶栏（23）、弹窗（24）已分别移出 |
 | 22 | `ui/meta.js` | **通用渲染片段**（v1.31.140 从 `core.js` 拆出）：等级条 / 战力拆解弹窗 / 下一步提示 / 顶栏状态行的跨页复用函数，纯全局、无闭包依赖 | 344 |
 | 23 | `ui/hud.js` | **顶栏与增益一览**：书脊上的数字（贝币 / 技艺总和 / 著录进度 + 进度线 + 名号）、右上角增益图标与其浮层（临时增益 / 御使 / 征兆 / 烽烟）。v1.31.88 从 `core.js` 搬出——它是全项目刷新最频繁的一段（`renderTopbar` 每 500ms 一次），也是最讲究「同值不写」的一段。验收靠 `buffSummary` / `buffPopHtml` 四组状态 dump 逐字符比对 | 228 |
-| 24 | `ui/modal.js` | **弹窗与离线上屏**：`modal` / `_splitModal` / `closeModal`（三段式：标题 / 可滚内容 / 固定按钮）、`showOfflineSummary`（离线归来账单）、御使入槽提示。v1.31.91 从 `core.js` 搬出——它与「常驻界面」正相反：一次只出现一个、生命周期极短。验收靠五组 rec 的 `#modalBox.innerHTML` 逐字符比对 | 138 |
+| 24 | `ui/modal.js` | **弹窗与离线上屏**：`modal` / `_splitModal` / `closeModal`（三段式：标题 / 可滚内容 / 固定按钮）、`showOfflineSummary`（离线归来账单）、御使入槽提示。v1.31.91 从 `core.js` 搬出——它与「常驻界面」正相反：一次只出现一个、生命周期极短。验收靠五组 rec 的 `#modalBox.innerHTML` 逐字符比对 | 154 |
 | 25 | `ui/tutorial.js` | **新手指引**：六屏引导（TUT_STEPS）、提示条标记（`hintMark`）。v1.31.85 从 `core.js` 搬出，逐字未改；验收靠六屏 `#modalBox.innerHTML` 逐字符比对 | 75 |
 | 26 | `ui/settings.js` | **设置页**：渲染、各项开关、数据模拟（`devSim`）、玩法说明（`openHelp`）。v1.31.81 从 `core.js` 整块搬出——搬迁时逐字未改，验收靠 `#content` 的 innerHTML 逐字符比对 | 345 |
 | 27 | `ui/scene.js` | **行动现场**：仪表带下方那 74px 的一条（山 / 人 / 锄 / 土 / 收成；六种行动各有其物）。挂在 `index.html` 的静态节点上做增量更新——各页是 `innerHTML` 整块重绘，现场若在重绘范围内，动画每渲一次就归零。动效由 rAF 驱动、CSS 兜底，见第六节 | 823 |

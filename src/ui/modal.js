@@ -69,7 +69,11 @@ UI.showOfflineSummary = function(rec){
   const capLine = rec.capped
     ? `<p class="hint off-cap">离山 ${fmtTime(rec.rawSeconds || rec.seconds)}，其中 ${fmtTime((rec.rawSeconds||0)-(rec.seconds||0))} 超出 ${capH} 小时上限，未计入。想多攒些，可去观象、修仓廪与土窟。</p>`
     : `<p class="hint off-cap">离线上限 ${capH} 小时，本次只用了 ${Math.round((rec.seconds||0)/capSec*100)}% · 再离山 ${fmtTime(Math.max(0, capSec - (rec.seconds||0)))} 到顶。</p>`;
-  const harvest = (rec.harvests||0) > 0 ? `<div class="form-row"><span>圃艺收成</span><b>🌾 ${rec.harvests} 次</b></div>` : '';
+  // 行首小图与顶栏、按钮同源（v1.31.188）：此前是 emoji（🌾🕯️🔥⚔️🪙），
+  // 与标题那枚 markIcon('moon') 摆在一起像两套语言。
+  const mk = (name, size) => (typeof markIcon === 'function' ? markIcon(name, size || 14) : '');
+  const sk = (id, size) => (typeof skillIcon === 'function' ? skillIcon(id, size || 14) : '');
+  const harvest = (rec.harvests||0) > 0 ? `<div class="form-row"><span>圃艺收成</span><b>${sk('puyi')} ${rec.harvests} 次</b></div>` : '';
   const recLine = (rec.records||0) > 0 ? `<div class="form-row"><span>新著录</span><b>${rec.records} 条</b></div>` : '';
   // 续祭：离山期间门人代你续了几次、耗去什么，都要交代清楚（材料是实扣的）
   let riteLine = '';
@@ -78,18 +82,18 @@ UI.showOfflineSummary = function(rec){
       const it = Items[id];
       return `<span class="chip">${typeof itemIc==='function'?itemIc(id,13):(it?(it.icon||'⬜'):'❓')}${it?esc(it.name):esc(id)}×${q}</span>`;
     }).join('');
-    riteLine = `<div class="form-row"><span>续祭</span><b>🕯️ ${rec.riteRenews} 次</b></div>
+    riteLine = `<div class="form-row"><span>续祭</span><b>${mk('lamp')} ${rec.riteRenews} 次</b></div>
       ${costChips ? `<div class="yield-row"><b>耗祭品</b>${costChips}</div>` : ''}`;
   }
   // 烽烟不跨离线：离山时挂着的凶兆，回来时已经落地——得告诉玩家它落过
   const omenLine = (rec.omensLanded||0) > 0
-    ? `<div class="form-row"><span>烽烟</span><b class="off-omen">🔥 ${rec.omensLanded} 兆应验</b></div>` : '';
+    ? `<div class="form-row"><span>烽烟</span><b class="off-omen">${mk('fire')} ${rec.omensLanded} 兆应验</b></div>` : '';
   // 往讨：战斗不跨会话，但离山前在打什么得有交代——打了几场、为什么停下
   let combatLine = '';
   if (rec.combat){
     combatLine = rec.combat.fights > 0
-      ? `<div class="form-row"><span>往讨</span><b>⚔️ ${esc(rec.combat.name)} ${rec.combat.fights} 场</b></div>`
-      : `<div class="form-row"><span>往讨</span><b class="off-omen">⚔️ ${esc(rec.combat.name)} 未能成行</b></div>`;
+      ? `<div class="form-row"><span>往讨</span><b>${mk('bolt')} ${esc(rec.combat.name)} ${rec.combat.fights} 场</b></div>`
+      : `<div class="form-row"><span>往讨</span><b class="off-omen">${mk('bolt')} ${esc(rec.combat.name)} 未能成行</b></div>`;
   }
   const combatHint = (rec.combat && rec.combat.shortOnFood)
     ? `<p class="hint off-cap">背包吃食每场需 ${rec.combat.needPortion} 份，只够支撑 ${rec.combat.fights} 场，其余时间已断粮。</p>`
@@ -100,8 +104,9 @@ UI.showOfflineSummary = function(rec){
     ? `<div class="form-row"><span>不在时</span><b class="off-away">${rec.away.rare ? '珍稀 · ' : ''}${esc(rec.away.name)}</b></div>
        ${rec.away.text ? `<p class="hint off-cap">${esc(rec.away.text)}</p>` : ''}`
     : '';
+  // 贝币不配图标：「贝」字本身就是通货的名字，再加一枚钱币图是替它说第二遍
   const shellLine = (rec.shells||0) > 0
-    ? `<div class="form-row"><span>讨平所获</span><b>🪙 ${fmt(rec.shells)} 贝</b></div>` : '';
+    ? `<div class="form-row"><span>讨平所获</span><b>${fmt(rec.shells)} 贝</b></div>` : '';
   UI.modal(`
     <h3><span class="mi-ic">${typeof markIcon==='function'?markIcon('moon',18):'🌙'}</span> 离线归来</h3>
     <p class="hint">离山 ${fmtTime(rec.seconds)}（离线效率 ${Math.round(offlineEff()*100)}%），竹简不曾停笔。</p>
@@ -139,7 +144,7 @@ UI.maybeShowDeployHint = function(beast){
 };
 UI.showDeployHint = function(beast){
   UI.modal(`
-    <h3>🐾 可御使！</h3>
+    <h3><span class="mi-ic">${typeof beastIcon==='function'?beastIcon(beast):''}</span> 可御使！</h3>
     <p class="hint">「${esc(beast.name)}」已著录至「通形」，可前往「御使」入槽，化作被动增益与自动作业。</p>
     <div class="modal-btns">
       <button class="btn on" onclick="UI.closeModal();UI.switchTab('yushi')">前往御使</button>

@@ -326,7 +326,7 @@ window.saveNickname = saveNickname;
 // ---------- 玩法说明 ----------
 function openHelp(){
   UI.modal(`
-    <h3>📜 玩法说明</h3>
+    <h3><span class="mi-ic">${typeof skillIcon==='function'?skillIcon('zhulu',16):''}</span> 玩法说明</h3>
     <div class="help-body">
       <div class="help-sec"><b>著录与阶位</b><p class="hint">采集、讨伐、渔、采药等行动会积累「著录」。每种物产分五阶：初见 → 识名 → 明性 → 通形 → 得御。著录越深，产出越丰，亦解锁更高「舆地」等级的山川。</p>${UI.wikiFooter?UI.wikiFooter('mechanic','mastery'):''}</div>
       <div class="help-sec"><b>御使异兽</b><p class="hint">异兽著录至「通形」即可在「御使」入槽，化作被动增益与自动作业（如自动樵采、渔猎）；著录至「得御」为最高阶。</p>${UI.wikiFooter?UI.wikiFooter('mechanic','mastery'):''}</div>

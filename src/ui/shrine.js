@@ -32,7 +32,7 @@ function omenPanelHtml(){
   const pend = (Game.omensPending || []).filter(p => OMENS[p.id]).map(p => {
     const d = OMENS[p.id];
     return `<div class="omen-pending">
-      <span class="op-ic">🔥</span>
+      <span class="op-ic">${typeof markIcon==='function'?markIcon('fire',14):''}</span>
       <span class="op-txt">${esc(d.beast)}「${esc(d.type)}」将至</span>
       <b class="op-left">${fmtClock(Math.max(0, p.at - gameTime()))}</b>
     </div>`;
