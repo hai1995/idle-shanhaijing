@@ -161,7 +161,7 @@ if (typeof window !== 'undefined') window.skillTipHtml = skillTipHtml;
 UI.renderSkills = function(){
   const box = $('content');
   if (!box) return;
-  const groups = { all:'全部', gathering:'采集', processing:'制作', combat:'武备', taofa:'征伐', fangguo:'方国', yushi:'驭使' };
+  const groups = { all:'全部', gathering:'采集', processing:'制作', combat:'武备', taofa:'征伐', fangguo:'方国', yushi:'驭使', xiu:'修行' };
   const filter = this.skillFilter;
   let ids = [];
   for (const g in SKILL_GROUPS){

@@ -101,6 +101,9 @@ const TUNING = {
   ORDERS: { COUNT: 3, REFRESH_SEC: 1800, PREMIUM_MIN: 1.3, PREMIUM_MAX: 1.8, XP: 12 },
   // 闲置兜底：无行动/战斗/队列持续这么久（秒）后自动执行默认行动，避免放置游戏「死档」
   IDLE_GRACE: 8,
+  // 打坐（v1.31.168）：无活可干时的默认修行。每 MEDITATE_SEC 秒一息，凝 MEDITATE_XP 修为。
+  // 倍率低于主动采集，但永不停歇——放置游戏「人不在跟前也在涨」的兜底收益。
+  MEDITATE_SEC: 5, MEDITATE_XP: 5,
 };
 
 // ---------- 稀有度（自研命名，由回收价推导） ----------
@@ -183,7 +186,7 @@ const CHAPTERS = [
 ];
 function chapterOf(regionId){ return CHAPTERS.find(c=>c.regionIds.includes(regionId)) || null; }
 
-// ---------- 技能（26 技，与 26 山系呼应） ----------
+// ---------- 技能（27 技：26 艺 + 修行·打坐，与山海经「无事则修」之意相合） ----------
 const Skills = {
   // 采集类
   qiaocai: { id:'qiaocai', name:'樵采', domain:'gathering',  icon:'🪓', desc:'伐取灵木（桂、梓、枏……）' },
@@ -216,6 +219,9 @@ const Skills = {
   yushi:   { id:'yushi',   name:'御使', domain:'yushi',      icon:'🐾', desc:'使役已著录之异兽，被动增益' },
   jisi:    { id:'jisi',    name:'祭祀', domain:'yushi',      icon:'🕯️', desc:'祠山川之神（毛用、糈用配方）' },
   zhulu:   { id:'zhulu',   name:'著录', domain:'yushi',      icon:'📜', desc:'记录万物于图鉴，累积著录度' },
+  // 修行：无活可干时的默认行动——静坐吐纳、凝练修为（v1.31.168）。
+  // 不参与任何产地 / 配方 / 战斗，纯粹把时间换成修为，是放置游戏的「兜底修行」。
+  dazuo:   { id:'dazuo',  name:'打坐', domain:'xiu',       icon:'🧘', desc:'静坐吐纳，凝练修为（无活可干时的默认修行）' },
   yudi:    { id:'yudi',    name:'舆地', domain:'yushi',      icon:'🗺️', desc:'制图与探索，驱动区域解锁' },
 };
 const SKILL_GROUPS = {
@@ -225,6 +231,7 @@ const SKILL_GROUPS = {
   taofa:      { label:'征伐', ids:['taofa'] },
   fangguo:    { label:'方国', ids:['lvxian','shanglv','guanxiang','yingyi','bushi'] },
   yushi:      { label:'驭使', ids:['yushi','jisi','zhulu','yudi'] },
+  xiu:        { label:'修行', ids:['dazuo'] },
 };
 const ALL_SKILL_IDS = Object.keys(Skills);
 
@@ -2695,7 +2702,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.167',
+  version: '1.31.168',
   codename:'昼巡 · 对账',
   updated: '2026-10-28',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',

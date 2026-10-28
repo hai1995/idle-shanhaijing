@@ -95,6 +95,9 @@ function sceneState(){
   if (a.kind === 'audience'){
     return { kind:'audience', ink, place, iv, key:'audience', verb:'谒', name:'谒见', note:'谨候阶下' };
   }
+  if (a.kind === 'meditate'){
+    return { kind:'meditate', ink, place, iv, key:'meditate', verb:'坐', name:'打坐', note:'神思内守' };
+  }
   return { kind:'other', ink, place, iv, key:`other:${a.kind}`, verb:'为', name:(typeof currentActivityLabel==='function'?currentActivityLabel():'行动'), note:'' };
 }
 
@@ -103,6 +106,34 @@ function sceneState(){
 // 也比此前的水墨曲线更贴「像素风」。用一组 <rect> 拼轮廓，沿用 currentColor 与朱色腰带。
 // 工具仍由 sceneTool(kind) 注入，挥落动画（坐标旋转）原样保留——见 paintSceneFrame。
 function sceneWorker(kind){
+  // 打坐：盘坐吐纳。宽厚的裙摆底座 + 垂臂搭膝，与站立劳作剪影同一套像素语汇。
+  // 不引入工具：打坐是「什么都不做」的修行，画面也该静。呼吸由 .sc-figure 的 scBreath 承担。
+  if (kind === 'meditate'){
+    return `<svg class="sc-worker" viewBox="0 0 60 70" aria-hidden="true" shape-rendering="crispEdges">
+    <g class="sc-figure">
+      <!-- 发髻 -->
+      <rect x="23" y="9" width="8" height="3" fill="currentColor" opacity=".8"/>
+      <!-- 头 -->
+      <rect x="23" y="12" width="8" height="8" fill="currentColor"/>
+      <!-- 肩 -->
+      <rect x="18" y="21" width="14" height="4" fill="currentColor"/>
+      <!-- 上身（袍） -->
+      <rect x="17" y="25" width="16" height="14" fill="currentColor" opacity=".95"/>
+      <!-- 朱色腰带：与劳作剪影同一处暖色点题 -->
+      <rect x="16" y="37" width="18" height="3" fill="#B03A2B" opacity=".55"/>
+      <!-- 双臂垂落，手搭膝上 -->
+      <rect x="15" y="28" width="5" height="15" fill="currentColor"/>
+      <rect x="30" y="28" width="5" height="15" fill="currentColor"/>
+      <rect x="10" y="41" width="8" height="6" fill="currentColor" opacity=".92"/>
+      <rect x="32" y="41" width="8" height="6" fill="currentColor" opacity=".92"/>
+      <!-- 盘坐：宽厚裙摆底座（底沿与站姿脚底同在 y60，坐实地面上） -->
+      <rect x="9" y="44" width="34" height="16" fill="currentColor" opacity=".9"/>
+      <rect x="9" y="44" width="34" height="3" fill="currentColor"/>
+      <!-- 交叠中缝：盘腿的暗示 -->
+      <rect x="27" y="44" width="6" height="16" fill="currentColor" opacity=".18"/>
+    </g>
+  </svg>`;
+  }
   return `<svg class="sc-worker" viewBox="0 0 60 70" aria-hidden="true" shape-rendering="crispEdges">
     <g class="sc-figure">
       <!-- 发髻 -->
@@ -176,6 +207,7 @@ const SCENE_KINDS = {
   grow:     { tool:'',       prop:'shrub', driver:'idle'  },
   observe:  { tool:'',       prop:'',      sky:'stars', driver:'idle' },
   audience: { tool:'',       prop:'steps', driver:'idle'  },
+  meditate: { tool:'',       prop:'',      driver:'idle'  },   // 打坐：盘坐吐纳，无工具无道具
   fight:    { tool:'sword',  prop:'',      driver:'lunge' },   // 兽单独画，见 sceneHtml
   other:    { tool:'',       prop:'',      driver:'idle'  },
 };

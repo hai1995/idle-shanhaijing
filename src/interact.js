@@ -80,10 +80,13 @@ function currentActivityLabel(){
   if (a.kind === 'observe') return `观象：${(OBSERVE_SITES[a.siteId]||{}).name||''}`;
   if (a.kind === 'audience') return `谒见：${(AUDIENCE_SITES[a.nodeId]||{}).name||''}`;
   if (a.kind === 'grow') return `灌木：${(GROW_SITES[a.siteId]||{}).name||''}`;
+  if (a.kind === 'meditate') return '打坐';
   return '工作中';
 }
 function currentActivityNodeLabel(){
   const a = Game.activity;
+  // 打坐是「在哪都能坐」的修行，不绑定具体山川——不挂落点，免得「打坐（招摇之山）」误导
+  if (a && a.kind === 'meditate') return '';
   const nodeId = a ? (a.itemId ? (Items[a.itemId]||{}).node : a.kind==='craft' ? Game.node : a.nodeId) : Game.node;
   const n = nodeOf(nodeId || Game.node);
   return n ? n.name : '';

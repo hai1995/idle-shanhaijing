@@ -1334,6 +1334,13 @@ function doGather(itemId){
   // 「刚采完一次」才是自然的叙事位置，也天然有节拍。
   if (typeof maybeEvent === 'function') maybeEvent({ kind:'gather', itemId, skillId, nodeId: Game.node });
 }
+// 打坐：无活可干时的默认修行（v1.31.168）。不产物资、不耗原料，只把时间凝成修为。
+// 经验走 gainXp('dazuo') —— 与所有主动行动同一套记账，自然汇入 stats.totalXp（群英榜·修为）。
+// 不放进 doGather 的「越级 / 产地 / 见闻」判据：打坐没有目标物，这些判据对它毫无意义。
+function doMeditate(){
+  if (!Game.skills.dazuo) return;          // 技能未初始化时宁可不记，也别抛
+  gainXp('dazuo', TUNING.MEDITATE_XP);
+}
 // 著录一个对象（含阶位提升、异兽征兆触发、关联著录）
 function recordObject(objId, n){
   // 学宫「著录度获取 +25%」：记录以整数计，故折算为 1/4 概率多记一次（期望 +25%），
@@ -3422,6 +3429,7 @@ function currentActionInterval(){
   if (a.kind === 'observe') return TUNING.OBSERVE_SEC;
   if (a.kind === 'audience') return TUNING.OBSERVE_SEC;
   if (a.kind === 'grow') return (GROW_SITES[a.siteId]||{}).sec || 3600;
+  if (a.kind === 'meditate') return TUNING.MEDITATE_SEC;   // 打坐：每息固定秒数（v1.31.168）
   if (a.kind === 'craft'){
     let base = 2.0;
     const craftPenalty = omenMod('craft');        // 毕方「讹火」：制作效率 -20%
@@ -3462,6 +3470,7 @@ function performAction(a){
       if (typeof queueOnSpecialDone === 'function') queueOnSpecialDone(a); break;
     case 'grow':    doGrow(a.siteId);
       if (typeof queueOnSpecialDone === 'function') queueOnSpecialDone(a); break;
+    case 'meditate': doMeditate(); break;   // 打坐：凝修为，不停歇（v1.31.168）
   }
   if (produced){
     const gained = totalOf(produced) - before;
@@ -3749,6 +3758,13 @@ function settleAway(seconds){
     const times = Math.floor(seconds / TUNING.OBSERVE_SEC);
     summary.acts.observe = times;
     for (let i=0;i<times;i++) doObserve(a.siteId);
+  } else if (a && a.kind === 'meditate'){
+    // 离线打坐（v1.31.168）：打坐是「默认行动」，夜里挂着它下线是常态——
+    // 不结算的话，收益无声蒸发，玩家只会觉得「怎么挂了一夜修为没动」。
+    // 按息数折算、吃离线效率（addXp 内乘 eff），与采集/制作同一套口径。
+    const times = Math.floor(seconds / TUNING.MEDITATE_SEC);
+    summary.acts.meditate = times;
+    addXp('dazuo', TUNING.MEDITATE_XP * times);
   } else if (a && a.kind === 'audience'){
     const times = Math.floor(seconds / TUNING.OBSERVE_SEC);
     summary.acts.audience = times;
@@ -3788,6 +3804,7 @@ window.settleRitesOffline = settleRitesOffline;
 if (typeof window !== 'undefined'){
   window.totalOf = totalOf; window.giveItem = giveItem; window.takeItem = takeItem;
   window.canAfford = canAfford; window.payCost = payCost; window.gainXp = gainXp;
+  window.doMeditate = doMeditate; window.doGather = doGather;
   window.levelOf = levelOf; window.stopActivity = stopActivity;
   window.processRecipe = processRecipe; window.gameLoop = gameLoop;
   window.farmCatchUp = farmCatchUp; window.actionOutputId = actionOutputId;
@@ -3840,6 +3857,13 @@ function startFallbackAction(){
       Game.activity = { kind:'gather', skill:sk, itemId:hit, src:'fallback' };
       return true;
     }
+  }
+  // ③ 打坐（v1.31.168）：以上都无着落时，静坐吐纳凝修为。
+  // 至此角色永不在「空闲」——放置游戏最忌「人不在跟前就停摆」，打坐是无声的兜底修行。
+  if (Game.skills.dazuo){
+    activityProgress = 0;
+    Game.activity = { kind:'meditate', src:'fallback' };
+    return true;
   }
   return false;
 }

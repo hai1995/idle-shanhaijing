@@ -59,7 +59,7 @@ UI.showOfflineSummary = function(rec){
     return `<span class="chip">${typeof itemIc==='function'?itemIc(id,13):(it?(it.icon||'⬜'):'❓')}${it?esc(it.name):esc(id)}×${q}</span>`;
   }).join('');
   // 离线都做了些什么：只报经验总额太抽象，玩家想知道「这一夜在做什么」
-  const ACT_NAMES = { gather:'采集', craft:'制作', observe:'观象', audience:'朝觐', grow:'养成', combat:'往讨' };
+  const ACT_NAMES = { gather:'采集', craft:'制作', observe:'观象', audience:'朝觐', grow:'养成', meditate:'打坐', combat:'往讨' };
   const acts = Object.entries(rec.acts||{}).filter(([,n])=>n>0)
     .map(([k,n])=>`${ACT_NAMES[k]||k} ${n} 次`).join(' · ');
   // 离线上限这件事，玩家最想知道的是「晚上睡八小时会不会浪费」。

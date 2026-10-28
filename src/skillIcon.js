@@ -1,4 +1,4 @@
-// ===== 技能绘形：二十六艺的矢量图标 =====
+// ===== 技能绘形：二十七艺的矢量图标 =====
 // 设计语言承异兽 / 营邑图标一脉：墨影剪影 + 一处点睛色 + 圆晕。
 // 技能分五域，各有基调色：
 //   · gathering 樵采渔猎圃艺 → 木 / 水 / 火（山野之息）
@@ -152,16 +152,22 @@ const yudi = () => // 舆地：地图卷
    <path d="M26 38 Q32 28 38 33" stroke="${FIRE}" stroke-width="2.4" fill="none" stroke-linecap="round"/>
    <circle cx="38" cy="33" r="3.4" fill="${FIRE}"/>
    <path d="M26 24 L30 20 L34 24" stroke="${JADE}" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+const dazuo = () => // 打坐：盘坐吐纳，绕一圈禅意（修行·无活可干时的默认行动）
+  `<circle cx="32" cy="36" r="23" fill="none" stroke="${GOLD}" stroke-width="1.6" opacity=".35"/>
+   <circle cx="32" cy="21" r="6" fill="${INK}"/>
+   <path d="M23 28 H41 L45 47 H19 Z" fill="${INK}"/>
+   <path d="M15 47 H49 V54 H15 Z" fill="${INK}"/>
+   <path d="M27 39 H37" stroke="${GOLD}" stroke-width="2" stroke-linecap="round"/>`;
 
 const ART = { qiaocai, caiyu, yu, caiyao, puyi, fanliao, diaoding, yezhu, xiaoyu, zhiqi,
               zhuoyu, lianyao, bing, she, zhu, ming, taofa, lvxian, shanglv, guanxiang,
-              yingyi, bushi, yushi, jisi, zhulu, yudi };
+              yingyi, bushi, yushi, jisi, zhulu, yudi, dazuo };
 // 各技能的点睛色（晕圈与地平用色）
 const TINT = { qiaocai:WOOD, caiyu:JADE, yu:WATER, caiyao:JADE, puyi:GOLD,
                fanliao:FIRE, diaoding:FIRE, yezhu:FIRE, xiaoyu:WOOD, zhiqi:JADE,
                zhuoyu:JADE, lianyao:JADE, bing:FIRE, she:WOOD, zhu:GOLD, ming:FIRE,
                taofa:FIRE, lvxian:WATER, shanglv:GOLD, guanxiang:GOLD, yingyi:WOOD,
-               bushi:JADE, yushi:FIRE, jisi:FIRE, zhulu:WOOD, yudi:GOLD };
+               bushi:JADE, yushi:FIRE, jisi:FIRE, zhulu:WOOD, yudi:GOLD, dazuo:JADE };
 
 function escAttr(s){
   return String(s==null?'':s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));

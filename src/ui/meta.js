@@ -198,7 +198,7 @@ function pageLevelBar(tab){
       <span class="pl-name">技能总览</span>
       <b class="pl-lv">${sum} 级</b>
       <span class="pl-bar"><i style="width:${pct.toFixed(1)}%"></i></span>
-      <span class="pl-xp">二十六技合计 · 满级 ${max} · 修为 ${fmt(Game.stats.totalXp || 0)}</span>
+      <span class="pl-xp">二十七技合计 · 满级 ${max} · 修为 ${fmt(Game.stats.totalXp || 0)}</span>
     </div>`;
   }
   const pair = PAGE_SKILL[tab];

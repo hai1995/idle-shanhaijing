@@ -3440,7 +3440,7 @@ details.hetero-panel .hp-left{ margin-left:auto; font-style:normal; color:var(--
       <div class="left">
         <span class="seal" aria-hidden="true"><i>山</i><i>海</i></span>
         <span class="title"><b>山海经</b><i>著录</i><small id="seasonTag">旱季</small><b id="nickTag" class="hidden"></b></span>
-        <span class="stat" data-s="级" title="总等级：二十六门技艺之和">
+        <span class="stat" data-s="级" title="总等级：二十七门技艺之和">
           <i class="lb">总等级</i><b id="totalLevel">0</b>
         </span>
         <span class="stat" data-s="录" title="已著录条目 / 全图鉴条目">
@@ -17531,6 +17531,9 @@ const TUNING = {
   ORDERS: { COUNT: 3, REFRESH_SEC: 1800, PREMIUM_MIN: 1.3, PREMIUM_MAX: 1.8, XP: 12 },
   // 闲置兜底：无行动/战斗/队列持续这么久（秒）后自动执行默认行动，避免放置游戏「死档」
   IDLE_GRACE: 8,
+  // 打坐（v1.31.168）：无活可干时的默认修行。每 MEDITATE_SEC 秒一息，凝 MEDITATE_XP 修为。
+  // 倍率低于主动采集，但永不停歇——放置游戏「人不在跟前也在涨」的兜底收益。
+  MEDITATE_SEC: 5, MEDITATE_XP: 5,
 };
 
 // ---------- 稀有度（自研命名，由回收价推导） ----------
@@ -17613,7 +17616,7 @@ const CHAPTERS = [
 ];
 function chapterOf(regionId){ return CHAPTERS.find(c=>c.regionIds.includes(regionId)) || null; }
 
-// ---------- 技能（26 技，与 26 山系呼应） ----------
+// ---------- 技能（27 技：26 艺 + 修行·打坐，与山海经「无事则修」之意相合） ----------
 const Skills = {
   // 采集类
   qiaocai: { id:'qiaocai', name:'樵采', domain:'gathering',  icon:'🪓', desc:'伐取灵木（桂、梓、枏……）' },
@@ -17646,6 +17649,9 @@ const Skills = {
   yushi:   { id:'yushi',   name:'御使', domain:'yushi',      icon:'🐾', desc:'使役已著录之异兽，被动增益' },
   jisi:    { id:'jisi',    name:'祭祀', domain:'yushi',      icon:'🕯️', desc:'祠山川之神（毛用、糈用配方）' },
   zhulu:   { id:'zhulu',   name:'著录', domain:'yushi',      icon:'📜', desc:'记录万物于图鉴，累积著录度' },
+  // 修行：无活可干时的默认行动——静坐吐纳、凝练修为（v1.31.168）。
+  // 不参与任何产地 / 配方 / 战斗，纯粹把时间换成修为，是放置游戏的「兜底修行」。
+  dazuo:   { id:'dazuo',  name:'打坐', domain:'xiu',       icon:'🧘', desc:'静坐吐纳，凝练修为（无活可干时的默认修行）' },
   yudi:    { id:'yudi',    name:'舆地', domain:'yushi',      icon:'🗺️', desc:'制图与探索，驱动区域解锁' },
 };
 const SKILL_GROUPS = {
@@ -17655,6 +17661,7 @@ const SKILL_GROUPS = {
   taofa:      { label:'征伐', ids:['taofa'] },
   fangguo:    { label:'方国', ids:['lvxian','shanglv','guanxiang','yingyi','bushi'] },
   yushi:      { label:'驭使', ids:['yushi','jisi','zhulu','yudi'] },
+  xiu:        { label:'修行', ids:['dazuo'] },
 };
 const ALL_SKILL_IDS = Object.keys(Skills);
 
@@ -20125,7 +20132,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.167',
+  version: '1.31.168',
   codename:'昼巡 · 对账',
   updated: '2026-10-28',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -22931,6 +22938,13 @@ function doGather(itemId){
   // 「刚采完一次」才是自然的叙事位置，也天然有节拍。
   if (typeof maybeEvent === 'function') maybeEvent({ kind:'gather', itemId, skillId, nodeId: Game.node });
 }
+// 打坐：无活可干时的默认修行（v1.31.168）。不产物资、不耗原料，只把时间凝成修为。
+// 经验走 gainXp('dazuo') —— 与所有主动行动同一套记账，自然汇入 stats.totalXp（群英榜·修为）。
+// 不放进 doGather 的「越级 / 产地 / 见闻」判据：打坐没有目标物，这些判据对它毫无意义。
+function doMeditate(){
+  if (!Game.skills.dazuo) return;          // 技能未初始化时宁可不记，也别抛
+  gainXp('dazuo', TUNING.MEDITATE_XP);
+}
 // 著录一个对象（含阶位提升、异兽征兆触发、关联著录）
 function recordObject(objId, n){
   // 学宫「著录度获取 +25%」：记录以整数计，故折算为 1/4 概率多记一次（期望 +25%），
@@ -25019,6 +25033,7 @@ function currentActionInterval(){
   if (a.kind === 'observe') return TUNING.OBSERVE_SEC;
   if (a.kind === 'audience') return TUNING.OBSERVE_SEC;
   if (a.kind === 'grow') return (GROW_SITES[a.siteId]||{}).sec || 3600;
+  if (a.kind === 'meditate') return TUNING.MEDITATE_SEC;   // 打坐：每息固定秒数（v1.31.168）
   if (a.kind === 'craft'){
     let base = 2.0;
     const craftPenalty = omenMod('craft');        // 毕方「讹火」：制作效率 -20%
@@ -25059,6 +25074,7 @@ function performAction(a){
       if (typeof queueOnSpecialDone === 'function') queueOnSpecialDone(a); break;
     case 'grow':    doGrow(a.siteId);
       if (typeof queueOnSpecialDone === 'function') queueOnSpecialDone(a); break;
+    case 'meditate': doMeditate(); break;   // 打坐：凝修为，不停歇（v1.31.168）
   }
   if (produced){
     const gained = totalOf(produced) - before;
@@ -25346,6 +25362,13 @@ function settleAway(seconds){
     const times = Math.floor(seconds / TUNING.OBSERVE_SEC);
     summary.acts.observe = times;
     for (let i=0;i<times;i++) doObserve(a.siteId);
+  } else if (a && a.kind === 'meditate'){
+    // 离线打坐（v1.31.168）：打坐是「默认行动」，夜里挂着它下线是常态——
+    // 不结算的话，收益无声蒸发，玩家只会觉得「怎么挂了一夜修为没动」。
+    // 按息数折算、吃离线效率（addXp 内乘 eff），与采集/制作同一套口径。
+    const times = Math.floor(seconds / TUNING.MEDITATE_SEC);
+    summary.acts.meditate = times;
+    addXp('dazuo', TUNING.MEDITATE_XP * times);
   } else if (a && a.kind === 'audience'){
     const times = Math.floor(seconds / TUNING.OBSERVE_SEC);
     summary.acts.audience = times;
@@ -25385,6 +25408,7 @@ window.settleRitesOffline = settleRitesOffline;
 if (typeof window !== 'undefined'){
   window.totalOf = totalOf; window.giveItem = giveItem; window.takeItem = takeItem;
   window.canAfford = canAfford; window.payCost = payCost; window.gainXp = gainXp;
+  window.doMeditate = doMeditate; window.doGather = doGather;
   window.levelOf = levelOf; window.stopActivity = stopActivity;
   window.processRecipe = processRecipe; window.gameLoop = gameLoop;
   window.farmCatchUp = farmCatchUp; window.actionOutputId = actionOutputId;
@@ -25437,6 +25461,13 @@ function startFallbackAction(){
       Game.activity = { kind:'gather', skill:sk, itemId:hit, src:'fallback' };
       return true;
     }
+  }
+  // ③ 打坐（v1.31.168）：以上都无着落时，静坐吐纳凝修为。
+  // 至此角色永不在「空闲」——放置游戏最忌「人不在跟前就停摆」，打坐是无声的兜底修行。
+  if (Game.skills.dazuo){
+    activityProgress = 0;
+    Game.activity = { kind:'meditate', src:'fallback' };
+    return true;
   }
   return false;
 }
@@ -27119,7 +27150,7 @@ window.STRUCTURE_ICON_IDS = Object.keys(ART);
 })();
 
 // ===== skillIcon.js =====
-// ===== 技能绘形：二十六艺的矢量图标 =====
+// ===== 技能绘形：二十七艺的矢量图标 =====
 // 设计语言承异兽 / 营邑图标一脉：墨影剪影 + 一处点睛色 + 圆晕。
 // 技能分五域，各有基调色：
 //   · gathering 樵采渔猎圃艺 → 木 / 水 / 火（山野之息）
@@ -27273,16 +27304,22 @@ const yudi = () => // 舆地：地图卷
    <path d="M26 38 Q32 28 38 33" stroke="${FIRE}" stroke-width="2.4" fill="none" stroke-linecap="round"/>
    <circle cx="38" cy="33" r="3.4" fill="${FIRE}"/>
    <path d="M26 24 L30 20 L34 24" stroke="${JADE}" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+const dazuo = () => // 打坐：盘坐吐纳，绕一圈禅意（修行·无活可干时的默认行动）
+  `<circle cx="32" cy="36" r="23" fill="none" stroke="${GOLD}" stroke-width="1.6" opacity=".35"/>
+   <circle cx="32" cy="21" r="6" fill="${INK}"/>
+   <path d="M23 28 H41 L45 47 H19 Z" fill="${INK}"/>
+   <path d="M15 47 H49 V54 H15 Z" fill="${INK}"/>
+   <path d="M27 39 H37" stroke="${GOLD}" stroke-width="2" stroke-linecap="round"/>`;
 
 const ART = { qiaocai, caiyu, yu, caiyao, puyi, fanliao, diaoding, yezhu, xiaoyu, zhiqi,
               zhuoyu, lianyao, bing, she, zhu, ming, taofa, lvxian, shanglv, guanxiang,
-              yingyi, bushi, yushi, jisi, zhulu, yudi };
+              yingyi, bushi, yushi, jisi, zhulu, yudi, dazuo };
 // 各技能的点睛色（晕圈与地平用色）
 const TINT = { qiaocai:WOOD, caiyu:JADE, yu:WATER, caiyao:JADE, puyi:GOLD,
                fanliao:FIRE, diaoding:FIRE, yezhu:FIRE, xiaoyu:WOOD, zhiqi:JADE,
                zhuoyu:JADE, lianyao:JADE, bing:FIRE, she:WOOD, zhu:GOLD, ming:FIRE,
                taofa:FIRE, lvxian:WATER, shanglv:GOLD, guanxiang:GOLD, yingyi:WOOD,
-               bushi:JADE, yushi:FIRE, jisi:FIRE, zhulu:WOOD, yudi:GOLD };
+               bushi:JADE, yushi:FIRE, jisi:FIRE, zhulu:WOOD, yudi:GOLD, dazuo:JADE };
 
 function escAttr(s){
   return String(s==null?'':s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
@@ -27949,10 +27986,13 @@ function currentActivityLabel(){
   if (a.kind === 'observe') return `观象：${(OBSERVE_SITES[a.siteId]||{}).name||''}`;
   if (a.kind === 'audience') return `谒见：${(AUDIENCE_SITES[a.nodeId]||{}).name||''}`;
   if (a.kind === 'grow') return `灌木：${(GROW_SITES[a.siteId]||{}).name||''}`;
+  if (a.kind === 'meditate') return '打坐';
   return '工作中';
 }
 function currentActivityNodeLabel(){
   const a = Game.activity;
+  // 打坐是「在哪都能坐」的修行，不绑定具体山川——不挂落点，免得「打坐（招摇之山）」误导
+  if (a && a.kind === 'meditate') return '';
   const nodeId = a ? (a.itemId ? (Items[a.itemId]||{}).node : a.kind==='craft' ? Game.node : a.nodeId) : Game.node;
   const n = nodeOf(nodeId || Game.node);
   return n ? n.name : '';
@@ -29979,7 +30019,7 @@ function pageLevelBar(tab){
       <span class="pl-name">技能总览</span>
       <b class="pl-lv">${sum} 级</b>
       <span class="pl-bar"><i style="width:${pct.toFixed(1)}%"></i></span>
-      <span class="pl-xp">二十六技合计 · 满级 ${max} · 修为 ${fmt(Game.stats.totalXp || 0)}</span>
+      <span class="pl-xp">二十七技合计 · 满级 ${max} · 修为 ${fmt(Game.stats.totalXp || 0)}</span>
     </div>`;
   }
   const pair = PAGE_SKILL[tab];
@@ -30394,7 +30434,7 @@ UI.showOfflineSummary = function(rec){
     return `<span class="chip">${typeof itemIc==='function'?itemIc(id,13):(it?(it.icon||'⬜'):'❓')}${it?esc(it.name):esc(id)}×${q}</span>`;
   }).join('');
   // 离线都做了些什么：只报经验总额太抽象，玩家想知道「这一夜在做什么」
-  const ACT_NAMES = { gather:'采集', craft:'制作', observe:'观象', audience:'朝觐', grow:'养成', combat:'往讨' };
+  const ACT_NAMES = { gather:'采集', craft:'制作', observe:'观象', audience:'朝觐', grow:'养成', meditate:'打坐', combat:'往讨' };
   const acts = Object.entries(rec.acts||{}).filter(([,n])=>n>0)
     .map(([k,n])=>`${ACT_NAMES[k]||k} ${n} 次`).join(' · ');
   // 离线上限这件事，玩家最想知道的是「晚上睡八小时会不会浪费」。
@@ -30844,7 +30884,7 @@ const TUT_STEPS = [
   { tab:'yudi',   icon:'🗺️', title:'受命著录',
     body:`你是一名<b>著录者</b>，奉命巡行山海，把山川万物逐条录于竹简。\n游戏进度，即一部正在写成的《山海经》。\n\n先从「舆地」开始——选择山系、点选某座山，再点其中任一动作（采集 / 观象 / 讨伐 / 祠礼），即动身前往此地。` },
   { tab:'skills', icon:'📜', title:'技艺修行',
-    body:`采集、制作、讨伐、御使……共 <b>26 门技艺</b>，行动即长经验（九阶八十一）。\n技能越高，产出越丰，亦能解锁更高「舆地」等级的山川。\n\n本页还挂着<b>三签</b>——三条短课，做完一条即补一条，赏贝币；做不了可以「换」。` },
+    body:`采集、制作、讨伐、御使、修行……共 <b>27 门技艺</b>，行动即长经验（九阶八十一）。\n技能越高，产出越丰，亦能解锁更高「舆地」等级的山川。\n\n无事可干时角色会自行<b>打坐</b>吐纳——不产物资，只把时间凝成修为，是放置游戏无声的兜底修行，亦计入群英榜·修为。\n\n本页还挂着<b>三签</b>——三条短课，做完一条即补一条，赏贝币；做不了可以「换」。` },
   { tab:'taofa',  icon:'⚔️', title:'往讨异兽',
     body:`前往有异兽记载的山，点「往讨」。\n首次著录即触发<b>征兆</b>吉凶；著录至<b>得御</b>阶，便可在「御使」中使役该异兽，化作被动增益与自动作业。` },
   { tab:'pack',   icon:'🎒', title:'行装器物',
@@ -30996,6 +31036,9 @@ function sceneState(){
   if (a.kind === 'audience'){
     return { kind:'audience', ink, place, iv, key:'audience', verb:'谒', name:'谒见', note:'谨候阶下' };
   }
+  if (a.kind === 'meditate'){
+    return { kind:'meditate', ink, place, iv, key:'meditate', verb:'坐', name:'打坐', note:'神思内守' };
+  }
   return { kind:'other', ink, place, iv, key:`other:${a.kind}`, verb:'为', name:(typeof currentActivityLabel==='function'?currentActivityLabel():'行动'), note:'' };
 }
 
@@ -31004,6 +31047,34 @@ function sceneState(){
 // 也比此前的水墨曲线更贴「像素风」。用一组 <rect> 拼轮廓，沿用 currentColor 与朱色腰带。
 // 工具仍由 sceneTool(kind) 注入，挥落动画（坐标旋转）原样保留——见 paintSceneFrame。
 function sceneWorker(kind){
+  // 打坐：盘坐吐纳。宽厚的裙摆底座 + 垂臂搭膝，与站立劳作剪影同一套像素语汇。
+  // 不引入工具：打坐是「什么都不做」的修行，画面也该静。呼吸由 .sc-figure 的 scBreath 承担。
+  if (kind === 'meditate'){
+    return `<svg class="sc-worker" viewBox="0 0 60 70" aria-hidden="true" shape-rendering="crispEdges">
+    <g class="sc-figure">
+      <!-- 发髻 -->
+      <rect x="23" y="9" width="8" height="3" fill="currentColor" opacity=".8"/>
+      <!-- 头 -->
+      <rect x="23" y="12" width="8" height="8" fill="currentColor"/>
+      <!-- 肩 -->
+      <rect x="18" y="21" width="14" height="4" fill="currentColor"/>
+      <!-- 上身（袍） -->
+      <rect x="17" y="25" width="16" height="14" fill="currentColor" opacity=".95"/>
+      <!-- 朱色腰带：与劳作剪影同一处暖色点题 -->
+      <rect x="16" y="37" width="18" height="3" fill="#B03A2B" opacity=".55"/>
+      <!-- 双臂垂落，手搭膝上 -->
+      <rect x="15" y="28" width="5" height="15" fill="currentColor"/>
+      <rect x="30" y="28" width="5" height="15" fill="currentColor"/>
+      <rect x="10" y="41" width="8" height="6" fill="currentColor" opacity=".92"/>
+      <rect x="32" y="41" width="8" height="6" fill="currentColor" opacity=".92"/>
+      <!-- 盘坐：宽厚裙摆底座（底沿与站姿脚底同在 y60，坐实地面上） -->
+      <rect x="9" y="44" width="34" height="16" fill="currentColor" opacity=".9"/>
+      <rect x="9" y="44" width="34" height="3" fill="currentColor"/>
+      <!-- 交叠中缝：盘腿的暗示 -->
+      <rect x="27" y="44" width="6" height="16" fill="currentColor" opacity=".18"/>
+    </g>
+  </svg>`;
+  }
   return `<svg class="sc-worker" viewBox="0 0 60 70" aria-hidden="true" shape-rendering="crispEdges">
     <g class="sc-figure">
       <!-- 发髻 -->
@@ -31077,6 +31148,7 @@ const SCENE_KINDS = {
   grow:     { tool:'',       prop:'shrub', driver:'idle'  },
   observe:  { tool:'',       prop:'',      sky:'stars', driver:'idle' },
   audience: { tool:'',       prop:'steps', driver:'idle'  },
+  meditate: { tool:'',       prop:'',      driver:'idle'  },   // 打坐：盘坐吐纳，无工具无道具
   fight:    { tool:'sword',  prop:'',      driver:'lunge' },   // 兽单独画，见 sceneHtml
   other:    { tool:'',       prop:'',      driver:'idle'  },
 };
@@ -32446,7 +32518,7 @@ if (typeof window !== 'undefined') window.skillTipHtml = skillTipHtml;
 UI.renderSkills = function(){
   const box = $('content');
   if (!box) return;
-  const groups = { all:'全部', gathering:'采集', processing:'制作', combat:'武备', taofa:'征伐', fangguo:'方国', yushi:'驭使' };
+  const groups = { all:'全部', gathering:'采集', processing:'制作', combat:'武备', taofa:'征伐', fangguo:'方国', yushi:'驭使', xiu:'修行' };
   const filter = this.skillFilter;
   let ids = [];
   for (const g in SKILL_GROUPS){

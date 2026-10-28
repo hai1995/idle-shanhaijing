@@ -60,7 +60,7 @@ function section(t){ console.log('\n== ' + t + ' =='); }
 // ============ 1. 初始状态与数据完整性 ============
 section('初始状态与数据完整性');
 assert(ST.Game.shells === 50, '初始贝币 50');
-assert(Object.keys(ST.Skills).length === 26, '26 技能（与 26 山系呼应）');
+assert(Object.keys(ST.Skills).length === 27, '27 技能（26 艺 + 修行·打坐）');
 assert(ST.Skills.zhulu && ST.Skills.yushi && ST.Skills.yudi && ST.Skills.guanxiang, '驭使/方国类技能齐备');
 const allNodes = [];
 ST.NANSHAN.regions.forEach(r=>r.nodes.forEach(n=>allNodes.push(n)));
@@ -254,7 +254,7 @@ section('配方原料可获得性审计');
   const srcAll = ['game.js','queue.js','interact.js','events.js','gameData.js', ...UI_FILES]
     .map(f=>fs.readFileSync(path.join(__dirname,'..','src',f),'utf8')).join('\n');
   const noXpSource = Object.keys(ST.Skills).filter(id=>!srcAll.includes(`'${id}'`));
-  assert(noXpSource.length === 0, '26 技能均有经验来源' + (noXpSource.length?('，缺：'+noXpSource.join(',')):''));
+  assert(noXpSource.length === 0, '27 技能均有经验来源' + (noXpSource.length?('，缺：'+noXpSource.join(',')):''));
 })();
 
 // ============ 7. 装备 ============
@@ -531,7 +531,7 @@ section('存档导出 / 导入');
 G.saveGame();
 const saved = context.localStorage.getItem('shj_zhulu_save_v1');
 assert(saved && saved.length > 0, '存档写入 localStorage');
-assert(JSON.parse(saved).skills && Object.keys(JSON.parse(saved).skills).length === 26, '存档含 26 技能');
+assert(JSON.parse(saved).skills && Object.keys(JSON.parse(saved).skills).length === 27, '存档含 27 技能');
 ST.Game.shells = 12345;
 G.loadGame();
 assert(ST.Game.shells !== 12345, '读档覆盖内存');
@@ -1744,6 +1744,60 @@ assert(ST.Game.stats.seenFallbackHint === false, '一次性提示字段存在（
   assert(!renderTargets.modalBox.innerHTML.includes('闲置兜底'), '设置不再走弹窗');
 }
 
+// ============ 26.6 打坐：无活可干的默认修行（v1.31.168） ============
+section('打坐：默认修行');
+{
+  G.resetToDefault();
+  ST.Game.combat = null; ST.Game.queueRunning = false; ST.Game.activity = null;
+  ST.Game.fallback = null;
+  assert(ST.Game.skills.dazuo, 'dazuo 技能随存档一并初始化');
+  // ① 清空四类采集的候选产地池 → 当前山无物可采 → 兜底进入打坐（结束即还原，免影响后续用例）
+  const _gp = {};
+  ['qiaocai','caiyu','yu','caiyao','puyi'].forEach(sk=>{ _gp[sk] = ST.GATHER_POOLS[sk]; ST.GATHER_POOLS[sk] = []; });
+  const ok = ST.startFallbackAction();
+  ['qiaocai','caiyu','yu','caiyao','puyi'].forEach(sk=>{ ST.GATHER_POOLS[sk] = _gp[sk]; });
+  assert(ok === true, '无活可干时兜底可启动');
+  assert(ST.Game.activity && ST.Game.activity.kind === 'meditate', '无活可干则进入打坐 -> ' + JSON.stringify(ST.Game.activity));
+  assert(ST.Game.activity.src === 'fallback', '打坐标为兜底来源');
+  // ② 活动标签
+  assert(ST.currentActivityLabel() === '打坐', '活动标签为「打坐」');
+  // ③ 现场：打坐给出齐备状态（静坐剪影，idle 驱动，无工具无道具）
+  const ms = ST.sceneState();
+  assert(ms && ms.kind === 'meditate' && ms.name === '打坐' && ms.iv > 0, '现场给出打坐状态');
+  assert(/^#[0-9A-Fa-f]{6}$/.test(ms.ink), '打坐现场带山系墨色');
+  // ④ 打坐凝修为：doMeditate 给 dazuo 经验并汇入 totalXp（可参加群英榜·修为）
+  const before = ST.Game.stats.totalXp || 0;
+  const dazBefore = ST.Game.skills.dazuo.xp;
+  ST.doMeditate();
+  assert(ST.Game.skills.dazuo.xp > dazBefore, '打坐使 dazuo 技能长经验');
+  assert((ST.Game.stats.totalXp||0) > before, '打坐经验汇入 totalXp（参加排名）');
+  // ⑤ 间隔：打坐有固定周期，动画 / 进度据此
+  ST.Game.activity = { kind:'meditate', src:'fallback' };
+  const iv = ST.currentActionInterval();
+  assert(iv > 0 && iv === ST.TUNING.MEDITATE_SEC, '打坐间隔取 MEDITATE_SEC');
+  // ⑥ 技能页分组含「修行」，打坐归其下
+  assert(ST.SKILL_GROUPS.xiu && ST.SKILL_GROUPS.xiu.ids.indexOf('dazuo') >= 0, '技能分组含修行·打坐');
+  G.stopActivity();
+}
+
+// ============ 26.7 离线打坐亦结算（v1.31.168） ============
+section('打坐：离线结算');
+{
+  G.resetToDefault();
+  ST.Game.combat = null; ST.Game.queueRunning = false; ST.Game.activity = null;
+  ST.Game.fallback = null;
+  ST.Game.skills.dazuo.xp = 0;
+  ST.Game.stats.offlineXp = 0;
+  // 夜里挂着默认打坐下线是常态，离线不结算则收益无声蒸发
+  ST.Game.activity = { kind:'meditate', src:'fallback' };
+  const before = ST.Game.skills.dazuo.xp;
+  const rec = G.settleAway(3600);
+  assert(!!rec && rec.acts && rec.acts.meditate > 0, '离线打坐按息数结算 -> ' + JSON.stringify(rec && rec.acts));
+  assert(ST.Game.skills.dazuo.xp > before, '离线打坐使 dazuo 技能长经验');
+  assert((ST.Game.stats.offlineXp || 0) > 0, '离线打坐计入离线经验统计 -> ' + (ST.Game.stats.offlineXp||0));
+  G.stopActivity();
+}
+
 // ============ 27. 顶栏收敛 + 征伐页渲染性能 ============
 section('顶栏收敛与征伐页性能');
 // 27.1 入口收敛：昼夜 / 帮助 / 设置三按钮从顶栏移除，设置沉入侧边栏
@@ -2693,11 +2747,11 @@ section('技能矢量图标');
   assert(typeof ki === 'function', 'skillIcon 已导出');
   assert(indexOfOf('index.html', 'src/skillIcon.js') >= 0, 'skillIcon.js 已引入页面');
   // 30.2 技能数量与图标数量严格对齐（新增技能必须补图）
-  assert(ST.SKILL_ICON_IDS.length === 26, '技能图标共 26 枚（' + ST.SKILL_ICON_IDS.length + '）');
+  assert(ST.SKILL_ICON_IDS.length === 27, '技能图标共 27 枚（' + ST.SKILL_ICON_IDS.length + '）');
   const skIds = Object.keys(ST.Skills);
   const missSk = skIds.filter(id => !ST.SKILL_ICON_IDS.includes(id));
   assert(missSk.length === 0, '每个技能都有图标（缺：' + (missSk.join(',')||'无') + '）');
-  assert(skIds.length === 26, '技能总数 26（' + skIds.length + '）');
+  assert(skIds.length === 27, '技能总数 27（' + skIds.length + '）');
   // 30.3 每枚图标都出图
   const badSk = [];
   skIds.forEach(id => {
