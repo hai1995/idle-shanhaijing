@@ -3516,6 +3516,16 @@ details.hetero-panel .hp-left{ margin-left:auto; font-style:normal; color:var(--
    PC 上让它们各占整行，上方短面板照旧网格。窄屏本来就是单列，无需回退。 */
 @media (min-width:721px){
   .stat-panel.ev-panel, .stat-panel.log-panel, .stat-panel.save-panel{ grid-column:1 / -1; }
+  /* 整行化之后还有下半句（v1.31.184）：整行不等于整行的空。行旅见闻与长线成就的
+     条目都是「名 + 数 + 加成 + 细进度条」的自足小块，单列排在 1144px 的行里，
+     每条只坐 ~150px 内容、其余全空，十八条成就要拖三屏。改成多列平铺：
+     列数随屏宽自增（auto-fill），「不在时」小标题靠既有的 grid-column:1/-1 跨整行。
+     窄屏（≤720px）不进这条分支，照旧单列。 */
+  .stat-panel.ev-panel .stat-rows,
+  .stat-panel.ms-panel .stat-rows{
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr));
+    column-gap:32px; align-items:start;
+  }
 }
 
 /* 关于页 · 同好：群号独占一行、等宽数字，旁边一颗复制按钮 */
@@ -20329,7 +20339,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.183',
+  version: '1.31.184',
   codename:'昼巡 · 对账',
   updated: '2026-10-28',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
