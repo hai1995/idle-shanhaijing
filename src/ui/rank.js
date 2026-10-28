@@ -55,7 +55,7 @@ UI.renderRank = function(){
     <p class="hint">网游化的第一步：把你的修为、著录、轮回战绩投到一张榜上，与各路著录客一较高下。数值只取各人历史最好，重复投递不会刷低自己。</p>
     <div class="rank-cfg">
       <div class="form-row"><span>榜单服务</span>
-        <input type="text" id="lbUrl" value="${esc(url)}" placeholder="如 http://你的服务器:8788" maxlength="200">
+        <input type="text" id="lbUrl" value="${esc(url)}" placeholder="如 http://你的服务器:8788" maxlength="200" onkeydown="if(event.key==='Enter'){event.preventDefault();UI.saveLbUrl()}">
         <button class="btn" type="button" onclick="UI.saveLbUrl()">保存</button></div>
       <div class="hint set-hint">地址由你自管（见 server/leaderboard.js，零依赖，自己起一个即可）。留空则只显示本机战绩卡，不参与排行。不上传任何账号信息，仅投昵称与战绩数字。</div>
     </div>`;

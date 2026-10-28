@@ -210,14 +210,14 @@ UI.renderStats = function(){
       return `<div class="panel stat-panel ev-panel"><h3 data-tip data-tip-title="行旅见闻" data-wiki="mechanic:jianwen">行旅见闻 <span class="hint">${kinds}/${evs.length} 种 · 共 ${total} 条</span><span class="tip-body hidden">巡历途中偶有奇遇：一句话 + 一点东西；离山归来还会听说「不在时」的山中事。见过的种类在此录全，路上遇见的与不在时错过的分栏而记。</span></h3>
         <div class="stat-rows">${rows}${awayRows}</div>${lastLine}</div>`;
     })()}
-    <div class="panel stat-panel"><h3>商旅</h3>
+    <div class="panel stat-panel stat-half"><h3>商旅</h3>
       <div class="stat-rows">
         <span>贝币 <b data-stat="shells">${fmt(Game.shells)}</b></span>
         <span>累计收入 <b data-stat="totalEarned">${fmt(s.totalEarned)}</b></span>
         <span>买入 <b data-stat="purchases">${s.purchases}</b> 次</span>
         <span>卖出 <b data-stat="sales">${s.sales}</b> 次</span>
       </div></div>
-    <div class="panel stat-panel"><h3>著录</h3>
+    <div class="panel stat-panel stat-half"><h3>著录</h3>
       <div class="stat-rows">
         <span>已录 <b data-stat="recorded">${recordedCount()}/${Object.keys(CODEX).length}</b></span>
         <span>山已涉 <b data-stat="nodes">${Object.keys(Game.map).length}/${WORLD.regions.reduce((s,r)=>s+r.nodes.length,0)}</b></span>
@@ -253,7 +253,7 @@ UI.renderStats = function(){
         </details>`;
       })()}
     </div>
-    <div class="panel stat-panel"><h3>时间 / 离线</h3>
+    <div class="panel stat-panel stat-half"><h3>时间 / 离线</h3>
       <div class="stat-rows">
         <span class="season-row"><i class="stat-k">季候</i> <b data-stat="season">${seasonLineText()}</b></span>
         <span>在册时长 <b data-stat="time">${fmtTime(s.time)}</b></span>
@@ -280,6 +280,13 @@ UI.renderStats = function(){
           return next ? ` <i class="hint">再观 ${next.n - n} 处 → +${Math.round(next.v*100)}%</i>` : '';
         })()}</span>
       </div></div>
+    <div class="panel stat-panel log-panel stat-half"><h3>日志</h3>
+      <div class="filter-row">
+        ${[['all','全部'],['skill','技能'],['combat','讨伐'],['trade','商旅'],['omen','征兆'],['event','见闻'],['sys','系统']].map(([k,v])=>
+          `<button class="chip-btn ${this.logFilter===k?'on':''}" onclick="UI.logFilter='${k}';UI.renderLog()">${v}</button>`).join('')}
+      </div>
+      <div class="log-list" id="logList"></div>
+    </div>
     ${(()=>{
       // 会员（预留）：现在没有账号系统，所以这里只列「将来会有什么」，不提供任何购买入口。
       // 权益表来自 TUNING.MEMBER.TIERS，改数值不用动这段 UI。
@@ -294,14 +301,14 @@ UI.renderStats = function(){
         if (t.offlineEff) bits.push(`离线效率 +${Math.round(t.offlineEff*100)}%`);
         return `<div class="mem-row${on?' on':''}"><b>${esc(t.name)}</b><span>${bits.join(' · ')}</span></div>`;
       }).join('');
-      return `<div class="panel stat-panel mem-panel"><h3>会员 · ${esc(cur.name)}</h3>
+      return `<div class="panel stat-panel mem-panel stat-half"><h3>会员 · ${esc(cur.name)}</h3>
         <div class="mem-list">${rows}</div>
         <p class="hint">会员将由<b>账号系统</b>统一开通与校验（尚未接入，当前恒为未开通）。
         权益只加离线时长与产出，<b>不加战力</b>——付费不该买到关卡的通过权；到期自动失效。</p>
       </div>`;
     })()}
-    <div class="panel stat-panel save-panel"><h3>存档</h3>
-      <div class="stat-rows">
+    <div class="panel stat-panel save-panel stat-half"><h3>存档</h3>
+      <div class="save-acts">
         <button class="btn" onclick="saveGame();UI.toast('已存档')">手动存档（S）</button>
         <button class="btn" onclick="UI.shareCard()">复制战绩</button>
         <button class="btn" onclick="exportSave()">导出存档</button>
@@ -309,13 +316,6 @@ UI.renderStats = function(){
         <button class="btn danger" onclick="resetGame()">重置进度</button>
       </div>
       <div class="hint">导出为一段 JSON 文本，可收藏；导入会校验字段。</div>
-    </div>
-    <div class="panel log-panel"><h3>日志</h3>
-      <div class="filter-row">
-        ${[['all','全部'],['skill','技能'],['combat','讨伐'],['trade','商旅'],['omen','征兆'],['event','见闻'],['sys','系统']].map(([k,v])=>
-          `<button class="chip-btn ${this.logFilter===k?'on':''}" onclick="UI.logFilter='${k}';UI.renderLog()">${v}</button>`).join('')}
-      </div>
-      <div class="log-list" id="logList"></div>
     </div>
   </div>`;
   this.renderLog();

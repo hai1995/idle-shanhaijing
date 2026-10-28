@@ -53,7 +53,7 @@ UI.renderSettings = function(){
         <section class="set-sec">
           <h4>偏好</h4>
           <div class="form-row"><span>游戏昵称</span>
-            <input type="text" id="nickInput" maxlength="12" value="${esc(Game.nickname||'')}" placeholder="留空即用默认名号（最多 12 字）">
+            <input type="text" id="nickInput" maxlength="12" value="${esc(Game.nickname||'')}" placeholder="留空即用默认名号（最多 12 字）" onkeydown="if(event.key==='Enter'){event.preventDefault();saveNickname()}">
             <button class="btn" onclick="saveNickname()">保存</button></div>
           <div class="form-row"><span>自动进食</span>
             <input type="range" min="10" max="80" value="${Math.round(Prefs.autoEat*100)}" oninput="Prefs.autoEat=this.value/100" onchange="saveGame()">

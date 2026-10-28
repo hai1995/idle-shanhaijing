@@ -870,6 +870,12 @@ assert(ST.UI.currentTab === 'wiki', '右滑在首页环绕到末页（百科）'
   assert(bootSrc.includes("e.key === ']'") && bootSrc.includes('switchTabNeighbor(1)'), '] 进一页');
   const setSrc = require('fs').readFileSync(require('path').join(__dirname, '..', 'src/ui/settings.js'), 'utf8');
   assert(setSrc.includes('1–9 / 0') && setSrc.includes('[ ]'), '设置页把两个新键写进说明（说明不能落后于实现）');
+  // 两个文本框（昵称 / 榜单地址）旁边都有「保存」按钮，回车也该算数：
+  // 全局 keydown 在 INPUT 上直接 return（防误触 S 存档），所以得由输入框自己接。
+  assert(setSrc.includes("onkeydown=\"if(event.key==='Enter'){event.preventDefault();saveNickname()}\"")
+      || setSrc.includes("if(event.key==='Enter'){event.preventDefault();saveNickname()}"), '昵称框回车即保存');
+  const rankSrc = require('fs').readFileSync(require('path').join(__dirname, '..', 'src/ui/rank.js'), 'utf8');
+  assert(rankSrc.includes("if(event.key==='Enter'){event.preventDefault();UI.saveLbUrl()}"), '榜单地址回车即保存');
 }
 
 // ============ 16.9 征兆数值预览 · 墟市头部 ============
@@ -2259,6 +2265,54 @@ section('统计页实时刷新');
   ST.UI.patchStats();
   assert(probed === before, '非统计页不执行刷新');
 }
+// ============ 33b. 统计页分栏：小牌配对，别在四栏里留洞 ============
+// v1.31.196 之前：小牌按 4 栏自动流，商旅 / 著录 只坐两栏、右边两栏空着，
+// 时间 / 会员 再空两栏，日志单吊在最后一栏、左边三栏全空 —— 1182×2522 的页面里
+// 有将近一半是洞。现在两张一组（.stat-half 跨两栏），日志挪到时间旁边。
+section('统计页分栏');
+{
+  const pairs = [
+    ['商旅', '<div class="panel stat-panel stat-half"><h3>商旅</h3>'],
+    ['著录', '<div class="panel stat-panel stat-half"><h3>著录</h3>'],
+    ['时间 / 离线', '<div class="panel stat-panel stat-half"><h3>时间 / 离线</h3>'],
+  ];
+  for (const [name, frag] of pairs) assert(uiSrc.includes(frag), name + ' 跨两栏（stat-half）');
+  assert(uiSrc.includes('mem-panel stat-half'), '会员跨两栏');
+  assert(uiSrc.includes('save-panel stat-half'), '存档跨两栏');
+  // 日志那块原先 class 里没有 stat-panel，于是 `.stat-panel.log-panel` 这条
+  // 整行化规则一次都没命中 —— 日志就单吊在最后一栏。类名补齐。
+  assert(uiSrc.includes('class="panel stat-panel log-panel stat-half"'), '日志带 stat-panel 类且跨两栏（那条选择器以前是死的）');
+  assert(uiSrc.indexOf('log-panel') < uiSrc.indexOf('mem-panel')
+      && uiSrc.indexOf('mem-panel') < uiSrc.indexOf('save-panel'), '日志排在会员之前：时间↔日志同排、会员↔存档同排');
+
+  const cssS = require('fs').readFileSync(require('path').join(__dirname, '..', 'style.css'), 'utf8');
+  // 跨两栏只在四栏布局里成立：两栏时商旅与著录本就该并排，
+  // 跨两栏会把一行账簿拉成 900px 宽（标签在左、数值在天边）。
+  assert(/@media \(min-width:1241px\)\{ \.stat-panel\.stat-half\{ grid-column:span 2; \} \}/.test(cssS),
+    '四栏时 .stat-half 跨两栏');
+  assert(/\.stat-panel\.ev-panel, \.stat-panel\.ms-panel\{ grid-column:1 \/ -1; \}/.test(cssS),
+    '整行只留行旅见闻与长线成就（日志 / 存档改半行）');
+  // 注释里也提到过这个选择器（说明它为什么是死的），所以只认「选择器 + { 或 ,」
+  assert(!/\.stat-panel\.log-panel[,{]/.test(cssS), '日志不再整行');
+  // 列数写死 4 / 2 / 1：auto-fill 在 1001–1260 只给三栏，配对牌永远空一栏；
+  // 481–760 又被 minmax(140px) 压成四栏 148px。两处都得盯住。
+  assert(/\.stat-grid\{ display:grid; grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/.test(cssS), '统计网格四栏');
+  assert(/@media \(max-width:1240px\)\{ \.stat-grid\{ grid-template-columns:repeat\(2,minmax\(0,1fr\)\); \} \}/.test(cssS),
+    '1240 以下两栏');
+  assert(!/\.stat-grid\{ grid-template-columns:repeat\(auto-fill/.test(cssS), '统计网格不再用 auto-fill（列数由断点定）');
+  const mob = cssS.slice(cssS.indexOf('.mini-grid,.shop-grid,.inv-grid'));
+  assert(mob.indexOf('.stat-grid') < 0 || mob.indexOf('.stat-grid') > 200,
+    '小屏那条 minmax(140px) 清单里不再含 stat-grid');
+
+  // 存档：五颗按钮曾塞在 .stat-rows（flex 竖列）里，各自拉成 1182px 整行、字缩在正中。
+  assert(!/\.save-panel \.stat-rows \.btn\{/.test(cssS), '存档按钮不再走 .stat-rows 的整行拉伸');
+  assert(/\.save-acts\{ display:grid; grid-template-columns:1fr 1fr;/.test(cssS), '存档动作两列');
+  assert(/\.save-acts \.btn\.danger\{ grid-column:1 \/ -1; \}/.test(cssS), '重置进度独占一行（不可撤销的那个别跟别人挤）');
+  const saveBlock = uiSrc.slice(uiSrc.indexOf('save-panel'));
+  assert(saveBlock.indexOf('class="save-acts"') >= 0 && saveBlock.indexOf('class="save-acts"') < saveBlock.indexOf('重置进度'),
+    '存档按钮装在 .save-acts 里');
+}
+
 // ============ 34. 日志自动清理 + 离线结算记账 ============
 section('日志 300 条上限 / 离线结算统计');
 {

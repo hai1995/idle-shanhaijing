@@ -2463,7 +2463,19 @@ details.bulk-sell .bs-preview, details.bulk-sell .bs-act{ margin-left:11px; marg
 /* ==========================================================================
    统计 / 日志
    ========================================================================== */
-.stat-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(256px,1fr)); gap:12px; align-items:start; }.stat-rows{ display:flex; flex-direction:column; gap:0; font-size:12px; }
+/* 四栏时两张小牌凑一行（.stat-half 跨两栏）；两栏 / 一栏时自然并排或铺满。 */
+@media (min-width:1241px){ .stat-panel.stat-half{ grid-column:span 2; } }
+
+/* 行旅见闻与长线成就一律整行：条目本身就是「名 + 数 + 加成」的小块，
+   挤在半栏里只剩一列，二十五条见闻要滚三屏（v1.31.170 起整行，v1.31.196 去掉断点）。 */
+.stat-panel.ev-panel, .stat-panel.ms-panel{ grid-column:1 / -1; }
+
+/* 列数写死三档（v1.31.196）：auto-fill 在 1001–1260 只会给出三栏，
+   而配对的两张牌（.stat-half）跨两栏，第三栏就永远空着；481–760 又被上面
+   那条 minmax(140px) 压成四栏 148px 宽，行旅见闻挤在一栏里。
+   干脆 4 / 2 / 1：四栏时两张凑一行，两栏时一张一行，一栏时铺满。 */
+.stat-grid{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; align-items:start; }
+@media (max-width:1240px){ .stat-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); } }.stat-rows{ display:flex; flex-direction:column; gap:0; font-size:12px; }
 /* 账簿式条目：标签靠左、数值靠右、中间一条极淡的点线 */
 .stat-rows > span{
   display:flex; align-items:baseline; gap:8px; padding:4px 0;
@@ -2538,9 +2550,12 @@ details.bulk-sell .bs-preview, details.bulk-sell .bs-act{ margin-left:11px; marg
 .stat-rows.gather-rows{ margin-top:10px; border-top:1px solid var(--rule-2); padding-top:8px; }
 .stat-rows.ms-rows span.done{ color:var(--tai); }
 .stat-rows.ms-rows span.done i{ color:var(--tai); opacity:.8; }
-.save-panel .stat-rows{ flex-direction:column; gap:6px; }
-.save-panel .stat-rows > span{ border-bottom:none; padding:0; }
-.save-panel .stat-rows .btn{ width:100%; justify-content:center; }
+/* 存档动作：五颗按钮原先塞在 .stat-rows（flex 竖列）里，于是各自拉成整行 1182px 宽、
+   字缩在正中，像五行说明而不是按钮（v1.31.196）。改成两列小格子，重置单独占一行——
+   它是唯一不可撤销的那个，不该和「复制战绩」挤在一排里等误点。 */
+.save-acts{ display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.save-acts .btn{ width:100%; justify-content:center; }
+.save-acts .btn.danger{ grid-column:1 / -1; }
 
 .log-list{ max-height:300px; overflow-y:auto; font-size:12px; padding-right:4px; }
 /* 日志行与异迹面板（.omen-log-line）同形：solid 细分隔线 + 5px 上下距 + 1.6 行距 */
@@ -2931,7 +2946,7 @@ body.no-scroll{ overflow:hidden; }
   .panel .gear-grid, .panel .inv-grid, .panel .sell-grid,
   .panel .omen-grid, .panel .building-grid,
   .panel .farm-grid{ grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
-  .mini-grid,.shop-grid,.inv-grid,.gear-grid,.omen-grid,.rite-grid,.stat-grid{
+  .mini-grid,.shop-grid,.inv-grid,.gear-grid,.omen-grid,.rite-grid{
     grid-template-columns:repeat(auto-fill,minmax(min(140px,100%),1fr));
   }
   .codex-grid{ grid-template-columns:repeat(auto-fill,minmax(min(92px,100%),1fr)); }
@@ -3584,12 +3599,19 @@ details.hetero-panel .hp-left{ margin-left:auto; font-style:normal; color:var(--
 .stat-rows.ms-rows .ms-bar > i{ display:block; height:100%; margin:0; background:var(--ink-4); }
 .stat-rows.ms-rows span.done .ms-bar > i{ background:var(--tai); }
 .stat-rows.ms-rows span.done .ms-bar{ border-color:var(--tai); }
-@media (max-width:720px){ .stat-panel.ms-panel{ grid-column:auto; } }
+@media (max-width:480px){ .stat-panel.ms-panel{ grid-column:auto; } }
 /* 长面板整行化（v1.31.170）：行旅见闻几十条、日志与存档都是竖长块，
    挤在 256px 格子里把列高拉得参差（四栏里一栏拖到屏外）；
    PC 上让它们各占整行，上方短面板照旧网格。窄屏本来就是单列，无需回退。 */
 @media (min-width:721px){
-  .stat-panel.ev-panel, .stat-panel.log-panel, .stat-panel.save-panel{ grid-column:1 / -1; }
+  /* 四栏座次（v1.31.196）：原来只把行旅见闻 / 日志 / 存档整行化，其余小牌按 4 栏自动流。
+     于是「商旅 + 著录」只坐两栏、右边两栏空着，「时间 + 会员」再空两栏，
+     日志单吊在最后一栏、左边三栏全空——一页 2500px 里有将近一半是洞。
+     现在两张配对：跨度 2 的牌正好填满半行，日志挪到时间旁边（508 vs 442，差 66），
+     会员与存档凑一排。顺带修一条死规则：日志那块的 class 里从来没有 stat-panel，
+     `.stat-panel.log-panel` 选择器一次都没命中过。 */
+  /* 两栏时不必跨列：商旅与著录本来就该并排（跨两栏会拉成 900px 宽的一行账簿，
+     标签在左、数值在天边）。跨两栏只在四栏布局里才有意义。 */
   /* 整行化之后还有下半句（v1.31.184）：整行不等于整行的空。行旅见闻与长线成就的
      条目都是「名 + 数 + 加成 + 细进度条」的自足小块，单列排在 1144px 的行里，
      每条只坐 ~150px 内容、其余全空，十八条成就要拖三屏。改成多列平铺：
@@ -20418,8 +20440,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.195',
-  codename:'字体复位',
+  version: '1.31.196',
+  codename:'统计归栏',
   updated: '2026-10-28',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
@@ -31028,7 +31050,7 @@ UI.renderSettings = function(){
         <section class="set-sec">
           <h4>偏好</h4>
           <div class="form-row"><span>游戏昵称</span>
-            <input type="text" id="nickInput" maxlength="12" value="${esc(Game.nickname||'')}" placeholder="留空即用默认名号（最多 12 字）">
+            <input type="text" id="nickInput" maxlength="12" value="${esc(Game.nickname||'')}" placeholder="留空即用默认名号（最多 12 字）" onkeydown="if(event.key==='Enter'){event.preventDefault();saveNickname()}">
             <button class="btn" onclick="saveNickname()">保存</button></div>
           <div class="form-row"><span>自动进食</span>
             <input type="range" min="10" max="80" value="${Math.round(Prefs.autoEat*100)}" oninput="Prefs.autoEat=this.value/100" onchange="saveGame()">
@@ -36794,14 +36816,14 @@ UI.renderStats = function(){
       return `<div class="panel stat-panel ev-panel"><h3 data-tip data-tip-title="行旅见闻" data-wiki="mechanic:jianwen">行旅见闻 <span class="hint">${kinds}/${evs.length} 种 · 共 ${total} 条</span><span class="tip-body hidden">巡历途中偶有奇遇：一句话 + 一点东西；离山归来还会听说「不在时」的山中事。见过的种类在此录全，路上遇见的与不在时错过的分栏而记。</span></h3>
         <div class="stat-rows">${rows}${awayRows}</div>${lastLine}</div>`;
     })()}
-    <div class="panel stat-panel"><h3>商旅</h3>
+    <div class="panel stat-panel stat-half"><h3>商旅</h3>
       <div class="stat-rows">
         <span>贝币 <b data-stat="shells">${fmt(Game.shells)}</b></span>
         <span>累计收入 <b data-stat="totalEarned">${fmt(s.totalEarned)}</b></span>
         <span>买入 <b data-stat="purchases">${s.purchases}</b> 次</span>
         <span>卖出 <b data-stat="sales">${s.sales}</b> 次</span>
       </div></div>
-    <div class="panel stat-panel"><h3>著录</h3>
+    <div class="panel stat-panel stat-half"><h3>著录</h3>
       <div class="stat-rows">
         <span>已录 <b data-stat="recorded">${recordedCount()}/${Object.keys(CODEX).length}</b></span>
         <span>山已涉 <b data-stat="nodes">${Object.keys(Game.map).length}/${WORLD.regions.reduce((s,r)=>s+r.nodes.length,0)}</b></span>
@@ -36837,7 +36859,7 @@ UI.renderStats = function(){
         </details>`;
       })()}
     </div>
-    <div class="panel stat-panel"><h3>时间 / 离线</h3>
+    <div class="panel stat-panel stat-half"><h3>时间 / 离线</h3>
       <div class="stat-rows">
         <span class="season-row"><i class="stat-k">季候</i> <b data-stat="season">${seasonLineText()}</b></span>
         <span>在册时长 <b data-stat="time">${fmtTime(s.time)}</b></span>
@@ -36864,6 +36886,13 @@ UI.renderStats = function(){
           return next ? ` <i class="hint">再观 ${next.n - n} 处 → +${Math.round(next.v*100)}%</i>` : '';
         })()}</span>
       </div></div>
+    <div class="panel stat-panel log-panel stat-half"><h3>日志</h3>
+      <div class="filter-row">
+        ${[['all','全部'],['skill','技能'],['combat','讨伐'],['trade','商旅'],['omen','征兆'],['event','见闻'],['sys','系统']].map(([k,v])=>
+          `<button class="chip-btn ${this.logFilter===k?'on':''}" onclick="UI.logFilter='${k}';UI.renderLog()">${v}</button>`).join('')}
+      </div>
+      <div class="log-list" id="logList"></div>
+    </div>
     ${(()=>{
       // 会员（预留）：现在没有账号系统，所以这里只列「将来会有什么」，不提供任何购买入口。
       // 权益表来自 TUNING.MEMBER.TIERS，改数值不用动这段 UI。
@@ -36878,14 +36907,14 @@ UI.renderStats = function(){
         if (t.offlineEff) bits.push(`离线效率 +${Math.round(t.offlineEff*100)}%`);
         return `<div class="mem-row${on?' on':''}"><b>${esc(t.name)}</b><span>${bits.join(' · ')}</span></div>`;
       }).join('');
-      return `<div class="panel stat-panel mem-panel"><h3>会员 · ${esc(cur.name)}</h3>
+      return `<div class="panel stat-panel mem-panel stat-half"><h3>会员 · ${esc(cur.name)}</h3>
         <div class="mem-list">${rows}</div>
         <p class="hint">会员将由<b>账号系统</b>统一开通与校验（尚未接入，当前恒为未开通）。
         权益只加离线时长与产出，<b>不加战力</b>——付费不该买到关卡的通过权；到期自动失效。</p>
       </div>`;
     })()}
-    <div class="panel stat-panel save-panel"><h3>存档</h3>
-      <div class="stat-rows">
+    <div class="panel stat-panel save-panel stat-half"><h3>存档</h3>
+      <div class="save-acts">
         <button class="btn" onclick="saveGame();UI.toast('已存档')">手动存档（S）</button>
         <button class="btn" onclick="UI.shareCard()">复制战绩</button>
         <button class="btn" onclick="exportSave()">导出存档</button>
@@ -36893,13 +36922,6 @@ UI.renderStats = function(){
         <button class="btn danger" onclick="resetGame()">重置进度</button>
       </div>
       <div class="hint">导出为一段 JSON 文本，可收藏；导入会校验字段。</div>
-    </div>
-    <div class="panel log-panel"><h3>日志</h3>
-      <div class="filter-row">
-        ${[['all','全部'],['skill','技能'],['combat','讨伐'],['trade','商旅'],['omen','征兆'],['event','见闻'],['sys','系统']].map(([k,v])=>
-          `<button class="chip-btn ${this.logFilter===k?'on':''}" onclick="UI.logFilter='${k}';UI.renderLog()">${v}</button>`).join('')}
-      </div>
-      <div class="log-list" id="logList"></div>
     </div>
   </div>`;
   this.renderLog();
@@ -36971,7 +36993,7 @@ UI.renderRank = function(){
     <p class="hint">网游化的第一步：把你的修为、著录、轮回战绩投到一张榜上，与各路著录客一较高下。数值只取各人历史最好，重复投递不会刷低自己。</p>
     <div class="rank-cfg">
       <div class="form-row"><span>榜单服务</span>
-        <input type="text" id="lbUrl" value="${esc(url)}" placeholder="如 http://你的服务器:8788" maxlength="200">
+        <input type="text" id="lbUrl" value="${esc(url)}" placeholder="如 http://你的服务器:8788" maxlength="200" onkeydown="if(event.key==='Enter'){event.preventDefault();UI.saveLbUrl()}">
         <button class="btn" type="button" onclick="UI.saveLbUrl()">保存</button></div>
       <div class="hint set-hint">地址由你自管（见 server/leaderboard.js，零依赖，自己起一个即可）。留空则只显示本机战绩卡，不参与排行。不上传任何账号信息，仅投昵称与战绩数字。</div>
     </div>`;
