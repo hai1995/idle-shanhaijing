@@ -2317,6 +2317,10 @@ details.bulk-sell .bs-preview, details.bulk-sell .bs-act{ margin-left:11px; marg
 .stat-rows > span.season-row{ flex-wrap:wrap; }
 .stat-rows > span.season-row > .stat-k{ flex:0 0 auto; white-space:nowrap; font-style:normal; }
 .stat-rows > span.season-row > b{ min-width:0; text-align:right; line-height:1.5; }
+/* 榜页「本机战绩卡」（v1.31.172）：无榜单服务时也把数值正式铺出来，账簿式双列 */
+.rank-local{ margin-top:14px; }
+.rank-local h3{ margin:0 0 8px; font-size:13px; }
+.rank-local-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(min(430px,100%),1fr)); gap:2px 28px; }
 /* 见闻录的「未见 · 线索」：线索独占一行、缩进一点，不与条目名挤在一起
    （390px 下「祠前老祝 · 未见（在有山祠（谒见）的山头做事才遇）」会折成两行半） */
 .stat-rows > span.ev-unseen{ display:block; }
@@ -2942,7 +2946,7 @@ mark.hit{
 .ob-refresh{ font-size:11.5px; color:var(--ink-3); }
 .ob-refresh b{ font-family:var(--f-num); color:var(--ink-2); }
 .ob-refresh .btn{ margin-left:8px; }
-.ob-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:10px; }
+.ob-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr)); gap:10px; }
 .ob-card{
   display:flex; flex-direction:column; gap:7px;
   background:var(--paper-2); border:1px solid var(--rule-2); border-left:2px solid var(--zhu);

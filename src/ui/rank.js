@@ -60,6 +60,26 @@ UI.renderRank = function(){
       <div class="hint set-hint">地址由你自管（见 server/leaderboard.js，零依赖，自己起一个即可）。留空则只显示本机战绩卡，不参与排行。不上传任何账号信息，仅投昵称与战绩数字。</div>
     </div>`;
 
+  // 无榜单服务时也把「本机战绩卡」正式画出来（v1.31.172）：此前只有一个复制按钮悬在半空，
+  // 整页九成空白。数值口径与 shareCard 完全一致（scorePayload）。
+  const p = this.scorePayload();
+  const localCard = `
+    <h3>本机战绩</h3>
+    <div class="rank-local-grid">
+      <div class="stat-rows">
+        <span>昵称<b>${esc(p.name)}</b></span>
+        <span>总修为<b>${fmt(p.totalXp)}</b></span>
+        <span>著录<b>${p.recorded}</b></span>
+        <span>轮回次数<b>${p.rebirthCount}</b></span>
+      </div>
+      <div class="stat-rows">
+        <span>单轮最快<b>${p.bestSec ? fmt(p.bestSec) + ' 秒' : '—'}</b></span>
+        <span>最高强化<b>${p.bestEnhance ? '+' + p.bestEnhance : '—'}</b></span>
+        <span>图鉴收录<b>${p.codexTotal}</b></span>
+        <span>悬赏在身<b>${p.bounties}</b></span>
+      </div>
+    </div>`;
+
   const body = url ? `
     <div class="rank-actions">
       <button class="btn primary" type="button" onclick="UI.submitScore()">投我战绩</button>
@@ -67,8 +87,9 @@ UI.renderRank = function(){
     </div>
     <div id="rankBody"><div class="hint">榜单加载中…</div></div>` : `
     <div class="rank-local">
-      <button class="btn" type="button" onclick="UI.shareCard()">复制本机战绩卡</button>
-      <p class="hint">尚未配置榜单服务。配置「榜单服务」地址后，即可投递战绩并查看全服排行；在此之前，战绩卡可复制分享到群。</p>
+      ${localCard}
+      <div class="rank-actions" style="margin-top:10px;"><button class="btn" type="button" onclick="UI.shareCard()">复制本机战绩卡</button></div>
+      <p class="hint" style="margin-top:8px;">以上即「本机战绩卡」，可复制分享到群。配置「榜单服务」地址后，即可投递战绩并查看全服排行。</p>
     </div>`;
 
   c.innerHTML = head + body + `</div>`;

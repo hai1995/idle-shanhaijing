@@ -2344,6 +2344,10 @@ details.bulk-sell .bs-preview, details.bulk-sell .bs-act{ margin-left:11px; marg
 .stat-rows > span.season-row{ flex-wrap:wrap; }
 .stat-rows > span.season-row > .stat-k{ flex:0 0 auto; white-space:nowrap; font-style:normal; }
 .stat-rows > span.season-row > b{ min-width:0; text-align:right; line-height:1.5; }
+/* 榜页「本机战绩卡」（v1.31.172）：无榜单服务时也把数值正式铺出来，账簿式双列 */
+.rank-local{ margin-top:14px; }
+.rank-local h3{ margin:0 0 8px; font-size:13px; }
+.rank-local-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(min(430px,100%),1fr)); gap:2px 28px; }
 /* 见闻录的「未见 · 线索」：线索独占一行、缩进一点，不与条目名挤在一起
    （390px 下「祠前老祝 · 未见（在有山祠（谒见）的山头做事才遇）」会折成两行半） */
 .stat-rows > span.ev-unseen{ display:block; }
@@ -2969,7 +2973,7 @@ mark.hit{
 .ob-refresh{ font-size:11.5px; color:var(--ink-3); }
 .ob-refresh b{ font-family:var(--f-num); color:var(--ink-2); }
 .ob-refresh .btn{ margin-left:8px; }
-.ob-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:10px; }
+.ob-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr)); gap:10px; }
 .ob-card{
   display:flex; flex-direction:column; gap:7px;
   background:var(--paper-2); border:1px solid var(--rule-2); border-left:2px solid var(--zhu);
@@ -20249,7 +20253,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.171',
+  version: '1.31.172',
   codename:'昼巡 · 对账',
   updated: '2026-10-28',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -36579,6 +36583,26 @@ UI.renderRank = function(){
       <div class="hint set-hint">地址由你自管（见 server/leaderboard.js，零依赖，自己起一个即可）。留空则只显示本机战绩卡，不参与排行。不上传任何账号信息，仅投昵称与战绩数字。</div>
     </div>`;
 
+  // 无榜单服务时也把「本机战绩卡」正式画出来（v1.31.172）：此前只有一个复制按钮悬在半空，
+  // 整页九成空白。数值口径与 shareCard 完全一致（scorePayload）。
+  const p = this.scorePayload();
+  const localCard = `
+    <h3>本机战绩</h3>
+    <div class="rank-local-grid">
+      <div class="stat-rows">
+        <span>昵称<b>${esc(p.name)}</b></span>
+        <span>总修为<b>${fmt(p.totalXp)}</b></span>
+        <span>著录<b>${p.recorded}</b></span>
+        <span>轮回次数<b>${p.rebirthCount}</b></span>
+      </div>
+      <div class="stat-rows">
+        <span>单轮最快<b>${p.bestSec ? fmt(p.bestSec) + ' 秒' : '—'}</b></span>
+        <span>最高强化<b>${p.bestEnhance ? '+' + p.bestEnhance : '—'}</b></span>
+        <span>图鉴收录<b>${p.codexTotal}</b></span>
+        <span>悬赏在身<b>${p.bounties}</b></span>
+      </div>
+    </div>`;
+
   const body = url ? `
     <div class="rank-actions">
       <button class="btn primary" type="button" onclick="UI.submitScore()">投我战绩</button>
@@ -36586,8 +36610,9 @@ UI.renderRank = function(){
     </div>
     <div id="rankBody"><div class="hint">榜单加载中…</div></div>` : `
     <div class="rank-local">
-      <button class="btn" type="button" onclick="UI.shareCard()">复制本机战绩卡</button>
-      <p class="hint">尚未配置榜单服务。配置「榜单服务」地址后，即可投递战绩并查看全服排行；在此之前，战绩卡可复制分享到群。</p>
+      ${localCard}
+      <div class="rank-actions" style="margin-top:10px;"><button class="btn" type="button" onclick="UI.shareCard()">复制本机战绩卡</button></div>
+      <p class="hint" style="margin-top:8px;">以上即「本机战绩卡」，可复制分享到群。配置「榜单服务」地址后，即可投递战绩并查看全服排行。</p>
     </div>`;
 
   c.innerHTML = head + body + `</div>`;
