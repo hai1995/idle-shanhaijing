@@ -210,14 +210,11 @@ function codexAchBarHtml(v){
     <button class="btn small" onclick="UI.openAchModal()">${v.achClaim ? '领取' : '查看'}</button>
   </div>`;
 }
-// 分类 chips 与「仅未录」：检索时角标会变，所以单独成块（局部刷新时只换这一块）
+// 筛选钮（v1.31.191）：这里原先还有一排「异兽 / 山川 / 百物 / 祠典」，与上方四格
+// 完成度总览点的是同一件事——同一屏两套分类选择器，一处带数字、一处只有名字。
+// 现在分类只由四格决定，这一行只留「只看什么」，不再是第二个切类入口。
 function codexTabsInner(v){
-  return Object.entries(v.tabs).map(([k, label])=>{
-    const hit = v.q ? (v.qHit[k] || 0) : 0;
-    const badge = (v.q && hit > 0 && k !== UI.codexTab) ? `<i class="q-hit" title="本类命中 ${hit} 条">${hit}</i>` : '';
-    return `<button class="chip-btn ${UI.codexTab===k?'on':''}" onclick="UI.codexTab='${k}';UI.renderCodex()">${label}${badge}</button>`;
-  }).join('')
-  + `<button class="chip-btn ${v.onlyMiss?'on':''}" title="只列本类尚未著录的条目"
+  return `<button class="chip-btn ${v.onlyMiss?'on':''}" title="只列本类尚未著录的条目"
       onclick="UI.codexOnlyMiss=!UI.codexOnlyMiss;UI.renderCodex()">仅未录 ${v.tabTotal-v.tabDone}</button>`
   // 「可往」：只列此刻就能前往的条目（与「仅未录」可叠加，成为「此刻能去且还没录」的待办）
   + (()=>{
@@ -258,13 +255,16 @@ function bindCodexSearch(){
     el.value = ''; UI.codexQuery = ''; UI.patchCodexList();
   });
 }
+// 筛选行右侧那句话（v1.31.191）：原先开口就是「本类 12/34」，可在上面第一格
+// 「异兽 12/34」里写着同一个数字，两处相邻并列等于说了两遍。现在没有筛选时
+// 只说这一页有多少条；一旦开了检索 / 仅未录 / 可往，才逐条报各条件筛出多少。
 function codexHintText(v){
-  const parts = [`本类 ${v.tabDone}/${v.tabTotal}`];
+  const parts = [];
   if (v.q) parts.push(`命中 ${v.shown.length}`);
   if (v.onlyMiss) parts.push(`未录 ${v.shown.length}`);
   // 「可往」与「仅未录」叠加时，「未录 N」说的是筛选后的数，会误导——分开说清
   if (v.reachOnly) parts.push(`可往 ${v.shown.length}`);
-  parts.push(`总录 ${v.done}/${v.total}`);
+  if (!parts.length) return `共 ${v.tabTotal} 条`;
   return parts.join(' · ');
 }
 // 完成度总览：1121 条散在四类里，只看当前类的分母不知道「其余三类还剩多少」，
@@ -275,10 +275,15 @@ function codexOverviewHtml(v){
     const dn = list.filter(e => ((Game.records || {})[e.id] || {}).count > 0).length;
     const pc = list.length ? Math.round(dn / list.length * 100) : 0;
     const miss = list.length - dn;
+    // 检索命中角标（v1.31.191）：原先挂在分类 chips 上，chips 合并进四格后跟着搬过来，
+    // 免得「搜蛊雕停在百物页」时看不出该切去哪一格。
+    const hit = v.q ? (v.qHit[k] || 0) : 0;
+    const badge = (v.q && hit > 0 && UI.codexTab !== k)
+      ? `<i class="q-hit" title="本类命中 ${hit} 条">${hit}</i>` : '';
     return `<button class="cx-ov ${UI.codexTab===k?'on':''}${miss===0?' full':''}" type="button"
         onclick="UI.codexTab='${k}';UI.renderCodex()"
         title="${v.tabs[k]}：已录 ${dn} / ${list.length}${miss ? `，还差 ${miss}` : '，已尽收'}">
-      <span class="cx-ov-t">${v.tabs[k]}</span>
+      <span class="cx-ov-t">${v.tabs[k]}${badge}</span>
       <span class="cx-ov-v">${dn}<i>/${list.length}</i></span>
       <span class="cx-ov-b"><i style="width:${pc}%"></i></span>
     </button>`;
@@ -324,7 +329,11 @@ function codexGridInner(v){
     ? `<button class="btn codex-more" type="button" onclick="UI.codexMore()">还有 ${total - list.length} 条 · 展开</button>`
     : '';
   return list.length ? list.map(e=>{
-    const rec = Game.records[e.id]||{count:0,tier:0};
+    // 归一化（v1.31.191）：导入的旧档、手改过的存档可能只带 count 没有 tier，
+    // 直接取字段会把「距「undefined」还差 NaN 次」印到卡片底下（截图上就是那个 undefined）。
+    const raw = Game.records[e.id] || null;
+    const rec = { count: Math.max(0, Number(raw && raw.count) || 0),
+                  tier: Math.max(0, Math.min(TUNING.MASTERY.NAMES.length - 1, Number(raw && raw.tier) || 0)) };
     const seen = rec.count > 0;
     // 检索时把命中片段高亮；否则沿用常规 nameTag（含生僻字处理）
     const nmHtml = q
@@ -386,12 +395,13 @@ UI.renderCodex = function(){
   if (!box) return;
   UI.codexLimit = 0;                 // 换页/换分类从第一屏重新开始
   const v = codexView();
+  // 页序（v1.31.191）：成就条 → 四格（唯一的分类选择器）→ 筛选行 → 列表。
+  // 整宽的 .codex-bar 删了：四格每格底下已有一条本类进度，再横贯一条说的是同一件事。
   box.innerHTML = codexAchBarHtml(v)
+    + `<div id="codexOverview">${codexOverviewHtml(v)}</div>`
     + `<div class="filter-row"><span class="codex-tabs" id="codexTabs">${codexTabsInner(v)}</span>`
     + codexSearchHtml()
     + `<span class="hint" id="codexHint">${esc(codexHintText(v))}</span></div>`
-    + `<div class="codex-bar" title="本类已著录 ${v.tabPct}%"><div class="fill" style="width:${v.tabPct}%"></div></div>`
-    + codexOverviewHtml(v)
     + `<div class="codex-grid" id="codexGrid">${codexGridInner(v)}</div>`;
   bindCodexSearch();
 };
@@ -416,6 +426,8 @@ UI.patchCodexList = function(){
   const v = codexView();
   const g = $('codexGrid');
   if (g) g.innerHTML = codexGridInner(v);
+  const ov = $('codexOverview');
+  if (ov) ov.innerHTML = codexOverviewHtml(v);   // 检索命中角标与完成度都在这块里
   const tb = $('codexTabs');
   if (tb) tb.innerHTML = codexTabsInner(v);
   const hint = $('codexHint');

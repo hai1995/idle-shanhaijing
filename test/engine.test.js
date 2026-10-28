@@ -935,8 +935,13 @@ let cxOk = true, cxTxt = '';
 try { ST.UI.currentTab = 'codex'; ST.UI.codexTab = 'beast'; ST.UI.renderCodex(); cxTxt = renderTargets.content.innerHTML; }
 catch(e){ cxOk = false; console.error('图鉴渲染异常：'+e.stack); }
 assert(cxOk, 'renderCodex 不抛错');
-assert(cxTxt.indexOf('本类') >= 0 && cxTxt.indexOf('总录') >= 0, '图鉴显示本类与总录完成度');
-assert(cxTxt.indexOf('codex-bar') >= 0, '图鉴渲染分类进度条');
+assert(cxTxt.indexOf('共 ') >= 0 && cxTxt.indexOf(' 条') > 0, '无筛选时只说这一页有多少条（不与四格重复报同一个数）');
+// v1.31.191：分类选择器只留一套——四格总览（带各类已录/总数与进度），
+// chips 那排同名按钮并进去，整宽的 .codex-bar 删掉（四格里已各有一条本类进度）。
+assert(cxTxt.indexOf('codex-overview') >= 0 && cxTxt.indexOf('cx-ov-sum') >= 0, '图鉴四格总览在位（含总录百分比）');
+assert(cxTxt.indexOf('codex-bar') < 0, '不再有第二条整宽进度条');
+assert((cxTxt.match(/chip-btn/g) || []).length <= 2, '筛选行只留「仅未录 / 可往」，不再重复一排分类按钮');
+assert(cxTxt.indexOf("UI.codexTab='beast'") >= 0, '四格之一仍是分类入口（点它切到异兽）');
 
 // ============ 16.19 节点著录进度 ============
 section('节点著录进度');

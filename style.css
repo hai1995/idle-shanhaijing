@@ -1922,9 +1922,11 @@ svg.bi.mk{ vertical-align:-2px; }
 .cc-lock:hover{ color:var(--zhu-tx); }
 /* 图鉴完成度总览：四类并排，各自一条细进度。
    1121 条的收集进度若只在「当前类」显示，玩家永远不知道自己整体走到哪了。 */
+/* 四格既是完成度总览，也是唯一的分类选择器（v1.31.191：chips 那排同名按钮已并入这里），
+   与下方筛选行之间留 12px——原先这段间距由被删掉的整宽进度条提供。 */
 .codex-overview{
   display:flex; flex-wrap:wrap; align-items:center; gap:6px;
-  margin:6px 0 8px;
+  margin:6px 0 12px;
 }
 .cx-ov{
   flex:1 1 68px; min-width:68px; display:flex; flex-direction:column; gap:2px;
@@ -1996,8 +1998,6 @@ svg.bi.mk{ vertical-align:-2px; }
 .tier-dots i.on{ background:var(--zhu); border-color:var(--zhu); }   /* 当前阶 */
 .tier-dots i.full{ background:var(--ink-2); border-color:var(--ink-2); } /* 已过阶 */
 
-.codex-bar{ height:2px; background:var(--rule-2); margin:2px 2px 14px; overflow:hidden; }
-.codex-bar .fill{ height:100%; background:var(--qing); transition:width .25s; }
 .reveal{
   font-size:12.5px; padding:9px 0; border-bottom:1px solid var(--rule-2);
   line-height:1.85; display:flex; gap:10px;

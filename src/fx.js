@@ -40,14 +40,19 @@ const FX = {
   },
 
   // 粒子爆开（Boss 击杀、升级等）
+  // 粒子字符走 markHtml（v1.31.191）：原先直接 textContent = emoji，缺 emoji 字体的环境
+  // （无头容器、精简 Linux）里，一簇粒子就是一簇 ☒ 豆腐块——图上那团「方框带叉」正是它。
+  // markHtml 把认得的 emoji 换成矢量小图，不认得的仍原样印出（与 toast / 日志同一套口径）。
   burst(x, y, emoji, count){
     const layer = this.ensureLayer();
     if (!layer) return;
     const n = count || 8;
+    const glyph = emoji || '✨';
+    const html = (typeof markHtml === 'function') ? markHtml(glyph, 13) : null;
     for (let i=0; i<n; i++){
       const p = document.createElement('div');
       p.className = 'fx-particle';
-      p.textContent = emoji || '✨';
+      if (html) p.innerHTML = html; else p.textContent = glyph;
       const a = Math.random()*Math.PI*2, dist = 30 + Math.random()*45;
       p.style.left = x + 'px';
       p.style.top = y + 'px';
