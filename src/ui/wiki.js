@@ -36,20 +36,25 @@ UI.renderWiki = function () {
     });
     html += `</div></section>`;
   });
-  html += `</div>`;
+  html += `</div><div class="wiki-empty hidden">没有匹配的条目——换个词，或清空检索看看全部。</div>`;
   box.innerHTML = html;
 };
 
-// 顶部检索：按条目正文过滤，空分组自动隐藏
+// 顶部检索：按条目正文过滤，空分组自动隐藏；全空时给一句空态提示
 UI.filterWiki = function (q) {
   q = String(q || '').trim().toLowerCase();
+  let visible = 0;
   document.querySelectorAll('.wiki-entry').forEach(el => {
     const t = (el.textContent || '').toLowerCase();
-    el.classList.toggle('hidden', !!q && t.indexOf(q) < 0);
+    const show = !q || t.indexOf(q) >= 0;
+    el.classList.toggle('hidden', !show);
+    if (show) visible++;
   });
   document.querySelectorAll('.wiki-group').forEach(g => {
     g.classList.toggle('hidden', !g.querySelector('.wiki-entry:not(.hidden)'));
   });
+  const empty = document.querySelector('.wiki-empty');
+  if (empty) empty.classList.toggle('hidden', visible > 0);
 };
 
 // 分组速跳：页顶 chips 直达对应分组

@@ -3229,6 +3229,11 @@ mark.hit{
 .ach-bar .ach-stat b{ color:var(--ink); font-variant-numeric:tabular-nums; }
 .ach-bar .ach-new{ color:var(--zhu); }
 .ach-bar .btn.small{ margin-left:auto; }
+/* 成就进度线：已领占比的「形」——与顶栏已录细线同款做法 */
+.ach-bar .ach-meter{ flex:1 1 90px; max-width:180px; height:3px; background:var(--rule); border-radius:3px; overflow:hidden; }
+.ach-bar .ach-meter > i{ display:block; height:100%; width:0; background:var(--jin); transition:width .4s ease-out; }
+/* wiki 检索空态：全组被滤空时给一句交代，不剩白板 */
+.wiki-empty{ margin:18px auto 0; text-align:center; color:var(--ink-3); font-size:13px; }
 
 .ach-list{ max-height:52vh; overflow-y:auto; margin:8px 0 4px; }
 .ach-row{
@@ -3562,12 +3567,14 @@ details.hetero-panel .hp-left{ margin-left:auto; font-style:normal; color:var(--
         <span class="stat" data-s="级" title="总等级：二十七门技艺之和">
           <i class="lb">总等级</i><b id="totalLevel">0</b>
         </span>
-        <span class="stat" data-s="录" title="已著录条目 / 全图鉴条目">
+        <span class="stat" data-s="录" data-tip data-tip-title="著录" data-wiki="mechanic:mastery">
           <i class="lb">已录</i><b id="recordCount">0/0</b>
           <span class="meter" aria-hidden="true"><i id="recordMeter"></i></span>
+          <span class="tip-body hidden" id="recordTipBody">已著录条目 / 全图鉴条目。著录阶位愈高产出愈丰；异兽著录至「通形」可入御使槽。</span>
         </span>
-        <span class="stat" data-s="贝" title="贝币">
+        <span class="stat" data-s="贝" data-tip data-tip-title="贝币" data-wiki="mechanic:shanglv">
           <i class="lb">贝币</i><b id="shellCount">0</b>
+          <span class="tip-body hidden">贝币由售卖、求购交付与征伐掉落而来；「墟市」以贝易物，低买高卖亦是修行。</span>
         </span>
         <!-- 境界胶囊（v1.31.170）：上轮新增的境界系统此前只能进技能页看，
              书脊右侧也一直空着——把当前境界常驻顶栏，可突破时染朱提醒；点开即百科。 -->
@@ -20271,7 +20278,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.174',
+  version: '1.31.175',
   codename:'昼巡 · 对账',
   updated: '2026-10-28',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -30521,6 +30528,12 @@ UI.renderTopbar = function(){
   // 「已录」下的细进度线：让 0/632 这种数字有一个可感知的比例
   const meter = $('recordMeter');
   if (meter) meter.style.width = (recTotal ? Math.min(100, recDone / recTotal * 100) : 0).toFixed(1) + '%';
+  // 「已录」悬停正文（v1.31.175）：与境界胶囊同款——hover 即见进度与百分比
+  const rb = document.getElementById ? document.getElementById('recordTipBody') : null;
+  if (rb){
+    const line = `已著录 ${recDone} / ${recTotal}（${recTotal ? Math.round(recDone / recTotal * 100) : 0}%）。著录阶位愈高产出愈丰；异兽著录至「通形」可入御使槽。`;
+    if (rb.textContent !== line) rb.textContent = line;
+  }
   // 境界胶囊（v1.31.170）：当前境界名常驻书脊；攒够修为时染朱提示「可突破」，
   // 点击跳百科（onclick 在 index.html 上）。读不到境界函数时静默跳过（测试桩兜底）。
   if (typeof currentRealm === 'function'){
@@ -34035,9 +34048,12 @@ function codexView(){
 }
 
 function codexAchBarHtml(v){
+  // 进度线：已领占比一眼可读——成就数字之外给一个「比例」的形
+  const pct = v.achAll.length ? Math.round(v.achDone / v.achAll.length * 100) : 0;
   return `<div class="ach-bar">
     <span class="ach-lb">收集成就</span>
     <span class="ach-stat">已领 <b>${v.achDone}</b> / ${v.achAll.length}</span>
+    <span class="ach-meter" aria-hidden="true"><i style="width:${pct}%"></i></span>
     ${v.achClaim ? `<span class="ach-new">可领 ${v.achClaim}</span>` : '<span class="hint">暂无待领</span>'}
     <button class="btn small" onclick="UI.openAchModal()">${v.achClaim ? '领取' : '查看'}</button>
   </div>`;
@@ -37234,20 +37250,25 @@ UI.renderWiki = function () {
     });
     html += `</div></section>`;
   });
-  html += `</div>`;
+  html += `</div><div class="wiki-empty hidden">没有匹配的条目——换个词，或清空检索看看全部。</div>`;
   box.innerHTML = html;
 };
 
-// 顶部检索：按条目正文过滤，空分组自动隐藏
+// 顶部检索：按条目正文过滤，空分组自动隐藏；全空时给一句空态提示
 UI.filterWiki = function (q) {
   q = String(q || '').trim().toLowerCase();
+  let visible = 0;
   document.querySelectorAll('.wiki-entry').forEach(el => {
     const t = (el.textContent || '').toLowerCase();
-    el.classList.toggle('hidden', !!q && t.indexOf(q) < 0);
+    const show = !q || t.indexOf(q) >= 0;
+    el.classList.toggle('hidden', !show);
+    if (show) visible++;
   });
   document.querySelectorAll('.wiki-group').forEach(g => {
     g.classList.toggle('hidden', !g.querySelector('.wiki-entry:not(.hidden)'));
   });
+  const empty = document.querySelector('.wiki-empty');
+  if (empty) empty.classList.toggle('hidden', visible > 0);
 };
 
 // 分组速跳：页顶 chips 直达对应分组

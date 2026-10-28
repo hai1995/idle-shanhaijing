@@ -200,9 +200,12 @@ function codexView(){
 }
 
 function codexAchBarHtml(v){
+  // 进度线：已领占比一眼可读——成就数字之外给一个「比例」的形
+  const pct = v.achAll.length ? Math.round(v.achDone / v.achAll.length * 100) : 0;
   return `<div class="ach-bar">
     <span class="ach-lb">收集成就</span>
     <span class="ach-stat">已领 <b>${v.achDone}</b> / ${v.achAll.length}</span>
+    <span class="ach-meter" aria-hidden="true"><i style="width:${pct}%"></i></span>
     ${v.achClaim ? `<span class="ach-new">可领 ${v.achClaim}</span>` : '<span class="hint">暂无待领</span>'}
     <button class="btn small" onclick="UI.openAchModal()">${v.achClaim ? '领取' : '查看'}</button>
   </div>`;

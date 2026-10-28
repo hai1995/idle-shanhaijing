@@ -24,7 +24,7 @@
   }catch(e){}
 })();
 </script>
-<link rel="stylesheet" href="style.css?v=1.31.174">
+<link rel="stylesheet" href="style.css?v=1.31.175">
 </head>
 <body onload="init()">
 <div id="app">
@@ -38,12 +38,14 @@
         <span class="stat" data-s="级" title="总等级：二十七门技艺之和">
           <i class="lb">总等级</i><b id="totalLevel">0</b>
         </span>
-        <span class="stat" data-s="录" title="已著录条目 / 全图鉴条目">
+        <span class="stat" data-s="录" data-tip data-tip-title="著录" data-wiki="mechanic:mastery">
           <i class="lb">已录</i><b id="recordCount">0/0</b>
           <span class="meter" aria-hidden="true"><i id="recordMeter"></i></span>
+          <span class="tip-body hidden" id="recordTipBody">已著录条目 / 全图鉴条目。著录阶位愈高产出愈丰；异兽著录至「通形」可入御使槽。</span>
         </span>
-        <span class="stat" data-s="贝" title="贝币">
+        <span class="stat" data-s="贝" data-tip data-tip-title="贝币" data-wiki="mechanic:shanglv">
           <i class="lb">贝币</i><b id="shellCount">0</b>
+          <span class="tip-body hidden">贝币由售卖、求购交付与征伐掉落而来；「墟市」以贝易物，低买高卖亦是修行。</span>
         </span>
         <!-- 境界胶囊（v1.31.170）：上轮新增的境界系统此前只能进技能页看，
              书脊右侧也一直空着——把当前境界常驻顶栏，可突破时染朱提醒；点开即百科。 -->
@@ -112,49 +114,49 @@
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 14l6-6 6 6"/></svg>
 </button>
 
-<script src="src/nanshanData.js?v=1.31.174"></script>
-<script src="src/xishanData.js?v=1.31.174"></script>
-<script src="src/beishanData.js?v=1.31.174"></script>
-<script src="src/dongshanData.js?v=1.31.174"></script>
-<script src="src/zhongshanData.js?v=1.31.174"></script>
-<script src="src/gameData.js?v=1.31.174"></script>
-<script src="src/affix.js?v=1.31.174"></script>
-<script src="src/save.js?v=1.31.174"></script>
-<script src="src/engine.js?v=1.31.174"></script>
-<script src="src/game.js?v=1.31.174"></script>
-<script src="src/queue.js?v=1.31.174"></script>
-<script src="src/beastIcon.js?v=1.31.174"></script>
-<script src="src/riteIcon.js?v=1.31.174"></script>
-<script src="src/structureIcon.js?v=1.31.174"></script>
-<script src="src/skillIcon.js?v=1.31.174"></script>
-<script src="src/itemIcon.js?v=1.31.174"></script>
-<script src="src/markIcon.js?v=1.31.174"></script>
-<script src="src/interact.js?v=1.31.174"></script>
-<script src="src/events.js?v=1.31.174"></script>
-<script src="src/fx.js?v=1.31.174"></script>
-<script src="src/ui/core.js?v=1.31.174"></script>
-    <script src="src/ui/meta.js?v=1.31.174"></script>
-<script src="src/ui/hud.js?v=1.31.174"></script>
-<script src="src/ui/modal.js?v=1.31.174"></script>
-<script src="src/ui/settings.js?v=1.31.174"></script>
-<script src="src/ui/tutorial.js?v=1.31.174"></script>
-<script src="src/ui/scene.js?v=1.31.174"></script>
-<script src="src/ui/yudi.js?v=1.31.174"></script>
-<script src="src/ui/skills.js?v=1.31.174"></script>
-<script src="src/ui/combat.js?v=1.31.174"></script>
-<script src="src/ui/codex.js?v=1.31.174"></script>
-<script src="src/ui/shrine.js?v=1.31.174"></script>
-<script src="src/ui/trade.js?v=1.31.174"></script>
-<script src="src/ui/queue.js?v=1.31.174"></script>
-<script src="src/ui/pack.js?v=1.31.174"></script>
-<script src="src/ui/item.js?v=1.31.174"></script>
-<script src="src/ui/enhance.js?v=1.31.174"></script>
-<script src="src/ui/stats.js?v=1.31.174"></script>
-<script src="src/ui/rank.js?v=1.31.174"></script>
-    <script src="src/ui/misc.js?v=1.31.174"></script>
-    <script src="src/ui/wikiData.js?v=1.31.174"></script>
-    <script src="src/ui/wiki.js?v=1.31.174"></script>
-    <script src="src/ui/boot.js?v=1.31.174"></script>
+<script src="src/nanshanData.js?v=1.31.175"></script>
+<script src="src/xishanData.js?v=1.31.175"></script>
+<script src="src/beishanData.js?v=1.31.175"></script>
+<script src="src/dongshanData.js?v=1.31.175"></script>
+<script src="src/zhongshanData.js?v=1.31.175"></script>
+<script src="src/gameData.js?v=1.31.175"></script>
+<script src="src/affix.js?v=1.31.175"></script>
+<script src="src/save.js?v=1.31.175"></script>
+<script src="src/engine.js?v=1.31.175"></script>
+<script src="src/game.js?v=1.31.175"></script>
+<script src="src/queue.js?v=1.31.175"></script>
+<script src="src/beastIcon.js?v=1.31.175"></script>
+<script src="src/riteIcon.js?v=1.31.175"></script>
+<script src="src/structureIcon.js?v=1.31.175"></script>
+<script src="src/skillIcon.js?v=1.31.175"></script>
+<script src="src/itemIcon.js?v=1.31.175"></script>
+<script src="src/markIcon.js?v=1.31.175"></script>
+<script src="src/interact.js?v=1.31.175"></script>
+<script src="src/events.js?v=1.31.175"></script>
+<script src="src/fx.js?v=1.31.175"></script>
+<script src="src/ui/core.js?v=1.31.175"></script>
+    <script src="src/ui/meta.js?v=1.31.175"></script>
+<script src="src/ui/hud.js?v=1.31.175"></script>
+<script src="src/ui/modal.js?v=1.31.175"></script>
+<script src="src/ui/settings.js?v=1.31.175"></script>
+<script src="src/ui/tutorial.js?v=1.31.175"></script>
+<script src="src/ui/scene.js?v=1.31.175"></script>
+<script src="src/ui/yudi.js?v=1.31.175"></script>
+<script src="src/ui/skills.js?v=1.31.175"></script>
+<script src="src/ui/combat.js?v=1.31.175"></script>
+<script src="src/ui/codex.js?v=1.31.175"></script>
+<script src="src/ui/shrine.js?v=1.31.175"></script>
+<script src="src/ui/trade.js?v=1.31.175"></script>
+<script src="src/ui/queue.js?v=1.31.175"></script>
+<script src="src/ui/pack.js?v=1.31.175"></script>
+<script src="src/ui/item.js?v=1.31.175"></script>
+<script src="src/ui/enhance.js?v=1.31.175"></script>
+<script src="src/ui/stats.js?v=1.31.175"></script>
+<script src="src/ui/rank.js?v=1.31.175"></script>
+    <script src="src/ui/misc.js?v=1.31.175"></script>
+    <script src="src/ui/wikiData.js?v=1.31.175"></script>
+    <script src="src/ui/wiki.js?v=1.31.175"></script>
+    <script src="src/ui/boot.js?v=1.31.175"></script>
 <script>
 /* 缓存自检（内联，不依赖任何模块）：index.html 自身没有 ?v=，主屏幕里的独立实例
    可能一直拿着旧页面——旧页面又去引用同名（旧版本串）的脚本，于是「改了手机不生效」。

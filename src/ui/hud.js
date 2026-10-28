@@ -166,6 +166,12 @@ UI.renderTopbar = function(){
   // 「已录」下的细进度线：让 0/632 这种数字有一个可感知的比例
   const meter = $('recordMeter');
   if (meter) meter.style.width = (recTotal ? Math.min(100, recDone / recTotal * 100) : 0).toFixed(1) + '%';
+  // 「已录」悬停正文（v1.31.175）：与境界胶囊同款——hover 即见进度与百分比
+  const rb = document.getElementById ? document.getElementById('recordTipBody') : null;
+  if (rb){
+    const line = `已著录 ${recDone} / ${recTotal}（${recTotal ? Math.round(recDone / recTotal * 100) : 0}%）。著录阶位愈高产出愈丰；异兽著录至「通形」可入御使槽。`;
+    if (rb.textContent !== line) rb.textContent = line;
+  }
   // 境界胶囊（v1.31.170）：当前境界名常驻书脊；攒够修为时染朱提示「可突破」，
   // 点击跳百科（onclick 在 index.html 上）。读不到境界函数时静默跳过（测试桩兜底）。
   if (typeof currentRealm === 'function'){
