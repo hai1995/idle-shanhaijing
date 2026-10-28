@@ -1806,6 +1806,19 @@ svg.bi.mk{ vertical-align:-2px; }
 /* 空态里常带一枚指路钮（「去征伐」）。间距交给样式，不写内联 margin——
    此前靠内联样式，换皮时它留在原地不动（v1.31.163）。 */
 .empty-note .btn{ margin-top:10px; }
+/* 营造页「已营建一览」：下半页不再空置，建成了什么、各管什么一眼摊开 */
+.ying-brief{ margin-top:14px; }
+.yb-title{ margin:0 0 7px; font-family:var(--f-kai); font-size:13px; font-weight:400; color:var(--ink-2); letter-spacing:.04em; }
+.yb-list{ display:grid; grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr)); gap:5px 26px; }
+.yb-row{ display:flex; gap:9px; align-items:baseline; font-size:12.5px; line-height:1.55; }
+.yb-nm{ flex:none; font-family:var(--f-kai); color:var(--ink); }
+.yb-nm svg,.yb-nm img{ vertical-align:-3px; margin-right:2px; }
+.yb-fx{ color:var(--ink-3); }
+.yb-next{ margin-top:9px; }
+/* 行装右栏「装备概况」：槽位图下的合计小账 */
+.gear-brief{ margin-top:12px; padding-top:10px; border-top:1px dashed var(--rule); }
+.gb-row{ display:flex; justify-content:space-between; gap:12px; font-size:12.5px; line-height:1.7; color:var(--ink-3); }
+.gb-row b{ color:var(--ink); font-weight:400; font-family:var(--f-kai); text-align:right; }
 /* 单行空态不撑成大方块：日志框 / 小面板里的「暂无记录」只占一指高 */
 .empty-note:not(:has(.btn)):not(:has(br)){ padding:12px 16px; }
 /* 御使页两处空态（v1.31.171）：整栏就一块空态时，虚线框不必撑到 18px 高，
@@ -20258,7 +20271,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.173',
+  version: '1.31.174',
   codename:'昼巡 · 对账',
   updated: '2026-10-28',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -34891,6 +34904,19 @@ UI.renderYing = function(){
       }).join('');
     })()}
     </div>
+    ${(() => {
+      // 已营建一览：把「建成了什么、各管什么」摊在页面下半——
+      // 此前营造页建完几座后只剩一片空白，效果全藏在逐座的弹窗里。
+      const all = Object.values(BUILDINGS);
+      const done = all.filter(b => Game.buildings[b.id]);
+      const next = all.filter(b => !Game.buildings[b.id]).sort((x, y) => x.lvl - y.lvl)[0];
+      if (!done.length && !next) return '';
+      return `<div class="ying-brief">
+        ${done.length ? `<h4 class="yb-title">已营建 <b>${done.length}</b>/${all.length}</h4>
+        <div class="yb-list">${done.map(b => `<div class="yb-row"><span class="yb-nm">${esc(b.name)}</span><span class="yb-fx">${esc(b.desc)}</span></div>`).join('')}</div>` : ''}
+        ${next ? `<div class="hint yb-next">下一座「${esc(next.name)}」：营邑 ${next.lvl} 级 · ${esc(next.desc)}</div>` : ''}
+      </div>`;
+    })()}
     <div class="hint">营邑等级随营造提升；造完一座所得经验足以开启下一座。学宫可加快著录度获取。</div>
     <div class="ying-repair">
       <button class="btn" onclick="repairBuild();UI.renderYing()">修葺旧筑（怪木×2 · 沙石×1）</button>
@@ -35316,6 +35342,26 @@ UI.renderPack = function(){
         <span class="gt-empty">皆空 · 点开</span>
       </div>` : ''}
       </div>
+      ${(() => {
+        // 装备概况：右栏槽位下方常空，把「身上这套」的合计摊出来——
+        // 伤害/防御按淬炼档折算（与详情页同一口径），淬炼合计一眼看得出养没养装备。
+        const worn = allSlots.map(s => Game.gear[s]).filter(Boolean);
+        if (!worn.length) return '';
+        const lvOf = g => (typeof enhanceLevel === 'function') ? (enhanceLevel(g) || 0) : 0;
+        const dmgSum = worn.reduce((a, g) => a + (g.dmg ? Math.floor((typeof enhanceScaled === 'function' ? enhanceScaled(g.dmg, lvOf(g)) : g.dmg)) : 0), 0);
+        const defSum = worn.reduce((a, g) => a + (g.def ? Math.floor((typeof enhanceScaled === 'function' ? enhanceScaled(g.def, lvOf(g)) : g.def)) : 0), 0);
+        const enhSum = worn.reduce((a, g) => a + lvOf(g), 0);
+        const grN = {};
+        worn.forEach(g => { const n = (typeof gearGrade === 'function') ? gearGrade(g).name : '?'; grN[n] = (grN[n] || 0) + 1; });
+        const gradeTxt = Object.keys(grN).map(n => n + '×' + grN[n]).join(' · ');
+        return `<div class="gear-brief">
+          <div class="gb-row"><span>已装</span><b>${worn.length}/${allSlots.length} 槽</b></div>
+          <div class="gb-row"><span>伤害合计</span><b>${dmgSum}</b></div>
+          <div class="gb-row"><span>防御合计</span><b>${defSum}</b></div>
+          <div class="gb-row"><span>淬炼合计</span><b>+${enhSum}</b></div>
+          ${gradeTxt ? `<div class="gb-row"><span>品阶</span><b>${gradeTxt}</b></div>` : ''}
+        </div>`;
+      })()}
     </div>
     <div class="panel inv-panel">
       <h3>行囊</h3>

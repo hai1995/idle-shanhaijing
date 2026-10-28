@@ -276,6 +276,19 @@ UI.renderYing = function(){
       }).join('');
     })()}
     </div>
+    ${(() => {
+      // 已营建一览：把「建成了什么、各管什么」摊在页面下半——
+      // 此前营造页建完几座后只剩一片空白，效果全藏在逐座的弹窗里。
+      const all = Object.values(BUILDINGS);
+      const done = all.filter(b => Game.buildings[b.id]);
+      const next = all.filter(b => !Game.buildings[b.id]).sort((x, y) => x.lvl - y.lvl)[0];
+      if (!done.length && !next) return '';
+      return `<div class="ying-brief">
+        ${done.length ? `<h4 class="yb-title">已营建 <b>${done.length}</b>/${all.length}</h4>
+        <div class="yb-list">${done.map(b => `<div class="yb-row"><span class="yb-nm">${esc(b.name)}</span><span class="yb-fx">${esc(b.desc)}</span></div>`).join('')}</div>` : ''}
+        ${next ? `<div class="hint yb-next">下一座「${esc(next.name)}」：营邑 ${next.lvl} 级 · ${esc(next.desc)}</div>` : ''}
+      </div>`;
+    })()}
     <div class="hint">营邑等级随营造提升；造完一座所得经验足以开启下一座。学宫可加快著录度获取。</div>
     <div class="ying-repair">
       <button class="btn" onclick="repairBuild();UI.renderYing()">修葺旧筑（怪木×2 · 沙石×1）</button>

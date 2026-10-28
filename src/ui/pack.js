@@ -134,6 +134,26 @@ UI.renderPack = function(){
         <span class="gt-empty">皆空 · 点开</span>
       </div>` : ''}
       </div>
+      ${(() => {
+        // 装备概况：右栏槽位下方常空，把「身上这套」的合计摊出来——
+        // 伤害/防御按淬炼档折算（与详情页同一口径），淬炼合计一眼看得出养没养装备。
+        const worn = allSlots.map(s => Game.gear[s]).filter(Boolean);
+        if (!worn.length) return '';
+        const lvOf = g => (typeof enhanceLevel === 'function') ? (enhanceLevel(g) || 0) : 0;
+        const dmgSum = worn.reduce((a, g) => a + (g.dmg ? Math.floor((typeof enhanceScaled === 'function' ? enhanceScaled(g.dmg, lvOf(g)) : g.dmg)) : 0), 0);
+        const defSum = worn.reduce((a, g) => a + (g.def ? Math.floor((typeof enhanceScaled === 'function' ? enhanceScaled(g.def, lvOf(g)) : g.def)) : 0), 0);
+        const enhSum = worn.reduce((a, g) => a + lvOf(g), 0);
+        const grN = {};
+        worn.forEach(g => { const n = (typeof gearGrade === 'function') ? gearGrade(g).name : '?'; grN[n] = (grN[n] || 0) + 1; });
+        const gradeTxt = Object.keys(grN).map(n => n + '×' + grN[n]).join(' · ');
+        return `<div class="gear-brief">
+          <div class="gb-row"><span>已装</span><b>${worn.length}/${allSlots.length} 槽</b></div>
+          <div class="gb-row"><span>伤害合计</span><b>${dmgSum}</b></div>
+          <div class="gb-row"><span>防御合计</span><b>${defSum}</b></div>
+          <div class="gb-row"><span>淬炼合计</span><b>+${enhSum}</b></div>
+          ${gradeTxt ? `<div class="gb-row"><span>品阶</span><b>${gradeTxt}</b></div>` : ''}
+        </div>`;
+      })()}
     </div>
     <div class="panel inv-panel">
       <h3>行囊</h3>

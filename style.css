@@ -1779,6 +1779,19 @@ svg.bi.mk{ vertical-align:-2px; }
 /* 空态里常带一枚指路钮（「去征伐」）。间距交给样式，不写内联 margin——
    此前靠内联样式，换皮时它留在原地不动（v1.31.163）。 */
 .empty-note .btn{ margin-top:10px; }
+/* 营造页「已营建一览」：下半页不再空置，建成了什么、各管什么一眼摊开 */
+.ying-brief{ margin-top:14px; }
+.yb-title{ margin:0 0 7px; font-family:var(--f-kai); font-size:13px; font-weight:400; color:var(--ink-2); letter-spacing:.04em; }
+.yb-list{ display:grid; grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr)); gap:5px 26px; }
+.yb-row{ display:flex; gap:9px; align-items:baseline; font-size:12.5px; line-height:1.55; }
+.yb-nm{ flex:none; font-family:var(--f-kai); color:var(--ink); }
+.yb-nm svg,.yb-nm img{ vertical-align:-3px; margin-right:2px; }
+.yb-fx{ color:var(--ink-3); }
+.yb-next{ margin-top:9px; }
+/* 行装右栏「装备概况」：槽位图下的合计小账 */
+.gear-brief{ margin-top:12px; padding-top:10px; border-top:1px dashed var(--rule); }
+.gb-row{ display:flex; justify-content:space-between; gap:12px; font-size:12.5px; line-height:1.7; color:var(--ink-3); }
+.gb-row b{ color:var(--ink); font-weight:400; font-family:var(--f-kai); text-align:right; }
 /* 单行空态不撑成大方块：日志框 / 小面板里的「暂无记录」只占一指高 */
 .empty-note:not(:has(.btn)):not(:has(br)){ padding:12px 16px; }
 /* 御使页两处空态（v1.31.171）：整栏就一块空态时，虚线框不必撑到 18px 高，
