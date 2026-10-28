@@ -6,5 +6,7 @@ idle-shanhaijing-standalone.html
 
 # 打包与系统文件
 *.zip
+__pycache__/
+*.pyc
 .DS_Store
 Thumbs.db

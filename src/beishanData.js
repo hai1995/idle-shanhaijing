@@ -612,6 +612,7 @@ window.BEISHAN = {
           "name": "灌题之山",
           "chapter": "北山经·北次一经",
           "unlockLevel": 45,
+          "terrain": "其下多流沙",
           "yields": {
             "wood": [
               "樗",
@@ -621,7 +622,6 @@ window.BEISHAN = {
               "砥",
               "磁石"
             ],
-            "terrain": "其下多流沙",
             "water": [
               "匠韩之水（西流注于泑泽）"
             ]

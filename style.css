@@ -1458,8 +1458,14 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; background:tran
 @media (min-width:1001px){
   .quote{
     writing-mode:vertical-rl; text-orientation:upright;
+    /* 竖排下 width:auto 会被浏览器收缩成内容宽（实测 344px，父容器 882px），
+       块本身却按普通块贴在左边——字从块的右沿往左排，于是整段文字挤在左侧、
+       右边几百像素空着，看着像没排完（v1.31.194）。
+       取内容宽 + 靠右：首列落在版框右沿，字往左长，与古籍从右起读一致；
+       短原文是一列靠右的小卷，长原文自己长宽、到顶转横向滚动。 */
+    width:fit-content; margin-left:auto; margin-right:0;
     height:8.6em; max-width:100%; overflow-x:auto; overflow-y:hidden;
-    padding:6px 12px 2px 2px; margin:16px 0;
+    padding:6px 12px 2px 2px; margin:16px 0 16px auto;
     border-right:2px solid var(--rule);
     scrollbar-width:thin; scrollbar-color:var(--rule-2) transparent;
   }

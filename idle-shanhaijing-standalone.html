@@ -1485,8 +1485,14 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; background:tran
 @media (min-width:1001px){
   .quote{
     writing-mode:vertical-rl; text-orientation:upright;
+    /* 竖排下 width:auto 会被浏览器收缩成内容宽（实测 344px，父容器 882px），
+       块本身却按普通块贴在左边——字从块的右沿往左排，于是整段文字挤在左侧、
+       右边几百像素空着，看着像没排完（v1.31.194）。
+       取内容宽 + 靠右：首列落在版框右沿，字往左长，与古籍从右起读一致；
+       短原文是一列靠右的小卷，长原文自己长宽、到顶转横向滚动。 */
+    width:fit-content; margin-left:auto; margin-right:0;
     height:8.6em; max-width:100%; overflow-x:auto; overflow-y:hidden;
-    padding:6px 12px 2px 2px; margin:16px 0;
+    padding:6px 12px 2px 2px; margin:16px 0 16px auto;
     border-right:2px solid var(--rule);
     scrollbar-width:thin; scrollbar-color:var(--rule-2) transparent;
   }
@@ -8973,6 +8979,7 @@ window.BEISHAN = {
           "name": "灌题之山",
           "chapter": "北山经·北次一经",
           "unlockLevel": 45,
+          "terrain": "其下多流沙",
           "yields": {
             "wood": [
               "樗",
@@ -8982,7 +8989,6 @@ window.BEISHAN = {
               "砥",
               "磁石"
             ],
-            "terrain": "其下多流沙",
             "water": [
               "匠韩之水（西流注于泑泽）"
             ]
@@ -20395,8 +20401,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.193',
-  codename:'设置归位',
+  version: '1.31.194',
+  codename:'名从其类',
   updated: '2026-10-28',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
@@ -32208,6 +32214,16 @@ function yieldItemHtml(x){
   const tail = [x.trait, x.effect].filter(Boolean).map(t => `<i>${esc(t)}</i>`).join('');
   return name + tail;
 }
+// 产出分栏的中文标签。数据里 yields 的键是英文（wood / mineral / …），
+// 早先这张表只认得六种，`fruit`（20 座）与 `fish`（20 座）没写进去——
+// 于是详情页真的印出「fruit 嘉果」「fish 豪鱼」，把数据字段名露给了玩家（v1.31.194 修）。
+// 表外的键一律落「其他」，至少不印英文；engine 测试另有一条断言，要求数据里的键都在这张表内，
+// 免得下次又悄悄多出一种没人认领的写法。
+const YIELD_LABEL = {
+  wood:'其木', mineral:'金玉', herb:'灵草', water:'水族', beast:'兽',
+  woodSpecial:'灵木', fruit:'其果', fish:'鱼',
+  special:'异', unknown:'怪',
+};
 // 节点著录进度：统计该节点可著录的物产/异兽中已著录数量
 // ⚠️ v1.31.50：此前只认 it.node（主产地），分母按主产地算 —— 于是 238 座山的
 // 「已著录 x/y」偏小（136 座原为 0，进度条压根不出现），玩家在柢山采到雄黄、
@@ -32489,15 +32505,14 @@ UI.renderYudi = function(){
     const yieldRows = (function(){
       const rows = [];
       Object.entries(sel.yields||{}).forEach(([k,v])=>{
-        if (k === 'unknown' || k === 'special') return;
+        if (k === 'unknown' || k === 'special') return;   // 这两类排在最后，标签是「怪 / 异」
         const list = Array.isArray(v) ? v : [];
         if (!list.length) return;
         const chips = list.map(yieldItemHtml).join('、');
-        const label = { wood:'其木', mineral:'金玉', herb:'灵草', water:'水族', beast:'兽', woodSpecial:'灵木' }[k]||k;
-        rows.push(`<div><b>${label}</b>${chips}</div>`);
+        rows.push(`<div data-k="${k}"><b>${YIELD_LABEL[k] || '其他'}</b>${chips}</div>`);
       });
-      if (sel.yields && sel.yields.special) rows.push(`<div><b>异</b>${sel.yields.special.map(yieldItemHtml).join('、')}</div>`);
-      if (sel.yields && sel.yields.unknown) rows.push(`<div><b>怪</b>${sel.yields.unknown.map(yieldItemHtml).join('、')}</div>`);
+      if (sel.yields && sel.yields.special) rows.push(`<div data-k="special"><b>${YIELD_LABEL.special}</b>${sel.yields.special.map(yieldItemHtml).join('、')}</div>`);
+      if (sel.yields && sel.yields.unknown) rows.push(`<div data-k="unknown"><b>${YIELD_LABEL.unknown}</b>${sel.yields.unknown.map(yieldItemHtml).join('、')}</div>`);
       if (rows.length) return `<div class="yield-rows">${rows.join('')}</div>`;
       // 原文写「无草木」的荒山（全书 18 座）不该只回一句「无所载」——
       // 那读起来像数据缺失。这里明说「此地本无」，并点出唯一可做之事。

@@ -958,18 +958,23 @@ assert(nrTxt.indexOf('录 ') >= 0, '节点列表项显示著录进度小标');
 assert(nrTxt.indexOf('rec-ok') >= 0 || nrTxt.indexOf('rec-no') >= 0 || nrTxt.indexOf('✓录') >= 0 || nrTxt.indexOf('未录') >= 0, '节点详情异兽显示著录状态（紧凑后在「山志」浮层内）');
 assert(nrTxt.indexOf('tip-body') >= 0 && nrTxt.indexOf('data-tip') >= 0, '节点详情含「山志」浮层锚点（悬停/点按展开）');
 
-// ============ 16.19b 产出里的「异 / 怪」：对象型写法 ============
+// ============ 16.19b 产出渲染：对象型「异 / 怪」与英文键 ============
 // 北次三经起，yields.special 从纯字符串改成了对象
 // （器酸 {name:'器酸', trait:'三岁一成', effect:'食之已疠'}），引擎那边早就按 e.name 取，
 // 可详情页那行还照字符串拼 esc(x) —— 屏幕上就是一行 [object Object]（v1.31.192 用户截图）。
+// 同一处还漏了两种键：数据里有 fruit（20 座）与 fish（20 座），标签表没写，
+// 于是页面直接印「fruit 嘉果」「fish 豪鱼」（v1.31.194）。
 // 这类「数据换了写法、UI 还按老写法拼」的错只看一两个样例永远抓不到：
 // 咸山排在北次三经第 4 座，南山三系全干净。所以这里把 447 座山全渲一遍扫一遍。
-section('产出渲染 · 对象型「异 / 怪」');
-let oyOk = true, oyBad = [], oyObj = 0, oySpec = '';
+section('产出渲染：对象型「异 / 怪」与英文键');
+let oyOk = true, oyBad = [], oyObj = 0, oySpec = '', oyGuanti = '';
+let oyLabelBad = [], oyNoCJK = [];
+const oyKeys = new Set();
 const _oySel = [ST.UI.selRegion, ST.UI.selNode];
 try {
   for (const r of ST.WORLD.regions){
     for (const n of r.nodes){
+      for (const k of Object.keys(n.yields || {})) oyKeys.add(k);
       for (const k of ['special','unknown'])
         for (const x of ((n.yields||{})[k]||[])) if (x && typeof x === 'object') oyObj++;
       ST.UI.currentTab = 'yudi'; ST.UI.yudiTab = 'detail';
@@ -977,7 +982,14 @@ try {
       ST.UI.renderYudi();
       const h = (renderTargets.content || {}).innerHTML || '';
       if (h.indexOf('[object Object]') >= 0) oyBad.push(n.id);
+      // 产出分栏的标签必须是中文：data-k 后面跟的 <b> 若还是英文，就是标签表没认这个键；
+      // 落成「其他」同理——兜底只是不让英文露出来，不代表这个键已经有人认领。
+      (h.match(/data-k="[a-zA-Z]+"><b>[^<]*<\/b>/g) || []).forEach(t => {
+        if (!/[\u4e00-\u9fa5]/.test(t)) oyNoCJK.push(n.id + ' ' + t);
+        else if (t.indexOf('<b>其他</b>') >= 0) oyNoCJK.push(n.id + ' ' + t + '（标签表缺这个键）');
+      });
       if (n.id === 'beishan-3-04') oySpec = h;
+      if (n.id === 'beishan-1-13') oyGuanti = h;
     }
   }
 } catch(e){ oyOk = false; console.error('产出渲染异常：'+e.stack); }
@@ -987,6 +999,12 @@ assert(oyObj > 0, '数据里确有对象型「异 / 怪」条目 -> ' + oyObj);
 assert(oyBad.length === 0, '没有一页印出 [object Object] -> ' + (oyBad.slice(0,5).join('/') || '干净'));
 assert(oySpec.indexOf('器酸') >= 0 && oySpec.indexOf('三岁一成') >= 0 && oySpec.indexOf('食之已疠') >= 0,
   '咸山之「异」把 name / trait / effect 都写出来（不是只留个名字）');
+// 键名白名单：数据里出现新写法时，这条会先红，提醒把它写进 YIELD_LABEL
+const OY_WANT = ['beast','fish','fruit','herb','mineral','special','unknown','water','wood','woodSpecial'];
+assert([...oyKeys].sort().join(',') === OY_WANT.join(','),
+  '产出键都在标签表内 -> ' + [...oyKeys].sort().join(','));
+assert(oyNoCJK.length === 0, '没有一页把英文键当标签印出来 -> ' + (oyNoCJK.slice(0,3).join(' / ') || '干净'));
+assert(oyGuanti.indexOf('其下多流沙') >= 0, '灌题之山的「其下多流沙」（原在 yields.terrain 里，被当数组过滤掉）回到地形行');
 
 // ============ 16.20 顶栏征兆总效应弹窗 ============
 section('征兆总效应弹窗');
@@ -1313,11 +1331,19 @@ assert(/\[data-theme="night"\] \.beast-tile \.el-huo\{/.test(css) && /\[data-the
   '五行签夜间提亮（金 / 水 / 火 / 土不再只有日间那套深色）');
 assert(/padding:0 16px var\(--app-pad-b, var\(--app-pad-b-base\)\)/.test((css.match(/#app\{[^}]*\}/) || [''])[0]), '#app 底部不再为状态条预留空间（留白变量化，可被抑制）');
 // 20.4b 滚动条审查：消除「不必要」的内部滚动条
-// (1) 竖排古籍不得有左外边距：竖排时 margin-left 是物理左外边距，会把整块推出父容器内容盒
+// (1) 竖排古籍不得有「固定」左外边距：竖排时 margin-left 是物理左外边距，
+//     v1.31.106 那次的 4px 就把整块推出 .nd-body 内容盒，凭空多出横向滚动条。
+//     v1.31.194 改成靠右排（首列落在版框右沿），用 margin-left:auto —— auto 取的是
+//     剩余空间，原文比容器宽时归零，不会推出去。实测 1480 / 1101 / 1001 三档与
+//     全书最长原文（昆仑之丘 253 字）都是 scrollWidth == clientWidth。
+//     所以这里禁的是固定值（px / em / %），不是 auto。
 assert(/\.quote\{[\s\S]*?writing-mode:vertical-rl/.test(css), '宽屏古籍为竖排');
 // 取「带竖排属性」的那条 .quote 规则（同一个选择器有基础版与宽屏版两条）
 const quoteRule = [...css.matchAll(/\.quote\{([^}]*)\}/g)].map(m=>m[1]).find(t=>/writing-mode:vertical-rl/.test(t)) || '';
-assert(!/margin-left\s*:/.test(quoteRule) && !/margin\s*:\s*[^;]*\s\d+px[^;]*\s\d+px\s+\d+px/.test(quoteRule), '竖排古籍无左外边距（否则父容器凭空多出横向滚动条）');
+const quoteMarginLeft = (quoteRule.match(/margin-left\s*:\s*([^;]+)/) || [, ''])[1].trim();
+assert(!quoteMarginLeft || quoteMarginLeft === 'auto',
+  '竖排古籍的左外边距只能是 auto（固定值会把整块推出父容器，多出横向滚动条）');
+assert(!/margin\s*:\s*[^;]*\s\d+px[^;]*\s\d+px\s+\d+px/.test(quoteRule), '竖排古籍无固定左外边距（四值 margin 的末位）');
 assert(/overflow-x:auto/.test(quoteRule) && /scrollbar-width:thin/.test(quoteRule), '竖排原文溢出时保留可见细滚动条（可翻阅的卷轴），不藏起来');
 // (2) 节点列表：任何宽度都不限高（窄屏页面已在滚，再加内滚就是双层滚动条）
 const nodeListBase = [...css.matchAll(/(?:^|[};])\s*\.node-list\{([^}]*)\}/g)].map(m=>m[1])[0] || '';

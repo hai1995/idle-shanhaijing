@@ -15,6 +15,16 @@ function yieldItemHtml(x){
   const tail = [x.trait, x.effect].filter(Boolean).map(t => `<i>${esc(t)}</i>`).join('');
   return name + tail;
 }
+// 产出分栏的中文标签。数据里 yields 的键是英文（wood / mineral / …），
+// 早先这张表只认得六种，`fruit`（20 座）与 `fish`（20 座）没写进去——
+// 于是详情页真的印出「fruit 嘉果」「fish 豪鱼」，把数据字段名露给了玩家（v1.31.194 修）。
+// 表外的键一律落「其他」，至少不印英文；engine 测试另有一条断言，要求数据里的键都在这张表内，
+// 免得下次又悄悄多出一种没人认领的写法。
+const YIELD_LABEL = {
+  wood:'其木', mineral:'金玉', herb:'灵草', water:'水族', beast:'兽',
+  woodSpecial:'灵木', fruit:'其果', fish:'鱼',
+  special:'异', unknown:'怪',
+};
 // 节点著录进度：统计该节点可著录的物产/异兽中已著录数量
 // ⚠️ v1.31.50：此前只认 it.node（主产地），分母按主产地算 —— 于是 238 座山的
 // 「已著录 x/y」偏小（136 座原为 0，进度条压根不出现），玩家在柢山采到雄黄、
@@ -296,15 +306,14 @@ UI.renderYudi = function(){
     const yieldRows = (function(){
       const rows = [];
       Object.entries(sel.yields||{}).forEach(([k,v])=>{
-        if (k === 'unknown' || k === 'special') return;
+        if (k === 'unknown' || k === 'special') return;   // 这两类排在最后，标签是「怪 / 异」
         const list = Array.isArray(v) ? v : [];
         if (!list.length) return;
         const chips = list.map(yieldItemHtml).join('、');
-        const label = { wood:'其木', mineral:'金玉', herb:'灵草', water:'水族', beast:'兽', woodSpecial:'灵木' }[k]||k;
-        rows.push(`<div><b>${label}</b>${chips}</div>`);
+        rows.push(`<div data-k="${k}"><b>${YIELD_LABEL[k] || '其他'}</b>${chips}</div>`);
       });
-      if (sel.yields && sel.yields.special) rows.push(`<div><b>异</b>${sel.yields.special.map(yieldItemHtml).join('、')}</div>`);
-      if (sel.yields && sel.yields.unknown) rows.push(`<div><b>怪</b>${sel.yields.unknown.map(yieldItemHtml).join('、')}</div>`);
+      if (sel.yields && sel.yields.special) rows.push(`<div data-k="special"><b>${YIELD_LABEL.special}</b>${sel.yields.special.map(yieldItemHtml).join('、')}</div>`);
+      if (sel.yields && sel.yields.unknown) rows.push(`<div data-k="unknown"><b>${YIELD_LABEL.unknown}</b>${sel.yields.unknown.map(yieldItemHtml).join('、')}</div>`);
       if (rows.length) return `<div class="yield-rows">${rows.join('')}</div>`;
       // 原文写「无草木」的荒山（全书 18 座）不该只回一句「无所载」——
       // 那读起来像数据缺失。这里明说「此地本无」，并点出唯一可做之事。
