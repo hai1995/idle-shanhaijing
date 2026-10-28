@@ -25,19 +25,10 @@ const YIELD_LABEL = {
   woodSpecial:'灵木', fruit:'其果', fish:'鱼',
   special:'异', unknown:'怪',
 };
-// 节点著录进度：统计该节点可著录的物产/异兽中已著录数量
-// ⚠️ v1.31.50：此前只认 it.node（主产地），分母按主产地算 —— 于是 238 座山的
-// 「已著录 x/y」偏小（136 座原为 0，进度条压根不出现），玩家在柢山采到雄黄、
-// 在别的山采到「金」，那些山都不计数。分母改从引擎的 nodeHasItem 取
-// （nodes[] 全集 + 主产地），与采集、图鉴两层的产地口径同源。
-function nodeRecordProgress(nodeId){
-  const r = (typeof nodeHasItem === 'function')
-    ? nodeHasItem(nodeId)
-    : (()=>{ let t=0,d=0; for (const it of Object.values(Items)) if (it.node === nodeId){ t++; if ((Game.records[it.id]||{}).count > 0) d++; } return { done:d, total:t }; })();
-  let total = r.total, done = r.done;
-  for (const m of Object.values(Monsters)) if (m.nodeId === nodeId){ total++; if ((Game.records[m.id]||{}).count > 0) done++; }
-  return { done, total };
-}
+// 节点著录进度 → 引擎的 nodeRecordProgress（game.js，v1.31.197 搬过去）。
+// 原先这里自带一份：只认 it.node（主产地），238 座山的「已著录 x/y」偏小、
+// 136 座压根不显示进度条（v1.31.50 修）。搬去引擎是因为「录毕之印」要按它给赏，
+// 判定不能只活在界面里——两份分母迟早走岔。
 // 持续指引：根据当前进度给出最贴心的下一步建议
 function nextHint(){
   const recCount = Object.keys(Game.records).length;
@@ -196,6 +187,18 @@ UI.renderYudi = function(){
   const region = regions.find(r=>r.regionId === this.selRegion) || regions[0];
   const unlocked = regionUnlocked(region);
   const nodes = region.nodes;
+  // 录毕之印（v1.31.197）：这一页本来就要逐座山算「已著录 x/y」，顺手把「录满却还没封」
+  // 的补封掉——既不额外扫表（进度已缓存），也让旧档第一次翻开舆地时把该给的赏补上。
+  // 一次可能补封好几座（改档 / 老档），提示攒成一句，不逐座弹。
+  if (typeof claimNodeSeal === 'function'){
+    let n = 0, got = 0, last = null;
+    nodes.forEach(nd => {
+      const s = claimNodeSeal(nd.id, { quiet:true });
+      if (s){ n++; got += s.shells; last = nd; }
+    });
+    if (n === 1) this.toast(`🧾 ${last.name} 山志录毕 · 得贝 ${got}`);
+    else if (n > 1) this.toast(`🧾 ${n} 座山志录毕 · 共得贝 ${got}`);
+  }
   const sel = this.selNode && nodes.find(n=>n.id === this.selNode) ? nodes.find(n=>n.id === this.selNode) : nodes[0];
   const here = Game.node === (sel && sel.id);
   const h = nextHint();
@@ -283,16 +286,17 @@ UI.renderYudi = function(){
         const reason = recNodes[n.id];
         const rp = nodeRecordProgress(n.id);
         const done = rp.total > 0 && rp.done === rp.total;
-        // 方块：山名 + 著录进度；角上挂「在 / 御 / 荐 / ⚠」
+        const seal = (typeof nodeSealOf === 'function') ? nodeSealOf(n.id) : null;
+        // 方块：山名 + 著录进度；角上挂「在 / 御 / 荐 / ⚠」，录毕的那格右下角换成一枚「毕」印
         return `<div class="tile node-tile ${this.selNode===n.id?'on':''} ${un?'':'lock'} ${cur?'here':''} ${reason?'rec '+reason:''}"
-             title="${esc(n.name)}${rp.total?` · 已著录 ${rp.done}/${rp.total} 种`:''}${!un?' · '+esc(nodeLockReason(n)):''}"
+             title="${esc(n.name)}${rp.total?` · 已著录 ${rp.done}/${rp.total} 种`:''}${seal?` · 山志录毕（得贝 ${seal.shells}）`:''}${!un?' · '+esc(nodeLockReason(n)):''}"
              onclick="UI.selNode='${n.id}';UI.yudiTab='detail';UI.renderYudi()">
           ${n.hazard?`<span class="nt-haz" title="${esc(n.hazard.detail||n.hazard.type)}">${typeof markIcon==='function'?markIcon('warn',15):'⚠'}</span>`:''}
           ${cur?'<span class="nt-mark here">在</span>'
             : reason==='tame'?'<span class="nt-mark tame" title="可御使的异兽在此">御</span>'
             : reason==='explore'?'<span class="nt-mark" title="尚未涉足，可前往探索">荐</span>':''}
           <span class="nt-name">${visited?'<i>✓</i>':''}${esc(n.name)}</span>
-          <span class="nt-tag ${done?'done':''}">${rp.total>0?`录 ${rp.done}/${rp.total}`:(un?`Lv ${n.unlockLevel}`:`需 ${n.unlockLevel}`)}</span>
+          <span class="nt-tag ${done?'done':''}${seal?' seal':''}">${seal ? '毕' : (rp.total>0?`录 ${rp.done}/${rp.total}`:(un?`Lv ${n.unlockLevel}`:`需 ${n.unlockLevel}`))}</span>
         </div>`;
       }).join('')}
       </div>
@@ -343,7 +347,7 @@ UI.renderYudi = function(){
       </div>
       <div class="meta">${esc(sel.chapter||'')} · 需舆地 ${sel.unlockLevel}${sel.hazard?` · <span class="haz-text">${esc(sel.hazard.detail||sel.hazard.type)}</span>`:''}</div>
       ${!un?`<div class="lock-note">${typeof markIcon==='function'?markIcon('lock',13):'🔒'} ${esc(nodeLockReason(sel))}</div>`:''}
-      ${rp.total>0?`<div class="node-prog">已著录 <b>${rp.done}</b>/${rp.total} 种<span class="prog-line"><i style="width:${(rp.total?rp.done/rp.total*100:0).toFixed(0)}%"></i></span>${rp.done===rp.total?'<em>此山录毕</em>':''}</div>`:''}
+      ${rp.total>0?`<div class="node-prog">已著录 <b>${rp.done}</b>/${rp.total} 种<span class="prog-line"><i style="width:${(rp.total?rp.done/rp.total*100:0).toFixed(0)}%"></i></span>${rp.done===rp.total?`<em class="seal-note">${typeof markIcon==='function'?markIcon('scroll',12):''} 此山录毕${(typeof nodeSealOf==='function'&&nodeSealOf(sel.id))?` · 已得赏 ${nodeSealOf(sel.id).shells} 贝`:''}</em>`:''}</div>`:''}
       <div class="actions">
         ${un ? gatherButtonsForNode(sel) : ''}
         ${observeButtonForNode(sel)}

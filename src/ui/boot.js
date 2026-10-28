@@ -347,14 +347,22 @@ window.a11ySweep = a11ySweep;
 // 各页渲染统一包一层：任何一次就地重绘（装备 / 淬炼 / 行祭 / 营造 / 买卖 / 切属性…）
 // 之后都补回页头等级条与页尾「下一步」。此前只有 renderCurrent 负责插入，
 // 页面内一次局部重绘（box.innerHTML = …）就把它冲掉了。
+// v1.31.197：这一层同时也是「全表计数缓存」的作用域——页内重绘同样会连着调好几次
+// recordedCount / chapterVisited，缓存只在这一次调用内有效，出栈即清。
 Object.keys(TAB_RENDER).forEach(tab=>{
   const name = TAB_RENDER[tab];
   const fn = UI[name];
   if (typeof fn !== 'function') return;
   UI[name] = function(){
-    const r = fn.apply(this, arguments);
-    if (this.currentTab === tab) this.renderPageLevel();
-    return r;
+    const memoized = (typeof beginRenderMemo === 'function');
+    if (memoized) beginRenderMemo();
+    try {
+      const r = fn.apply(this, arguments);
+      if (this.currentTab === tab) this.renderPageLevel();
+      return r;
+    } finally {
+      if (memoized) endRenderMemo();
+    }
   };
 });
 

@@ -211,6 +211,24 @@ v1.31.109 复测（拆 world.js 之后；稳态取 5 次中位数，首次为同
 
 全站稳态 ≤ 25ms，首次最高 184ms（技能页），都在「切换不觉得卡」的范围内。
 
+**v1.31.197 复测（桌面 Chromium 1480×844，满档 `devSim('all')`，9 次取中位数）**：
+`chapterVisited` / `recordedCount` / `pilgrimFullCount` / `codexDoneCount` / `nodeHasItem` 加
+「一次重绘内只算一遍」的缓存后，同一会话里把 `beginRenderMemo` 换成空函数做 A/B：
+祠祀 27.7 → 13.0ms、统计 8.2 → 6.8ms、征伐 12.1 → 10.9ms、图鉴 11.9 → 10.9ms，其余页在噪声内。
+复测片段（同一页面，先量开缓存、再量关缓存）：
+
+```js
+const t = (tab) => { UI.switchTab('yudi'); const a = performance.now(); UI.switchTab(tab);
+  document.getElementById('content').offsetHeight; return performance.now() - a; };
+const med = (tab) => { const v = []; for (let i = 0; i < 9; i++) v.push(t(tab));
+  v.sort((a, b) => a - b); return +v[4].toFixed(1); };
+const bm = window.beginRenderMemo, em = window.endRenderMemo;
+const on = med('jisi');
+window.beginRenderMemo = () => null; window.endRenderMemo = () => {};
+const off = med('jisi');
+window.beginRenderMemo = bm; window.endRenderMemo = em;
+```
+
 上一轮（v1.31.103 前后）的读数，留着对比：
 
 | 页面 | 首次 | 稳态 |

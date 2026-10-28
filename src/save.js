@@ -126,7 +126,7 @@ function serializeSave(){
     queue: G.queue || [], queueIdx: G.queueIdx || 0, queueRound: G.queueRound || 0,
     queueRunning: !!G.queueRunning, queueLoop: G.queueLoop !== false, fallback: G.fallback || null,
     mobStreak: G.mobStreak || {}, orders: G.orders || [], ordersAt: G.ordersAt || 0,
-    pilgrim: G.pilgrim || {},
+    pilgrim: G.pilgrim || {}, seals: G.seals || {},
     // 行旅见闻的冷却与次数（v1.31.82）：不存的话，刷新一次就能洗掉冷却重新刷事件
     events: G.events || { at: 0, count: 0, lastId: '', seen: {} },
     enhance: G.enhance || {}, enhanceHeat: G.enhanceHeat || {}, affixSalt: G.affixSalt || {},
@@ -306,6 +306,9 @@ function mergeSaveData(local, remote){
   out.stats = mergeStatMap(local.stats, remote.stats);
   out.grow = mergeGrowMap(local.grow, remote.grow);
   out.map = Object.assign({}, local.map || {}, remote.map || {});
+  // 录毕之印取并集（v1.31.197）：印是一次性凭证，两端各自封的山都该留下；
+  // 赏钱早已并入贝币，那边取较新一档，不会因为并集多造钱。
+  out.seals = Object.assign({}, local.seals || {}, remote.seals || {});
   out.observed = Object.assign({}, local.observed || {}, remote.observed || {});
   out.buildings = Object.assign({}, local.buildings || {}, remote.buildings || {});
   out.omenImmune = Object.assign({}, local.omenImmune || {}, remote.omenImmune || {});

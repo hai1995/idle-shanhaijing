@@ -1405,6 +1405,12 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; background:tran
 .node-tile .nt-name i{ font-style:normal; color:var(--tai); margin-right:1px; }
 .node-tile .nt-tag{ font-family:var(--f-num); font-size:9.5px; color:var(--ink-4); letter-spacing:0; }
 .node-tile .nt-tag.done{ color:var(--tai); }
+/* 录毕之印（v1.31.197）：一枚小朱印，代替「录 12/12」——录完的那一格不该再是一串分数 */
+.node-tile .nt-tag.seal{
+  color:var(--zhu-tx); border:1px solid var(--zhu); border-radius:4px;
+  padding:0 2.5px; font-family:var(--f-kai); font-size:9.5px; line-height:1.3;
+  background:var(--zhu-w); letter-spacing:.04em;
+}
 .node-tile.on{ border-color:var(--zhu); background:var(--zhu-w); }
 .node-tile.on .nt-name{ color:var(--zhu-tx); font-weight:600; }
 .node-tile.lock{ opacity:.5; border-style:dashed; }
@@ -1516,6 +1522,9 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; background:tran
 }
 .node-prog b{ color:var(--tai); }
 .node-prog em{ font-style:normal; font-size:10.5px; color:var(--tai); letter-spacing:.06em; }
+/* 录毕那一枚改成朱色：绿是「进度」，朱是「成了」 */
+.node-prog em.seal-note{ color:var(--zhu-tx); display:inline-flex; align-items:center; gap:3px; }
+.node-prog em.seal-note svg{ display:block; }
 .node-prog .prog-line{ flex:1 1 auto; height:2px; background:rgba(86,110,76,.18); min-width:40px; }
 .node-prog .prog-line > i{ display:block; height:100%; background:var(--tai); }
 
@@ -20107,8 +20116,38 @@ window.RELICS = RELICS;
 const chapterNodes = (prefix) => WORLD.regions
   .filter(r => r.regionId.indexOf(prefix) === 0)
   .reduce((a, r) => a + r.nodes.length, 0);
-const chapterVisited = (prefix) => Object.keys(Game.map || {})
-  .filter(id => id.indexOf(prefix) === 0).length;
+
+// ---------- 渲染期记忆（v1.31.197） ----------
+// 下面几个函数都是「扫全表数个数」：chapterVisited 数 447 个 map 键、recordedCount 数
+// 七百多条著录、pilgrimFullCount 遍历 26 个山系逐节点查 map。它们被 Milestones 的
+// prog()、页尾「下一步」、页头等级条反复调用——**一次渲染里同一件事要数七八遍**，
+// 实测祠祀页单次切页有 7.7ms 花在这几支函数上（占 27ms 的三成）。
+//
+// 缓存的边界不是「时间」，而是「一次渲染」：UI 每次整页/局部重绘前 beginRenderMemo()、
+// 重绘后 endRenderMemo()，期间同参数只算一次，跨渲染一律重算。这样绝不会读到旧值——
+// 渲染过程中若真改了 Game.map / Game.records（少数渲染会顺手 refreshOrders），
+// 下一帧的渲染也会重新数，不存在「缓存永不失效」的风险。
+let _renderMemo = null, _renderMemoDepth = 0;
+function beginRenderMemo(){
+  if (_renderMemoDepth++ === 0) _renderMemo = Object.create(null);
+  return _renderMemo;
+}
+function endRenderMemo(){
+  if (_renderMemoDepth <= 0){ _renderMemoDepth = 0; _renderMemo = null; return; }
+  if (--_renderMemoDepth === 0) _renderMemo = null;
+}
+function memoDuringRender(key, fn){
+  if (!_renderMemo) return fn();
+  if (key in _renderMemo) return _renderMemo[key];
+  const v = fn();
+  _renderMemo[key] = v;
+  return v;
+}
+window.beginRenderMemo = beginRenderMemo;
+window.endRenderMemo = endRenderMemo;
+
+const chapterVisited = (prefix) => memoDuringRender('ch:' + prefix, () => Object.keys(Game.map || {})
+  .filter(id => id.indexOf(prefix) === 0).length);
 const bossKilled = (id) => !!((Game.stats.bossKills || {})[id]);
 // 「三谷观象」只指南山那三处观象点（日次 / 凯风 / 条风）。
 // 原来数的是 observed 的总数 ≥ 3——把观瑞（凤皇 / 鹓雏）和东山的四处也算进去了。
@@ -20117,12 +20156,14 @@ const NS_OBSERVE = Object.keys(OBSERVE_SITES).filter(k => OBSERVE_SITES[k].kind 
 
 // 走遍（诸山皆涉）的山系数：巡礼里程碑与舆地页的印记同口径
 function pilgrimFullCount(){
-  let n = 0;
-  for (const r of (typeof WORLD !== 'undefined' ? WORLD.regions : [])){
-    if (!r.nodes || !r.nodes.length) continue;
-    if (r.nodes.every(nd => (Game.map || {})[nd.id])) n++;
-  }
-  return n;
+  return memoDuringRender('pilgrim', () => {
+    let n = 0;
+    for (const r of (typeof WORLD !== 'undefined' ? WORLD.regions : [])){
+      if (!r.nodes || !r.nodes.length) continue;
+      if (r.nodes.every(nd => (Game.map || {})[nd.id])) n++;
+    }
+    return n;
+  });
 }
 window.pilgrimFullCount = pilgrimFullCount;
 const Milestones = [
@@ -20343,17 +20384,19 @@ function buildCodexAch(){
 }
 
 function codexDoneCount(cat){
-  let n = 0;
-  const rec = (typeof Game !== 'undefined' && Game.records) ? Game.records : {};
-  for (const id in rec){
-    const r = rec[id];
-    if (!r || !(r.count > 0)) continue;
-    const e = CODEX[id];
-    if (!e) continue;
-    if (cat && e.cat !== cat) continue;
-    n++;
-  }
-  return n;
+  return memoDuringRender('codex:' + (cat || '*'), () => {
+    let n = 0;
+    const rec = (typeof Game !== 'undefined' && Game.records) ? Game.records : {};
+    for (const id in rec){
+      const r = rec[id];
+      if (!r || !(r.count > 0)) continue;
+      const e = CODEX[id];
+      if (!e) continue;
+      if (cat && e.cat !== cat) continue;
+      n++;
+    }
+    return n;
+  });
 }
 
 const CODEX_ACHIEVEMENTS = buildCodexAch();
@@ -20401,7 +20444,7 @@ function wuxingMult(atkEl, defEl){
 function wuxingSheng(a, b){ return TUNING.SHENG[a] === b; }
 
 function recordedCount(){
-  return Object.values(Game.records||{}).filter(r=>r && r.count>0).length;
+  return memoDuringRender('rec', () => Object.values(Game.records||{}).filter(r=>r && r.count>0).length);
 }
 function beastSlots(){ return Math.min(9, 1 + Math.floor((Game.skills?.yushi?.level||1)/10)); }
 
@@ -20440,8 +20483,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.196',
-  codename:'统计归栏',
+  version: '1.31.197',
+  codename:'山志录毕',
   updated: '2026-10-28',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
@@ -20788,7 +20831,7 @@ function serializeSave(){
     queue: G.queue || [], queueIdx: G.queueIdx || 0, queueRound: G.queueRound || 0,
     queueRunning: !!G.queueRunning, queueLoop: G.queueLoop !== false, fallback: G.fallback || null,
     mobStreak: G.mobStreak || {}, orders: G.orders || [], ordersAt: G.ordersAt || 0,
-    pilgrim: G.pilgrim || {},
+    pilgrim: G.pilgrim || {}, seals: G.seals || {},
     // 行旅见闻的冷却与次数（v1.31.82）：不存的话，刷新一次就能洗掉冷却重新刷事件
     events: G.events || { at: 0, count: 0, lastId: '', seen: {} },
     enhance: G.enhance || {}, enhanceHeat: G.enhanceHeat || {}, affixSalt: G.affixSalt || {},
@@ -20968,6 +21011,9 @@ function mergeSaveData(local, remote){
   out.stats = mergeStatMap(local.stats, remote.stats);
   out.grow = mergeGrowMap(local.grow, remote.grow);
   out.map = Object.assign({}, local.map || {}, remote.map || {});
+  // 录毕之印取并集（v1.31.197）：印是一次性凭证，两端各自封的山都该留下；
+  // 赏钱早已并入贝币，那边取较新一档，不会因为并集多造钱。
+  out.seals = Object.assign({}, local.seals || {}, remote.seals || {});
   out.observed = Object.assign({}, local.observed || {}, remote.observed || {});
   out.buildings = Object.assign({}, local.buildings || {}, remote.buildings || {});
   out.omenImmune = Object.assign({}, local.omenImmune || {}, remote.omenImmune || {});
@@ -21272,6 +21318,7 @@ const Game = {
   buff: null,            // 饮药之益 { itemId, def, remaining, dur }
   farms: {},             // 圃艺田地 { 'p0'..: { seedId, remain, grow } }
   mobStreak: {},         // 同目标连续讨伐计数 { monsterId: n }（经验递减用，换目标即重置）
+  seals: {},             // 录毕之印 { nodeId: { at, shells, total } }（v1.31.197）
   enhance: {},           // 装备淬炼等级 { itemId: 0..30 }（按物品 id 记，同 id 共享）
   enhanceHeat: {},       // 淬炼火候 { itemId: 0..10 }：失败累积、成功清空
   orders: [],            // 方国求购订单 [{ id, itemId, regionId, qty, premium, total, xp }]
@@ -21334,6 +21381,7 @@ function cloneDefaultGame(){
   g.enhance = {}; g.enhanceHeat = {};
   g.packGear = [];   // 行囊里的装备实例（每件自带淬炼等级；v1.31.22 起）
   g.pilgrim = {};    // 山系巡礼：走遍一系诸山后的领赏记录（v1.31.24）
+  g.seals = {};      // 录毕之印：新档一枚不封（v1.31.197）
   g.events = { at: 0, count: 0, lastId: '', seen: {}, awayAt: 0, lastAt: 0 };   // 行旅见闻：上次触发的游戏秒与累计次数（awayAt 为离线见闻的冷却）
   // 装备槽必须显式清空：cloneDefaultGame 是「深拷贝当前状态再覆盖字段」，
   // 漏了这一项的话，重开新档时身上还穿着上一局那件（连淬炼阶数一起）——
@@ -21484,6 +21532,8 @@ function applySave(d){
     // 同目标连续讨伐计数（旧档无此字段，缺省为空）
     Game.mobStreak = (d.mobStreak && typeof d.mobStreak === 'object') ? d.mobStreak : {};
     Game.pilgrim = (d.pilgrim && typeof d.pilgrim === 'object') ? d.pilgrim : {};
+    // 录毕之印（v1.31.197）：旧档无此字段，缺省为空——已录满的山会在第一次翻开舆地时补封
+    Game.seals = (d.seals && typeof d.seals === 'object') ? d.seals : {};
     // 用默认值打底再合并：旧档缺 awayAt / lastAt 时补上，
     // 否则「结构不完整」会一路带进下次存档（功能靠 `|| 0` 兜着，但越攒越歪）
     Game.events = Object.assign({ at: 0, count: 0, lastId: '', seen: {}, awayAt: 0, lastAt: 0 },
@@ -23034,16 +23084,95 @@ function nodeSourceItems(itemId){
 // 这座山可著录之物（物品侧）：主产地或 nodes[] 任一命中即算。
 // 异兽不在这里——异兽按 nodeId 归属，UI 层单独加。
 function nodeHasItem(nodeId){
-  let total = 0, done = 0;
-  for (const it of Object.values(Items)){
-    if (!it) continue;
-    const srcs = nodeSourceItems(it.id);
-    if (srcs.indexOf(nodeId) < 0) continue;
-    total++;
-    if ((Game.records[it.id]||{}).count > 0) done++;
-  }
-  return { done, total };
+  // 每次渲染里舆地会把当前山系几十座山各问一遍，每次都要扫全部 715 件物——
+  // 渲染期记一次结果（v1.31.197），出这次渲染即失效。
+  return memoDuringRender('nhi:' + nodeId, () => {
+    let total = 0, done = 0;
+    for (const it of Object.values(Items)){
+      if (!it) continue;
+      const srcs = nodeSourceItems(it.id);
+      if (srcs.indexOf(nodeId) < 0) continue;
+      total++;
+      if ((Game.records[it.id]||{}).count > 0) done++;
+    }
+    return { done, total };
+  });
 }
+
+// ---------- 录毕之印（v1.31.197） ----------
+// 「此山录毕」此前只是山志里的一行小字：录满没有回响，也就没理由把一座山录完。
+// 现在每座山录满即封一枚印，一次性给赏（贝币 + 舆地经验），印随存档走。
+//
+// 判据与舆地「已著录 x/y」同源：物品侧走 nodeHasItem（nodes[] 全集），异兽侧按
+// nodeId 归属。分母不另写一套——同一件事第二次定义，迟早会和第一套走岔
+// （v1.31.48~50 那三轮教训）。
+function nodeRecordProgress(nodeId){
+  return memoDuringRender('nrp:' + nodeId, () => {
+    const r = nodeHasItem(nodeId);
+    let total = r.total, done = r.done;
+    for (const m of Object.values(Monsters)){
+      if (m.nodeId !== nodeId) continue;
+      total++;
+      if ((Game.records[m.id]||{}).count > 0) done++;
+    }
+    return { done, total };
+  });
+}
+window.nodeRecordProgress = nodeRecordProgress;
+
+// 赏格：山越深给得越多，录得越全给得越多。一处小山的印是「走到过」的凭证，
+// 不是经济来源——**一座山 ≈ 一枚三签的赏钱**（1 级约 29 贝、70 级约 390 贝），
+// 全部 447 座录毕合计约九万贝，与中期一小时采集同量级，冲不掉强化与营造的账。
+// 给多了会把「首签」和墟市买卖比没；给少了「录毕」就只剩一行字。
+function nodeSealReward(nodeId){
+  const nd = nodeOf(nodeId) || {};
+  const lv = nd.unlockLevel || 1;
+  const p = nodeRecordProgress(nodeId);
+  return { shells: 12 + 5*lv + 6*(p.total||0), xp: 3 + lv, total: p.total };
+}
+function nodeSealOf(nodeId){ return (Game.seals && Game.seals[nodeId]) || null; }
+function sealedNodeCount(){ return Game.seals ? Object.keys(Game.seals).length : 0; }
+window.nodeSealOf = nodeSealOf;
+window.nodeSealReward = nodeSealReward;
+window.sealedNodeCount = sealedNodeCount;
+
+// 封印：录满而未封 → 给赏、记日志、提示；否则返回 null。
+// 幂等——已封的山不会再发第二次赏，所以可以放心在任何入口反复调。
+function claimNodeSeal(nodeId, opts){
+  if (!nodeId) return null;
+  // 离线结算里补封可能连着好几座，提示留给归来账单，不逐条弹
+  if (Game._awaySettling) opts = Object.assign({}, opts, { quiet: true });
+  Game.seals = (Game.seals && typeof Game.seals === 'object') ? Game.seals : {};
+  if (Game.seals[nodeId]) return null;
+  const p = nodeRecordProgress(nodeId);
+  if (!(p.total > 0) || p.done < p.total) return null;
+  const nd = nodeOf(nodeId) || {};
+  const rew = nodeSealReward(nodeId);
+  Game.seals[nodeId] = { at: Date.now(), shells: rew.shells, total: rew.total };
+  Game.shells = (Game.shells || 0) + rew.shells;
+  if (typeof gainXp === 'function') gainXp('yudi', rew.xp);
+  const nm = nd.name || nodeId;
+  log(`🧾 山志录毕：${nm} —— 得贝 ${rew.shells}`, 'gold', 'skill');
+  if (!(opts && opts.quiet) && typeof UI !== 'undefined' && UI && UI.toast){
+    UI.toast(`🧾 ${nm} 山志录毕 · 得贝 ${rew.shells}`);
+  }
+  return Game.seals[nodeId];
+}
+window.claimNodeSeal = claimNodeSeal;
+
+// 一次新录之后：只查「这一条落在哪座山」，不做全图扫描。
+// 站在哪座山就查哪座；异兽按 nodeId 查。物品的其余产地留给舆地渲染时的惰性补封
+// （那一步本来就要算每座山的进度，摊不到额外成本）。
+function claimSealsForRecord(objId){
+  if (!objId) return null;
+  let hit = null;
+  const m = Monsters[objId];
+  if (m && m.nodeId) hit = claimNodeSeal(m.nodeId) || hit;
+  if (nodeOf(objId)) hit = claimNodeSeal(objId) || hit;      // 山川自身也是一条著录
+  if (Items[objId] && Game.node) hit = claimNodeSeal(Game.node) || hit;
+  return hit;
+}
+window.claimSealsForRecord = claimSealsForRecord;
 
 // 某项技艺的产地候选集：把该技艺池里所有物的产地合并去重。
 // 用于技能卡的「产出地」——此前只给第一件物的主产地，「金」明明产于 42 座山，
@@ -23298,6 +23427,8 @@ function recordObject(objId, n){
   const beast = Monsters[objId];   // Monsters 以 id 为键，直接查表（原为 Object.values 全量遍历）
   if (r.first){
     gainXp('zhulu', 10);
+    // 新录一条就可能让某座山凑满（v1.31.197）：只查这一条落在的那座山
+    if (typeof claimSealsForRecord === 'function') claimSealsForRecord(objId);
     // 首次著录带征兆的异兽 → 触发全局事件（「见则X」）
     if (beast && beast.omen) activateOmen(beast.omen);
     // 关联著录：见鵕鸟/大鹗而知鼓与钦䲹之事
@@ -25629,6 +25760,12 @@ function settleAway(seconds){
   const rawSeconds = Math.max(0, seconds || 0);
   seconds = Math.min(rawSeconds, offlineCapHours()*3600);
   if (seconds < 30) return null;
+  // 离线结算期间补封「录毕之印」不逐条弹提示（见 claimNodeSeal）
+  Game._awaySettling = true;
+  try { return settleAwayBody(seconds, rawSeconds); }
+  finally { Game._awaySettling = false; }
+}
+function settleAwayBody(seconds, rawSeconds){
   const eff = offlineEff();
   const summary = { seconds, rawSeconds, capped: rawSeconds > seconds + 30,
                     xp:0, items:{}, records:0, harvests:0, acts:{}, riteRenews:0, riteCost:{}, omensLanded:0 };
@@ -28155,6 +28292,11 @@ const MARK = {
   lamp: `<path d="M8 20 H16 L14.4 12 H9.6 Z" fill="${GOLD}"/>
     <path d="M12 3.2 Q14.4 6.6 13.2 9.4 H10.8 Q9.6 6.6 12 3.2 Z" fill="${FIRE}"/>
     <path d="M7 20.8 H17" stroke="${INK}" stroke-width="1.6" stroke-linecap="round" fill="none"/>`,
+  // 山志：一束竹简 + 朱印（录毕之印，v1.31.197）
+  scroll: `<rect x="5" y="4.6" width="10" height="14.8" rx="1.2" fill="none" stroke="${INK}" stroke-width="1.7"/>
+    <path d="M7.4 8 H12.6 M7.4 11 H12.6 M7.4 14 H11" stroke="${INK}" stroke-width="1.3" stroke-linecap="round" fill="none"/>
+    <rect x="14.4" y="13.4" width="6" height="6" rx=".8" fill="${FIRE}"/>
+    <path d="M15.9 16.4 h2.8 M17.3 15.1 v2.6" stroke="#F2EDE0" stroke-width="1.1" stroke-linecap="round" fill="none"/>`,
   // 迅：折电
   bolt: `<path d="M13.6 2 L5.4 13.4 H11 L9.8 22 L18.4 10 H12.8 Z" fill="${GOLD}"/>
     <path d="M13.6 2 L9.4 13.4" stroke="${FIRE}" stroke-width="1.2" fill="none" opacity=".7"/>`,
@@ -29662,6 +29804,7 @@ const MARK_EMOJI_MAP = {
   '✅':'check', '🎉':'star', '🌟':'star', '✨':'star', '🏆':'trophy', '🏅':'trophy',
   '💀':'skull', '🔓':'unlock', '🎋':'slip', '🎴':'slip', '🌅':'sun', '🌳':'tree',
   '🛡':'shield', '🎁':'gift', '🍖':'meat', '🐦':'bird', '🐝':'bird', '🪽':'feather',
+  '🧾':'scroll',   // v1.31.197 录毕之印：竹简 + 朱印
   '🔀':'swap', '📿':'beads', '🔕':'mute', '♻':'cycle',
   '🧪':'skill:lianyao', '🌾':'skill:puyi', '🌱':'skill:puyi', '🪓':'skill:qiaocai',
   '🏹':'skill:she', '🔮':'skill:bushi', '🐾':'skill:yushi',
@@ -30174,10 +30317,20 @@ const UI = {
   },
   renderCurrent(){
     if (typeof hideTip === 'function') hideTip();   // 重渲染后锚点已销毁，浮层随之关闭
-    const fn = TAB_RENDER[this.currentTab];
-    if (fn && this[fn]) this[fn]();                  // 包装层已负责补页头条
-    this.renderTopbar();
-    this.refreshActivity();
+    // 一次重绘内，全表计数只算一次（v1.31.197）：chapterVisited / recordedCount /
+    // pilgrimFullCount / codexDoneCount 会被里程碑、页头条、页尾下一步各调一遍，
+    // 每次都是 447 个 map 键或七百多条著录的扫描——实测祠祀页单次切页 7.7ms 花在这里。
+    // 作用域严格限制在这一次重绘内，跨重绘一律重算，所以不会读到旧值。
+    const memoized = (typeof beginRenderMemo === 'function');
+    if (memoized) beginRenderMemo();
+    try {
+      const fn = TAB_RENDER[this.currentTab];
+      if (fn && this[fn]) this[fn]();                // 包装层已负责补页头条
+      this.renderTopbar();
+      this.refreshActivity();
+    } finally {
+      if (memoized) endRenderMemo();
+    }
     // 幽灵滚动条的测量延到下一帧（v1.31.126）：它要读 scrollHeight，而刚改完 DOM 的
     // 第一次读会强制整页布局——webkit 实测 131ms，正好夹在「点了页签」和「页面出现」
     // 之间，体感就是切页卡。它只是为了收掉一条几乎滑不动的滚动条，晚一帧完全够。
@@ -32264,19 +32417,10 @@ const YIELD_LABEL = {
   woodSpecial:'灵木', fruit:'其果', fish:'鱼',
   special:'异', unknown:'怪',
 };
-// 节点著录进度：统计该节点可著录的物产/异兽中已著录数量
-// ⚠️ v1.31.50：此前只认 it.node（主产地），分母按主产地算 —— 于是 238 座山的
-// 「已著录 x/y」偏小（136 座原为 0，进度条压根不出现），玩家在柢山采到雄黄、
-// 在别的山采到「金」，那些山都不计数。分母改从引擎的 nodeHasItem 取
-// （nodes[] 全集 + 主产地），与采集、图鉴两层的产地口径同源。
-function nodeRecordProgress(nodeId){
-  const r = (typeof nodeHasItem === 'function')
-    ? nodeHasItem(nodeId)
-    : (()=>{ let t=0,d=0; for (const it of Object.values(Items)) if (it.node === nodeId){ t++; if ((Game.records[it.id]||{}).count > 0) d++; } return { done:d, total:t }; })();
-  let total = r.total, done = r.done;
-  for (const m of Object.values(Monsters)) if (m.nodeId === nodeId){ total++; if ((Game.records[m.id]||{}).count > 0) done++; }
-  return { done, total };
-}
+// 节点著录进度 → 引擎的 nodeRecordProgress（game.js，v1.31.197 搬过去）。
+// 原先这里自带一份：只认 it.node（主产地），238 座山的「已著录 x/y」偏小、
+// 136 座压根不显示进度条（v1.31.50 修）。搬去引擎是因为「录毕之印」要按它给赏，
+// 判定不能只活在界面里——两份分母迟早走岔。
 // 持续指引：根据当前进度给出最贴心的下一步建议
 function nextHint(){
   const recCount = Object.keys(Game.records).length;
@@ -32435,6 +32579,18 @@ UI.renderYudi = function(){
   const region = regions.find(r=>r.regionId === this.selRegion) || regions[0];
   const unlocked = regionUnlocked(region);
   const nodes = region.nodes;
+  // 录毕之印（v1.31.197）：这一页本来就要逐座山算「已著录 x/y」，顺手把「录满却还没封」
+  // 的补封掉——既不额外扫表（进度已缓存），也让旧档第一次翻开舆地时把该给的赏补上。
+  // 一次可能补封好几座（改档 / 老档），提示攒成一句，不逐座弹。
+  if (typeof claimNodeSeal === 'function'){
+    let n = 0, got = 0, last = null;
+    nodes.forEach(nd => {
+      const s = claimNodeSeal(nd.id, { quiet:true });
+      if (s){ n++; got += s.shells; last = nd; }
+    });
+    if (n === 1) this.toast(`🧾 ${last.name} 山志录毕 · 得贝 ${got}`);
+    else if (n > 1) this.toast(`🧾 ${n} 座山志录毕 · 共得贝 ${got}`);
+  }
   const sel = this.selNode && nodes.find(n=>n.id === this.selNode) ? nodes.find(n=>n.id === this.selNode) : nodes[0];
   const here = Game.node === (sel && sel.id);
   const h = nextHint();
@@ -32522,16 +32678,17 @@ UI.renderYudi = function(){
         const reason = recNodes[n.id];
         const rp = nodeRecordProgress(n.id);
         const done = rp.total > 0 && rp.done === rp.total;
-        // 方块：山名 + 著录进度；角上挂「在 / 御 / 荐 / ⚠」
+        const seal = (typeof nodeSealOf === 'function') ? nodeSealOf(n.id) : null;
+        // 方块：山名 + 著录进度；角上挂「在 / 御 / 荐 / ⚠」，录毕的那格右下角换成一枚「毕」印
         return `<div class="tile node-tile ${this.selNode===n.id?'on':''} ${un?'':'lock'} ${cur?'here':''} ${reason?'rec '+reason:''}"
-             title="${esc(n.name)}${rp.total?` · 已著录 ${rp.done}/${rp.total} 种`:''}${!un?' · '+esc(nodeLockReason(n)):''}"
+             title="${esc(n.name)}${rp.total?` · 已著录 ${rp.done}/${rp.total} 种`:''}${seal?` · 山志录毕（得贝 ${seal.shells}）`:''}${!un?' · '+esc(nodeLockReason(n)):''}"
              onclick="UI.selNode='${n.id}';UI.yudiTab='detail';UI.renderYudi()">
           ${n.hazard?`<span class="nt-haz" title="${esc(n.hazard.detail||n.hazard.type)}">${typeof markIcon==='function'?markIcon('warn',15):'⚠'}</span>`:''}
           ${cur?'<span class="nt-mark here">在</span>'
             : reason==='tame'?'<span class="nt-mark tame" title="可御使的异兽在此">御</span>'
             : reason==='explore'?'<span class="nt-mark" title="尚未涉足，可前往探索">荐</span>':''}
           <span class="nt-name">${visited?'<i>✓</i>':''}${esc(n.name)}</span>
-          <span class="nt-tag ${done?'done':''}">${rp.total>0?`录 ${rp.done}/${rp.total}`:(un?`Lv ${n.unlockLevel}`:`需 ${n.unlockLevel}`)}</span>
+          <span class="nt-tag ${done?'done':''}${seal?' seal':''}">${seal ? '毕' : (rp.total>0?`录 ${rp.done}/${rp.total}`:(un?`Lv ${n.unlockLevel}`:`需 ${n.unlockLevel}`))}</span>
         </div>`;
       }).join('')}
       </div>
@@ -32582,7 +32739,7 @@ UI.renderYudi = function(){
       </div>
       <div class="meta">${esc(sel.chapter||'')} · 需舆地 ${sel.unlockLevel}${sel.hazard?` · <span class="haz-text">${esc(sel.hazard.detail||sel.hazard.type)}</span>`:''}</div>
       ${!un?`<div class="lock-note">${typeof markIcon==='function'?markIcon('lock',13):'🔒'} ${esc(nodeLockReason(sel))}</div>`:''}
-      ${rp.total>0?`<div class="node-prog">已著录 <b>${rp.done}</b>/${rp.total} 种<span class="prog-line"><i style="width:${(rp.total?rp.done/rp.total*100:0).toFixed(0)}%"></i></span>${rp.done===rp.total?'<em>此山录毕</em>':''}</div>`:''}
+      ${rp.total>0?`<div class="node-prog">已著录 <b>${rp.done}</b>/${rp.total} 种<span class="prog-line"><i style="width:${(rp.total?rp.done/rp.total*100:0).toFixed(0)}%"></i></span>${rp.done===rp.total?`<em class="seal-note">${typeof markIcon==='function'?markIcon('scroll',12):''} 此山录毕${(typeof nodeSealOf==='function'&&nodeSealOf(sel.id))?` · 已得赏 ${nodeSealOf(sel.id).shells} 贝`:''}</em>`:''}</div>`:''}
       <div class="actions">
         ${un ? gatherButtonsForNode(sel) : ''}
         ${observeButtonForNode(sel)}
@@ -36828,6 +36985,7 @@ UI.renderStats = function(){
         <span>已录 <b data-stat="recorded">${recordedCount()}/${Object.keys(CODEX).length}</b></span>
         <span>山已涉 <b data-stat="nodes">${Object.keys(Game.map).length}/${WORLD.regions.reduce((s,r)=>s+r.nodes.length,0)}</b></span>
         <span>山系巡礼 <b data-stat="pilgrim">${Object.keys(Game.pilgrim||{}).length}/${WORLD.regions.length} 系</b></span>
+        <span class="stat-link" onclick="UI.switchTab('yudi')" title="山志录毕：一山的物产与异兽全部著录即封一枚印，可得一笔贝币">山志录毕 <b data-stat="seals">${typeof sealedNodeCount==='function'?sealedNodeCount():0}</b> 座</span>
         <span>观象处 <b data-stat="observed">${Object.values(Game.observed).filter(Boolean).length}/${Object.keys(OBSERVE_SITES).length}</b></span>
         ${(() => {
           // 统计报「还差几处」，得给一条去路——否则玩家看完数字还是得一座座山翻
@@ -38011,14 +38169,22 @@ window.a11ySweep = a11ySweep;
 // 各页渲染统一包一层：任何一次就地重绘（装备 / 淬炼 / 行祭 / 营造 / 买卖 / 切属性…）
 // 之后都补回页头等级条与页尾「下一步」。此前只有 renderCurrent 负责插入，
 // 页面内一次局部重绘（box.innerHTML = …）就把它冲掉了。
+// v1.31.197：这一层同时也是「全表计数缓存」的作用域——页内重绘同样会连着调好几次
+// recordedCount / chapterVisited，缓存只在这一次调用内有效，出栈即清。
 Object.keys(TAB_RENDER).forEach(tab=>{
   const name = TAB_RENDER[tab];
   const fn = UI[name];
   if (typeof fn !== 'function') return;
   UI[name] = function(){
-    const r = fn.apply(this, arguments);
-    if (this.currentTab === tab) this.renderPageLevel();
-    return r;
+    const memoized = (typeof beginRenderMemo === 'function');
+    if (memoized) beginRenderMemo();
+    try {
+      const r = fn.apply(this, arguments);
+      if (this.currentTab === tab) this.renderPageLevel();
+      return r;
+    } finally {
+      if (memoized) endRenderMemo();
+    }
   };
 });
 

@@ -1378,6 +1378,12 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; background:tran
 .node-tile .nt-name i{ font-style:normal; color:var(--tai); margin-right:1px; }
 .node-tile .nt-tag{ font-family:var(--f-num); font-size:9.5px; color:var(--ink-4); letter-spacing:0; }
 .node-tile .nt-tag.done{ color:var(--tai); }
+/* 录毕之印（v1.31.197）：一枚小朱印，代替「录 12/12」——录完的那一格不该再是一串分数 */
+.node-tile .nt-tag.seal{
+  color:var(--zhu-tx); border:1px solid var(--zhu); border-radius:4px;
+  padding:0 2.5px; font-family:var(--f-kai); font-size:9.5px; line-height:1.3;
+  background:var(--zhu-w); letter-spacing:.04em;
+}
 .node-tile.on{ border-color:var(--zhu); background:var(--zhu-w); }
 .node-tile.on .nt-name{ color:var(--zhu-tx); font-weight:600; }
 .node-tile.lock{ opacity:.5; border-style:dashed; }
@@ -1489,6 +1495,9 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; background:tran
 }
 .node-prog b{ color:var(--tai); }
 .node-prog em{ font-style:normal; font-size:10.5px; color:var(--tai); letter-spacing:.06em; }
+/* 录毕那一枚改成朱色：绿是「进度」，朱是「成了」 */
+.node-prog em.seal-note{ color:var(--zhu-tx); display:inline-flex; align-items:center; gap:3px; }
+.node-prog em.seal-note svg{ display:block; }
 .node-prog .prog-line{ flex:1 1 auto; height:2px; background:rgba(86,110,76,.18); min-width:40px; }
 .node-prog .prog-line > i{ display:block; height:100%; background:var(--tai); }
 

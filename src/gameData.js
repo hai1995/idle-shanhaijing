@@ -2383,8 +2383,38 @@ window.RELICS = RELICS;
 const chapterNodes = (prefix) => WORLD.regions
   .filter(r => r.regionId.indexOf(prefix) === 0)
   .reduce((a, r) => a + r.nodes.length, 0);
-const chapterVisited = (prefix) => Object.keys(Game.map || {})
-  .filter(id => id.indexOf(prefix) === 0).length;
+
+// ---------- 渲染期记忆（v1.31.197） ----------
+// 下面几个函数都是「扫全表数个数」：chapterVisited 数 447 个 map 键、recordedCount 数
+// 七百多条著录、pilgrimFullCount 遍历 26 个山系逐节点查 map。它们被 Milestones 的
+// prog()、页尾「下一步」、页头等级条反复调用——**一次渲染里同一件事要数七八遍**，
+// 实测祠祀页单次切页有 7.7ms 花在这几支函数上（占 27ms 的三成）。
+//
+// 缓存的边界不是「时间」，而是「一次渲染」：UI 每次整页/局部重绘前 beginRenderMemo()、
+// 重绘后 endRenderMemo()，期间同参数只算一次，跨渲染一律重算。这样绝不会读到旧值——
+// 渲染过程中若真改了 Game.map / Game.records（少数渲染会顺手 refreshOrders），
+// 下一帧的渲染也会重新数，不存在「缓存永不失效」的风险。
+let _renderMemo = null, _renderMemoDepth = 0;
+function beginRenderMemo(){
+  if (_renderMemoDepth++ === 0) _renderMemo = Object.create(null);
+  return _renderMemo;
+}
+function endRenderMemo(){
+  if (_renderMemoDepth <= 0){ _renderMemoDepth = 0; _renderMemo = null; return; }
+  if (--_renderMemoDepth === 0) _renderMemo = null;
+}
+function memoDuringRender(key, fn){
+  if (!_renderMemo) return fn();
+  if (key in _renderMemo) return _renderMemo[key];
+  const v = fn();
+  _renderMemo[key] = v;
+  return v;
+}
+window.beginRenderMemo = beginRenderMemo;
+window.endRenderMemo = endRenderMemo;
+
+const chapterVisited = (prefix) => memoDuringRender('ch:' + prefix, () => Object.keys(Game.map || {})
+  .filter(id => id.indexOf(prefix) === 0).length);
 const bossKilled = (id) => !!((Game.stats.bossKills || {})[id]);
 // 「三谷观象」只指南山那三处观象点（日次 / 凯风 / 条风）。
 // 原来数的是 observed 的总数 ≥ 3——把观瑞（凤皇 / 鹓雏）和东山的四处也算进去了。
@@ -2393,12 +2423,14 @@ const NS_OBSERVE = Object.keys(OBSERVE_SITES).filter(k => OBSERVE_SITES[k].kind 
 
 // 走遍（诸山皆涉）的山系数：巡礼里程碑与舆地页的印记同口径
 function pilgrimFullCount(){
-  let n = 0;
-  for (const r of (typeof WORLD !== 'undefined' ? WORLD.regions : [])){
-    if (!r.nodes || !r.nodes.length) continue;
-    if (r.nodes.every(nd => (Game.map || {})[nd.id])) n++;
-  }
-  return n;
+  return memoDuringRender('pilgrim', () => {
+    let n = 0;
+    for (const r of (typeof WORLD !== 'undefined' ? WORLD.regions : [])){
+      if (!r.nodes || !r.nodes.length) continue;
+      if (r.nodes.every(nd => (Game.map || {})[nd.id])) n++;
+    }
+    return n;
+  });
 }
 window.pilgrimFullCount = pilgrimFullCount;
 const Milestones = [
@@ -2619,17 +2651,19 @@ function buildCodexAch(){
 }
 
 function codexDoneCount(cat){
-  let n = 0;
-  const rec = (typeof Game !== 'undefined' && Game.records) ? Game.records : {};
-  for (const id in rec){
-    const r = rec[id];
-    if (!r || !(r.count > 0)) continue;
-    const e = CODEX[id];
-    if (!e) continue;
-    if (cat && e.cat !== cat) continue;
-    n++;
-  }
-  return n;
+  return memoDuringRender('codex:' + (cat || '*'), () => {
+    let n = 0;
+    const rec = (typeof Game !== 'undefined' && Game.records) ? Game.records : {};
+    for (const id in rec){
+      const r = rec[id];
+      if (!r || !(r.count > 0)) continue;
+      const e = CODEX[id];
+      if (!e) continue;
+      if (cat && e.cat !== cat) continue;
+      n++;
+    }
+    return n;
+  });
 }
 
 const CODEX_ACHIEVEMENTS = buildCodexAch();
@@ -2677,7 +2711,7 @@ function wuxingMult(atkEl, defEl){
 function wuxingSheng(a, b){ return TUNING.SHENG[a] === b; }
 
 function recordedCount(){
-  return Object.values(Game.records||{}).filter(r=>r && r.count>0).length;
+  return memoDuringRender('rec', () => Object.values(Game.records||{}).filter(r=>r && r.count>0).length);
 }
 function beastSlots(){ return Math.min(9, 1 + Math.floor((Game.skills?.yushi?.level||1)/10)); }
 
@@ -2716,8 +2750,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.196',
-  codename:'统计归栏',
+  version: '1.31.197',
+  codename:'山志录毕',
   updated: '2026-10-28',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',

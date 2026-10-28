@@ -1108,16 +1108,95 @@ function nodeSourceItems(itemId){
 // 这座山可著录之物（物品侧）：主产地或 nodes[] 任一命中即算。
 // 异兽不在这里——异兽按 nodeId 归属，UI 层单独加。
 function nodeHasItem(nodeId){
-  let total = 0, done = 0;
-  for (const it of Object.values(Items)){
-    if (!it) continue;
-    const srcs = nodeSourceItems(it.id);
-    if (srcs.indexOf(nodeId) < 0) continue;
-    total++;
-    if ((Game.records[it.id]||{}).count > 0) done++;
-  }
-  return { done, total };
+  // 每次渲染里舆地会把当前山系几十座山各问一遍，每次都要扫全部 715 件物——
+  // 渲染期记一次结果（v1.31.197），出这次渲染即失效。
+  return memoDuringRender('nhi:' + nodeId, () => {
+    let total = 0, done = 0;
+    for (const it of Object.values(Items)){
+      if (!it) continue;
+      const srcs = nodeSourceItems(it.id);
+      if (srcs.indexOf(nodeId) < 0) continue;
+      total++;
+      if ((Game.records[it.id]||{}).count > 0) done++;
+    }
+    return { done, total };
+  });
 }
+
+// ---------- 录毕之印（v1.31.197） ----------
+// 「此山录毕」此前只是山志里的一行小字：录满没有回响，也就没理由把一座山录完。
+// 现在每座山录满即封一枚印，一次性给赏（贝币 + 舆地经验），印随存档走。
+//
+// 判据与舆地「已著录 x/y」同源：物品侧走 nodeHasItem（nodes[] 全集），异兽侧按
+// nodeId 归属。分母不另写一套——同一件事第二次定义，迟早会和第一套走岔
+// （v1.31.48~50 那三轮教训）。
+function nodeRecordProgress(nodeId){
+  return memoDuringRender('nrp:' + nodeId, () => {
+    const r = nodeHasItem(nodeId);
+    let total = r.total, done = r.done;
+    for (const m of Object.values(Monsters)){
+      if (m.nodeId !== nodeId) continue;
+      total++;
+      if ((Game.records[m.id]||{}).count > 0) done++;
+    }
+    return { done, total };
+  });
+}
+window.nodeRecordProgress = nodeRecordProgress;
+
+// 赏格：山越深给得越多，录得越全给得越多。一处小山的印是「走到过」的凭证，
+// 不是经济来源——**一座山 ≈ 一枚三签的赏钱**（1 级约 29 贝、70 级约 390 贝），
+// 全部 447 座录毕合计约九万贝，与中期一小时采集同量级，冲不掉强化与营造的账。
+// 给多了会把「首签」和墟市买卖比没；给少了「录毕」就只剩一行字。
+function nodeSealReward(nodeId){
+  const nd = nodeOf(nodeId) || {};
+  const lv = nd.unlockLevel || 1;
+  const p = nodeRecordProgress(nodeId);
+  return { shells: 12 + 5*lv + 6*(p.total||0), xp: 3 + lv, total: p.total };
+}
+function nodeSealOf(nodeId){ return (Game.seals && Game.seals[nodeId]) || null; }
+function sealedNodeCount(){ return Game.seals ? Object.keys(Game.seals).length : 0; }
+window.nodeSealOf = nodeSealOf;
+window.nodeSealReward = nodeSealReward;
+window.sealedNodeCount = sealedNodeCount;
+
+// 封印：录满而未封 → 给赏、记日志、提示；否则返回 null。
+// 幂等——已封的山不会再发第二次赏，所以可以放心在任何入口反复调。
+function claimNodeSeal(nodeId, opts){
+  if (!nodeId) return null;
+  // 离线结算里补封可能连着好几座，提示留给归来账单，不逐条弹
+  if (Game._awaySettling) opts = Object.assign({}, opts, { quiet: true });
+  Game.seals = (Game.seals && typeof Game.seals === 'object') ? Game.seals : {};
+  if (Game.seals[nodeId]) return null;
+  const p = nodeRecordProgress(nodeId);
+  if (!(p.total > 0) || p.done < p.total) return null;
+  const nd = nodeOf(nodeId) || {};
+  const rew = nodeSealReward(nodeId);
+  Game.seals[nodeId] = { at: Date.now(), shells: rew.shells, total: rew.total };
+  Game.shells = (Game.shells || 0) + rew.shells;
+  if (typeof gainXp === 'function') gainXp('yudi', rew.xp);
+  const nm = nd.name || nodeId;
+  log(`🧾 山志录毕：${nm} —— 得贝 ${rew.shells}`, 'gold', 'skill');
+  if (!(opts && opts.quiet) && typeof UI !== 'undefined' && UI && UI.toast){
+    UI.toast(`🧾 ${nm} 山志录毕 · 得贝 ${rew.shells}`);
+  }
+  return Game.seals[nodeId];
+}
+window.claimNodeSeal = claimNodeSeal;
+
+// 一次新录之后：只查「这一条落在哪座山」，不做全图扫描。
+// 站在哪座山就查哪座；异兽按 nodeId 查。物品的其余产地留给舆地渲染时的惰性补封
+// （那一步本来就要算每座山的进度，摊不到额外成本）。
+function claimSealsForRecord(objId){
+  if (!objId) return null;
+  let hit = null;
+  const m = Monsters[objId];
+  if (m && m.nodeId) hit = claimNodeSeal(m.nodeId) || hit;
+  if (nodeOf(objId)) hit = claimNodeSeal(objId) || hit;      // 山川自身也是一条著录
+  if (Items[objId] && Game.node) hit = claimNodeSeal(Game.node) || hit;
+  return hit;
+}
+window.claimSealsForRecord = claimSealsForRecord;
 
 // 某项技艺的产地候选集：把该技艺池里所有物的产地合并去重。
 // 用于技能卡的「产出地」——此前只给第一件物的主产地，「金」明明产于 42 座山，
@@ -1372,6 +1451,8 @@ function recordObject(objId, n){
   const beast = Monsters[objId];   // Monsters 以 id 为键，直接查表（原为 Object.values 全量遍历）
   if (r.first){
     gainXp('zhulu', 10);
+    // 新录一条就可能让某座山凑满（v1.31.197）：只查这一条落在的那座山
+    if (typeof claimSealsForRecord === 'function') claimSealsForRecord(objId);
     // 首次著录带征兆的异兽 → 触发全局事件（「见则X」）
     if (beast && beast.omen) activateOmen(beast.omen);
     // 关联著录：见鵕鸟/大鹗而知鼓与钦䲹之事
@@ -3703,6 +3784,12 @@ function settleAway(seconds){
   const rawSeconds = Math.max(0, seconds || 0);
   seconds = Math.min(rawSeconds, offlineCapHours()*3600);
   if (seconds < 30) return null;
+  // 离线结算期间补封「录毕之印」不逐条弹提示（见 claimNodeSeal）
+  Game._awaySettling = true;
+  try { return settleAwayBody(seconds, rawSeconds); }
+  finally { Game._awaySettling = false; }
+}
+function settleAwayBody(seconds, rawSeconds){
   const eff = offlineEff();
   const summary = { seconds, rawSeconds, capped: rawSeconds > seconds + 30,
                     xp:0, items:{}, records:0, harvests:0, acts:{}, riteRenews:0, riteCost:{}, omensLanded:0 };

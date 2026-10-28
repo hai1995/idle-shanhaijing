@@ -222,6 +222,7 @@ UI.renderStats = function(){
         <span>已录 <b data-stat="recorded">${recordedCount()}/${Object.keys(CODEX).length}</b></span>
         <span>山已涉 <b data-stat="nodes">${Object.keys(Game.map).length}/${WORLD.regions.reduce((s,r)=>s+r.nodes.length,0)}</b></span>
         <span>山系巡礼 <b data-stat="pilgrim">${Object.keys(Game.pilgrim||{}).length}/${WORLD.regions.length} 系</b></span>
+        <span class="stat-link" onclick="UI.switchTab('yudi')" title="山志录毕：一山的物产与异兽全部著录即封一枚印，可得一笔贝币">山志录毕 <b data-stat="seals">${typeof sealedNodeCount==='function'?sealedNodeCount():0}</b> 座</span>
         <span>观象处 <b data-stat="observed">${Object.values(Game.observed).filter(Boolean).length}/${Object.keys(OBSERVE_SITES).length}</b></span>
         ${(() => {
           // 统计报「还差几处」，得给一条去路——否则玩家看完数字还是得一座座山翻

@@ -25,6 +25,7 @@ const Game = {
   buff: null,            // 饮药之益 { itemId, def, remaining, dur }
   farms: {},             // 圃艺田地 { 'p0'..: { seedId, remain, grow } }
   mobStreak: {},         // 同目标连续讨伐计数 { monsterId: n }（经验递减用，换目标即重置）
+  seals: {},             // 录毕之印 { nodeId: { at, shells, total } }（v1.31.197）
   enhance: {},           // 装备淬炼等级 { itemId: 0..30 }（按物品 id 记，同 id 共享）
   enhanceHeat: {},       // 淬炼火候 { itemId: 0..10 }：失败累积、成功清空
   orders: [],            // 方国求购订单 [{ id, itemId, regionId, qty, premium, total, xp }]
@@ -87,6 +88,7 @@ function cloneDefaultGame(){
   g.enhance = {}; g.enhanceHeat = {};
   g.packGear = [];   // 行囊里的装备实例（每件自带淬炼等级；v1.31.22 起）
   g.pilgrim = {};    // 山系巡礼：走遍一系诸山后的领赏记录（v1.31.24）
+  g.seals = {};      // 录毕之印：新档一枚不封（v1.31.197）
   g.events = { at: 0, count: 0, lastId: '', seen: {}, awayAt: 0, lastAt: 0 };   // 行旅见闻：上次触发的游戏秒与累计次数（awayAt 为离线见闻的冷却）
   // 装备槽必须显式清空：cloneDefaultGame 是「深拷贝当前状态再覆盖字段」，
   // 漏了这一项的话，重开新档时身上还穿着上一局那件（连淬炼阶数一起）——
@@ -237,6 +239,8 @@ function applySave(d){
     // 同目标连续讨伐计数（旧档无此字段，缺省为空）
     Game.mobStreak = (d.mobStreak && typeof d.mobStreak === 'object') ? d.mobStreak : {};
     Game.pilgrim = (d.pilgrim && typeof d.pilgrim === 'object') ? d.pilgrim : {};
+    // 录毕之印（v1.31.197）：旧档无此字段，缺省为空——已录满的山会在第一次翻开舆地时补封
+    Game.seals = (d.seals && typeof d.seals === 'object') ? d.seals : {};
     // 用默认值打底再合并：旧档缺 awayAt / lastAt 时补上，
     // 否则「结构不完整」会一路带进下次存档（功能靠 `|| 0` 兜着，但越攒越歪）
     Game.events = Object.assign({ at: 0, count: 0, lastId: '', seen: {}, awayAt: 0, lastAt: 0 },

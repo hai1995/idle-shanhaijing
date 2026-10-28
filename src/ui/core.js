@@ -58,6 +58,7 @@ const MARK_EMOJI_MAP = {
   '✅':'check', '🎉':'star', '🌟':'star', '✨':'star', '🏆':'trophy', '🏅':'trophy',
   '💀':'skull', '🔓':'unlock', '🎋':'slip', '🎴':'slip', '🌅':'sun', '🌳':'tree',
   '🛡':'shield', '🎁':'gift', '🍖':'meat', '🐦':'bird', '🐝':'bird', '🪽':'feather',
+  '🧾':'scroll',   // v1.31.197 录毕之印：竹简 + 朱印
   '🔀':'swap', '📿':'beads', '🔕':'mute', '♻':'cycle',
   '🧪':'skill:lianyao', '🌾':'skill:puyi', '🌱':'skill:puyi', '🪓':'skill:qiaocai',
   '🏹':'skill:she', '🔮':'skill:bushi', '🐾':'skill:yushi',
@@ -570,10 +571,20 @@ const UI = {
   },
   renderCurrent(){
     if (typeof hideTip === 'function') hideTip();   // 重渲染后锚点已销毁，浮层随之关闭
-    const fn = TAB_RENDER[this.currentTab];
-    if (fn && this[fn]) this[fn]();                  // 包装层已负责补页头条
-    this.renderTopbar();
-    this.refreshActivity();
+    // 一次重绘内，全表计数只算一次（v1.31.197）：chapterVisited / recordedCount /
+    // pilgrimFullCount / codexDoneCount 会被里程碑、页头条、页尾下一步各调一遍，
+    // 每次都是 447 个 map 键或七百多条著录的扫描——实测祠祀页单次切页 7.7ms 花在这里。
+    // 作用域严格限制在这一次重绘内，跨重绘一律重算，所以不会读到旧值。
+    const memoized = (typeof beginRenderMemo === 'function');
+    if (memoized) beginRenderMemo();
+    try {
+      const fn = TAB_RENDER[this.currentTab];
+      if (fn && this[fn]) this[fn]();                // 包装层已负责补页头条
+      this.renderTopbar();
+      this.refreshActivity();
+    } finally {
+      if (memoized) endRenderMemo();
+    }
     // 幽灵滚动条的测量延到下一帧（v1.31.126）：它要读 scrollHeight，而刚改完 DOM 的
     // 第一次读会强制整页布局——webkit 实测 131ms，正好夹在「点了页签」和「页面出现」
     // 之间，体感就是切页卡。它只是为了收掉一条几乎滑不动的滚动条，晚一帧完全够。

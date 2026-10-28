@@ -3095,8 +3095,11 @@ section('云端存档接入');
     // 32.5.2 pull：云端有档时合并落本地，并标记 dirty 把合并推回云端
     SM.setCloud({ endpoint: 'https://save.example.test/api' });
     const localBefore = JSON.parse(SM.store.read());
+    // 本机先封一枚印，云端另封一枚：合并后两枚都该在（印是一次性凭证，不取「较新一档」）
+    ST.Game.seals = { 'nanshan-1-01': { at: 1, shells: 30, total: 3 } };
+    ST.saveGame();
     SM.cloud = { id:'cloud', available: ()=>true,
-      read: async()=>JSON.stringify({ version:3, savedAt: Date.now() + 60000, shells: 999, inventory:{ gui: 1 }, skills:{}, records:{}, stats:{}, map:{ 'nanshan-2-01':true } }),
+      read: async()=>JSON.stringify({ version:3, savedAt: Date.now() + 60000, shells: 999, inventory:{ gui: 1 }, skills:{}, records:{}, stats:{}, map:{ 'nanshan-2-01':true }, seals:{ 'nanshan-2-03': { at: 2, shells: 40, total: 4 } } }),
       write: async()=>true, remove: async()=>true };
     ST.saveGame();
     const pr = await SM.pull();
@@ -3104,6 +3107,7 @@ section('云端存档接入');
     const merged = JSON.parse(SM.store.read());
     assert(merged.shells === 999, '贝币取较新的云端一档');
     assert(merged.map['nanshan-2-01'] === true, '地图节点取并集（云端到访不丢）');
+    assert(merged.seals && merged.seals['nanshan-1-01'] && merged.seals['nanshan-2-03'], '录毕之印取并集（两端各自封的都留下）');
     assert(SM.meta().dirty === true, '合并结果标记 dirty（等待推回云端）');
     assert(JSON.parse(SM.store.read()).version === SM.version, '合并结果仍为当前存档版本');
     // 32.5.3 参考后端：真实 HTTP 走一遍约定契约（404 → 上传 → 冲突 → 删除）
@@ -8188,9 +8192,15 @@ section('舆地产地口径');
   assert(rpAfter150.done > 0, '采到一次即记为已著录');
   G.resetToDefault();
 
-  // ---- 4. UI 的分母改从引擎取 ----
-  assert(wSrc150.includes('nodeHasItem(nodeId)'), 'nodeRecordProgress 改用引擎分母');
+  // ---- 4. 分母只留一处（v1.31.197：从 UI 搬进引擎，供「录毕之印」同源判定） ----
+  assert(/function nodeRecordProgress\(nodeId\)[\s\S]{0,400}nodeHasItem\(nodeId\)/.test(gSrc150),
+    '引擎的 nodeRecordProgress 用 nodeHasItem 作分母');
+  assert(!wSrc150.includes('function nodeRecordProgress'), 'UI 不再自带第二份 nodeRecordProgress');
   assert(!wSrc150.includes('if (it.node === nodeId){ total++;'), '旧的「只认主产地」分母写法已移除');
+  // 分母 = 该山物品（nodeHasItem）+ 归属此山的异兽；UI 那一行读的就是这个数
+  const mobN150 = Object.values(ST.Monsters).filter(m=>m.nodeId === diShan150).length;
+  assert(ST.nodeRecordProgress(diShan150).total === rpNew150.total + mobN150,
+    `引擎分母 = 物品 ${rpNew150.total} + 异兽 ${mobN150}`);
 
   // ---- 5. 材料来源：候选集 + 已解锁排前 ----
   assert(wSrc150.includes('materialSourceNodes') || wSrc150.includes('materialReachableNode'), '材料来源改用引擎候选集');
@@ -11218,6 +11228,74 @@ section('形态统一：空态 / 标题附注 / 日志行');
   if (!hadSk) delete context.skillIcon;
   assert(html1.indexOf('<svg') >= 0 && !/🎋/.test(html1), '竹签前缀换成矢量（markIcon）');
   assert(html2.indexOf('<svg') >= 0 && !/🪓/.test(html2), '斧前缀换成矢量（借 skillIcon 的樵采绘形）');
+}
+
+section('录毕之印（v1.31.197）');
+{
+  // 找一座「可录之物」在两三件的小山：录满它，看赏格与封印是不是只发一次
+  G.resetToDefault();
+  let target = null;
+  for (const r of (ST.WORLD.regions || [])) {
+    for (const n of (r.nodes || [])) {
+      const p = ST.nodeRecordProgress(n.id);
+      if (p.total >= 2 && p.total <= 4) { target = n; break; }
+    }
+    if (target) break;
+  }
+  assert(!!target, '样本：找得到一座可录之物 2–4 件的小山');
+  const items = Object.values(ST.Items).filter(it => ST.nodeSourceItems(it.id).indexOf(target.id) >= 0);
+  const mobs = Object.values(ST.Monsters).filter(m => m.nodeId === target.id);
+  const all = items.map(it => it.id).concat(mobs.map(m => m.id));
+  assert(all.length === ST.nodeRecordProgress(target.id).total, `分母对得上（物品 ${items.length} + 异兽 ${mobs.length}）`);
+
+  // 差一条：不封
+  for (const id of all.slice(0, all.length - 1)) ST.Game.records[id] = { count: 1, tier: 0 };
+  assert(ST.claimNodeSeal(target.id) === null, '差一条不封印');
+  assert(!ST.Game.seals[target.id], '差一条时存档里没有这枚印');
+
+  // 补齐最后一条 → 封
+  const last = all[all.length - 1];
+  const before = ST.Game.shells;
+  ST.Game.records[last] = { count: 1, tier: 0 };
+  const seal = ST.claimNodeSeal(target.id);
+  assert(!!seal, '录满即封印');
+  assert(seal.shells > 0 && ST.Game.shells === before + seal.shells, `给赏入账（+${seal.shells} 贝）`);
+  assert(ST.Game.seals[target.id] === seal, '封印记在 Game.seals 上（随存档走）');
+  assert(ST.sealedNodeCount() === 1, '录毕山数 +1');
+
+  // 幂等：再调一次、或再录一条同山的物，都不会发第二次赏
+  const after = ST.Game.shells;
+  assert(ST.claimNodeSeal(target.id) === null, '已封的山不重复发赏');
+  ST.recordObject(last, 1);
+  assert(ST.Game.shells === after, '再录同一条也不会二次发赏');
+
+  // 赏格随山深与条目数上升
+  const rp = ST.nodeRecordProgress(target.id);
+  const rew = ST.nodeSealReward(target.id);
+  assert(rew.shells === 12 + 5 * target.unlockLevel + 6 * rp.total, `赏格 = 12 + 5×等级 + 6×条目（实得 ${rew.shells}）`);
+
+  // 存档往返：印跟着走（否则每次刷新都能重领一次）
+  const dump = ST.serializeSave();
+  assert(dump.seals && dump.seals[target.id], '序列化带上 seals');
+  const back = ST.normalizeSave ? ST.normalizeSave(dump) : dump;
+  assert(back.seals && back.seals[target.id].shells === seal.shells, '读回后印与赏格都在');
+
+  // 旧档补封：有 records、没有 seals —— 第一次翻开舆地时补上（这里直接调判据）
+  G.resetToDefault();
+  for (const id of all) ST.Game.records[id] = { count: 1, tier: 0 };
+  assert(!ST.Game.seals[target.id], '旧档没有印');
+  const back2 = ST.claimNodeSeal(target.id);
+  assert(!!back2, '旧档里已录满的山可补封');
+
+  // 判据同源：UI 那一行不再各写一份分母
+  const ySrc = readText('src/ui/yudi.js');
+  assert(ySrc.includes('claimNodeSeal(nd.id, { quiet:true })'), '舆地渲染时逐座补封（旧档与离线补记都能收口）');
+  assert(ySrc.includes('座山志录毕 · 共得贝'), '一次补封多座时攒成一句提示');
+  assert(ySrc.includes("nt-tag ${done?'done':''}${seal?' seal':''}"), '山志方块上挂「毕」印');
+  assert(ySrc.includes("已得赏 ") && ySrc.includes('nodeSealOf(sel.id)'), '此山详情写出已得赏');
+  assert(readText('src/ui/stats.js').includes('data-stat="seals"'), '统计页有「山志录毕」一栏');
+  assert(readText('src/game.js').includes('claimSealsForRecord(objId)'), '新录一条即查该山是否凑满');
+  G.resetToDefault();
 }
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）

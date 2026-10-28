@@ -48,6 +48,11 @@ const MARK = {
   lamp: `<path d="M8 20 H16 L14.4 12 H9.6 Z" fill="${GOLD}"/>
     <path d="M12 3.2 Q14.4 6.6 13.2 9.4 H10.8 Q9.6 6.6 12 3.2 Z" fill="${FIRE}"/>
     <path d="M7 20.8 H17" stroke="${INK}" stroke-width="1.6" stroke-linecap="round" fill="none"/>`,
+  // 山志：一束竹简 + 朱印（录毕之印，v1.31.197）
+  scroll: `<rect x="5" y="4.6" width="10" height="14.8" rx="1.2" fill="none" stroke="${INK}" stroke-width="1.7"/>
+    <path d="M7.4 8 H12.6 M7.4 11 H12.6 M7.4 14 H11" stroke="${INK}" stroke-width="1.3" stroke-linecap="round" fill="none"/>
+    <rect x="14.4" y="13.4" width="6" height="6" rx=".8" fill="${FIRE}"/>
+    <path d="M15.9 16.4 h2.8 M17.3 15.1 v2.6" stroke="#F2EDE0" stroke-width="1.1" stroke-linecap="round" fill="none"/>`,
   // 迅：折电
   bolt: `<path d="M13.6 2 L5.4 13.4 H11 L9.8 22 L18.4 10 H12.8 Z" fill="${GOLD}"/>
     <path d="M13.6 2 L9.4 13.4" stroke="${FIRE}" stroke-width="1.2" fill="none" opacity=".7"/>`,
