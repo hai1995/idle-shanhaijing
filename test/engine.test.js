@@ -10871,6 +10871,12 @@ section('形态统一：空态 / 标题附注 / 日志行');
   assert(/input\[type=range\]\{ accent-color:var\(--zhu\); height:20px; flex:1; background:transparent; \}/.test(cssX), '滑块背景透明（夜间不露白底）');
   const smoke = readText('scripts/smoke-ui.py');
   assert(smoke.includes('JS_BRIGHT') && smoke.includes('夜间仍有固定浅色块'), '浏览器体检含「夜间漏网亮块」守卫');
+  // 6) 当前行动也有「几点做完」：与队列同一个口径（HH:MM），近况卡里可见
+  assert(readText('src/ui/meta.js').includes('function activityFinishClock()'), '当前行动完成时刻的函数存在（meta.js）');
+  assert(readText('src/ui/stats.js').includes('当前行动约 ${ck} 做完'), '统计近况卡给出当前行动完成时刻');
+  // 7) 停跑时 queueFinishClock 必须给空串：芯片与「已完成 N 轮」行都不显示时刻
+  ST.Game.queueRunning = false;
+  assert(ST.queueFinishClock() === '', '停跑时不给完成时刻');
 }
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）

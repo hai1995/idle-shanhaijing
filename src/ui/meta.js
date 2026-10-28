@@ -335,6 +335,17 @@ function activityLabelText(){
   if (a.src === 'fallback') label += '（兜底）';   // 闲置兜底自动接上的行动，标出来
   return label;
 }
+
+// 当前（限量）行动「几点做完」：余 N 次 × 当前实际间隔（含工具 / 增益加成）。
+// 与队列的 queueFinishClock 同一口径——HH:MM，一眼能拿来安排事（v1.31.165）。
+function activityFinishClock(){
+  const a = Game.activity;
+  if (!a || !(a.remain > 0)) return '';
+  const iv = (typeof currentActionInterval === 'function') ? currentActionInterval() : 0;
+  if (!(iv > 0)) return '';
+  const d = new Date(Date.now() + a.remain * iv * 1000);
+  return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
 UI.patchActivityCount = function(){
   const t = $('activityText');
   if (!t) return;

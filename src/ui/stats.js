@@ -134,8 +134,9 @@ UI.renderStats = function(){
       // 「近况」：统计页其余都是累计数字，看不出「此刻」收益几何。
       // 换配装 / 换兽 / 开兆之后效率变好变坏，原先全凭感觉。
       const r = (typeof rateSummary === 'function') ? rateSummary(600) : null;
+      const ck = (typeof activityFinishClock === 'function') ? activityFinishClock() : '';
       if (!r) return `<div class="panel stat-panel"><h3>近况</h3><div class="h3-hint">挂机一会儿才有数据（每 30 秒采一点）</div>
-        <div class="stat-rows"><span class="hint">仍在采样，满一分钟即出速率。</span></div></div>`;
+        <div class="stat-rows">${ck ? `<span class="hint">当前行动约 ${ck} 做完。</span>` : ''}<span class="hint">仍在采样，满一分钟即出速率。</span></div></div>`;
       const mins = Math.max(1, Math.round(r.span / 60));
       const perf = (v, unit) => `${fmt(Math.round(v))}<i>${unit}/时</i>`;
       return `<div class="panel stat-panel"><h3>近况</h3><div class="h3-hint">近 ${mins} 分钟的平均，按每小时折算</div>
@@ -145,6 +146,7 @@ UI.renderStats = function(){
           <span>采获 <b>${perf(r.lootPerH, ' 件')}</b></span>
           <span>动作 <b>${perf(r.actsPerH, ' 次')}</b></span>
         </div>
+        ${ck ? `<div class="hint">当前行动约 ${ck} 做完。</div>` : ''}
         ${(()=>{
           // 与「累计均值」对看：近况低于累计，说明最近掉速了（配装变差、被卡住、粮尽）。
           // 光看一个数没有基准，两个数一比才有意义。
