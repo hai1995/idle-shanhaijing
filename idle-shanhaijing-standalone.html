@@ -20278,7 +20278,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.177',
+  version: '1.31.178',
   codename:'昼巡 · 对账',
   updated: '2026-10-28',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -32198,7 +32198,7 @@ UI.renderYudi = function(){
           : `<span class="pilgrim ${pg.full?'full':''}">巡礼 ${pg.done}/${pg.total}${pg.claimed?' ✓':''}</span>`;
         const btn = (pg && pg.full && !pg.claimed)
           ? `<button class="btn small" type="button" onclick="claimPilgrim('${region.regionId}');UI.renderYudi()">领赏</button>` : '';
-        return `<h3>${esc(region.regionName)} · 诸山${tag}${btn}</h3>`;
+        return `<h3 data-tip data-tip-title="舆地 · 山川" data-wiki="mechanic:yudi">${esc(region.regionName)} · 诸山${tag}${btn}<span class="tip-body hidden">五经山系之下诸山可点：每座山列出物产、异兽与山志原文；选「采集 / 讨伐」即动身前往。著录阶位愈高，可往的山川愈远。</span></h3>`;
       })()}
       ${(()=>{
         const r = (typeof activeRiteOf === 'function') ? activeRiteOf(region.regionId) : null;
@@ -32275,7 +32275,7 @@ UI.renderYudi = function(){
       ${sel.note?`<div class="nd-sec"><b>注解</b>※ ${esc(sel.note)}</div>`:''}
       ${nodeMythBlock(sel)||''}`;
     return `<div class="nd-head">
-        <h3>${esc(sel.name)} ${here?'<span class="here-tag">在此</span>':''}</h3>
+        <h3 data-tip data-tip-title="舆地 · 山川" data-wiki="mechanic:yudi">${esc(sel.name)} ${here?'<span class="here-tag">在此</span>':''}<span class="tip-body hidden">此山物产、异兽与山志俱列于此。选「采集 / 讨伐」即动身前往，纳入巡历队列。著录阶位愈高，可往的山川愈远。</span></h3>
         <button class="btn-mini nd-info" type="button" data-tip data-tip-title="${esc(sel.name)} · 山志">山志全篇<span class="tip-body hidden">${shanZhi}</span></button>
       </div>
       <div class="meta">${esc(sel.chapter||'')} · 需舆地 ${sel.unlockLevel}${sel.hazard?` · <span class="haz-text">${esc(sel.hazard.detail||sel.hazard.type)}</span>`:''}</div>
@@ -32945,7 +32945,7 @@ UI.renderSkills = function(){
   </div>
 
   <div class="panel farm-panel">
-    <h3><span class="fp-title">圃艺 · 田地</span><span class="farm-lv" id="farmPuyiLv">${farmLevelText()}</span><button class="btn small gear-best" type="button" onclick="UI.plantAll()">一键种植</button></h3>
+    <h3 data-tip data-tip-title="商旅 · 观象 · 圃艺" data-wiki="mechanic:shanglv"><span class="fp-title">圃艺 · 田地</span><span class="farm-lv" id="farmPuyiLv">${farmLevelText()}</span><button class="btn small gear-best" type="button" onclick="UI.plantAll()">一键种植</button><span class="tip-body hidden">种植收成、以贝币买卖、观象提升离线上限——商旅一脉，亦是修行。圃艺种下嘉种，候其成熟收取。</span></h3>
     <div class="tile-grid farm-grid">
     ${farmTilesHtml()}
     </div>
@@ -32962,7 +32962,7 @@ UI.renderSkills = function(){
     const ok = canRebirth();
     const nextStart = Math.min(TUNING.REBIRTH.START_CAP, (cnt + 1) * TUNING.REBIRTH.START_PER);
     return `<div class="panel rebirth-panel">
-      <h3>轮回 · 第 ${cnt + 1} 卷</h3>
+      <h3 data-tip data-tip-title="轮回" data-wiki="mechanic:lunhui">轮回 · 第 ${cnt + 1} 卷<span class="tip-body hidden">修行至一定火候可入轮回：转生重置部分进度，换取永久增益与「前世遗物」。是长线的成长拐点，与境界并行不悖。</span></h3>
       <div class="rb-grid">
         <span>轮回印 <b>${cnt} 枚</b></span>
         <span>修为 <b>+${gain}%</b></span>
@@ -33518,7 +33518,7 @@ function taofaListHtml(){
         <i>经验 ×${TUNING.CYCLE.XP} · 掉落 ×${TUNING.CYCLE.LOOT} · 三维随山势渐强</i></span>
       <button class="chip-btn ${(typeof bandOn === 'function' && bandOn()) ? 'on' : ''}" type="button" onclick="UI.toggleBand()">${(typeof bandOn === 'function' && bandOn()) ? '已入卷二' : '回到本卷'}</button>
     </div>` : '';
-  let list = `<div class="panel beast-panel"><h3>讨伐目标</h3>
+  let list = `<div class="panel beast-panel"><h3 data-tip data-tip-title="征伐" data-wiki="mechanic:taofa">讨伐目标<span class="tip-body hidden">往讨异兽与凶神：既得经验与掉落，也累积著录度。兵器与祝术分五行，相克 ×1.35；战法四项乘区各自独立。连续讨伐同一异兽经验递减，换一只即恢复全额。</span></h3>
     ${bandBar}
     <div class="loot-recent">最近所获：${(Game.recentLoot||[]).map(l=>`${typeof itemIc==='function'?itemIc(l.itemId,13):((Items[l.itemId]||{}).icon||'')}${esc((Items[l.itemId]||{}).name||l.itemId)}×${l.qty}`).join('　')||'无'}</div>
     ${foldedN ? `<div class="hint">已展开当前山系之目标；另 ${foldedN} 个山系折在下方，点开可见。</div>` : ''}`;
@@ -33759,7 +33759,7 @@ UI.renderYushi = function(){
     <div class="bonus-line">当前增益（御使）：${bonusText}</div>
     <div class="bonus-line">当前增益（征兆）：${omenText}</div>
   </div>
-  <div class="panel deploy-panel"><h3>可御使之异兽（著录至「通形」）
+  <div class="panel deploy-panel"><h3 data-tip data-tip-title="御使" data-wiki="mechanic:yushi">可御使之异兽（著录至「通形」）<span class="tip-body hidden">著录至「通形」（50 次）的异兽可入御使槽，随行助阵并给予增益；槽位随御使等级扩充（每 10 级 +1，至 9 槽）。「一键最优」按著录阶自动配满空槽。</span>
       <button class="btn small gear-best" type="button" onclick="UI.autoDeployBest()">一键最优</button></h3>
     <div class="tile-grid beast-grid">
     ${(function(){

@@ -692,6 +692,13 @@ try {
 } catch(e){ uiOk = false; console.error('UI 渲染异常：'+e.stack); }
 assert(uiOk, '全部页面渲染不抛错');
 assert(renderTargets.content.innerHTML.length > 100, '内容区有实际输出');
+// 28.8 页面主标题 data-wiki 锚点（v1.31.178 续接一致性约定）：逐页捕获 innerHTML 再断言
+const _wkHtml = (tab, fn) => { ST.UI.currentTab = tab; fn(); return renderTargets.content.innerHTML; };
+assert(_wkHtml('taofa', ST.UI.renderTaofa).includes('data-wiki="mechanic:taofa"'), '征伐页「讨伐目标」带 data-wiki');
+assert(_wkHtml('yushi', ST.UI.renderYushi).includes('data-wiki="mechanic:yushi"'), '御使页「可御使之异兽」带 data-wiki');
+assert(_wkHtml('skills', () => { ST.UI.skillFilter = 'all'; ST.UI.renderSkills(); }).includes('data-wiki="mechanic:lunhui"'), '技能页「轮回」带 data-wiki');
+assert(_wkHtml('skills', () => { ST.UI.skillFilter = 'all'; ST.UI.renderSkills(); }).includes('data-wiki="mechanic:shanglv"'), '技能页「圃艺」带 data-wiki');
+assert(_wkHtml('yudi', ST.UI.renderYudi).includes('data-wiki="mechanic:yudi"'), '舆地页区域/山体带 data-wiki');
 assert(renderTargets.content.innerHTML.indexOf('cloudEndpoint') < 0 && renderTargets.content.innerHTML.indexOf('立即上传') < 0, '设置页不再暴露云端配置（改由账号系统接管）');
 // 战斗不得强行切页（挂机连战每杀一只都会触发 startCombat，跳焦点会打断玩家）
 ST.UI.currentTab = 'codex';

@@ -187,7 +187,7 @@ function taofaListHtml(){
         <i>经验 ×${TUNING.CYCLE.XP} · 掉落 ×${TUNING.CYCLE.LOOT} · 三维随山势渐强</i></span>
       <button class="chip-btn ${(typeof bandOn === 'function' && bandOn()) ? 'on' : ''}" type="button" onclick="UI.toggleBand()">${(typeof bandOn === 'function' && bandOn()) ? '已入卷二' : '回到本卷'}</button>
     </div>` : '';
-  let list = `<div class="panel beast-panel"><h3>讨伐目标</h3>
+  let list = `<div class="panel beast-panel"><h3 data-tip data-tip-title="征伐" data-wiki="mechanic:taofa">讨伐目标<span class="tip-body hidden">往讨异兽与凶神：既得经验与掉落，也累积著录度。兵器与祝术分五行，相克 ×1.35；战法四项乘区各自独立。连续讨伐同一异兽经验递减，换一只即恢复全额。</span></h3>
     ${bandBar}
     <div class="loot-recent">最近所获：${(Game.recentLoot||[]).map(l=>`${typeof itemIc==='function'?itemIc(l.itemId,13):((Items[l.itemId]||{}).icon||'')}${esc((Items[l.itemId]||{}).name||l.itemId)}×${l.qty}`).join('　')||'无'}</div>
     ${foldedN ? `<div class="hint">已展开当前山系之目标；另 ${foldedN} 个山系折在下方，点开可见。</div>` : ''}`;
@@ -428,7 +428,7 @@ UI.renderYushi = function(){
     <div class="bonus-line">当前增益（御使）：${bonusText}</div>
     <div class="bonus-line">当前增益（征兆）：${omenText}</div>
   </div>
-  <div class="panel deploy-panel"><h3>可御使之异兽（著录至「通形」）
+  <div class="panel deploy-panel"><h3 data-tip data-tip-title="御使" data-wiki="mechanic:yushi">可御使之异兽（著录至「通形」）<span class="tip-body hidden">著录至「通形」（50 次）的异兽可入御使槽，随行助阵并给予增益；槽位随御使等级扩充（每 10 级 +1，至 9 槽）。「一键最优」按著录阶自动配满空槽。</span>
       <button class="btn small gear-best" type="button" onclick="UI.autoDeployBest()">一键最优</button></h3>
     <div class="tile-grid beast-grid">
     ${(function(){

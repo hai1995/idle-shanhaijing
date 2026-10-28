@@ -326,7 +326,7 @@ UI.renderSkills = function(){
   </div>
 
   <div class="panel farm-panel">
-    <h3><span class="fp-title">圃艺 · 田地</span><span class="farm-lv" id="farmPuyiLv">${farmLevelText()}</span><button class="btn small gear-best" type="button" onclick="UI.plantAll()">一键种植</button></h3>
+    <h3 data-tip data-tip-title="商旅 · 观象 · 圃艺" data-wiki="mechanic:shanglv"><span class="fp-title">圃艺 · 田地</span><span class="farm-lv" id="farmPuyiLv">${farmLevelText()}</span><button class="btn small gear-best" type="button" onclick="UI.plantAll()">一键种植</button><span class="tip-body hidden">种植收成、以贝币买卖、观象提升离线上限——商旅一脉，亦是修行。圃艺种下嘉种，候其成熟收取。</span></h3>
     <div class="tile-grid farm-grid">
     ${farmTilesHtml()}
     </div>
@@ -343,7 +343,7 @@ UI.renderSkills = function(){
     const ok = canRebirth();
     const nextStart = Math.min(TUNING.REBIRTH.START_CAP, (cnt + 1) * TUNING.REBIRTH.START_PER);
     return `<div class="panel rebirth-panel">
-      <h3>轮回 · 第 ${cnt + 1} 卷</h3>
+      <h3 data-tip data-tip-title="轮回" data-wiki="mechanic:lunhui">轮回 · 第 ${cnt + 1} 卷<span class="tip-body hidden">修行至一定火候可入轮回：转生重置部分进度，换取永久增益与「前世遗物」。是长线的成长拐点，与境界并行不悖。</span></h3>
       <div class="rb-grid">
         <span>轮回印 <b>${cnt} 枚</b></span>
         <span>修为 <b>+${gain}%</b></span>

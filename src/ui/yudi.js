@@ -231,7 +231,7 @@ UI.renderYudi = function(){
           : `<span class="pilgrim ${pg.full?'full':''}">巡礼 ${pg.done}/${pg.total}${pg.claimed?' ✓':''}</span>`;
         const btn = (pg && pg.full && !pg.claimed)
           ? `<button class="btn small" type="button" onclick="claimPilgrim('${region.regionId}');UI.renderYudi()">领赏</button>` : '';
-        return `<h3>${esc(region.regionName)} · 诸山${tag}${btn}</h3>`;
+        return `<h3 data-tip data-tip-title="舆地 · 山川" data-wiki="mechanic:yudi">${esc(region.regionName)} · 诸山${tag}${btn}<span class="tip-body hidden">五经山系之下诸山可点：每座山列出物产、异兽与山志原文；选「采集 / 讨伐」即动身前往。著录阶位愈高，可往的山川愈远。</span></h3>`;
       })()}
       ${(()=>{
         const r = (typeof activeRiteOf === 'function') ? activeRiteOf(region.regionId) : null;
@@ -308,7 +308,7 @@ UI.renderYudi = function(){
       ${sel.note?`<div class="nd-sec"><b>注解</b>※ ${esc(sel.note)}</div>`:''}
       ${nodeMythBlock(sel)||''}`;
     return `<div class="nd-head">
-        <h3>${esc(sel.name)} ${here?'<span class="here-tag">在此</span>':''}</h3>
+        <h3 data-tip data-tip-title="舆地 · 山川" data-wiki="mechanic:yudi">${esc(sel.name)} ${here?'<span class="here-tag">在此</span>':''}<span class="tip-body hidden">此山物产、异兽与山志俱列于此。选「采集 / 讨伐」即动身前往，纳入巡历队列。著录阶位愈高，可往的山川愈远。</span></h3>
         <button class="btn-mini nd-info" type="button" data-tip data-tip-title="${esc(sel.name)} · 山志">山志全篇<span class="tip-body hidden">${shanZhi}</span></button>
       </div>
       <div class="meta">${esc(sel.chapter||'')} · 需舆地 ${sel.unlockLevel}${sel.hazard?` · <span class="haz-text">${esc(sel.hazard.detail||sel.hazard.type)}</span>`:''}</div>
