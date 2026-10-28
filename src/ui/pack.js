@@ -156,7 +156,7 @@ UI.renderPack = function(){
       })()}
     </div>
     <div class="panel inv-panel">
-      <h3>行囊</h3>
+      <h3 data-tip data-tip-title="装备 · 行装" data-wiki="mechanic:pack">行囊<span class="tip-body hidden">随身器物与材料所藏：装备格见上方「装备」，淬炼可增其品阶与词缀。</span></h3>
       <div class="filter-row">
         ${[['all','全部'],['mat','材料'],['gear','装备'],['food','药食'],['sp','系产']].map(([k,lab])=>
           `<button class="chip-btn ${(this.packFilter||'all')===k?'on':''}" onclick="UI.packFilter='${k}';UI.patchPackList()">${lab}</button>`).join('')}

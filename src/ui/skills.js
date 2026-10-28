@@ -260,6 +260,7 @@ UI.renderSkills = function(){
     return out;
   })()}
 
+  <div class="skills-prod">
   <div class="panel recipe-panel">
     <h3>制作配方</h3>
     <div class="filter-row">
@@ -323,13 +324,13 @@ UI.renderSkills = function(){
     })()}
   </div>
     </div>
-  </div>
 
   <div class="panel farm-panel">
     <h3 data-tip data-tip-title="商旅 · 观象 · 圃艺" data-wiki="mechanic:shanglv"><span class="fp-title">圃艺 · 田地</span><span class="farm-lv" id="farmPuyiLv">${farmLevelText()}</span><button class="btn small gear-best" type="button" onclick="UI.plantAll()">一键种植</button><span class="tip-body hidden">种植收成、以贝币买卖、观象提升离线上限——商旅一脉，亦是修行。圃艺种下嘉种，候其成熟收取。</span></h3>
     <div class="tile-grid farm-grid">
     ${farmTilesHtml()}
     </div>
+  </div>
   </div>
 
   ${(typeof rebirthCount === 'function') ? (() => {

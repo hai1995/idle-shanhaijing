@@ -1432,6 +1432,9 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; background:tran
 .sg-title{ font-family:var(--f-kai); font-size:13px; color:var(--qing-d); letter-spacing:.06em; margin:0 0 9px; display:flex; align-items:center; gap:7px; }
 .sg-count{ font-family:var(--f-num); font-size:10.5px; color:var(--ink-4); background:var(--paper-2); border:1px solid var(--rule); border-radius:9px; padding:0 6px; }
 @media (max-width:760px){ .skill-group{ margin-bottom:14px; } }
+/* 制作配方 + 圃艺：PC 并排成两栏，避免两个稀疏面板各自独占整行（v1.31.181） */
+.skills-prod{ display:grid; grid-template-columns:minmax(0,1.08fr) minmax(0,0.92fr); gap:14px; align-items:start; margin-bottom:14px; }
+@media (max-width:880px){ .skills-prod{ grid-template-columns:1fr; gap:14px; } }
 /* 境界面板（v1.31.169）：修行分组下，打坐突破的落脚点 */
 .realm-panel{ margin-top:11px; padding:11px 13px; background:var(--paper-2); border:1px solid var(--rule); border-radius:6px; }
 .realm-row{ display:flex; align-items:center; gap:9px; font-family:var(--f-kai); }
@@ -1752,7 +1755,7 @@ svg.bi.mk{ vertical-align:-2px; }
    御使
    ========================================================================== */
 /* 槽位与可御使并列：两张短面板各占一栏，避免首页大面积留白 */
-.two-col{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.15fr); gap:14px; align-items:start; }
+.two-col{ display:grid; grid-template-columns:316px minmax(0,1fr); gap:14px; align-items:start; }
 @media (max-width:1080px){ .two-col{ grid-template-columns:1fr; } }
 
 .slot-row{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px; }

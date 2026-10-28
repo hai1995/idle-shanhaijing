@@ -463,7 +463,7 @@ UI.renderYushi = function(){
     })()}
     </div>
   </div></div>
-  <div class="panel lock-panel"><h3>未达标</h3>
+  <div class="panel lock-panel"><h3 data-tip data-tip-title="御使" data-wiki="mechanic:yushi">未达标<span class="tip-body hidden">著录至「通形」（50 次）的异兽方可入御使槽，随行助阵并给予增益；槽位随御使等级扩充（每 10 级 +1，至 9 槽）。</span></h3>
     ${(()=>{
       const next = TUNING.MASTERY.THRESHOLDS[3];
       const all = Object.values(Monsters).filter(m=>!m.boss && ((Game.records[m.id]||{}).tier||0)<3);

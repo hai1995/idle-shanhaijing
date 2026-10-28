@@ -206,10 +206,10 @@ UI.renderShichan = function(){
         <button class="chip-btn ${this.invSort==='qty'?'on':''}" onclick="UI.invSort='qty';UI.sellLimit=60;UI.renderShichan()">数量↓</button>
       </span>
     </div>
-    ${tips.length?`<div class="panel trade-tip"><h3><span class="mi-ic">${typeof markIcon==='function'?markIcon('lamp',17):'💡'}</span> 推荐买卖</h3><ul>${tips.slice(0,3).map(t=>`<li>${t}</li>`).join('')}</ul></div>`:''}
+    ${tips.length?`<div class="panel trade-tip"><h3 data-tip data-tip-title="墟市" data-wiki="mechanic:shichan"><span class="mi-ic">${typeof markIcon==='function'?markIcon('lamp',17):'💡'}</span> 推荐买卖<span class="tip-body hidden">墟市：买卖原材料与器物；方国求购溢价收可再生料，售价加成由商旅、营造、御使、征兆共同决定。</span></h3><ul>${tips.slice(0,3).map(t=>`<li>${t}</li>`).join('')}</ul></div>`:''}
     ${orderBoard}
     <div class="panel">${buy}</div>
-    <div class="panel"><h3>出售</h3>
+    <div class="panel"><h3 data-tip data-tip-title="墟市" data-wiki="mechanic:shichan">出售<span class="tip-body hidden">将行囊中的器物与材料在此变现；「出售全部凡/良品」一键清掉低值杂物，回笼贝币。</span></h3>
       <div class="sell-toolbar"><button class="btn small" onclick="sellAllPlain()">出售全部凡/良品（${plainValue} 贝）</button></div>
       ${sell}</div>`;
 };

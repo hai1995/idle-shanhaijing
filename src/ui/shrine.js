@@ -200,14 +200,14 @@ UI.renderJisi = function(){
     ${omenPanelHtml()}
   </div>
 
-  <div class="panel div-panel"><h3>卜筮</h3>
+  <div class="panel div-panel"><h3 data-tip data-tip-title="祠礼" data-wiki="mechanic:jisi">卜筮<span class="tip-body hidden">祠礼之余，以白菅为筮问吉凶：吉则行事顺遂，凶则需趋避。佩灌灌符或不惑散可保必吉。</span></h3>
     <div class="div-row">
       <span class="hint">以白菅为筮（×1），卜问吉凶；佩灌灌符或不惑散则必吉。</span>
       <button class="btn primary" onclick="divine();UI.renderJisi()">卜筮</button>
       ${this.lastDivine?`<span class="hint">上次：${this.lastDivine.lucky?'吉':'不吉'}</span>`:''}
     </div>
   </div>
-  <div class="panel omen-log-panel"><h3>征兆纪事</h3>
+  <div class="panel omen-log-panel"><h3 data-tip data-tip-title="征兆" data-wiki="mechanic:omen">征兆纪事<span class="tip-body hidden">异兽现世前的天象徵候：初录某兽可能触发对应征兆，带来持续增益；此处留存近来的吉凶之兆。</span></h3>
     ${this.logEntries.filter(e=>e.cat==='omen').slice(0,8).map(e=>`<div class="omen-log-line" style="color:${LOG_COLORS[e.color]||'#555'}">· ${esc(e.msg)}</div>`).join('') || '<div class="hint">尚无征兆记录；异兽初录时或触发吉凶之兆。</div>'}
   </div>`;
   box.innerHTML = html;

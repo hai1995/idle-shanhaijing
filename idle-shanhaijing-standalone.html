@@ -1459,6 +1459,9 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; background:tran
 .sg-title{ font-family:var(--f-kai); font-size:13px; color:var(--qing-d); letter-spacing:.06em; margin:0 0 9px; display:flex; align-items:center; gap:7px; }
 .sg-count{ font-family:var(--f-num); font-size:10.5px; color:var(--ink-4); background:var(--paper-2); border:1px solid var(--rule); border-radius:9px; padding:0 6px; }
 @media (max-width:760px){ .skill-group{ margin-bottom:14px; } }
+/* 制作配方 + 圃艺：PC 并排成两栏，避免两个稀疏面板各自独占整行（v1.31.181） */
+.skills-prod{ display:grid; grid-template-columns:minmax(0,1.08fr) minmax(0,0.92fr); gap:14px; align-items:start; margin-bottom:14px; }
+@media (max-width:880px){ .skills-prod{ grid-template-columns:1fr; gap:14px; } }
 /* 境界面板（v1.31.169）：修行分组下，打坐突破的落脚点 */
 .realm-panel{ margin-top:11px; padding:11px 13px; background:var(--paper-2); border:1px solid var(--rule); border-radius:6px; }
 .realm-row{ display:flex; align-items:center; gap:9px; font-family:var(--f-kai); }
@@ -1779,7 +1782,7 @@ svg.bi.mk{ vertical-align:-2px; }
    御使
    ========================================================================== */
 /* 槽位与可御使并列：两张短面板各占一栏，避免首页大面积留白 */
-.two-col{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.15fr); gap:14px; align-items:start; }
+.two-col{ display:grid; grid-template-columns:316px minmax(0,1fr); gap:14px; align-items:start; }
 @media (max-width:1080px){ .two-col{ grid-template-columns:1fr; } }
 
 .slot-row{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
@@ -20296,7 +20299,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.180',
+  version: '1.31.181',
   codename:'昼巡 · 对账',
   updated: '2026-10-28',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -32907,6 +32910,7 @@ UI.renderSkills = function(){
     return out;
   })()}
 
+  <div class="skills-prod">
   <div class="panel recipe-panel">
     <h3>制作配方</h3>
     <div class="filter-row">
@@ -32970,13 +32974,13 @@ UI.renderSkills = function(){
     })()}
   </div>
     </div>
-  </div>
 
   <div class="panel farm-panel">
     <h3 data-tip data-tip-title="商旅 · 观象 · 圃艺" data-wiki="mechanic:shanglv"><span class="fp-title">圃艺 · 田地</span><span class="farm-lv" id="farmPuyiLv">${farmLevelText()}</span><button class="btn small gear-best" type="button" onclick="UI.plantAll()">一键种植</button><span class="tip-body hidden">种植收成、以贝币买卖、观象提升离线上限——商旅一脉，亦是修行。圃艺种下嘉种，候其成熟收取。</span></h3>
     <div class="tile-grid farm-grid">
     ${farmTilesHtml()}
     </div>
+  </div>
   </div>
 
   ${(typeof rebirthCount === 'function') ? (() => {
@@ -33822,7 +33826,7 @@ UI.renderYushi = function(){
     })()}
     </div>
   </div></div>
-  <div class="panel lock-panel"><h3>未达标</h3>
+  <div class="panel lock-panel"><h3 data-tip data-tip-title="御使" data-wiki="mechanic:yushi">未达标<span class="tip-body hidden">著录至「通形」（50 次）的异兽方可入御使槽，随行助阵并给予增益；槽位随御使等级扩充（每 10 级 +1，至 9 槽）。</span></h3>
     ${(()=>{
       const next = TUNING.MASTERY.THRESHOLDS[3];
       const all = Object.values(Monsters).filter(m=>!m.boss && ((Game.records[m.id]||{}).tier||0)<3);
@@ -34570,14 +34574,14 @@ UI.renderJisi = function(){
     ${omenPanelHtml()}
   </div>
 
-  <div class="panel div-panel"><h3>卜筮</h3>
+  <div class="panel div-panel"><h3 data-tip data-tip-title="祠礼" data-wiki="mechanic:jisi">卜筮<span class="tip-body hidden">祠礼之余，以白菅为筮问吉凶：吉则行事顺遂，凶则需趋避。佩灌灌符或不惑散可保必吉。</span></h3>
     <div class="div-row">
       <span class="hint">以白菅为筮（×1），卜问吉凶；佩灌灌符或不惑散则必吉。</span>
       <button class="btn primary" onclick="divine();UI.renderJisi()">卜筮</button>
       ${this.lastDivine?`<span class="hint">上次：${this.lastDivine.lucky?'吉':'不吉'}</span>`:''}
     </div>
   </div>
-  <div class="panel omen-log-panel"><h3>征兆纪事</h3>
+  <div class="panel omen-log-panel"><h3 data-tip data-tip-title="征兆" data-wiki="mechanic:omen">征兆纪事<span class="tip-body hidden">异兽现世前的天象徵候：初录某兽可能触发对应征兆，带来持续增益；此处留存近来的吉凶之兆。</span></h3>
     ${this.logEntries.filter(e=>e.cat==='omen').slice(0,8).map(e=>`<div class="omen-log-line" style="color:${LOG_COLORS[e.color]||'#555'}">· ${esc(e.msg)}</div>`).join('') || '<div class="hint">尚无征兆记录；异兽初录时或触发吉凶之兆。</div>'}
   </div>`;
   box.innerHTML = html;
@@ -34881,10 +34885,10 @@ UI.renderShichan = function(){
         <button class="chip-btn ${this.invSort==='qty'?'on':''}" onclick="UI.invSort='qty';UI.sellLimit=60;UI.renderShichan()">数量↓</button>
       </span>
     </div>
-    ${tips.length?`<div class="panel trade-tip"><h3><span class="mi-ic">${typeof markIcon==='function'?markIcon('lamp',17):'💡'}</span> 推荐买卖</h3><ul>${tips.slice(0,3).map(t=>`<li>${t}</li>`).join('')}</ul></div>`:''}
+    ${tips.length?`<div class="panel trade-tip"><h3 data-tip data-tip-title="墟市" data-wiki="mechanic:shichan"><span class="mi-ic">${typeof markIcon==='function'?markIcon('lamp',17):'💡'}</span> 推荐买卖<span class="tip-body hidden">墟市：买卖原材料与器物；方国求购溢价收可再生料，售价加成由商旅、营造、御使、征兆共同决定。</span></h3><ul>${tips.slice(0,3).map(t=>`<li>${t}</li>`).join('')}</ul></div>`:''}
     ${orderBoard}
     <div class="panel">${buy}</div>
-    <div class="panel"><h3>出售</h3>
+    <div class="panel"><h3 data-tip data-tip-title="墟市" data-wiki="mechanic:shichan">出售<span class="tip-body hidden">将行囊中的器物与材料在此变现；「出售全部凡/良品」一键清掉低值杂物，回笼贝币。</span></h3>
       <div class="sell-toolbar"><button class="btn small" onclick="sellAllPlain()">出售全部凡/良品（${plainValue} 贝）</button></div>
       ${sell}</div>`;
 };
@@ -35411,7 +35415,7 @@ UI.renderPack = function(){
       })()}
     </div>
     <div class="panel inv-panel">
-      <h3>行囊</h3>
+      <h3 data-tip data-tip-title="装备 · 行装" data-wiki="mechanic:pack">行囊<span class="tip-body hidden">随身器物与材料所藏：装备格见上方「装备」，淬炼可增其品阶与词缀。</span></h3>
       <div class="filter-row">
         ${[['all','全部'],['mat','材料'],['gear','装备'],['food','药食'],['sp','系产']].map(([k,lab])=>
           `<button class="chip-btn ${(this.packFilter||'all')===k?'on':''}" onclick="UI.packFilter='${k}';UI.patchPackList()">${lab}</button>`).join('')}
