@@ -62,8 +62,6 @@ UI.renderSettings = function(){
           ${onoff(Prefs.autoEquip, '自动装备更优', {pref:'autoEquip', expr:'!Prefs.autoEquip'})}
           ${onoff(Prefs.idleFallback!==false, '闲置兜底', {pref:'idleFallback', expr:'Prefs.idleFallback===false'})}
         </section>
-      </div>
-      <div>
         <section class="set-sec">
           <h4>指引</h4>
           <div class="form-row"><span>新手指引</span>
@@ -73,6 +71,8 @@ UI.renderSettings = function(){
             <button class="btn" onclick="openHelp()">查看说明</button>
             <span class="hint">著录阶位 / 御使 / 五行 / 征兆 / 祠祀 / 离线</span></div>
         </section>
+      </div>
+      <div>
         <section class="set-sec">
           <h4>存档</h4>
           <div class="form-row"><span>自动存档</span><b>每 5 秒</b><span class="hint">写入浏览器本地</span></div>
@@ -96,9 +96,9 @@ UI.renderSettings = function(){
           <div class="form-row"><span>停止行动</span><b>Q</b></div>
           <div class="form-row"><span>关闭弹层</span><b>Esc</b></div>
         </section>
-        <section class="set-sec">
-          <h4>数据模拟</h4>
-          <p class="hint">测试用：点一下直接改当前存档并落盘。正式游玩不必理会。</p>
+        <details class="set-sec set-fold">
+          <summary>数据模拟<em>测试用 · 点开</em></summary>
+          <p class="hint">点一下直接改当前存档并落盘。正式游玩不必理会。</p>
           <div class="sim-row">
             <button class="btn on" type="button" onclick="devSim('all')">一键全开</button>
             <button class="btn" type="button" onclick="devSim('lv81')">技艺全 81</button>
@@ -117,7 +117,7 @@ UI.renderSettings = function(){
           <div class="form-row"><span>重置本档</span>
             <button class="btn" type="button" onclick="devSim('wipe')">清空并重开</button>
             <span class="hint">抹掉本机存档，不可撤销</span></div>
-        </section>
+        </details>
       </div>
     </div>
   </div>`;

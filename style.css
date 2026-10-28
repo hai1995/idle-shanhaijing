@@ -1172,6 +1172,10 @@ html.theme-anim, html.theme-anim *{
 }
 .form-row select:hover,.form-row input:hover{ border-color:var(--ink-4); }
 .form-row select:focus,.form-row input:focus{ border-color:var(--qing); box-shadow:0 0 0 3px var(--qing-w); outline:none; }
+/* 昵称框（v1.31.193）：它的 placeholder 长（「留空即用默认名号（最多 12 字）」），
+   而 min-width:0 允许无限收缩——390px 下与「游戏昵称」「保存」挤在同一行时，
+   输入框只剩一个字宽，手机上看不出这是个能打字的地方。给一个下限，挤不下就换行。 */
+#nickInput{ min-width:132px; }
 /* 滑块：Chromium 给 range 的默认背景是白的，夜间模式里露出一小块亮底（v1.31.163）。
    background 归零不影响轨道与滑块——它们由 accent-color 绘制。 */
 input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; background:transparent; }
@@ -1191,6 +1195,23 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; background:tran
 }
 .set-sec .form-row{ margin-bottom:9px; }
 .set-sec .form-row .hint{ font-size:11.5px; }
+/* 数据模拟（v1.31.193）：设置页里唯一「玩家不必碰」的区块，偏偏还压着「清空并重开」。
+   早先它与存档、快捷键平铺在一起，整页最长的一段就是它，误触代价也最高。
+   标题沿用 .set-sec h4 的字号与分隔线，收起时只占一行；右侧一个 ▸ 说明可展开。 */
+.set-fold > summary{
+  list-style:none; cursor:pointer; display:flex; align-items:baseline; gap:8px;
+  font-family:var(--f-kai); font-size:14.5px; font-weight:400; color:var(--qing);
+  letter-spacing:.04em; margin:0 0 10px; padding-bottom:6px;
+  border-bottom:1px solid var(--rule-2); transition:color .15s;
+}
+.set-fold > summary::-webkit-details-marker{ display:none; }
+.set-fold > summary::after{ content:'▸'; margin-left:auto; font-family:var(--f-sans); font-size:10px; color:var(--ink-4); }
+.set-fold[open] > summary::after{ content:'▾'; }
+.set-fold > summary:hover{ color:var(--zhu); }
+.set-fold > summary em{
+  font-family:var(--f-sans); font-style:normal; font-size:11px;
+  color:var(--ink-4); letter-spacing:.04em;
+}
 @media (max-width:760px){
   .set-grid{ grid-template-columns:1fr; gap:0; }
   .set-sec{ margin-bottom:14px; }

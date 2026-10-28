@@ -1785,6 +1785,18 @@ assert(ST.Game.stats.seenFallbackHint === false, '一次性提示字段存在（
   ST.UI.renderSettings();
   assert(renderTargets.content.innerHTML.includes('闲置兜底'), '设置页在主内容区渲染出该开关');
   assert(!renderTargets.modalBox.innerHTML.includes('闲置兜底'), '设置不再走弹窗');
+  // v1.31.193：宽屏两栏长期一高一矮——左栏止于「偏好」，右栏拖到「数据模拟」，
+  // 整页最长的一段恰是玩家最不该碰的那段（里面还压着「清空并重开」）。
+  // 现在指引挪到左栏，数据模拟折起来；顺序断言防的是「改布局时把某段漏掉」。
+  const _setHtml = renderTargets.content.innerHTML;
+  const _i4 = (t) => _setHtml.indexOf('<h4>' + t + '</h4>');
+  const _ord = [['外观', _i4('外观')], ['偏好', _i4('偏好')], ['指引', _i4('指引')],
+                ['存档', _i4('存档')], ['快捷键', _i4('快捷键')],
+                ['数据模拟', _setHtml.indexOf('<summary>数据模拟')]];
+  assert(_ord.every(x => x[1] >= 0), '设置六段都在位 -> ' + _ord.map(x => x[0]).join(' / '));
+  assert(_ord.every((x, i) => i === 0 || x[1] > _ord[i - 1][1]), '段落顺序：外观 → 偏好 → 指引 → 存档 → 快捷键 → 数据模拟');
+  assert(_setHtml.indexOf('<details class="set-sec set-fold">') >= 0 &&
+         !/<details class="set-sec set-fold"\s+open/.test(_setHtml), '数据模拟默认收起（十三枚改档按钮不再摊在设置页上）');
 }
 
 // ============ 26.6 打坐：无活可干的默认修行（v1.31.168） ============
