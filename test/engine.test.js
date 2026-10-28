@@ -10877,6 +10877,8 @@ section('形态统一：空态 / 标题附注 / 日志行');
   // 7) 停跑时 queueFinishClock 必须给空串：芯片与「已完成 N 轮」行都不显示时刻
   ST.Game.queueRunning = false;
   assert(ST.queueFinishClock() === '', '停跑时不给完成时刻');
+  // 8) 新手指引里得教人怎么读这枚芯片，否则新功能没人看见
+  assert(readText('src/ui/tutorial.js').includes('约 19:42 完'), '教程教读状态条芯片（第几项 / 几点跑完）');
 }
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
