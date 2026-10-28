@@ -504,6 +504,21 @@ html.theme-anim, html.theme-anim *{
   0%,100%{ transform:translateY(0); }
   50%    { transform:translateY(-1.4px); }
 }
+/* 打坐气旋 / 禅环（v1.31.169）：环绕盘坐之身的灵气。纯 CSS，不碰 rAF（idle 驱动）。
+   色取 .sc-wrap 的 --color（该山系墨色），与现场同调；仅打坐显形。 */
+.sc-aura{ display:none; position:absolute; left:50%; top:52%; width:46px; height:46px; transform:translate(-50%,-50%); pointer-events:none; }
+.sc-wrap[data-kind="meditate"] .sc-aura{ display:block; }
+.sc-aura::before{ content:''; position:absolute; inset:4px; border:1.5px dashed currentColor; border-radius:50%; opacity:.32; animation:scAuraSpin 7s linear infinite; }
+.sc-aura::after{ content:''; position:absolute; inset:9px; border:1px solid currentColor; border-radius:50%; box-shadow:0 0 6px currentColor; opacity:.26; animation:scAuraPulse 3.4s ease-in-out infinite; }
+@keyframes scAuraSpin{ from{ transform:rotate(0); } to{ transform:rotate(360deg); } }
+@keyframes scAuraPulse{ 0%,100%{ transform:scale(.85); opacity:.16; } 50%{ transform:scale(1.04); opacity:.32; } }
+/* 打坐现场「突破」入口：小签一枚，跻身于状态条之侧 */
+.sc-break{
+  display:inline-block; margin-left:8px; padding:2px 10px; font-family:var(--f-kai); font-size:11.5px;
+  letter-spacing:.04em; color:var(--zhu-d); background:var(--zhu-w);
+  border:1px solid rgba(176,58,43,.45); border-radius:6px; cursor:pointer;
+}
+.sc-break:hover{ background:rgba(176,58,43,.16); }
 /* 落下排在周期末尾：引擎在 interval 走满时产出，此刻锄头正好砸到地上——
    因果对齐，玩家看到的是「这一锄挖出来的」，而不是「先出东西再动一下」。 */
 /* 土粒：与挥锄同一周期，只在落下那一段可见 */
@@ -732,6 +747,9 @@ html.theme-anim, html.theme-anim *{
 .sc-wrap.no-anim .sc-foe,
 .sc-wrap.no-anim .sc-spark i,
 .sc-wrap.no-anim .sc-pit i{ animation:none; }
+.sc-wrap.no-anim .sc-aura,
+.sc-wrap.no-anim .sc-aura::before,
+.sc-wrap.no-anim .sc-aura::after{ animation:none; }
 .sc-wrap.no-anim .sc-drop{ animation-duration:.01s; }
 
 /* 宽屏：画面抬高、人物放大。82px 摊在 1080 宽的屏上像一条书签，
@@ -1386,32 +1404,32 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; background:tran
 
 /* 技能：方块 + 底部经验条（26 门一屏扫完，点开看描述与材料来源） */
 .skill-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(92px,1fr)); gap:6px; }
+.skill-grid .tile{ border:none; background:transparent; box-shadow:none; }
+.skill-grid .tile:hover{ background:var(--paper-2); }
 .skill-tile .sk-lv{
   position:absolute; top:3px; right:5px; font-family:var(--f-num);
   font-size:10px; color:var(--ink-4);
 }
 .skill-tile .sk-bar{ position:absolute; left:0; right:0; bottom:0; height:3px; background:var(--rule-3); border-radius:0 0 var(--r) var(--r); overflow:hidden; }
 .skill-tile .sk-bar i{ display:block; height:100%; background:var(--zhu); transition:width .3s; }
-.skill-tile.active{ border-color:rgba(176,58,43,.55); background:var(--zhu-w); }
+.skill-tile.active{ background:var(--zhu-w); box-shadow:inset 0 0 0 1px rgba(176,58,43,.5); }
 @media (max-width:760px){ .skill-grid{ grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; } }
-.skill-card{
-  background:var(--paper-2); border:1px solid var(--rule); border-radius:var(--r);
-  padding:10px 12px 11px; position:relative; transition:border-color .15s, background .15s;
-}
-.skill-card:hover{ border-color:var(--ink-4); }
-.skill-card.active{ border-color:var(--zhu); background:var(--paper-3); }
-.skill-card.active::after{
-  content:''; position:absolute; right:8px; top:8px; width:5px; height:5px; border-radius:50%; background:var(--zhu);
-}
-.sc-head{ display:flex; align-items:center; gap:7px; font-size:13px; margin-bottom:5px; font-weight:600; }
-.sc-icon{ font-size:15px; line-height:1; filter:grayscale(.15); }
-.sc-desc{ font-size:11px; color:var(--ink-4); min-height:30px; margin-bottom:7px; line-height:1.6; }
-.skill-card .skill-go{ margin-top:7px; padding:3px 10px; font-size:11px; }
-.skill-card .mat-src{ margin-top:7px; font-size:10.5px; color:var(--ink-4); display:flex; flex-wrap:wrap; gap:4px; align-items:center; }
-.skill-card .mat-src .skill-go{ margin-top:0; }
-.skill-card .mat-inv{ margin-top:4px; font-size:10.5px; color:var(--ink-4); display:flex; flex-wrap:wrap; gap:4px 8px; }
-.skill-card .mat-inv .ok{ color:var(--tai); }
-.skill-card .mat-inv .gap{ color:var(--zhu); }
+/* 无框留白分组（v1.31.169）：靠留白与轻量标题区分，方块不再描框 */
+.skill-group{ margin-bottom:18px; }
+.skill-group:last-child{ margin-bottom:0; }
+.sg-title{ font-family:var(--f-kai); font-size:13px; color:var(--qing-d); letter-spacing:.06em; margin:0 0 9px; display:flex; align-items:center; gap:7px; }
+.sg-count{ font-family:var(--f-num); font-size:10.5px; color:var(--ink-4); background:var(--paper-2); border:1px solid var(--rule); border-radius:9px; padding:0 6px; }
+@media (max-width:760px){ .skill-group{ margin-bottom:14px; } }
+/* 境界面板（v1.31.169）：修行分组下，打坐突破的落脚点 */
+.realm-panel{ margin-top:11px; padding:11px 13px; background:var(--paper-2); border:1px solid var(--rule); border-radius:6px; }
+.realm-row{ display:flex; align-items:center; gap:9px; font-family:var(--f-kai); }
+.realm-name{ font-size:15px; color:var(--zhu-d); letter-spacing:.06em; }
+.realm-bonus{ font-family:var(--f-num); font-size:11.5px; color:var(--qing-d); }
+.realm-bonus::before{ content:'· '; color:var(--ink-4); }
+.realm-bar{ height:6px; background:var(--rule-3); border-radius:6px; overflow:hidden; margin:9px 0 5px; }
+.realm-bar i{ display:block; height:100%; background:linear-gradient(90deg, var(--qing), var(--zhu)); transition:width .3s; }
+.realm-next{ font-size:11.5px; color:var(--ink-3); }
+.realm-break{ margin-top:9px; }
 
 /* ===== 方形小卡（借鉴手游「一格一味」的识别方式）=====
    正方形格、图标为主、名字在下、角标放阶位；一眼扫过靠图形认物，不靠读字。 */
@@ -2492,6 +2510,13 @@ body.no-scroll{ overflow:hidden; }
 #tipLayer .tip-content .hint{ margin:3px 0; }
 #tipLayer .tip-content .chip{ margin:2px 3px 2px 0; }
 #tipLayer .tip-content .btn-mini{ margin:2px 3px 2px 0; }
+#tipLayer .tip-wiki{ padding:8px 0 2px; margin-top:7px; border-top:1px dashed var(--rule-2); text-align:right; }
+.tip-link{
+  display:inline-block; background:none; border:1px solid rgba(46,82,105,.38);
+  color:var(--qing-d); font-family:var(--f-kai); font-size:11.5px; letter-spacing:.04em;
+  padding:3px 9px; border-radius:6px; cursor:pointer;
+}
+.tip-link:hover{ background:var(--qing-w); }
 @media (max-width:720px){
   #tipLayer{
     left:0 !important; right:0 !important; top:auto !important; bottom:0 !important;
@@ -3428,6 +3453,28 @@ details.hetero-panel .hp-left{ margin-left:auto; font-style:normal; color:var(--
   /* 指引条的 ✕：26×24 → 26×34，**不横向扩**——右边是「前往」，扩了会抢它的点击 */
   .hint-close::after{ width:26px; height:34px; }
 }
+
+/* ==========================================================================
+   百科(wiki)页（v1.31.169）
+   ========================================================================== */
+.wiki-top{ max-width:760px; margin:0 auto 14px; }
+.wiki-search{ display:flex; align-items:center; gap:8px; background:var(--paper-2); border:1px solid var(--rule); border-radius:6px; padding:7px 10px; }
+.wiki-search svg{ width:16px; height:16px; color:var(--ink-4); flex:none; }
+.wiki-search input{ flex:1; border:none; background:none; outline:none; font-size:13px; color:var(--ink); font-family:var(--f-song); }
+.wiki-top .hint{ margin:6px 2px 0; }
+.wiki-body{ max-width:760px; margin:0 auto; }
+.wiki-group{ margin-bottom:22px; }
+.wiki-gtitle{ font-family:var(--f-kai); font-size:15px; color:var(--qing-d); letter-spacing:.06em; border-left:3px solid var(--qing); padding-left:9px; margin:0 0 10px; }
+.wiki-count{ display:inline-block; margin-left:8px; font-family:var(--f-num); font-size:11px; color:var(--ink-4); background:var(--paper-2); border:1px solid var(--rule); border-radius:10px; padding:0 7px; vertical-align:middle; }
+.wiki-list{ display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; }
+@media (max-width:560px){ .wiki-list{ grid-template-columns:1fr; } }
+.wiki-entry{ background:var(--paper-2); border:1px solid var(--rule); border-radius:6px; padding:11px 13px; }
+.wiki-entry.wiki-flash{ animation:wiki-flash 1.2s ease; }
+@keyframes wiki-flash{ 0%{ box-shadow:0 0 0 2px var(--qing); } 100%{ box-shadow:0 0 0 2px transparent; } }
+.wiki-etitle{ font-family:var(--f-kai); font-size:13.5px; color:var(--ink); letter-spacing:.04em; margin:0 0 5px; }
+.wiki-ebody{ font-family:var(--f-song); font-size:12.5px; line-height:1.85; color:var(--ink-2); }
+.wiki-foot{ margin-top:7px; text-align:right; }
+.wiki-foot .tip-link{ font-size:11px; }
 
 </style>
 </head>
@@ -17665,6 +17712,20 @@ const SKILL_GROUPS = {
 };
 const ALL_SKILL_IDS = Object.keys(Skills);
 
+// ---------- 境界（里程碑式，v1.31.169） ----------
+// 经典修仙境阶：攒够累计修为（totalXp）后于打坐中突破，获全局修炼效率永久加成。
+// need = 进入该阶所需累计修为；bonus = 驻此阶时叠加的全局经验倍率增量（不碰技能上限）。
+const REALMS = [
+  { id:'lianqi',   name:'炼气', need:0,      bonus:0.00 },
+  { id:'zhuji',    name:'筑基', need:6000,   bonus:0.06 },
+  { id:'jindan',   name:'金丹', need:30000,  bonus:0.14 },
+  { id:'yuanying', name:'元婴', need:100000, bonus:0.24 },
+  { id:'huashen',  name:'化神', need:300000, bonus:0.36 },
+  { id:'lianxu',   name:'炼虚', need:800000, bonus:0.50 },
+  { id:'hedao',    name:'合体', need:2000000, bonus:0.66 },
+  { id:'datong',   name:'大乘', need:5000000, bonus:0.85 },
+];
+
 // ---------- 物品 ----------
 function I(id, name, type, extra) { return Object.assign({ id, name, type, icon:'⬜' }, extra||{}); }
 const Items = {};
@@ -20132,7 +20193,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.168',
+  version: '1.31.169',
   codename:'昼巡 · 对账',
   updated: '2026-10-28',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -20147,6 +20208,7 @@ window.GAME_META = GAME_META;
 if (typeof window !== 'undefined'){
   window.TUNING = TUNING; window.RARITY = RARITY; window.RARITY_TIERS = RARITY_TIERS;
   window.Skills = Skills; window.SKILL_GROUPS = SKILL_GROUPS; window.ALL_SKILL_IDS = ALL_SKILL_IDS;
+  window.REALMS = REALMS;
   window.Items = Items; window.Recipes = Recipes; window.RECIPE_SKILL = RECIPE_SKILL;
   window.Monsters = Monsters; window.ShopStock = ShopStock; window.SHOP_CATS = SHOP_CATS;
   window.OMENS = OMENS; window.OBSERVE_SITES = OBSERVE_SITES; window.RITES = RITES;
@@ -20975,13 +21037,14 @@ const Game = {
     kills:0, deaths:0, actions:0, totalXp:0, time:0, bossKills:{}, totalEarned:0,
     harvests:0, purchases:0, sales:0, spent:0, sold:0, gathers:{}, crafts:0,
     damageDealt:0, damageTaken:0, hits:0, omens:{}, rites:0, observes:0, divines:0,
-    seenMilestones:{}, winStreak:0, deathStreak:0, deathStreakOf:null, bounties:0, seenDeployHint:false, seenFallbackHint:false, _unlockedRegions:[], lastSeason:null,
+    seenMilestones:{}, winStreak:0, deathStreak:0, deathStreakOf:null, bounties:0, seenDeployHint:false, seenFallbackHint:false, _unlockedRegions:[], lastSeason:null, realmBreaks:0,
   },
   // 三签：常挂三条短目标 [{ id, base, target }]，base 是抽签那一刻的计数
   bounties: [],
   // 轮回：count 转生次数（轮回印 = count × TUNING.REBIRTH.XP）、at 上次转生时刻、
   // best 历史最高总等级、startedAt 本轮起点、history 每轮成绩（最近 10 条）
   rebirth: { count: 0, at: 0, best: 0, startedAt: 0, history: [] },
+  realm: 'lianqi',        // 境界：当前境界 id（里程碑式，打坐突破；见 REALMS）
   startedAt: Date.now(),
   version: 2,
 };
@@ -21394,6 +21457,10 @@ function playerName(){
 function resetToDefault(){
   const g = cloneDefaultGame();
   Object.assign(Game, g);
+  // 重置必须回到起点境界：cloneDefaultGame 深拷贝的是「当前」状态，
+  // 不会把 realm / realmBreaks 归零，得显式覆盖（与 shells/inventory 同思路）。
+  Game.realm = 'lianqi';
+  Game.stats.realmBreaks = 0;
   if (typeof invalidateMilestones === 'function') invalidateMilestones();   // 状态整体重置：刷新成就缓存
   try { SaveManager.reset(); } catch(e){}
 }
@@ -21435,9 +21502,17 @@ function levelFromXp(xp){
 // 否则仅靠首访给经验，区域解锁等级在真实游玩中永远不可达（116 山的世界必须跑得通）。
 // 舆地 = 本次所得的 10%，履险 = 其中一半；用重入守卫避免递归。
 let _inGainXp = false;
+// 境界效率：当前境界给全局修炼效率的永久加成（里程碑式，打坐突破）。
+// 与 xpMult（其它乘区）独立相乘，离线结算经 gainXp 自动同口径受益。
+function realmEff(){
+  const R = (typeof REALMS !== 'undefined') ? REALMS : null;
+  if (!R || !R.length) return 1;
+  const cur = R.find(x => x.id === (Game.realm || 'lianqi')) || R[0];
+  return 1 + (cur.bonus || 0);
+}
 function gainXp(skillId, amount){
   if (!Game.skills[skillId]) return;
-  const gain = Math.round(amount * (typeof xpMult === 'function' ? xpMult() : 1));
+  const gain = Math.round(amount * (typeof xpMult === 'function' ? xpMult() : 1) * realmEff());
   if (gain <= 0) return;
   const sk = Game.skills[skillId];
   sk.xp = (sk.xp||0) + gain;
@@ -22944,6 +23019,28 @@ function doGather(itemId){
 function doMeditate(){
   if (!Game.skills.dazuo) return;          // 技能未初始化时宁可不记，也别抛
   gainXp('dazuo', TUNING.MEDITATE_XP);
+}
+// 境界（里程碑式）：攒够累计修为后于打坐中突破，获全局修炼效率永久加成。
+function currentRealm(){
+  const R = (typeof REALMS !== 'undefined') ? REALMS : [];
+  return R.find(x => x.id === (Game.realm || 'lianqi')) || R[0] || { id:'lianqi', name:'炼气', need:0, bonus:0 };
+}
+function nextRealm(){
+  const R = (typeof REALMS !== 'undefined') ? REALMS : [];
+  const i = R.findIndex(x => x.id === (Game.realm || 'lianqi'));
+  return R[i + 1] || null;
+}
+function canBreakthrough(){
+  const nx = nextRealm();
+  if (!nx) return false;
+  return (Game.stats.totalXp || 0) >= nx.need;
+}
+function doBreakthrough(){
+  const nx = nextRealm();
+  if (!nx || (Game.stats.totalXp || 0) < nx.need) return null;
+  Game.realm = nx.id;
+  Game.stats.realmBreaks = (Game.stats.realmBreaks || 0) + 1;
+  return nx;
 }
 // 著录一个对象（含阶位提升、异兽征兆触发、关联著录）
 function recordObject(objId, n){
@@ -25409,6 +25506,8 @@ if (typeof window !== 'undefined'){
   window.totalOf = totalOf; window.giveItem = giveItem; window.takeItem = takeItem;
   window.canAfford = canAfford; window.payCost = payCost; window.gainXp = gainXp;
   window.doMeditate = doMeditate; window.doGather = doGather;
+  window.canBreakthrough = canBreakthrough; window.doBreakthrough = doBreakthrough;
+  window.currentRealm = currentRealm; window.nextRealm = nextRealm;
   window.levelOf = levelOf; window.stopActivity = stopActivity;
   window.processRecipe = processRecipe; window.gameLoop = gameLoop;
   window.farmCatchUp = farmCatchUp; window.actionOutputId = actionOutputId;
@@ -29215,12 +29314,13 @@ const TABS = [
   { id:'stats',   label:'统计', icon:ICON('<path d="M4 19.6h16"/><path d="M7.4 19.6v-6.2M12 19.6V7.6M16.6 19.6v-9.2"/>') },
   { id:'rank',    label:'榜', icon:ICON('<path d="M5 20v-7M12 20V4M19 20v-11"/>') },
   { id:'about',   label:'叙录', icon:ICON('<rect x="4.6" y="3.4" width="14.8" height="17.2" rx="1.4"/><path d="M8.2 8.2h7.6M8.2 11.6h7.6M8.2 15h4.6"/>') },
+  { id:'wiki',    label:'百科', icon:ICON('<path d="M12 5.5C9.5 4 7 3.8 4 4.2v12.4c3-.2 5.5.1 8 1.4 2.5-1.3 5-1.6 8-1.4V4.2c-3-.4-5.5-.2-8 1.3Z"/><path d="M12 5.5v12.6"/><path d="M7.4 8h3.2M7.4 11h3.2M13.4 8h3.2M13.4 11h3.2"/>') },
 ];
 // 页签 → 页面渲染函数（renderCurrent 与页头包装层共用）
 const TAB_RENDER = { yudi:'renderYudi', skills:'renderSkills', taofa:'renderTaofa', yushi:'renderYushi',
   codex:'renderCodex', jisi:'renderJisi', shichan:'renderShichan', ying:'renderYing',
   queue:'renderQueue', pack:'renderPack', stats:'renderStats', rank:'renderRank', settings:'renderSettings',
-  about:'renderAbout' };
+  about:'renderAbout', wiki:'renderWiki' };
 const CAT_EMOJI = { 兽:'🐾', 鸟:'🪶', 水族:'🐟', 蛇:'🐍' };
 // gold 原为 #D9A521：当浮字用没问题（有描边），但做日志正文色时在纸底上只有 2.04:1，
 // 几乎看不清（v1.31.136 对比度扫描抓到的）。压到 #8C6B15（4.51:1）。
@@ -30480,6 +30580,7 @@ UI.showOfflineSummary = function(rec){
   UI.modal(`
     <h3><span class="mi-ic">${typeof markIcon==='function'?markIcon('moon',18):'🌙'}</span> 离线归来</h3>
     <p class="hint">离山 ${fmtTime(rec.seconds)}（离线效率 ${Math.round(offlineEff()*100)}%），竹简不曾停笔。</p>
+    ${UI.wikiFooter?UI.wikiFooter('mechanic','offline'):''}
     ${capLine}
     ${acts?`<div class="form-row"><span>所做</span><b class="off-acts">${acts}</b></div>`:''}
     <div class="form-row"><span>修得经验</span><b style="color:var(--gamboge)">+${fmt(rec.xp)}</b></div>
@@ -30853,14 +30954,14 @@ function openHelp(){
   UI.modal(`
     <h3>📜 玩法说明</h3>
     <div class="help-body">
-      <div class="help-sec"><b>著录与阶位</b><p class="hint">采集、讨伐、渔、采药等行动会积累「著录」。每种物产分五阶：初见 → 识名 → 明性 → 通形 → 得御。著录越深，产出越丰，亦解锁更高「舆地」等级的山川。</p></div>
-      <div class="help-sec"><b>御使异兽</b><p class="hint">异兽著录至「通形」即可在「御使」入槽，化作被动增益与自动作业（如自动樵采、渔猎）；著录至「得御」为最高阶。</p></div>
-      <div class="help-sec"><b>五行相克</b><p class="hint">兵器与异兽分属金木水火土。相克 ×1.35、被克 ×0.75、同属 ×1.00、相生 ×1.15。相克：金克木、木克土、土克水、水克火、火克金；相生：金生水、水生木、木生火、火生土、土生金。装备相克属性的兵器可压制目标。</p></div>
-      <div class="help-sec"><b>征兆</b><p class="hint">首次著录异兽可能触发吉凶之兆（如「其邑大水」「有大兵」），影响区域产出或全局采获。部分物品可免疫对应征兆（如「佩之不惑」之符、「御兵」之兽）。</p></div>
-      <div class="help-sec"><b>祠祀 · 卜筮</b><p class="hint">谒见山神献祭以增益区域产出；卜筮可问吉凶、抉择事件走向。</p></div>
+      <div class="help-sec"><b>著录与阶位</b><p class="hint">采集、讨伐、渔、采药等行动会积累「著录」。每种物产分五阶：初见 → 识名 → 明性 → 通形 → 得御。著录越深，产出越丰，亦解锁更高「舆地」等级的山川。</p>${UI.wikiFooter?UI.wikiFooter('mechanic','mastery'):''}</div>
+      <div class="help-sec"><b>御使异兽</b><p class="hint">异兽著录至「通形」即可在「御使」入槽，化作被动增益与自动作业（如自动樵采、渔猎）；著录至「得御」为最高阶。</p>${UI.wikiFooter?UI.wikiFooter('mechanic','mastery'):''}</div>
+      <div class="help-sec"><b>五行相克</b><p class="hint">兵器与异兽分属金木水火土。相克 ×1.35、被克 ×0.75、同属 ×1.00、相生 ×1.15。相克：金克木、木克土、土克水、水克火、火克金；相生：金生水、水生木、木生火、火生土、土生金。装备相克属性的兵器可压制目标。</p>${UI.wikiFooter?UI.wikiFooter('mechanic','wuxing'):''}</div>
+      <div class="help-sec"><b>征兆</b><p class="hint">首次著录异兽可能触发吉凶之兆（如「其邑大水」「有大兵」），影响区域产出或全局采获。部分物品可免疫对应征兆（如「佩之不惑」之符、「御兵」之兽）。</p>${UI.wikiFooter?UI.wikiFooter('mechanic','omen'):''}</div>
+      <div class="help-sec"><b>祠祀 · 卜筮</b><p class="hint">谒见山神献祭以增益区域产出；卜筮可问吉凶、抉择事件走向。</p>${UI.wikiFooter?UI.wikiFooter('mechanic','jisi'):''}</div>
       <div class="help-sec"><b>商旅 · 观象 · 圃艺</b><p class="hint">以贝币买卖物品、低买高卖；观象提升离线上限（基础 ${TUNING.OFFLINE.CAP_H} 小时，每处观象 +1、仓廪 +2、土窟 +1，另会长线成就与会员加成；现为 ${offlineCapHours()} 小时）与离线效率；圃艺种植收成。</p>
-        <p class="hint">观象、谒见、灌木这三类「一次性地点」散在各山，<b>舆地页末的「异迹索引」</b>一并列出：谁已得、谁还没去、差几级，点一行即定位到那座山，右侧「往」直接动身。</p></div>
-      <div class="help-sec"><b>离线收益</b><p class="hint">离开页面仍按离线时长结算（效率随「观象」等提升，封顶约 0.85）。离山较久归来会弹出「离线归来」汇总。</p></div>
+        <p class="hint">观象、谒见、灌木这三类「一次性地点」散在各山，<b>舆地页末的「异迹索引」</b>一并列出：谁已得、谁还没去、差几级，点一行即定位到那座山，右侧「往」直接动身。</p>${UI.wikiFooter?UI.wikiFooter('mechanic','shanglv'):''}</div>
+      <div class="help-sec"><b>离线收益</b><p class="hint">离开页面仍按离线时长结算（效率随「观象」等提升，封顶约 0.85）。离山较久归来会弹出「离线归来」汇总。</p>${UI.wikiFooter?UI.wikiFooter('mechanic','offline'):''}</div>
       <div class="help-sec"><b>存档</b><p class="hint">游戏每 5 秒自动存档在本机浏览器；「统计」页可导出 / 导入 / 重置存档。想在多设备间续玩，可在「设置 → 存档」填入云端存档服务器地址：停止操作约 3 秒自动上传，离开页面时强传一次；拉取时与本地进度按规则合并（经验 / 著录取大，地图 / 背包并集，贝币取较新），不丢进度。</p></div>
       <div class="help-sec"><b>快捷键</b><p class="hint">1–9 切页 · S 存档 · Q 停止当前行动 · Esc 关闭弹窗。</p></div>
     </div>
@@ -31327,6 +31428,7 @@ function sceneHtml(s){
     ${sceneSky(s.kind)}
     <div class="sc-stage${fight ? ' sc-duel' : ''}">
       <div class="sc-rig">${sceneWorker(s.kind, s.kind)}</div>
+      ${s.kind === 'meditate' ? '<div class="sc-aura" aria-hidden="true"></div>' : ''}
       ${fight ? '<div class="sc-foe-rig">' + sceneFoe() + '</div>' + sceneSpark() : sceneProps(s.kind)}
     </div>
     <!-- 地面放在人物之后：前坡把小腿挡住，「站在坡后」比「站在一块板上」自然 -->
@@ -31340,6 +31442,7 @@ function sceneHtml(s){
     <div class="sc-hud">
       ${hud}
       <span>${esc(s.note)}</span>
+      ${s.kind === 'meditate' && (typeof canBreakthrough === 'function' && canBreakthrough()) ? `<button class="sc-break" type="button" onclick="UI.openBreakthrough()">突破 →</button>` : ''}
     </div>
     ${UI.sceneProbeOn() ? '<div class="sc-probe"></div>' : ''}
     <div class="sc-flash"></div>
@@ -31353,6 +31456,31 @@ function sceneSig(s){
   if (!s) return 'none';
   return [s.kind, s.key, s.ink, s.iv.toFixed(2), s.name, s.place].join('|');
 }
+
+// 打坐突破入口（v1.31.169）：攒够修为后，定坐中冲关，获全局修炼效率永久加成
+UI.openBreakthrough = function(){
+  if (typeof canBreakthrough !== 'function' || !canBreakthrough()) return;
+  const nx = (typeof nextRealm === 'function') ? nextRealm() : null;
+  const cur = (typeof currentRealm === 'function') ? currentRealm() : null;
+  if (!nx) return;
+  UI.modal(`
+    <h3>突破 · ${esc(cur ? cur.name : '')} → ${esc(nx.name)}</h3>
+    <p class="hint">于定坐之中冲关，自此全局修炼效率 +${Math.round(nx.bonus * 100)}%。一切经验收益更丰厚，离线结算同口径。</p>
+    <p class="hint">需累计修为 ${fmt(nx.need)}（当前 ${fmt(Game.stats.totalXp || 0)}）。</p>
+    <div class="modal-btns">
+      <button class="btn" onclick="UI.closeModal()">再坐片刻</button>
+      <button class="btn primary" onclick="UI.confirmBreakthrough()">突破</button>
+    </div>`);
+};
+UI.confirmBreakthrough = function(){
+  const nx = (typeof doBreakthrough === 'function') ? doBreakthrough() : null;
+  UI.closeModal();
+  if (nx){
+    if (typeof UI.toast === 'function') UI.toast(`✨ 突破至${nx.name}，修炼效率 +${Math.round(nx.bonus * 100)}%`);
+    if (typeof UI.renderScene === 'function') UI.renderScene();
+    if (typeof UI.renderSkills === 'function' && UI.currentTab === 'skills') UI.renderSkills();
+  }
+};
 
 UI.renderScene = function(){
   const bar = (typeof document !== 'undefined') ? document.getElementById('sceneBar') : null;
@@ -32520,10 +32648,6 @@ UI.renderSkills = function(){
   if (!box) return;
   const groups = { all:'全部', gathering:'采集', processing:'制作', combat:'武备', taofa:'征伐', fangguo:'方国', yushi:'驭使', xiu:'修行' };
   const filter = this.skillFilter;
-  let ids = [];
-  for (const g in SKILL_GROUPS){
-    if (filter === 'all' || filter === g) ids = ids.concat(SKILL_GROUPS[g].ids);
-  }
   // 分类：手动选过就留住，没选过按「能做的最高级配方」自动定
   if (!this.recipeSkill || !ActionKinds[this.recipeSkill] || ActionKinds[this.recipeSkill].mode !== 'recipe'){
     this.recipeSkill = (Prefs && Prefs.recipeSkill && ActionKinds[Prefs.recipeSkill]) ? Prefs.recipeSkill : pickRecipeKind();
@@ -32563,29 +32687,63 @@ UI.renderSkills = function(){
   <div class="filter-row">
     ${Object.entries(groups).map(([k,v])=>`<button class="chip-btn ${filter===k?'on':''}" onclick="UI.skillFilter='${k}';UI.renderSkills()">${v}</button>`).join('')}
   </div>
-  <div class="skill-grid">
-    ${    ids.map(id=>{
-      const sk = Skills[id];
-      const active = cur && ((cur.kind==='gather' && cur.skill===id) || (cur.kind==='craft' && mapRecipeSkill(cur.recipe.type)===id));
-      // 方块：图标 + 名 + 阶位，右上角等级，底部一条经验进度。
-      // ⚠️ 浮层内容**不再内联**（v1.31.90）：26 张卡每张都塞一份隐藏的
-      // 「描述 + 产出地 + 材料来源 + 持有缺口 + 将至」，那是 153KB HTML 里的六成，
-      // 技能页切页因此要 197ms（全站最慢）。改成点开时再生成（见 skillTipHtml）。
-      const lv = levelOf(id);
-      const raw = Game.skills[id];
-      const xc = xpForLevel(raw.level), xn = xpForLevel(raw.level + 1);
-      const pct = xn > xc ? Math.min(100, (raw.xp - xc) / (xn - xc) * 100) : 100;
-      return `<div class="tile skill-tile ${active?'active':''}" data-skill="${id}" data-tip data-tip-title="${esc(sk.name)}"
-        role="button" tabindex="0" onclick="showSkillDetail('${id}')">
-        <span class="sk-lv">${lv}</span>
-        <span class="tile-ic bi-ic">${typeof skillIcon==='function'?skillIcon(sk):sk.icon}</span>
-        <span class="tile-nm">${esc(sk.name)}</span>
-        <span class="tile-tag">${TUNING.TIER_NAMES[tierOfLevel(lv)]}</span>
-        <span class="sk-bar"><i style="width:${pct.toFixed(1)}%"></i></span>
-        <span class="tip-body hidden" data-tip-lazy="skill:${id}"></span>
-      </div>`;
-    }).join('')}
-  </div>
+  ${(()=>{
+    // 无框留白分组（v1.31.169）：按域把卡片收进带轻量标题的 section，去掉方框与底色，靠留白区分。
+    const order = Object.keys(SKILL_GROUPS);
+    let out = '';
+    order.forEach(g => {
+      if (filter !== 'all' && filter !== g) return;
+      const gIds = SKILL_GROUPS[g].ids || [];
+      if (!gIds.length) return;
+      const tiles = gIds.map(id=>{
+        const sk = Skills[id]; if (!sk) return '';
+        const active = cur && ((cur.kind==='gather' && cur.skill===id) || (cur.kind==='craft' && mapRecipeSkill(cur.recipe.type)===id));
+        // 方块：图标 + 名 + 阶位，右上角等级，底部一条经验进度。
+        // ⚠️ 浮层内容**不再内联**（v1.31.90）：点开时再生成（见 skillTipHtml）。
+        const lv = levelOf(id);
+        const raw = Game.skills[id];
+        const xc = xpForLevel(raw.level), xn = xpForLevel(raw.level + 1);
+        const pct = xn > xc ? Math.min(100, (raw.xp - xc) / (xn - xc) * 100) : 100;
+        return `<div class="tile skill-tile ${active?'active':''}" data-skill="${id}" data-tip data-tip-title="${esc(sk.name)}" data-wiki="skill:${id}"
+          role="button" tabindex="0" onclick="showSkillDetail('${id}')">
+          <span class="sk-lv">${lv}</span>
+          <span class="tile-ic bi-ic">${typeof skillIcon==='function'?skillIcon(sk):sk.icon}</span>
+          <span class="tile-nm">${esc(sk.name)}</span>
+          <span class="tile-tag">${TUNING.TIER_NAMES[tierOfLevel(lv)]}</span>
+          <span class="sk-bar"><i style="width:${pct.toFixed(1)}%"></i></span>
+          <span class="tip-body hidden" data-tip-lazy="skill:${id}"></span>
+        </div>`;
+      }).join('');
+      // 修行分组下挂境界面板（v1.31.169）：打坐是突破主入口，境界给全局修炼效率永久加成
+      const realmPanel = (g === 'xiu') ? (() => {
+        const cur = (typeof currentRealm === 'function') ? currentRealm() : null;
+        const nx = (typeof nextRealm === 'function') ? nextRealm() : null;
+        const xp = Game.stats.totalXp || 0;
+        let prog, btn = '';
+        if (nx){
+          const pct = nx.need > 0 ? Math.min(100, xp / nx.need * 100) : 100;
+          prog = `<div class="realm-bar"><i style="width:${pct.toFixed(1)}%"></i></div>
+            <div class="realm-next">距「${nx.name}」还差 ${fmt(Math.max(0, nx.need - xp))} 修为</div>`;
+          if (typeof canBreakthrough === 'function' && canBreakthrough())
+            btn = `<button class="btn primary realm-break" type="button" onclick="UI.openBreakthrough()">突破 →</button>`;
+        } else {
+          prog = `<div class="realm-next">已是已知最高境界</div>`;
+        }
+        return `<div class="realm-panel">
+          <div class="realm-row"><span class="realm-name">${cur ? cur.name : '—'}</span>
+            <span class="realm-bonus">修炼效率 +${Math.round((cur ? cur.bonus : 0) * 100)}%</span>
+            ${UI.wikiFooter ? UI.wikiFooter('mechanic', 'realm') : ''}</div>
+          ${prog}${btn}
+        </div>`;
+      })() : '';
+      out += `<section class="skill-group" data-group="${g}">
+        <h4 class="sg-title">${groups[g] || g}<i class="sg-count">${gIds.length}</i></h4>
+        <div class="skill-grid">${tiles}</div>
+        ${realmPanel}
+      </section>`;
+    });
+    return out;
+  })()}
 
   <div class="panel recipe-panel">
     <h3>制作配方</h3>
@@ -35620,6 +35778,7 @@ function showSkillDetail(id){
       onclick="UI.selRegion='${m.regionId}';UI.selNode='${m.nodeId}';UI.closeModal();UI.switchTab('yudi')">${esc(m.itemName)}·${esc(m.nodeName||'')}</button>`).join('')}</span></div>`:''}
     ${mst.length?`<div class="reveal"><b>材料存余</b><span class="mat-inv">${mst.map(m=>`<span class="${m.ok?'ok':'gap'}">${esc(m.name)} ${m.have}/${m.need}</span>`).join(' · ')}</span></div>`:''}
     ${nx.length?`<div class="reveal"><b>将至</b>${esc(nextUnlockText(nx))}</div>`:''}
+    ${UI.wikiFooter?UI.wikiFooter('skill', id):''}
     ${(function(){
       // 技能详情原先只有「看」没有「做」：看完产出地还得关掉弹窗、去舆地页找那座山、
       // 再点采集按钮。这里直接给出口——采集类落「采某物」，制作类落「制某件」。
@@ -36482,13 +36641,13 @@ UI.renderAbout = function(){
       <div class="ab-flow">${flow}</div>
       <div class="ab-list">
         <div><b>舆地</b>择山而行。每山之志，载其形胜、物产、异兽与神话，一目了然。</div>
-        <div><b>采集</b>樵采 / 采玉 / 渔 / 采药。点一处即动身前往，随即开工，所得入行囊。</div>
-        <div><b>著录</b>把所得记成条目。历始见 · 略识 · 通形 · 得御 · 穷理五阶，阶阶累加其效。</div>
+        <div><b>采集</b>樵采 / 采玉 / 渔 / 采药。点一处即动身前往，随即开工，所得入行囊。${UI.wikiFooter?UI.wikiFooter('mechanic','mastery'):''}</div>
+        <div><b>著录</b>把所得记成条目。历初见 · 识名 · 明性 · 通形 · 得御五阶，阶阶累加其效。${UI.wikiFooter?UI.wikiFooter('mechanic','mastery'):''}</div>
         <div><b>制作</b>制器 / 烹饪 / 炼药 / 营建。材料不足会直说缺哪样、差多少。</div>
-        <div><b>征伐</b>五行相克 ×1.35、被克 ×0.75、相生 ×1.15。同兽连杀经验递减，六凶为终战。</div>
-        <div><b>御使</b>著录至「通形」的异兽可入槽，化作被动增益与自动作业。</div>
-        <div><b>祠祀</b>二十八套礼制，行祭得山系增益；吉凶之兆随之而动，可禳可解。</div>
-        <div><b>离线</b>离山亦不停笔，归来按效率一并结算，不令一日虚度。</div>
+        <div><b>征伐</b>五行相克 ×1.35、被克 ×0.75、相生 ×1.15。同兽连杀经验递减，六凶为终战。${UI.wikiFooter?UI.wikiFooter('mechanic','wuxing'):''}</div>
+        <div><b>御使</b>著录至「通形」的异兽可入槽，化作被动增益与自动作业。${UI.wikiFooter?UI.wikiFooter('mechanic','mastery'):''}</div>
+        <div><b>祠祀</b>二十八套礼制，行祭得山系增益；吉凶之兆随之而动，可禳可解。${UI.wikiFooter?UI.wikiFooter('mechanic','jisi'):''}</div>
+        <div><b>离线</b>离山亦不停笔，归来按效率一并结算，不令一日虚度。${UI.wikiFooter?UI.wikiFooter('mechanic','offline'):''}</div>
       </div>
     </section>
 
@@ -36691,6 +36850,169 @@ function bindSwipeGestures(){
 }
 
 
+// ===== ui/wikiData.js =====
+// ===== ui/wikiData.js — 百科(wiki)条目数据（v1.31.169） =====
+// 知识库正文集中在此，界面文案只留入口。技能条目由 Skills 自动派生，避免重复维护；
+// 机制条目为人工撰写的精简说明；境界条目在 gameData.REALMS 定义后由下方生成。
+(function () {
+  const WIKI = { skill: {}, mechanic: {}, realm: {} };
+
+  // ① 技艺条目：直接复用 Skills 的 name / icon / desc，正文随技能数据自动同步
+  if (typeof Skills !== 'undefined') {
+    for (const id in Skills) {
+      const s = Skills[id];
+      if (!s || !s.name) continue;
+      WIKI.skill[id] = { title: s.name, icon: s.icon || '📖', body: s.desc || '' };
+    }
+  }
+
+  // ② 机制条目：对应「玩法说明 / 叙录·体例」里被精简掉的长散文，这里给可深读的版本
+  WIKI.mechanic = {
+    xiuwei: {
+      title: '修为',
+      body: '修为即累计获得的经验，不设上限。它是「群英榜·修为」的排名口径，也决定境界的突破时机。' +
+        '打坐、采集、制作、征伐、御使——一切修行都会积累修为。离线时按效率一并结算，不会浪费。'
+    },
+    mastery: {
+      title: '著录阶位',
+      body: '采集、渔、采药等所得记为「著录」。每种物产分五阶：初见 → 识名 → 明性 → 通形 → 得御。' +
+        '著录越深，产出越丰，亦解锁更高「舆地」等级的山川。异兽著录至「通形」可入御使槽，「得御」为最高阶。'
+    },
+    wuxing: {
+      title: '五行相克',
+      body: '兵器与异兽分属金木水火土。相克 ×1.35、被克 ×0.75、同属 ×1.00、相生 ×1.15。' +
+        '相克：金克木、木克土、土克水、水克火、火克金；相生：金生水、水生木、木生火、火生土、土生金。' +
+        '装备相克属性的兵器可压制目标。'
+    },
+    omen: {
+      title: '征兆',
+      body: '首次著录异兽可能触发吉凶之兆（如「其邑大水」「有大兵」），影响区域产出或全局采获。' +
+        '部分物品可免疫对应征兆（如「佩之不惑」之符、「御兵」之兽）。'
+    },
+    lunhui: {
+      title: '轮回',
+      body: '修行至一定火候可入轮回：转生重置部分进度，换取永久增益与「前世遗物」。是长线的成长拐点，与境界并行不悖。'
+    },
+    offline: {
+      title: '离线收益',
+      body: '离开页面仍按离线时长结算，效率随「观象」等提升，封顶约 0.85。' +
+        '离山较久归来会弹出「离线归来」汇总，逐项交代这一夜在做什么、得了多少。挂机打坐同样离线结算。'
+    },
+    rank: {
+      title: '群英榜',
+      body: '以修为、著录、轮回等综合指标排名。修为口径为累计经验——打坐等一切修行都计入，所以勤修者自然居前。'
+    },
+    codex: {
+      title: '图鉴',
+      body: '记录走过的山川、著录的物产与异兽，以及所得遗物。录之愈广，简帙愈厚；简帙既盈，此卷遂成。'
+    },
+    jisi: {
+      title: '祠祀与卜筮',
+      body: '谒见山神献祭以增益区域产出；卜筮可问吉凶、抉择事件走向。吉凶之兆随之而动，可禳可解。'
+    },
+    shanglv: {
+      title: '商旅 · 观象 · 圃艺',
+      body: '以贝币买卖物品、低买高卖；观象提升离线上限（基础 ' + (typeof TUNING !== 'undefined' && TUNING.OFFLINE ? TUNING.OFFLINE.CAP_H : '?') +
+        ' 小时，每处观象 +1、仓廪 +2、土窟 +1）与离线效率；圃艺种植收成。'
+    },
+    realm: {
+      title: '境界',
+      body: '境界是修行的里程碑：攒够修为后，于打坐中突破，获得全局修炼效率的永久加成。' +
+        '从炼气起步，历经筑基、金丹、元婴、化神……每突破一阶，一切经验收益都更丰厚。详见各境界阶条目。'
+    }
+  };
+
+  // ③ 境界条目：由 gameData.REALMS 生成（Phase 3 定义后自动出现；此处守卫，未定义则不产生）
+  if (typeof REALMS !== 'undefined' && Array.isArray(REALMS)) {
+    REALMS.forEach((r, i) => {
+      const prev = i > 0 ? REALMS[i - 1] : null;
+      const next = REALMS[i + 1] || null;
+      const bonusPct = Math.round(r.bonus * 100);
+      let body = '累计修为达 ' + (typeof fmt === 'function' ? fmt(r.need) : r.need) + ' 可从此阶突破而来。';
+      if (bonusPct > 0) body += '驻此境界，全局修炼效率 +' + bonusPct + '%。';
+      if (prev) body += '上一阶：' + prev.name + '。';
+      if (next) body += '下一阶：' + next.name + '（需修为 ' + (typeof fmt === 'function' ? fmt(next.need) : next.need) + '）。';
+      else body += '此为已知最高境界。';
+      WIKI.realm[r.id] = { title: r.name, icon: '🌀', body: body };
+    });
+  }
+
+  if (typeof window !== 'undefined') window.WIKI = WIKI;
+})();
+
+// ===== ui/wiki.js =====
+// ===== ui/wiki.js — 百科(wiki)页：索引 + 跳转 + 弹窗「查看百科」页脚（v1.31.169） =====
+// 界面文案精简后，所有知识的深读都收拢到这里；弹窗里的「查看百科 ›」按钮即入口。
+UI.renderWiki = function () {
+  const box = $('content');
+  if (!box) return;
+  const groups = [
+    { domain: 'skill', label: '技艺', items: (typeof WIKI !== 'undefined' && WIKI.skill) || {} },
+    { domain: 'mechanic', label: '机制', items: (typeof WIKI !== 'undefined' && WIKI.mechanic) || {} },
+    { domain: 'realm', label: '境界', items: (typeof WIKI !== 'undefined' && WIKI.realm) || {} }
+  ];
+  let html = `<div class="wiki-top">
+    <div class="wiki-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.4"/><path d="m16 16 4 4"/></svg>
+      <input id="wikiQ" type="search" placeholder="检索条目（技艺 / 机制 / 境界）" value="${esc(this.wikiQuery || '')}"
+        oninput="UI.wikiQuery=this.value;UI.filterWiki(this.value)"
+        onkeydown="if(event.key==='Escape'){this.value='';UI.wikiQuery='';UI.filterWiki('')}">
+    </div>
+    <p class="hint">点任意技艺或机制，弹窗里都有「查看百科 ›」可回到此处。</p>
+  </div><div class="wiki-body">`;
+  groups.forEach(g => {
+    const keys = Object.keys(g.items || {});
+    if (!keys.length) return;
+    html += `<section class="wiki-group" id="wiki-domain-${g.domain}">
+      <h3 class="wiki-gtitle">${g.label}<i class="wiki-count">${keys.length}</i></h3>
+      <div class="wiki-list">`;
+    keys.forEach(id => {
+      const e = g.items[id];
+      html += `<article class="wiki-entry" id="wiki-entry-${g.domain}-${id}" data-wiki-entry="${g.domain}:${id}">
+        <h4 class="wiki-etitle">${esc(e.icon || '')} ${esc(e.title || id)}</h4>
+        <div class="wiki-ebody">${esc(e.body || '')}</div>
+      </article>`;
+    });
+    html += `</div></section>`;
+  });
+  html += `</div>`;
+  box.innerHTML = html;
+};
+
+// 顶部检索：按条目正文过滤，空分组自动隐藏
+UI.filterWiki = function (q) {
+  q = String(q || '').trim().toLowerCase();
+  document.querySelectorAll('.wiki-entry').forEach(el => {
+    const t = (el.textContent || '').toLowerCase();
+    el.classList.toggle('hidden', !!q && t.indexOf(q) < 0);
+  });
+  document.querySelectorAll('.wiki-group').forEach(g => {
+    g.classList.toggle('hidden', !g.querySelector('.wiki-entry:not(.hidden)'));
+  });
+};
+
+// 弹窗里的「查看百科 ›」：切到百科页并定位 / 高亮对应条目
+UI.openWiki = function (domain, id) {
+  this.switchTab('wiki');
+  const target = 'wiki-entry-' + domain + '-' + id;
+  setTimeout(() => {
+    const el = document.getElementById(target);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      el.classList.add('wiki-flash');
+      setTimeout(() => el.classList.remove('wiki-flash'), 1300);
+    } else {
+      const g = document.getElementById('wiki-domain-' + domain);
+      if (g) g.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, 40);
+};
+
+// 供各 tooltip / 说明弹窗调用的页脚按钮
+UI.wikiFooter = function (domain, id) {
+  return `<div class="wiki-foot"><button class="tip-link" type="button" onclick="UI.openWiki('${domain}','${id}')">查看百科 ›</button></div>`;
+};
+
 // ===== ui/boot.js =====
 // ===== ui/boot.js — 详情浮层（Tip）与应用启动（init / 无障碍清扫） =====
 // 由 ui/misc.js 拆分而来（v1.31.122）。加载顺序必须在最后：init 会触碰所有页面的渲染器。
@@ -36711,7 +37033,8 @@ function ensureTipEl(){
   el.className = 'hidden';
   el.innerHTML = '<div class="tip-head"><span class="tip-title"></span>'
     + '<button class="tip-close" type="button" title="关闭">✕</button></div>'
-    + '<div class="tip-content"></div>';
+    + '<div class="tip-content"></div>'
+    + '<div class="tip-wiki hidden"></div>';
   (document.body || document.documentElement).appendChild(el);
   Tip.el = el;
   return el;
@@ -36744,6 +37067,18 @@ function showTipFor(anchor){
   const head = el.querySelector('.tip-head');
   el.querySelector('.tip-title').textContent = title || '';
   head.classList.toggle('no-title', !title);
+  // 百科入口：锚点带 data-wiki="domain:id" 时，浮层底部自动生成「查看百科 ›」
+  const wk = anchor.getAttribute && anchor.getAttribute('data-wiki');
+  const wkEl = el.querySelector('.tip-wiki');
+  if (wk && wkEl && typeof UI !== 'undefined' && UI.openWiki){
+    const ci = String(wk).indexOf(':');
+    const d = ci > 0 ? wk.slice(0, ci) : wk;
+    const i = ci > 0 ? wk.slice(ci + 1) : '';
+    wkEl.innerHTML = `<button class="tip-link" type="button" onclick="UI.openWiki('${d}','${i}')">查看百科 ›</button>`;
+    wkEl.classList.remove('hidden');
+  } else if (wkEl){
+    wkEl.classList.add('hidden');
+  }
   el.classList.remove('hidden');
   Tip.anchor = anchor;
   positionTip();

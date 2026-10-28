@@ -19,7 +19,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TABS = ['yudi', 'skills', 'taofa', 'codex', 'pack', 'stats',
-        'queue', 'settings', 'about', 'jisi', 'yushi', 'ying', 'shichan']
+        'queue', 'settings', 'about', 'wiki', 'jisi', 'yushi', 'ying', 'shichan']
 
 # file:// 下拿不到 version.json（版本自检那条 fetch 必然失败），属于协议限制，不是缺陷
 IGNORE = ('version.json', 'URL scheme "file" is not supported')

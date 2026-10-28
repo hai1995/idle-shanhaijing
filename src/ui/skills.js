@@ -163,10 +163,6 @@ UI.renderSkills = function(){
   if (!box) return;
   const groups = { all:'全部', gathering:'采集', processing:'制作', combat:'武备', taofa:'征伐', fangguo:'方国', yushi:'驭使', xiu:'修行' };
   const filter = this.skillFilter;
-  let ids = [];
-  for (const g in SKILL_GROUPS){
-    if (filter === 'all' || filter === g) ids = ids.concat(SKILL_GROUPS[g].ids);
-  }
   // 分类：手动选过就留住，没选过按「能做的最高级配方」自动定
   if (!this.recipeSkill || !ActionKinds[this.recipeSkill] || ActionKinds[this.recipeSkill].mode !== 'recipe'){
     this.recipeSkill = (Prefs && Prefs.recipeSkill && ActionKinds[Prefs.recipeSkill]) ? Prefs.recipeSkill : pickRecipeKind();
@@ -206,29 +202,63 @@ UI.renderSkills = function(){
   <div class="filter-row">
     ${Object.entries(groups).map(([k,v])=>`<button class="chip-btn ${filter===k?'on':''}" onclick="UI.skillFilter='${k}';UI.renderSkills()">${v}</button>`).join('')}
   </div>
-  <div class="skill-grid">
-    ${    ids.map(id=>{
-      const sk = Skills[id];
-      const active = cur && ((cur.kind==='gather' && cur.skill===id) || (cur.kind==='craft' && mapRecipeSkill(cur.recipe.type)===id));
-      // 方块：图标 + 名 + 阶位，右上角等级，底部一条经验进度。
-      // ⚠️ 浮层内容**不再内联**（v1.31.90）：26 张卡每张都塞一份隐藏的
-      // 「描述 + 产出地 + 材料来源 + 持有缺口 + 将至」，那是 153KB HTML 里的六成，
-      // 技能页切页因此要 197ms（全站最慢）。改成点开时再生成（见 skillTipHtml）。
-      const lv = levelOf(id);
-      const raw = Game.skills[id];
-      const xc = xpForLevel(raw.level), xn = xpForLevel(raw.level + 1);
-      const pct = xn > xc ? Math.min(100, (raw.xp - xc) / (xn - xc) * 100) : 100;
-      return `<div class="tile skill-tile ${active?'active':''}" data-skill="${id}" data-tip data-tip-title="${esc(sk.name)}"
-        role="button" tabindex="0" onclick="showSkillDetail('${id}')">
-        <span class="sk-lv">${lv}</span>
-        <span class="tile-ic bi-ic">${typeof skillIcon==='function'?skillIcon(sk):sk.icon}</span>
-        <span class="tile-nm">${esc(sk.name)}</span>
-        <span class="tile-tag">${TUNING.TIER_NAMES[tierOfLevel(lv)]}</span>
-        <span class="sk-bar"><i style="width:${pct.toFixed(1)}%"></i></span>
-        <span class="tip-body hidden" data-tip-lazy="skill:${id}"></span>
-      </div>`;
-    }).join('')}
-  </div>
+  ${(()=>{
+    // 无框留白分组（v1.31.169）：按域把卡片收进带轻量标题的 section，去掉方框与底色，靠留白区分。
+    const order = Object.keys(SKILL_GROUPS);
+    let out = '';
+    order.forEach(g => {
+      if (filter !== 'all' && filter !== g) return;
+      const gIds = SKILL_GROUPS[g].ids || [];
+      if (!gIds.length) return;
+      const tiles = gIds.map(id=>{
+        const sk = Skills[id]; if (!sk) return '';
+        const active = cur && ((cur.kind==='gather' && cur.skill===id) || (cur.kind==='craft' && mapRecipeSkill(cur.recipe.type)===id));
+        // 方块：图标 + 名 + 阶位，右上角等级，底部一条经验进度。
+        // ⚠️ 浮层内容**不再内联**（v1.31.90）：点开时再生成（见 skillTipHtml）。
+        const lv = levelOf(id);
+        const raw = Game.skills[id];
+        const xc = xpForLevel(raw.level), xn = xpForLevel(raw.level + 1);
+        const pct = xn > xc ? Math.min(100, (raw.xp - xc) / (xn - xc) * 100) : 100;
+        return `<div class="tile skill-tile ${active?'active':''}" data-skill="${id}" data-tip data-tip-title="${esc(sk.name)}" data-wiki="skill:${id}"
+          role="button" tabindex="0" onclick="showSkillDetail('${id}')">
+          <span class="sk-lv">${lv}</span>
+          <span class="tile-ic bi-ic">${typeof skillIcon==='function'?skillIcon(sk):sk.icon}</span>
+          <span class="tile-nm">${esc(sk.name)}</span>
+          <span class="tile-tag">${TUNING.TIER_NAMES[tierOfLevel(lv)]}</span>
+          <span class="sk-bar"><i style="width:${pct.toFixed(1)}%"></i></span>
+          <span class="tip-body hidden" data-tip-lazy="skill:${id}"></span>
+        </div>`;
+      }).join('');
+      // 修行分组下挂境界面板（v1.31.169）：打坐是突破主入口，境界给全局修炼效率永久加成
+      const realmPanel = (g === 'xiu') ? (() => {
+        const cur = (typeof currentRealm === 'function') ? currentRealm() : null;
+        const nx = (typeof nextRealm === 'function') ? nextRealm() : null;
+        const xp = Game.stats.totalXp || 0;
+        let prog, btn = '';
+        if (nx){
+          const pct = nx.need > 0 ? Math.min(100, xp / nx.need * 100) : 100;
+          prog = `<div class="realm-bar"><i style="width:${pct.toFixed(1)}%"></i></div>
+            <div class="realm-next">距「${nx.name}」还差 ${fmt(Math.max(0, nx.need - xp))} 修为</div>`;
+          if (typeof canBreakthrough === 'function' && canBreakthrough())
+            btn = `<button class="btn primary realm-break" type="button" onclick="UI.openBreakthrough()">突破 →</button>`;
+        } else {
+          prog = `<div class="realm-next">已是已知最高境界</div>`;
+        }
+        return `<div class="realm-panel">
+          <div class="realm-row"><span class="realm-name">${cur ? cur.name : '—'}</span>
+            <span class="realm-bonus">修炼效率 +${Math.round((cur ? cur.bonus : 0) * 100)}%</span>
+            ${UI.wikiFooter ? UI.wikiFooter('mechanic', 'realm') : ''}</div>
+          ${prog}${btn}
+        </div>`;
+      })() : '';
+      out += `<section class="skill-group" data-group="${g}">
+        <h4 class="sg-title">${groups[g] || g}<i class="sg-count">${gIds.length}</i></h4>
+        <div class="skill-grid">${tiles}</div>
+        ${realmPanel}
+      </section>`;
+    });
+    return out;
+  })()}
 
   <div class="panel recipe-panel">
     <h3>制作配方</h3>

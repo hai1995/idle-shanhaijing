@@ -386,6 +386,7 @@ function sceneHtml(s){
     ${sceneSky(s.kind)}
     <div class="sc-stage${fight ? ' sc-duel' : ''}">
       <div class="sc-rig">${sceneWorker(s.kind, s.kind)}</div>
+      ${s.kind === 'meditate' ? '<div class="sc-aura" aria-hidden="true"></div>' : ''}
       ${fight ? '<div class="sc-foe-rig">' + sceneFoe() + '</div>' + sceneSpark() : sceneProps(s.kind)}
     </div>
     <!-- 地面放在人物之后：前坡把小腿挡住，「站在坡后」比「站在一块板上」自然 -->
@@ -399,6 +400,7 @@ function sceneHtml(s){
     <div class="sc-hud">
       ${hud}
       <span>${esc(s.note)}</span>
+      ${s.kind === 'meditate' && (typeof canBreakthrough === 'function' && canBreakthrough()) ? `<button class="sc-break" type="button" onclick="UI.openBreakthrough()">突破 →</button>` : ''}
     </div>
     ${UI.sceneProbeOn() ? '<div class="sc-probe"></div>' : ''}
     <div class="sc-flash"></div>
@@ -412,6 +414,31 @@ function sceneSig(s){
   if (!s) return 'none';
   return [s.kind, s.key, s.ink, s.iv.toFixed(2), s.name, s.place].join('|');
 }
+
+// 打坐突破入口（v1.31.169）：攒够修为后，定坐中冲关，获全局修炼效率永久加成
+UI.openBreakthrough = function(){
+  if (typeof canBreakthrough !== 'function' || !canBreakthrough()) return;
+  const nx = (typeof nextRealm === 'function') ? nextRealm() : null;
+  const cur = (typeof currentRealm === 'function') ? currentRealm() : null;
+  if (!nx) return;
+  UI.modal(`
+    <h3>突破 · ${esc(cur ? cur.name : '')} → ${esc(nx.name)}</h3>
+    <p class="hint">于定坐之中冲关，自此全局修炼效率 +${Math.round(nx.bonus * 100)}%。一切经验收益更丰厚，离线结算同口径。</p>
+    <p class="hint">需累计修为 ${fmt(nx.need)}（当前 ${fmt(Game.stats.totalXp || 0)}）。</p>
+    <div class="modal-btns">
+      <button class="btn" onclick="UI.closeModal()">再坐片刻</button>
+      <button class="btn primary" onclick="UI.confirmBreakthrough()">突破</button>
+    </div>`);
+};
+UI.confirmBreakthrough = function(){
+  const nx = (typeof doBreakthrough === 'function') ? doBreakthrough() : null;
+  UI.closeModal();
+  if (nx){
+    if (typeof UI.toast === 'function') UI.toast(`✨ 突破至${nx.name}，修炼效率 +${Math.round(nx.bonus * 100)}%`);
+    if (typeof UI.renderScene === 'function') UI.renderScene();
+    if (typeof UI.renderSkills === 'function' && UI.currentTab === 'skills') UI.renderSkills();
+  }
+};
 
 UI.renderScene = function(){
   const bar = (typeof document !== 'undefined') ? document.getElementById('sceneBar') : null;

@@ -854,7 +854,7 @@ assert(ST.UI.currentTab === 'skills', '左滑切到下一页签');
 ST.UI.switchTabNeighbor(-1);
 assert(ST.UI.currentTab === 'yudi', '右滑切回上一页签');
 ST.UI.switchTabNeighbor(-1);
-assert(ST.UI.currentTab === 'about', '右滑在首页环绕到末页（叙录）');
+assert(ST.UI.currentTab === 'wiki', '右滑在首页环绕到末页（百科）');
 
 // ============ 16.9 征兆数值预览 · 墟市头部 ============
 section('征兆数值预览 · 墟市头部');
@@ -1798,6 +1798,56 @@ section('打坐：离线结算');
   G.stopActivity();
 }
 
+// ============ 28. 境界 / 百科 / 打坐气旋 / 技能分组（v1.31.169） ============
+section('境界 / 百科 / 气旋 / 分组');
+{
+  // 28.1 境界数据自洽：有序、阈值递增、加成非负
+  const R = ST.REALMS;
+  assert(Array.isArray(R) && R.length >= 5, 'REALMS 至少 5 阶 -> ' + (R ? R.length : '缺失'));
+  for (let i = 1; i < R.length; i++) assert(R[i].need > R[i-1].need, '境界阈值递增 ' + R[i-1].id + '→' + R[i].id);
+  assert(R.every(r => (r.bonus||0) >= 0), '境界加成非负');
+  assert(R[0].need === 0 && R[0].bonus === 0, '起点炼气无门槛无加成');
+
+  // 28.2 突破：推进境界 + 全局修炼效率加成（同额经验实得变多）
+  G.resetToDefault();
+  ST.Game.realm = R[0].id; ST.Game.stats.totalXp = R[1].need; ST.Game.stats.realmBreaks = 0;
+  ST.Game.skills.dazuo.xp = 0;
+  assert(ST.canBreakthrough(), '达第二阶门槛时可突破');
+  const nx = ST.doBreakthrough();
+  assert(nx && nx.id === R[1].id, '突破进入第二阶 ' + (nx && nx.id));
+  assert(ST.Game.realm === R[1].id, 'Game.realm 推进到第二阶');
+  assert(ST.Game.stats.realmBreaks === 1, '突破计 1 次');
+  const t0 = ST.Game.stats.totalXp;
+  ST.gainXp('dazuo', 100);
+  assert(ST.Game.stats.totalXp - t0 > 100, '突破后 100 经验实得 > 100（加成生效）-> ' + (ST.Game.stats.totalXp - t0));
+
+  // 28.3 百科：技能全收录 + 关键机制条目 + 境界阶条目；openWiki 可调用
+  const wk = ST.WIKI;
+  assert(wk && wk.skill, 'WIKI.skill 存在');
+  const allIds = ST.ALL_SKILL_IDS || Object.keys(ST.Skills);
+  assert(allIds.length >= 27 && allIds.every(id => wk.skill[id] && wk.skill[id].title), '百科收录全部 ' + allIds.length + ' 项技能');
+  assert(wk.mechanic && wk.mechanic.xiuwei && wk.mechanic.realm && wk.mechanic.wuxing, '百科含修为/境界/五行等关键机制');
+  assert(wk.realm && wk.realm[R[1].id], '百科含各境界阶条目');
+  assert(typeof ST.UI.openWiki === 'function', 'openWiki 可调用');
+
+  // 28.4 技能页：无框留白分组 + 卡带 data-wiki + 修行分组含境界面板
+  ST.UI.skillFilter = 'all'; ST.UI.currentTab = 'skills'; ST.UI.renderSkills();
+  const sh = renderTargets.content.innerHTML;
+  assert(sh.includes('skill-group') && sh.includes('sg-title'), '技能页按域渲染分组（skill-group + 标题）');
+  assert(sh.includes('data-wiki="skill:'), '技能卡带 data-wiki（弹窗百科入口）');
+  assert(sh.includes('realm-panel'), '修行分组含境界面板');
+
+  // 28.5 打坐气旋：仅 meditate 显形（CSS 选择器 + 现场标记）
+  assert(css.includes('.sc-wrap[data-kind="meditate"] .sc-aura'), '气旋层仅打坐显形（CSS 选择器）');
+  ST.Game.activity = { kind:'meditate', src:'fallback' };
+  const ms2 = ST.sceneState();
+  assert(ms2 && ms2.kind === 'meditate', '打坐现场状态可取');
+  if (typeof G.sceneHtml === 'function'){
+    assert(G.sceneHtml(ms2).includes('sc-aura'), '打坐现场含气旋层 sc-aura');
+  }
+  G.stopActivity();
+}
+
 // ============ 27. 顶栏收敛 + 征伐页渲染性能 ============
 section('顶栏收敛与征伐页性能');
 // 27.1 入口收敛：昼夜 / 帮助 / 设置三按钮从顶栏移除，设置沉入侧边栏
@@ -2392,10 +2442,10 @@ section('叙录 / 关于本作');
 {
   G.resetToDefault();
 
-  // 39.1 页签：末页为叙录，图标与其余页签同一路数（内联 SVG）
+  // 39.1 页签：末页为百科，图标与其余页签同一路数（内联 SVG）
   const ids = ST.TABS.map(t => t.id);
-  assert(ids[ids.length - 1] === 'about', '末页签为「叙录」');
-  assert(ids.includes('about') && ids.length === 13, '功能页签共 13 项（另有侧栏末尾的「设置」入口）');
+  assert(ids[ids.length - 1] === 'wiki', '末页签为「百科」');
+  assert(ids.includes('wiki') && ids.length === 14, '功能页签共 14 项（另有侧栏末尾的「设置」入口）');
   const ab = ST.TABS.find(t => t.id === 'about');
   assert(ab.label === '叙录' && /<svg/.test(ab.icon), '叙录页签带内联 SVG 图标');
 

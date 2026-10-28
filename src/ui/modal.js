@@ -105,6 +105,7 @@ UI.showOfflineSummary = function(rec){
   UI.modal(`
     <h3><span class="mi-ic">${typeof markIcon==='function'?markIcon('moon',18):'🌙'}</span> 离线归来</h3>
     <p class="hint">离山 ${fmtTime(rec.seconds)}（离线效率 ${Math.round(offlineEff()*100)}%），竹简不曾停笔。</p>
+    ${UI.wikiFooter?UI.wikiFooter('mechanic','offline'):''}
     ${capLine}
     ${acts?`<div class="form-row"><span>所做</span><b class="off-acts">${acts}</b></div>`:''}
     <div class="form-row"><span>修得经验</span><b style="color:var(--gamboge)">+${fmt(rec.xp)}</b></div>

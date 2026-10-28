@@ -235,6 +235,20 @@ const SKILL_GROUPS = {
 };
 const ALL_SKILL_IDS = Object.keys(Skills);
 
+// ---------- 境界（里程碑式，v1.31.169） ----------
+// 经典修仙境阶：攒够累计修为（totalXp）后于打坐中突破，获全局修炼效率永久加成。
+// need = 进入该阶所需累计修为；bonus = 驻此阶时叠加的全局经验倍率增量（不碰技能上限）。
+const REALMS = [
+  { id:'lianqi',   name:'炼气', need:0,      bonus:0.00 },
+  { id:'zhuji',    name:'筑基', need:6000,   bonus:0.06 },
+  { id:'jindan',   name:'金丹', need:30000,  bonus:0.14 },
+  { id:'yuanying', name:'元婴', need:100000, bonus:0.24 },
+  { id:'huashen',  name:'化神', need:300000, bonus:0.36 },
+  { id:'lianxu',   name:'炼虚', need:800000, bonus:0.50 },
+  { id:'hedao',    name:'合体', need:2000000, bonus:0.66 },
+  { id:'datong',   name:'大乘', need:5000000, bonus:0.85 },
+];
+
 // ---------- 物品 ----------
 function I(id, name, type, extra) { return Object.assign({ id, name, type, icon:'⬜' }, extra||{}); }
 const Items = {};
@@ -2702,7 +2716,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.168',
+  version: '1.31.169',
   codename:'昼巡 · 对账',
   updated: '2026-10-28',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -2717,6 +2731,7 @@ window.GAME_META = GAME_META;
 if (typeof window !== 'undefined'){
   window.TUNING = TUNING; window.RARITY = RARITY; window.RARITY_TIERS = RARITY_TIERS;
   window.Skills = Skills; window.SKILL_GROUPS = SKILL_GROUPS; window.ALL_SKILL_IDS = ALL_SKILL_IDS;
+  window.REALMS = REALMS;
   window.Items = Items; window.Recipes = Recipes; window.RECIPE_SKILL = RECIPE_SKILL;
   window.Monsters = Monsters; window.ShopStock = ShopStock; window.SHOP_CATS = SHOP_CATS;
   window.OMENS = OMENS; window.OBSERVE_SITES = OBSERVE_SITES; window.RITES = RITES;

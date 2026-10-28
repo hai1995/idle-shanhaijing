@@ -476,6 +476,7 @@ function showSkillDetail(id){
       onclick="UI.selRegion='${m.regionId}';UI.selNode='${m.nodeId}';UI.closeModal();UI.switchTab('yudi')">${esc(m.itemName)}·${esc(m.nodeName||'')}</button>`).join('')}</span></div>`:''}
     ${mst.length?`<div class="reveal"><b>材料存余</b><span class="mat-inv">${mst.map(m=>`<span class="${m.ok?'ok':'gap'}">${esc(m.name)} ${m.have}/${m.need}</span>`).join(' · ')}</span></div>`:''}
     ${nx.length?`<div class="reveal"><b>将至</b>${esc(nextUnlockText(nx))}</div>`:''}
+    ${UI.wikiFooter?UI.wikiFooter('skill', id):''}
     ${(function(){
       // 技能详情原先只有「看」没有「做」：看完产出地还得关掉弹窗、去舆地页找那座山、
       // 再点采集按钮。这里直接给出口——采集类落「采某物」，制作类落「制某件」。

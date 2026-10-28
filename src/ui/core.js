@@ -23,12 +23,13 @@ const TABS = [
   { id:'stats',   label:'统计', icon:ICON('<path d="M4 19.6h16"/><path d="M7.4 19.6v-6.2M12 19.6V7.6M16.6 19.6v-9.2"/>') },
   { id:'rank',    label:'榜', icon:ICON('<path d="M5 20v-7M12 20V4M19 20v-11"/>') },
   { id:'about',   label:'叙录', icon:ICON('<rect x="4.6" y="3.4" width="14.8" height="17.2" rx="1.4"/><path d="M8.2 8.2h7.6M8.2 11.6h7.6M8.2 15h4.6"/>') },
+  { id:'wiki',    label:'百科', icon:ICON('<path d="M12 5.5C9.5 4 7 3.8 4 4.2v12.4c3-.2 5.5.1 8 1.4 2.5-1.3 5-1.6 8-1.4V4.2c-3-.4-5.5-.2-8 1.3Z"/><path d="M12 5.5v12.6"/><path d="M7.4 8h3.2M7.4 11h3.2M13.4 8h3.2M13.4 11h3.2"/>') },
 ];
 // 页签 → 页面渲染函数（renderCurrent 与页头包装层共用）
 const TAB_RENDER = { yudi:'renderYudi', skills:'renderSkills', taofa:'renderTaofa', yushi:'renderYushi',
   codex:'renderCodex', jisi:'renderJisi', shichan:'renderShichan', ying:'renderYing',
   queue:'renderQueue', pack:'renderPack', stats:'renderStats', rank:'renderRank', settings:'renderSettings',
-  about:'renderAbout' };
+  about:'renderAbout', wiki:'renderWiki' };
 const CAT_EMOJI = { 兽:'🐾', 鸟:'🪶', 水族:'🐟', 蛇:'🐍' };
 // gold 原为 #D9A521：当浮字用没问题（有描边），但做日志正文色时在纸底上只有 2.04:1，
 // 几乎看不清（v1.31.136 对比度扫描抓到的）。压到 #8C6B15（4.51:1）。

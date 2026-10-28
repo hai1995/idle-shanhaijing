@@ -103,13 +103,13 @@ UI.renderAbout = function(){
       <div class="ab-flow">${flow}</div>
       <div class="ab-list">
         <div><b>舆地</b>择山而行。每山之志，载其形胜、物产、异兽与神话，一目了然。</div>
-        <div><b>采集</b>樵采 / 采玉 / 渔 / 采药。点一处即动身前往，随即开工，所得入行囊。</div>
-        <div><b>著录</b>把所得记成条目。历始见 · 略识 · 通形 · 得御 · 穷理五阶，阶阶累加其效。</div>
+        <div><b>采集</b>樵采 / 采玉 / 渔 / 采药。点一处即动身前往，随即开工，所得入行囊。${UI.wikiFooter?UI.wikiFooter('mechanic','mastery'):''}</div>
+        <div><b>著录</b>把所得记成条目。历初见 · 识名 · 明性 · 通形 · 得御五阶，阶阶累加其效。${UI.wikiFooter?UI.wikiFooter('mechanic','mastery'):''}</div>
         <div><b>制作</b>制器 / 烹饪 / 炼药 / 营建。材料不足会直说缺哪样、差多少。</div>
-        <div><b>征伐</b>五行相克 ×1.35、被克 ×0.75、相生 ×1.15。同兽连杀经验递减，六凶为终战。</div>
-        <div><b>御使</b>著录至「通形」的异兽可入槽，化作被动增益与自动作业。</div>
-        <div><b>祠祀</b>二十八套礼制，行祭得山系增益；吉凶之兆随之而动，可禳可解。</div>
-        <div><b>离线</b>离山亦不停笔，归来按效率一并结算，不令一日虚度。</div>
+        <div><b>征伐</b>五行相克 ×1.35、被克 ×0.75、相生 ×1.15。同兽连杀经验递减，六凶为终战。${UI.wikiFooter?UI.wikiFooter('mechanic','wuxing'):''}</div>
+        <div><b>御使</b>著录至「通形」的异兽可入槽，化作被动增益与自动作业。${UI.wikiFooter?UI.wikiFooter('mechanic','mastery'):''}</div>
+        <div><b>祠祀</b>二十八套礼制，行祭得山系增益；吉凶之兆随之而动，可禳可解。${UI.wikiFooter?UI.wikiFooter('mechanic','jisi'):''}</div>
+        <div><b>离线</b>离山亦不停笔，归来按效率一并结算，不令一日虚度。${UI.wikiFooter?UI.wikiFooter('mechanic','offline'):''}</div>
       </div>
     </section>
 

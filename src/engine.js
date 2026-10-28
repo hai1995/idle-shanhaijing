@@ -37,13 +37,14 @@ const Game = {
     kills:0, deaths:0, actions:0, totalXp:0, time:0, bossKills:{}, totalEarned:0,
     harvests:0, purchases:0, sales:0, spent:0, sold:0, gathers:{}, crafts:0,
     damageDealt:0, damageTaken:0, hits:0, omens:{}, rites:0, observes:0, divines:0,
-    seenMilestones:{}, winStreak:0, deathStreak:0, deathStreakOf:null, bounties:0, seenDeployHint:false, seenFallbackHint:false, _unlockedRegions:[], lastSeason:null,
+    seenMilestones:{}, winStreak:0, deathStreak:0, deathStreakOf:null, bounties:0, seenDeployHint:false, seenFallbackHint:false, _unlockedRegions:[], lastSeason:null, realmBreaks:0,
   },
   // 三签：常挂三条短目标 [{ id, base, target }]，base 是抽签那一刻的计数
   bounties: [],
   // 轮回：count 转生次数（轮回印 = count × TUNING.REBIRTH.XP）、at 上次转生时刻、
   // best 历史最高总等级、startedAt 本轮起点、history 每轮成绩（最近 10 条）
   rebirth: { count: 0, at: 0, best: 0, startedAt: 0, history: [] },
+  realm: 'lianqi',        // 境界：当前境界 id（里程碑式，打坐突破；见 REALMS）
   startedAt: Date.now(),
   version: 2,
 };
@@ -456,6 +457,10 @@ function playerName(){
 function resetToDefault(){
   const g = cloneDefaultGame();
   Object.assign(Game, g);
+  // 重置必须回到起点境界：cloneDefaultGame 深拷贝的是「当前」状态，
+  // 不会把 realm / realmBreaks 归零，得显式覆盖（与 shells/inventory 同思路）。
+  Game.realm = 'lianqi';
+  Game.stats.realmBreaks = 0;
   if (typeof invalidateMilestones === 'function') invalidateMilestones();   // 状态整体重置：刷新成就缓存
   try { SaveManager.reset(); } catch(e){}
 }
@@ -497,9 +502,17 @@ function levelFromXp(xp){
 // 否则仅靠首访给经验，区域解锁等级在真实游玩中永远不可达（116 山的世界必须跑得通）。
 // 舆地 = 本次所得的 10%，履险 = 其中一半；用重入守卫避免递归。
 let _inGainXp = false;
+// 境界效率：当前境界给全局修炼效率的永久加成（里程碑式，打坐突破）。
+// 与 xpMult（其它乘区）独立相乘，离线结算经 gainXp 自动同口径受益。
+function realmEff(){
+  const R = (typeof REALMS !== 'undefined') ? REALMS : null;
+  if (!R || !R.length) return 1;
+  const cur = R.find(x => x.id === (Game.realm || 'lianqi')) || R[0];
+  return 1 + (cur.bonus || 0);
+}
 function gainXp(skillId, amount){
   if (!Game.skills[skillId]) return;
-  const gain = Math.round(amount * (typeof xpMult === 'function' ? xpMult() : 1));
+  const gain = Math.round(amount * (typeof xpMult === 'function' ? xpMult() : 1) * realmEff());
   if (gain <= 0) return;
   const sk = Game.skills[skillId];
   sk.xp = (sk.xp||0) + gain;

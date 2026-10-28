@@ -1341,6 +1341,28 @@ function doMeditate(){
   if (!Game.skills.dazuo) return;          // 技能未初始化时宁可不记，也别抛
   gainXp('dazuo', TUNING.MEDITATE_XP);
 }
+// 境界（里程碑式）：攒够累计修为后于打坐中突破，获全局修炼效率永久加成。
+function currentRealm(){
+  const R = (typeof REALMS !== 'undefined') ? REALMS : [];
+  return R.find(x => x.id === (Game.realm || 'lianqi')) || R[0] || { id:'lianqi', name:'炼气', need:0, bonus:0 };
+}
+function nextRealm(){
+  const R = (typeof REALMS !== 'undefined') ? REALMS : [];
+  const i = R.findIndex(x => x.id === (Game.realm || 'lianqi'));
+  return R[i + 1] || null;
+}
+function canBreakthrough(){
+  const nx = nextRealm();
+  if (!nx) return false;
+  return (Game.stats.totalXp || 0) >= nx.need;
+}
+function doBreakthrough(){
+  const nx = nextRealm();
+  if (!nx || (Game.stats.totalXp || 0) < nx.need) return null;
+  Game.realm = nx.id;
+  Game.stats.realmBreaks = (Game.stats.realmBreaks || 0) + 1;
+  return nx;
+}
 // 著录一个对象（含阶位提升、异兽征兆触发、关联著录）
 function recordObject(objId, n){
   // 学宫「著录度获取 +25%」：记录以整数计，故折算为 1/4 概率多记一次（期望 +25%），
@@ -3805,6 +3827,8 @@ if (typeof window !== 'undefined'){
   window.totalOf = totalOf; window.giveItem = giveItem; window.takeItem = takeItem;
   window.canAfford = canAfford; window.payCost = payCost; window.gainXp = gainXp;
   window.doMeditate = doMeditate; window.doGather = doGather;
+  window.canBreakthrough = canBreakthrough; window.doBreakthrough = doBreakthrough;
+  window.currentRealm = currentRealm; window.nextRealm = nextRealm;
   window.levelOf = levelOf; window.stopActivity = stopActivity;
   window.processRecipe = processRecipe; window.gameLoop = gameLoop;
   window.farmCatchUp = farmCatchUp; window.actionOutputId = actionOutputId;

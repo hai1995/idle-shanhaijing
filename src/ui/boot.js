@@ -17,7 +17,8 @@ function ensureTipEl(){
   el.className = 'hidden';
   el.innerHTML = '<div class="tip-head"><span class="tip-title"></span>'
     + '<button class="tip-close" type="button" title="关闭">✕</button></div>'
-    + '<div class="tip-content"></div>';
+    + '<div class="tip-content"></div>'
+    + '<div class="tip-wiki hidden"></div>';
   (document.body || document.documentElement).appendChild(el);
   Tip.el = el;
   return el;
@@ -50,6 +51,18 @@ function showTipFor(anchor){
   const head = el.querySelector('.tip-head');
   el.querySelector('.tip-title').textContent = title || '';
   head.classList.toggle('no-title', !title);
+  // 百科入口：锚点带 data-wiki="domain:id" 时，浮层底部自动生成「查看百科 ›」
+  const wk = anchor.getAttribute && anchor.getAttribute('data-wiki');
+  const wkEl = el.querySelector('.tip-wiki');
+  if (wk && wkEl && typeof UI !== 'undefined' && UI.openWiki){
+    const ci = String(wk).indexOf(':');
+    const d = ci > 0 ? wk.slice(0, ci) : wk;
+    const i = ci > 0 ? wk.slice(ci + 1) : '';
+    wkEl.innerHTML = `<button class="tip-link" type="button" onclick="UI.openWiki('${d}','${i}')">查看百科 ›</button>`;
+    wkEl.classList.remove('hidden');
+  } else if (wkEl){
+    wkEl.classList.add('hidden');
+  }
   el.classList.remove('hidden');
   Tip.anchor = anchor;
   positionTip();
