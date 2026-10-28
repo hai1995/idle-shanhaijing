@@ -111,7 +111,8 @@ UI.renderPack = function(){
   const slots = allSlots.filter(s => MINOR.indexOf(s) < 0 || showMinor);
   let html = `<div class="pack-wrap">
     <div class="panel gear-panel">
-      <h3>装备<button class="btn small gear-best" type="button" onclick="UI.autoEquipBest()">一键最优装</button></h3>
+      <h3 data-tip data-tip-title="装备 · 行装" data-wiki="mechanic:pack">装备<button class="btn small gear-best" type="button" onclick="event.stopPropagation();UI.autoEquipBest()">一键最优装</button>
+        <span class="tip-body hidden">装备分兵器、护甲、玉符诸槽，斧镐网矢等工具槽平时收拢一格；两件同名装备各有各的淬炼档；「一键最优装」按装备评分换上同槽最强。</span></h3>
       <div class="tile-grid gear-grid">
       ${slots.map(slot=>{
         const g = Game.gear[slot];

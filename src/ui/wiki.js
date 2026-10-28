@@ -15,6 +15,10 @@ UI.renderWiki = function () {
         oninput="UI.wikiQuery=this.value;UI.filterWiki(this.value)"
         onkeydown="if(event.key==='Escape'){this.value='';UI.wikiQuery='';UI.filterWiki('')}">
     </div>
+    <div class="wiki-jumps">${groups.map(g => {
+      const n = Object.keys(g.items || {}).length;
+      return n ? `<button class="chip-btn" type="button" onclick="UI.wikiJump('${g.domain}')">${g.label} ${n}</button>` : '';
+    }).join('')}</div>
     <p class="hint">点任意技艺或机制，弹窗里都有「查看百科 ›」可回到此处。</p>
   </div><div class="wiki-body">`;
   groups.forEach(g => {
@@ -46,6 +50,12 @@ UI.filterWiki = function (q) {
   document.querySelectorAll('.wiki-group').forEach(g => {
     g.classList.toggle('hidden', !g.querySelector('.wiki-entry:not(.hidden)'));
   });
+};
+
+// 分组速跳：页顶 chips 直达对应分组
+UI.wikiJump = function (domain) {
+  const g = document.getElementById('wiki-domain-' + domain);
+  if (g) g.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
 // 弹窗里的「查看百科 ›」：切到百科页并定位 / 高亮对应条目

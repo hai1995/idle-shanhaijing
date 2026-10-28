@@ -185,7 +185,7 @@ UI.renderYudi = function(){
     + gatherAgainBar()
     + `<div class="map-wrap">
     <div class="panel regions">
-      <h3>山系</h3>
+      <h3 data-tip data-tip-title="舆地 · 山川" data-wiki="mechanic:yudi">山系<span class="tip-body hidden">五经山系之下诸山可点：每座山列出物产、异兽与山志原文；选「采集 / 讨伐」即动身前往。著录阶位愈高，可往的山川愈远。</span></h3>
       <button type="button" class="locked-toggle" title="展开/收起尚未解锁的山系" onclick="document.body.classList.toggle('show-locked');this.classList.toggle('on')">${typeof markIcon==='function'?markIcon('lock',14):'🔒'} 未解锁山系 ${CHAPTERS.filter(ch=>!regions.filter(r=>ch.regionIds.includes(r.regionId)).some(r=>regionUnlocked(r))).length} 章</button>
       <div class="region-scroll">
       ${CHAPTERS.map(ch=>{

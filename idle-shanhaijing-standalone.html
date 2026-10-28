@@ -530,6 +530,10 @@ html.theme-anim, html.theme-anim *{
 }
 @media (prefers-reduced-motion: reduce){ .sc-aura.sc-aura-burst{ animation:none; } }
 /* 打坐现场「突破」入口：小签一枚，跻身于状态条之侧 */
+/* sc-hud 整体 pointer-events:none（不挡现场），可点的子件须单独恢复——
+   否则 elementFromPoint 命中的是身后的地面 SVG，按钮看得见点不着（v1.31.173 实测修复） */
+.sc-hud .sc-break,
+.sc-hud [data-tip]{ pointer-events:auto; }
 .sc-break{
   display:inline-block; margin-left:8px; padding:2px 10px; font-family:var(--f-kai); font-size:11.5px;
   letter-spacing:.04em; color:var(--zhu-d); background:var(--zhu-w);
@@ -3510,6 +3514,7 @@ details.hetero-panel .hp-left{ margin-left:auto; font-style:normal; color:var(--
 .wiki-search svg{ width:16px; height:16px; color:var(--ink-4); flex:none; }
 .wiki-search input{ flex:1; border:none; background:none; outline:none; font-size:13px; color:var(--ink); font-family:var(--f-song); }
 .wiki-top .hint{ margin:6px 2px 0; }
+.wiki-jumps{ display:flex; gap:8px; justify-content:center; margin-top:9px; flex-wrap:wrap; }
 .wiki-body{ max-width:760px; margin:0 auto; }
 .wiki-group{ margin-bottom:22px; }
 .wiki-gtitle{ font-family:var(--f-kai); font-size:15px; color:var(--qing-d); letter-spacing:.06em; border-left:3px solid var(--qing); padding-left:9px; margin:0 0 10px; }
@@ -20253,7 +20258,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.172',
+  version: '1.31.173',
   codename:'昼巡 · 对账',
   updated: '2026-10-28',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -31527,7 +31532,9 @@ function sceneHtml(s){
     <div class="sc-drops"></div>
     <div class="sc-hud">
       ${hud}
-      <span>${esc(s.note)}</span>
+      ${s.kind === 'meditate'
+        ? `<span data-tip data-tip-title="打坐" data-wiki="mechanic:meditate">${esc(s.note)}<span class="tip-body hidden">每 ${(typeof TUNING !== 'undefined' && TUNING.MEDITATE_SEC) || 5} 秒一息，每息凝 ${(typeof TUNING !== 'undefined' && TUNING.MEDITATE_XP) || 5} 点修为；离线照常结算。攒够修为可直接突破晋升境界。</span></span>`
+        : `<span>${esc(s.note)}</span>`}
       ${s.kind === 'meditate' && (typeof canBreakthrough === 'function' && canBreakthrough()) ? `<button class="sc-break" type="button" onclick="UI.openBreakthrough()">突破 →</button>` : ''}
     </div>
     ${UI.sceneProbeOn() ? '<div class="sc-probe"></div>' : ''}
@@ -32116,7 +32123,7 @@ UI.renderYudi = function(){
     + gatherAgainBar()
     + `<div class="map-wrap">
     <div class="panel regions">
-      <h3>山系</h3>
+      <h3 data-tip data-tip-title="舆地 · 山川" data-wiki="mechanic:yudi">山系<span class="tip-body hidden">五经山系之下诸山可点：每座山列出物产、异兽与山志原文；选「采集 / 讨伐」即动身前往。著录阶位愈高，可往的山川愈远。</span></h3>
       <button type="button" class="locked-toggle" title="展开/收起尚未解锁的山系" onclick="document.body.classList.toggle('show-locked');this.classList.toggle('on')">${typeof markIcon==='function'?markIcon('lock',14):'🔒'} 未解锁山系 ${CHAPTERS.filter(ch=>!regions.filter(r=>ch.regionIds.includes(r.regionId)).some(r=>regionUnlocked(r))).length} 章</button>
       <div class="region-scroll">
       ${CHAPTERS.map(ch=>{
@@ -35286,7 +35293,8 @@ UI.renderPack = function(){
   const slots = allSlots.filter(s => MINOR.indexOf(s) < 0 || showMinor);
   let html = `<div class="pack-wrap">
     <div class="panel gear-panel">
-      <h3>装备<button class="btn small gear-best" type="button" onclick="UI.autoEquipBest()">一键最优装</button></h3>
+      <h3 data-tip data-tip-title="装备 · 行装" data-wiki="mechanic:pack">装备<button class="btn small gear-best" type="button" onclick="event.stopPropagation();UI.autoEquipBest()">一键最优装</button>
+        <span class="tip-body hidden">装备分兵器、护甲、玉符诸槽，斧镐网矢等工具槽平时收拢一格；两件同名装备各有各的淬炼档；「一键最优装」按装备评分换上同槽最强。</span></h3>
       <div class="tile-grid gear-grid">
       ${slots.map(slot=>{
         const g = Game.gear[slot];
@@ -35541,7 +35549,7 @@ function enhancePanelHtml(target, it){
     ? `火候 +${Math.round(heat * heatStep * 100)}%（基础 ${Math.round(baseRate*100)}% → 实成 ${rate}%）`
     : `火候未起：每毁一次添一格，每格 +${Math.round(heatStep*100)}%`;
   return `<div class="reveal enh-box">
-    <b>淬炼</b>
+    <b data-tip data-tip-title="淬炼" data-wiki="mechanic:enhance">淬炼<span class="tip-body hidden">成功率 = 该级基础 + 火候 + 淬火炉，封顶 95%；十级起一败俱毁，镇物可保阶；每尽毁一次添一格火候（+8%，至多十二格，成了不熄）。</span></b>
     <div class="enh-hd">
       <span class="enh-lv">+${lv}<i> / ${max}</i></span>
       <span class="enh-rate ${cls}">成功率 ${rate}%</span>
@@ -37090,6 +37098,32 @@ function bindSwipeGestures(){
         '溢价 1.3～1.8 倍收可再生原材料——交付得贝币与贸易经验，一单少一单。' +
         '售价加成由商旅等级、营造、御使、征兆共同决定；低买高卖、囤积居奇，亦是修行。'
     },
+    yudi: {
+      title: '舆地 · 山川',
+      body: '舆地是山海经的世界图：南山、西山、北山、东山、中山五经，山系之下诸山可点。' +
+        '每座山列出物产、异兽与山志原文；选「采集 / 讨伐」即动身前往，纳入巡历队列。' +
+        '著录阶位愈高，可往的山川愈远；「山志全图」可纵览已行之处。'
+    },
+    enhance: {
+      title: '淬炼',
+      body: '兵器与护甲可在炉前淬炼：材料随级递增，贝币按 1.7 次方上行；1～5 级近乎必成，之后逐段下滑，封顶 95%。' +
+        '十级以下失败只损材料；十级起一败俱毁、阶数归零——可耗一枚「镇物」保住原阶。' +
+        '每尽毁一次添一格「火候」，每格 +8% 成功率、至多十二格，成了也不熄——白烧的材料由此变成进度。' +
+        '上限按品阶分档：凡 +12、良 +18、精 +22、珍 +26、神 +30；「强化至」可一键连锤，营造淬火炉再添 6% 成算。'
+    },
+    pack: {
+      title: '装备 · 行装',
+      body: '行囊收材料、装备、药食与系产；装备分兵器、护甲、玉符诸槽，斧镐网矢等工具槽平时收拢一格。' +
+        '两件同名装备各有各的淬炼档，互不相混；「一键最优装」按装备评分换上同槽最强，等级不足者不动。' +
+        '清单里「▲」标出优于身上的物件；「廛市清整」按稀有度批量售出原材料——食物、药品、装备、嘉种、嘉谷不在此列。'
+    },
+    meditate: {
+      title: '打坐',
+      body: '打坐是无所事事时的默认修行：每 ' + (typeof TUNING !== 'undefined' && TUNING.MEDITATE_SEC ? TUNING.MEDITATE_SEC : 5) +
+        ' 秒一息，每息凝 ' + (typeof TUNING !== 'undefined' && TUNING.MEDITATE_XP ? TUNING.MEDITATE_XP : 5) +
+        ' 点修为，无工具无道具，离线亦照常结算。' +
+        '现场以呼吸气旋相伴；攒够修为时，打坐中直接点「突破」晋升境界。一切修行都计入修为，打坐只是其中最静的一路。'
+    },
     realm: {
       title: '境界',
       body: '境界是修行的里程碑：攒够修为后，于打坐中突破，获得全局修炼效率的永久加成。' +
@@ -37133,6 +37167,10 @@ UI.renderWiki = function () {
         oninput="UI.wikiQuery=this.value;UI.filterWiki(this.value)"
         onkeydown="if(event.key==='Escape'){this.value='';UI.wikiQuery='';UI.filterWiki('')}">
     </div>
+    <div class="wiki-jumps">${groups.map(g => {
+      const n = Object.keys(g.items || {}).length;
+      return n ? `<button class="chip-btn" type="button" onclick="UI.wikiJump('${g.domain}')">${g.label} ${n}</button>` : '';
+    }).join('')}</div>
     <p class="hint">点任意技艺或机制，弹窗里都有「查看百科 ›」可回到此处。</p>
   </div><div class="wiki-body">`;
   groups.forEach(g => {
@@ -37164,6 +37202,12 @@ UI.filterWiki = function (q) {
   document.querySelectorAll('.wiki-group').forEach(g => {
     g.classList.toggle('hidden', !g.querySelector('.wiki-entry:not(.hidden)'));
   });
+};
+
+// 分组速跳：页顶 chips 直达对应分组
+UI.wikiJump = function (domain) {
+  const g = document.getElementById('wiki-domain-' + domain);
+  if (g) g.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
 // 弹窗里的「查看百科 ›」：切到百科页并定位 / 高亮对应条目

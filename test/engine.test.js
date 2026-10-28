@@ -1839,6 +1839,9 @@ section('境界 / 百科 / 气旋 / 分组');
 
   // 28.5 打坐气旋：仅 meditate 显形（CSS 选择器 + 现场标记）
   assert(css.includes('.sc-wrap[data-kind="meditate"] .sc-aura'), '气旋层仅打坐显形（CSS 选择器）');
+  // 28.6 sc-hud 可点子件恢复指针：hud 整体 pointer-events:none，突破按钮 / tip 锚点须显式恢复，
+  // 否则 elementFromPoint 命中地面 SVG——按钮看得见点不着（v1.31.173 实测回归）
+  assert(css.includes('.sc-hud .sc-break') && css.includes('pointer-events:auto'), 'sc-break 恢复 pointer-events（hud 罩层不吞点击）');
   ST.Game.activity = { kind:'meditate', src:'fallback' };
   const ms2 = ST.sceneState();
   assert(ms2 && ms2.kind === 'meditate', '打坐现场状态可取');
@@ -2598,7 +2601,7 @@ section('移动端缩放与不溢出');
   assert(/function equipBest\(\)/.test(interactSrc), '存在 equipBest（一键最优装）');
   assert(interactSrc.includes('window.equipBest = equipBest;'), 'equipBest 已导出');
   assert(/equipSlotOf\(it\) !== slot/.test(interactSrc) && /relevantLevel\(it\)/.test(interactSrc), '最优装按槽位与等级门槛筛选');
-  assert(uiM.includes('onclick="UI.autoEquipBest()"'), '装备面板有「一键最优装」按钮');
+  assert(uiM.includes('onclick="event.stopPropagation();UI.autoEquipBest()"'), '装备面板有「一键最优装」按钮（不冒泡到 tip 锚点）');
   assert(/UI\.autoEquipBest = function\(\)/.test(uiM), 'UI.autoEquipBest 存在');
   assert(uiM.includes('M8.4 9.6h7.2l1.3 8.4'), '侧栏行装页图标改为小行囊');
   assert(/\.btn,\.chip-btn\{ min-height:34px; padding:7px 12px; \}/.test(cssM), '移动端按钮收小一号（34px）');

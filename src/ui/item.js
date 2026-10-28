@@ -141,7 +141,7 @@ function enhancePanelHtml(target, it){
     ? `火候 +${Math.round(heat * heatStep * 100)}%（基础 ${Math.round(baseRate*100)}% → 实成 ${rate}%）`
     : `火候未起：每毁一次添一格，每格 +${Math.round(heatStep*100)}%`;
   return `<div class="reveal enh-box">
-    <b>淬炼</b>
+    <b data-tip data-tip-title="淬炼" data-wiki="mechanic:enhance">淬炼<span class="tip-body hidden">成功率 = 该级基础 + 火候 + 淬火炉，封顶 95%；十级起一败俱毁，镇物可保阶；每尽毁一次添一格火候（+8%，至多十二格，成了不熄）。</span></b>
     <div class="enh-hd">
       <span class="enh-lv">+${lv}<i> / ${max}</i></span>
       <span class="enh-rate ${cls}">成功率 ${rate}%</span>

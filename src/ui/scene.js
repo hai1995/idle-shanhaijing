@@ -399,7 +399,9 @@ function sceneHtml(s){
     <div class="sc-drops"></div>
     <div class="sc-hud">
       ${hud}
-      <span>${esc(s.note)}</span>
+      ${s.kind === 'meditate'
+        ? `<span data-tip data-tip-title="打坐" data-wiki="mechanic:meditate">${esc(s.note)}<span class="tip-body hidden">每 ${(typeof TUNING !== 'undefined' && TUNING.MEDITATE_SEC) || 5} 秒一息，每息凝 ${(typeof TUNING !== 'undefined' && TUNING.MEDITATE_XP) || 5} 点修为；离线照常结算。攒够修为可直接突破晋升境界。</span></span>`
+        : `<span>${esc(s.note)}</span>`}
       ${s.kind === 'meditate' && (typeof canBreakthrough === 'function' && canBreakthrough()) ? `<button class="sc-break" type="button" onclick="UI.openBreakthrough()">突破 →</button>` : ''}
     </div>
     ${UI.sceneProbeOn() ? '<div class="sc-probe"></div>' : ''}

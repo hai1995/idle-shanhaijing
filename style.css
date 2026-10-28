@@ -503,6 +503,10 @@ html.theme-anim, html.theme-anim *{
 }
 @media (prefers-reduced-motion: reduce){ .sc-aura.sc-aura-burst{ animation:none; } }
 /* 打坐现场「突破」入口：小签一枚，跻身于状态条之侧 */
+/* sc-hud 整体 pointer-events:none（不挡现场），可点的子件须单独恢复——
+   否则 elementFromPoint 命中的是身后的地面 SVG，按钮看得见点不着（v1.31.173 实测修复） */
+.sc-hud .sc-break,
+.sc-hud [data-tip]{ pointer-events:auto; }
 .sc-break{
   display:inline-block; margin-left:8px; padding:2px 10px; font-family:var(--f-kai); font-size:11.5px;
   letter-spacing:.04em; color:var(--zhu-d); background:var(--zhu-w);
@@ -3483,6 +3487,7 @@ details.hetero-panel .hp-left{ margin-left:auto; font-style:normal; color:var(--
 .wiki-search svg{ width:16px; height:16px; color:var(--ink-4); flex:none; }
 .wiki-search input{ flex:1; border:none; background:none; outline:none; font-size:13px; color:var(--ink); font-family:var(--f-song); }
 .wiki-top .hint{ margin:6px 2px 0; }
+.wiki-jumps{ display:flex; gap:8px; justify-content:center; margin-top:9px; flex-wrap:wrap; }
 .wiki-body{ max-width:760px; margin:0 auto; }
 .wiki-group{ margin-bottom:22px; }
 .wiki-gtitle{ font-family:var(--f-kai); font-size:15px; color:var(--qing-d); letter-spacing:.06em; border-left:3px solid var(--qing); padding-left:9px; margin:0 0 10px; }
