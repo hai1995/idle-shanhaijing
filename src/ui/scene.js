@@ -384,6 +384,8 @@ function sceneHtml(s){
     <div class="sc-sky"></div>
     ${sceneHills()}
     ${sceneSky(s.kind)}
+    ${s.kind === 'observe' ? '<div class="sc-shoot" aria-hidden="true"></div>' : ''}
+    ${s.kind === 'audience' ? '<div class="sc-incense" aria-hidden="true"></div>' : ''}
     <div class="sc-stage${fight ? ' sc-duel' : ''}">
       <div class="sc-rig">${sceneWorker(s.kind, s.kind)}</div>
       ${s.kind === 'meditate' ? '<div class="sc-aura" aria-hidden="true"></div>' : ''}
@@ -557,6 +559,19 @@ const SCENE_SWING = [
 const SCENE_RIG = [
   [0, 0], [7, .6], [26, -3.4], [35, -3.6], [56, 4], [62, 1.4], [72, .3], [100, 0],
 ];
+// 各 idle 行动的「身姿」表：让每种行动的身体语言不一样，而非共用一张俯仰表。
+// 单位与 SCENE_RIG 一致（度；正值=朝前躬身、负值=朝后仰；绕脚底旋转）。
+//   grow     莳植：弓身向苗，俯仰幅度小、节奏缓，像在伺弄（苗在身右）
+//   observe  观象：略向后仰、仰头望天，与「观」字同义
+//   audience 谒见：周期性深深一揖（俯身），与「谨候阶下」同义
+//   meditate 打坐：近乎不动（吐纳由 .sc-aura 的 CSS 承担）
+const SCENE_RIG_GROW     = [[0,0], [16,3.4], [40,4.8], [56,2.4], [78,0.4], [100,0]];
+const SCENE_RIG_OBSERVE  = [[0,0], [30,-2.6], [56,-3.2], [80,-0.6], [100,0]];
+const SCENE_RIG_AUDIENCE = [[0,0], [14,1], [34,7.6], [52,7.6], [68,1.6], [100,0]];
+const SCENE_RIG_MEDITATE = [[0,0], [50,0.3], [100,0]];
+const SCENE_RIG_BY_KIND = {
+  grow: SCENE_RIG_GROW, observe: SCENE_RIG_OBSERVE, audience: SCENE_RIG_AUDIENCE, meditate: SCENE_RIG_MEDITATE,
+};
 // 征伐不用「举落」，用「前冲」：先缩半步蓄力，再突进 9px，命中回弹。
 // 单位是 px（translateX），与上面的角度帧表共用 sceneAngleAt 的插值。
 const SCENE_LUNGE = [
@@ -720,7 +735,8 @@ UI.paintSceneFrame = function(){
   p = Math.max(0, Math.min(1, p));
   // 锄头：算坐标、写 path 的 d。不用 transform，也不用 CSS 动画。
   const ta = sceneAngleAt(SCENE_SWING, p);
-  const ra = sceneAngleAt(SCENE_RIG, p);
+  // 身体俯仰：按行动取各自的身姿表（idle 行动各有其身体语言，不再共用一张）
+  const ra = sceneAngleAt(SCENE_RIG_BY_KIND[UI._sceneKind] || SCENE_RIG, p);
   if (!isFinite(ta) || !isFinite(ra)) return;      // 非法值宁可不写，也别把上次的姿态留着
   const g = sceneToolPath(ta, UI._sceneKind);
   const shaft = bar.querySelector('.sc-shaft');
@@ -795,6 +811,7 @@ if (typeof window !== 'undefined'){
   window.sceneReduceMotion = sceneReduceMotion;
   window.sceneProps = sceneProps;
   window.SCENE_KINDS = SCENE_KINDS;
+  window.SCENE_RIG_BY_KIND = SCENE_RIG_BY_KIND;
   window.sceneRecipe = sceneRecipe;
   window.sceneFoe = sceneFoe;
   window.sceneSky = sceneSky;

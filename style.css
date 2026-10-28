@@ -534,9 +534,10 @@ html.theme-anim, html.theme-anim *{
   position:absolute; left:42px; bottom:10px; width:30px; height:26px; color:inherit;
   transform-origin:50% 100%; animation:scSway 3.2s ease-in-out infinite;
 }
+/* 莳植：苗随风轻摆，同时缓缓「长得一息」——把养木这件事画成有生命的过程 */
 @keyframes scSway{
-  0%,100%{ transform:rotate(-1.6deg); }
-  50%    { transform:rotate(1.8deg); }
+  0%,100%{ transform:rotate(-1.6deg) scale(1); }
+  50%    { transform:rotate(1.8deg) scale(1.05); }
 }
 .sc-gate{ position:absolute; left:42px; bottom:13px; width:34px; height:30px; color:inherit; opacity:.92; }
 .sc-stars{ position:absolute; left:0; right:0; top:0; width:100%; height:60px; color:inherit; pointer-events:none; }
@@ -544,6 +545,32 @@ html.theme-anim, html.theme-anim *{
 @keyframes scTwinkle{
   0%,100%{ opacity:.45; }
   50%    { opacity:.9; }
+}
+/* 观象：偶有一道流星斜划而过——「夜观天象」该有的动静（纯 CSS，不占 JS 帧） */
+.sc-shoot{ position:absolute; left:0; right:0; top:0; height:60px; overflow:hidden; pointer-events:none; }
+.sc-shoot::before{
+  content:''; position:absolute; top:9px; left:0; width:30px; height:1.6px; border-radius:4px;
+  background:linear-gradient(90deg, transparent, currentColor); opacity:0;
+  animation:scShoot 8.5s ease-in infinite;
+}
+@keyframes scShoot{
+  0%, 80%{ transform:translate(-40px,0); opacity:0; }
+  82%    { opacity:.7; transform:translate(40px,3px); }
+  92%    { opacity:.7; transform:translate(240px,19px); }
+  94%,100%{ opacity:0; transform:translate(280px,23px); }
+}
+/* 谒见：自阶前升起两缕青烟——「谨候阶下」的香火气（纯 CSS） */
+.sc-incense{ position:absolute; left:52px; bottom:34px; width:14px; height:22px; pointer-events:none; }
+.sc-incense::before, .sc-incense::after{
+  content:''; position:absolute; bottom:0; left:50%; width:3.4px; height:16px; border-radius:50%;
+  background:radial-gradient(currentColor, transparent 72%); opacity:0; filter:blur(.6px);
+  animation:scSmoke 3.6s ease-out infinite;
+}
+.sc-incense::after{ left:26%; animation-delay:1.8s; }
+@keyframes scSmoke{
+  0%  { transform:translateY(0) scale(.5); opacity:0; }
+  18% { opacity:.5; }
+  100%{ transform:translateY(-17px) scale(1.35); opacity:0; }
 }
 
 /* —— 征伐 —— 舞台加宽：人在左，兽在右 */
@@ -737,6 +764,9 @@ html.theme-anim, html.theme-anim *{
 .sc-wrap.no-anim .sc-stage,
 .sc-wrap.no-anim .sc-sprout,
 .sc-wrap.no-anim .sc-stars g,
+.sc-wrap.no-anim .sc-shoot::before,
+.sc-wrap.no-anim .sc-incense::before,
+.sc-wrap.no-anim .sc-incense::after,
 .sc-wrap.no-anim .sc-foe-rig,
 .sc-wrap.no-anim .sc-foe,
 .sc-wrap.no-anim .sc-spark i,

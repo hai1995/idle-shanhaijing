@@ -8217,6 +8217,21 @@ section('行动现场');
   assert(at30 < -120, `周期 30% 时锄头竖举（实测 ${at30.toFixed(1)}°）`);
   assert(ST.SCENE_RIG.some(f => Math.abs(f[1]) > 2), '整个人随锄俯仰（不只锄头动）');
   assert(sSrc145.includes('sc-rig'), '俯仰层包在人物外（div 上的 transform 兼容性最好）');
+  // 各 idle 行动各有其身姿表：不再共用一张俯仰表，身体语言随行动区分
+  assert(ST.SCENE_RIG_BY_KIND && typeof ST.SCENE_RIG_BY_KIND === 'object', '按行动区分的身姿表已导出');
+  const rigGrow = ST.SCENE_RIG_BY_KIND.grow, rigAud = ST.SCENE_RIG_BY_KIND.audience, rigObs = ST.SCENE_RIG_BY_KIND.observe;
+  assert(Array.isArray(rigGrow) && Array.isArray(rigAud) && Array.isArray(rigObs), 'grow / audience / observe 各有身姿帧表');
+  // 谒见的躬身幅度（+7.6°）明显大于观象的后仰（≈−3.2°）——身姿确实因行动而异
+  const audMax = Math.max.apply(null, rigAud.map(f => Math.abs(f[1])));
+  const obsMax = Math.max.apply(null, rigObs.map(f => Math.abs(f[1])));
+  assert(audMax > 6 && Math.abs(obsMax) < 5, `谒见深揖(${audMax.toFixed(1)}°) ≠ 观象微仰(${obsMax.toFixed(1)}°)`);
+  // 观象 / 谒见的现场含各自的主题氛围元素（流星 / 青烟），其余行动没有
+  const obsHtml = ST.sceneHtml({ kind:'observe', ink:'#6B6659', place:'', iv:5, key:'observe', verb:'观', name:'观象', note:'仰观天象' });
+  const audHtml = ST.sceneHtml({ kind:'audience', ink:'#6B6659', place:'', iv:5, key:'audience', verb:'谒', name:'谒见', note:'谨候阶下' });
+  const gatherHtml = ST.sceneHtml({ kind:'gather', ink:'#6B6659', place:'', iv:3, key:'gather:x', verb:'采', name:'采集', note:'每 3 秒一采' });
+  assert(obsHtml.indexOf('sc-shoot') >= 0, '观象现场含流星元素 sc-shoot');
+  assert(audHtml.indexOf('sc-incense') >= 0, '谒见现场含青烟元素 sc-incense');
+  assert(gatherHtml.indexOf('sc-shoot') < 0 && gatherHtml.indexOf('sc-incense') < 0, '采集现场不含观象/谒见的氛围元素');
 
   // 相位取自引擎自己的进度，不另建时间基准——暂停、变速、换物都自动跟上
   assert(sSrc145.includes('activityProgress / iv') || sSrc145.includes('prog / iv'), '相位取 activityProgress / interval');
