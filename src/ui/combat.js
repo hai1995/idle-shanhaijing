@@ -280,15 +280,6 @@ UI.afterCombatEnd = function(id){
 // 单张卡补数据：战斗结束只更新刚打的那只（著录数、连杀递减标签），
 // 其余 190 张卡的 DOM 一点不动——这是「连战不卡」的关键
 // 方块点按 = 往讨；不可讨时说明原因（山系未解锁 / 等级不够）
-UI.tryHunt = function(id){
-  const x = Monsters[id];
-  if (!x) return;
-  const node = nodeOf(x.nodeId);
-  if (node && !nodeUnlocked(node)){ UI.toast('🔒 ' + nodeLockReason(node)); return; }
-  const need = x.needLvl || 1;
-  if (levelOf('taofa') < need){ UI.toast(`🔒 需讨伐 ${need} 级方可言 ${x.name}`); return; }
-  startCombat(id, { focus: true });
-};
 // 单击目标卡 → 交互弹窗：属性、掉落、克制、著录一并陈明，再自定场次开战。
 // （旧版单击直接开打、长按看详情；手机上常误触，也不方便「连打十场」这类意图。）
 UI.openHuntModal = function(id){
