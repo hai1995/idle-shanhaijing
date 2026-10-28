@@ -34,6 +34,11 @@ PROBE = """(tab) => {
   if (!c) return r;
   r.text = (c.innerText || '').trim().length;
   r.active = document.querySelectorAll('.tab.active').length;
+  // 对象被直接拼进字符串模板，屏幕上就是一行「[object Object]」（v1.31.192 咸山「异」那行）。
+  // 这类文本既不会溢出、也不缺内容、对比度还合格——四个探针全绿，只有人眼能看见。
+  // 顶栏也算：它是另一处独立渲染的文本。
+  r.obj = ((c.innerText || '') + ' ' + ((document.querySelector('#topbar') || {}).innerText || ''))
+    .indexOf('[object Object]') >= 0;
   const w = document.documentElement.clientWidth;
   // 「超出视口」只在没有可滚动/裁剪祖先时才算破版（v1.31.189）。
   // 横向滚动条里的内容本来就伸到容器外——墟市分类条 .shop-nav 是 overflow-x:auto，
@@ -327,6 +332,8 @@ async def main():
             bad.append(tag + " 容器没找到")
         elif r["text"] < 20:
             bad.append(tag + f" 内容过少（{r['text']} 字）")
+        elif r.get("obj"):
+            bad.append(tag + " 界面印出了 [object Object]（对象被直接拼进模板）")
         elif r["wide"] > 0:
             s0 = (r.get("wideSample") or [{}])[0]
             bad.append(tag + f" 有 {r['wide']} 个元素溢出视口（如 .{s0.get('cls','')} "

@@ -958,6 +958,36 @@ assert(nrTxt.indexOf('录 ') >= 0, '节点列表项显示著录进度小标');
 assert(nrTxt.indexOf('rec-ok') >= 0 || nrTxt.indexOf('rec-no') >= 0 || nrTxt.indexOf('✓录') >= 0 || nrTxt.indexOf('未录') >= 0, '节点详情异兽显示著录状态（紧凑后在「山志」浮层内）');
 assert(nrTxt.indexOf('tip-body') >= 0 && nrTxt.indexOf('data-tip') >= 0, '节点详情含「山志」浮层锚点（悬停/点按展开）');
 
+// ============ 16.19b 产出里的「异 / 怪」：对象型写法 ============
+// 北次三经起，yields.special 从纯字符串改成了对象
+// （器酸 {name:'器酸', trait:'三岁一成', effect:'食之已疠'}），引擎那边早就按 e.name 取，
+// 可详情页那行还照字符串拼 esc(x) —— 屏幕上就是一行 [object Object]（v1.31.192 用户截图）。
+// 这类「数据换了写法、UI 还按老写法拼」的错只看一两个样例永远抓不到：
+// 咸山排在北次三经第 4 座，南山三系全干净。所以这里把 447 座山全渲一遍扫一遍。
+section('产出渲染 · 对象型「异 / 怪」');
+let oyOk = true, oyBad = [], oyObj = 0, oySpec = '';
+const _oySel = [ST.UI.selRegion, ST.UI.selNode];
+try {
+  for (const r of ST.WORLD.regions){
+    for (const n of r.nodes){
+      for (const k of ['special','unknown'])
+        for (const x of ((n.yields||{})[k]||[])) if (x && typeof x === 'object') oyObj++;
+      ST.UI.currentTab = 'yudi'; ST.UI.yudiTab = 'detail';
+      ST.UI.selRegion = r.regionId; ST.UI.selNode = n.id;
+      ST.UI.renderYudi();
+      const h = (renderTargets.content || {}).innerHTML || '';
+      if (h.indexOf('[object Object]') >= 0) oyBad.push(n.id);
+      if (n.id === 'beishan-3-04') oySpec = h;
+    }
+  }
+} catch(e){ oyOk = false; console.error('产出渲染异常：'+e.stack); }
+finally { ST.UI.selRegion = _oySel[0]; ST.UI.selNode = _oySel[1]; }
+assert(oyOk, '447 座山详情渲染均不抛错');
+assert(oyObj > 0, '数据里确有对象型「异 / 怪」条目 -> ' + oyObj);
+assert(oyBad.length === 0, '没有一页印出 [object Object] -> ' + (oyBad.slice(0,5).join('/') || '干净'));
+assert(oySpec.indexOf('器酸') >= 0 && oySpec.indexOf('三岁一成') >= 0 && oySpec.indexOf('食之已疠') >= 0,
+  '咸山之「异」把 name / trait / effect 都写出来（不是只留个名字）');
+
 // ============ 16.20 顶栏征兆总效应弹窗 ============
 section('征兆总效应弹窗');
 let omOk2 = true, omModal = '', omBar = '', omPop = '';

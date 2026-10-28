@@ -4,6 +4,17 @@
 // 常量都在全局词法环境里，运行时才求值，先后不影响调用。
 
 // ================= 舆地 =================
+// 物产一项的文本。早期山系的 yields 一律是纯字符串（「松」「玉（上）」），
+// 北次三经起「异」类写成对象（器酸 {name:'器酸', trait:'三岁一成', effect:'食之已疠'}），
+// 于是详情页「产出 → 异」那行直接 esc(对象)，屏幕上印出 [object Object]（v1.31.192 修）。
+// 三类（普通 / 异 / 怪）统一走这里：以后再加一种写法，也只需改这一处。
+function yieldItemHtml(x){
+  if (x == null) return '';
+  if (typeof x !== 'object') return esc(x);
+  const name = esc(x.name || '未名之物');
+  const tail = [x.trait, x.effect].filter(Boolean).map(t => `<i>${esc(t)}</i>`).join('');
+  return name + tail;
+}
 // 节点著录进度：统计该节点可著录的物产/异兽中已著录数量
 // ⚠️ v1.31.50：此前只认 it.node（主产地），分母按主产地算 —— 于是 238 座山的
 // 「已著录 x/y」偏小（136 座原为 0，进度条压根不出现），玩家在柢山采到雄黄、
@@ -288,12 +299,12 @@ UI.renderYudi = function(){
         if (k === 'unknown' || k === 'special') return;
         const list = Array.isArray(v) ? v : [];
         if (!list.length) return;
-        const chips = list.map(x=> typeof x === 'string' ? esc(x) : esc(x.name)+(x.effect?`<i>${esc(x.effect)}</i>`:'')).join('、');
+        const chips = list.map(yieldItemHtml).join('、');
         const label = { wood:'其木', mineral:'金玉', herb:'灵草', water:'水族', beast:'兽', woodSpecial:'灵木' }[k]||k;
         rows.push(`<div><b>${label}</b>${chips}</div>`);
       });
-      if (sel.yields && sel.yields.special) rows.push(`<div><b>异</b>${sel.yields.special.map(x=>esc(x)).join('、')}</div>`);
-      if (sel.yields && sel.yields.unknown) rows.push(`<div><b>怪</b>${sel.yields.unknown.map(x=>esc(x)).join('、')}</div>`);
+      if (sel.yields && sel.yields.special) rows.push(`<div><b>异</b>${sel.yields.special.map(yieldItemHtml).join('、')}</div>`);
+      if (sel.yields && sel.yields.unknown) rows.push(`<div><b>怪</b>${sel.yields.unknown.map(yieldItemHtml).join('、')}</div>`);
       if (rows.length) return `<div class="yield-rows">${rows.join('')}</div>`;
       // 原文写「无草木」的荒山（全书 18 座）不该只回一句「无所载」——
       // 那读起来像数据缺失。这里明说「此地本无」，并点出唯一可做之事。
