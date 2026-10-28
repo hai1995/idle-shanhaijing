@@ -119,7 +119,18 @@ UI.showOracle = function(regionId, siteName){
 function omenBeastName(s){
   const full = String(s || '').trim();
   const m = full.match(/^([^（(]+)[（(]([^）)]+)[）)]$/);
-  return m ? { main: m[1].trim(), note: m[2].trim(), full } : { main: full, note: '', full };
+  if (m) return { main: m[1].trim(), note: m[2].trim(), full };
+  // 整串都是括注（v1.31.189）：东山有两处「其状如夸父而彘毛」「鸮面人面鸟」——
+  // 原文根本没给名字，只给了形状描述，于是 beast 字段就是一整句括注。
+  // 方块名下不去（108px 挤进 93px 的格子），这里按末字判个物类，叫「未名兽 / 未名鸟」，
+  // 原文描述留在浮层里（想看原文的仍看得到）。
+  const only = full.match(/^[（(]([^）)]+)[）)]$/);
+  if (only){
+    const desc = only[1].trim();
+    const kind = /鸟$/.test(desc) ? '鸟' : /鱼$/.test(desc) ? '鱼' : /[虫蛇]$/.test(desc) ? '虫' : '兽';
+    return { main: '未名' + kind, note: desc, full };
+  }
+  return { main: full, note: '', full };
 }
 UI.renderJisi = function(){
   const box = $('content');
@@ -218,7 +229,7 @@ UI.renderJisi = function(){
     </div>
   </div>
   <div class="panel omen-log-panel"><h3 data-tip data-tip-title="征兆" data-wiki="mechanic:omen">征兆纪事<span class="tip-body hidden">异兽现世前的天象徵候：初录某兽可能触发对应征兆，带来持续增益；此处留存近来的吉凶之兆。</span></h3>
-    ${this.logEntries.filter(e=>e.cat==='omen').slice(0,8).map(e=>`<div class="omen-log-line" style="color:${LOG_COLORS[e.color]||'#555'}">· ${esc(e.msg)}</div>`).join('') || '<div class="hint">尚无征兆记录；异兽初录时或触发吉凶之兆。</div>'}
+    ${this.logEntries.filter(e=>e.cat==='omen').slice(0,8).map(e=>`<div class="omen-log-line" style="color:${LOG_COLORS[e.color]||'var(--ink-3)'}">· ${esc(e.msg)}</div>`).join('') || '<div class="hint">尚无征兆记录；异兽初录时或触发吉凶之兆。</div>'}
   </div>`;
   box.innerHTML = html;
 };

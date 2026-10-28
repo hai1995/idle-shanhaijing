@@ -34,7 +34,9 @@ const CAT_EMOJI = { 兽:'🐾', 鸟:'🪶', 水族:'🐟', 蛇:'🐍' };
 // gold 原为 #D9A521：当浮字用没问题（有描边），但做日志正文色时在纸底上只有 2.04:1，
 // 几乎看不清（v1.31.136 对比度扫描抓到的）。压到 #8C6B15（4.51:1）。
 // 浮字另用硬编码亮色，不受影响。
-const LOG_COLORS = { good:'#4A7C59', bad:'#C3272B', gold:'#8C6B15', sys:'#8C5A3C' };
+// 日志四色走 CSS 变量（v1.31.189）：原先写死 hex，行内 style 一印就不随主题走，
+// 夜航本里 gold 那条只剩 3.3:1（深底上的暗赭金）。变量在 style.css 两套主题下各有一组值。
+const LOG_COLORS = { good:'var(--log-good)', bad:'var(--log-bad)', gold:'var(--log-gold)', sys:'var(--log-sys)' };
 
 // ---------- DOM 辅助 ----------
 function $(id){ return document.getElementById(id); }

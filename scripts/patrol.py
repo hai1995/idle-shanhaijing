@@ -20,8 +20,13 @@ import sys
 from playwright.async_api import async_playwright
 
 BASE = os.environ.get("PATROL_BASE", "http://localhost:8899/index.html")
-TABS = ["yudi", "skills", "taofa", "yushi", "codex", "jisi", "pack", "queue", "stats"]
-VIEWPORTS = [("390x844", 390, 844), ("320x568", 320, 568)]
+# 14 个页签按钮 + 「设置」（顶栏入口，也是 .tab）——此前只盖了 9 个，
+# 墟市 / 营造 / 榜 / 叙录 / 百科 / 设置这 6 页从来没被巡检看过一眼。
+TABS = ["yudi", "skills", "taofa", "yushi", "codex", "jisi", "shichan", "ying",
+        "queue", "pack", "stats", "rank", "about", "wiki", "settings"]
+# 1480 是文档里写的设计基准宽（docs/UI.md「主内容 1180px + 侧栏」），
+# 加进来才能抓到「宽屏留白」这类只在宽屏成立的问题（v1.31.184 那类）。
+VIEWPORTS = [("1480x920", 1480, 920), ("390x844", 390, 844), ("320x568", 320, 568)]
 
 PROBE = """(tab) => {
   const c = document.getElementById('content');
@@ -30,12 +35,35 @@ PROBE = """(tab) => {
   r.text = (c.innerText || '').trim().length;
   r.active = document.querySelectorAll('.tab.active').length;
   const w = document.documentElement.clientWidth;
+  // 「超出视口」只在没有可滚动/裁剪祖先时才算破版（v1.31.189）。
+  // 横向滚动条里的内容本来就伸到容器外——墟市分类条 .shop-nav 是 overflow-x:auto，
+  // 之前把里面每个 chip 都记成「溢出」，于是 390/320 两档长期红着 4~6 个假报警。
+  // 真正被裁掉的信息另有 CLIP_PROBE 管（文字容器 scrollWidth > clientWidth），两者不重叠。
+  const clipped = (el) => {
+    let n = el.parentElement;
+    while (n && n !== document.documentElement){
+      const cs = getComputedStyle(n);
+      const ox = cs.overflowX, oy = cs.overflowY;
+      if (ox === 'auto' || ox === 'scroll' || ox === 'hidden' || oy === 'hidden'){
+        const nb = n.getBoundingClientRect();
+        if (nb.right <= w + 1 && nb.left >= -1) return true;   // 祖先自己在视口内 → 内容是被它收着的
+      }
+      n = n.parentElement;
+    }
+    return false;
+  };
   let wide = 0;
+  const samples = [];
   c.querySelectorAll('*').forEach(el => {
     const b = el.getBoundingClientRect();
-    if (b.width > 0 && (b.right > w + 1 || b.left < -1)) wide++;
+    if (b.width > 0 && (b.right > w + 1 || b.left < -1) && !clipped(el)){
+      wide++;
+      if (samples.length < 3) samples.push({ cls: (el.className || '').toString().slice(0, 26),
+        tag: el.tagName, r: Math.round(b.right), txt: (el.textContent || '').trim().slice(0, 18) });
+    }
   });
   r.wide = wide;
+  r.wideSample = samples;
   return r;
 }"""
 
@@ -57,6 +85,10 @@ STATES = {
       UI.refreshAll && UI.refreshAll();""",
 }
 TABS_BY_STATE = {"晚期": TABS, "夜间": ["yudi", "stats", "codex"], "雨季": ["yudi", "stats", "codex"]}
+# 主题夜间（v1.31.189）：上面 STATES 里的「夜间」是游戏内天色，不是主题。
+# 主题换了整套颜色 token —— 白天过的不代表夜里也过（夜间 --ink-4 就长期是 4.29:1）。
+# 只跑覆盖 token 最广的几页，且只跑宽屏：颜色不随宽度变，宽度问题白天已查。
+NIGHT_TABS = ["yudi", "skills", "taofa", "shichan", "jisi", "codex", "pack", "stats"]
 
 # 断言「状态真的生效」。见 docs/TESTING.md 5.1：注入静默失效时，
 # `UI.xxx && UI.xxx()` 这类写法会短路，页面不报错、巡检却什么都验到。
@@ -92,6 +124,42 @@ LIVE_PROBE = """() => {
                 'offlineCount','offlineSec','offlineXp','offlineItems','time'];
   const stuck = keys.filter(k => before[k] !== undefined && before[k] === after[k]);
   return { checked: keys.filter(k => before[k] !== undefined).length, stuck, total: Object.keys(before).length };
+}"""
+
+
+# 宽屏留白：整幅宽的容器里，内容只占左边一截。
+# 为什么查：横向溢出是「破版」，留白是「排得松」——1144px 的面板里每条只坐 150px 内容，
+# 页面看着没问题，可 18 条成就得拖三屏（v1.31.184 的统计页就是这样）。
+# 只认「叠放容器」（block / flex-column）：grid / flex-row 的最后一行不满是正常的，
+# 报它只会天天误警。
+WIDE_GAP_PROBE = """() => {
+  const c = document.getElementById('content');
+  if (!c) return [];
+  const cw = c.getBoundingClientRect().width;
+  const out = [];
+  const walk = (el) => {
+    for (const ch of el.children) {
+      const b = ch.getBoundingClientRect();
+      const cs = getComputedStyle(ch);
+      const stacked = cs.display === 'block' || (cs.display === 'flex' && cs.flexDirection === 'column');
+      if (stacked && b.width >= cw * 0.7 && b.height > 110 && ch.children.length >= 3){
+        let maxRight = -1e9, seen = 0;
+        for (const g of ch.children){
+          const gb = g.getBoundingClientRect();
+          if (gb.width > 0 && gb.height > 0){ maxRight = Math.max(maxRight, gb.right); seen++; }
+        }
+        if (seen >= 3){
+          const ratio = (maxRight - b.left) / b.width;
+          if (ratio < 0.65) out.push({ cls: (ch.className || '').toString().slice(0, 30),
+            w: Math.round(b.width), ratio: +ratio.toFixed(2),
+            txt: (ch.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 24) });
+        }
+      }
+      walk(ch);
+    }
+  };
+  walk(c);
+  return out.slice(0, 4);
 }"""
 
 
@@ -219,6 +287,7 @@ async def main():
                     r = await pg.evaluate(PROBE, t)
                     r["vp"], r["state"] = vname, state
                     r["clip"] = await pg.evaluate(CLIP_PROBE)
+                    r["gap"] = await pg.evaluate(WIDE_GAP_PROBE)
                     # 对比度对所有页都查（不只是晚期）：淡字在各页共用同一批变量
                     r["contrast"] = await pg.evaluate(CONTRAST_PROBE)
                     results.append(r)
@@ -226,6 +295,22 @@ async def main():
             # 数据联动（每个视口跑一次）：统计页的数字真的跟着数据走吗
             live = await pg.evaluate(LIVE_PROBE)
             results.append({"vp": vname, "live": live})
+
+            # 主题夜间：同一批颜色 token 的另一套取值
+            if vname == VIEWPORTS[0][0]:
+                await pg.evaluate("try{ setTheme('night'); }catch(e){}")
+                await pg.wait_for_timeout(340)
+                for t in NIGHT_TABS:
+                    await pg.evaluate(f"UI.switchTab('{t}')")
+                    await pg.wait_for_timeout(210)
+                    r = await pg.evaluate(PROBE, t)
+                    r["vp"], r["state"] = vname, "夜间主题"
+                    r["clip"] = await pg.evaluate(CLIP_PROBE)
+                    r["gap"] = await pg.evaluate(WIDE_GAP_PROBE)
+                    r["contrast"] = await pg.evaluate(CONTRAST_PROBE)
+                    results.append(r)
+                await pg.evaluate("try{ setTheme('day'); }catch(e){}")
+                await pg.wait_for_timeout(220)
 
             # 坏数据兜底（放在最后：它会把状态污染成 NaN，之后不再用这个 page）
             await pg.evaluate(BAD_DATA_SETUP)
@@ -281,7 +366,9 @@ async def main():
         elif r["text"] < 20:
             bad.append(tag + f" 内容过少（{r['text']} 字）")
         elif r["wide"] > 0:
-            bad.append(tag + f" 有 {r['wide']} 个元素溢出视口")
+            s0 = (r.get("wideSample") or [{}])[0]
+            bad.append(tag + f" 有 {r['wide']} 个元素溢出视口（如 .{s0.get('cls','')} "
+                       f"右界 {s0.get('r','?')}「{s0.get('txt','')}」）")
         elif r.get("active") != 1:
             bad.append(tag + f" 高亮页签数 = {r.get('active')}（应恰好 1）")
         elif r.get("clip"):
@@ -289,6 +376,10 @@ async def main():
             c0 = r["clip"][0]
             bad.append(tag + f" 有 {len(r['clip'])} 处文字被截断（如 .{c0['cls']} "
                        f"{c0['sw']}>{c0['cw']}「{c0['txt']}」）")
+        elif r.get("gap"):
+            g0 = r["gap"][0]
+            bad.append(tag + f" 有 {len(r['gap'])} 处宽容器内容只用 {int(g0['ratio']*100)}% 宽"
+                       f"（.{g0['cls']} {g0['w']}px「{g0['txt']}」）")
         elif (r.get("contrast") or {}).get("bad"):
             cb = r["contrast"]["bad"]
             b0 = cb[0]

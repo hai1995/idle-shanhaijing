@@ -28,6 +28,8 @@
   /* —— 双色 + 辅助 —— */
   --zhu:        #B03A2B;   /* 朱砂：此刻 / 动作 */
   --zhu-d:      #8C2A1E;
+  --zhu-tx:     #8C2A1E;   /* 朱色「文字」（v1.31.189）：--zhu-d 还给边框与 hover 底用，
+                              两者在夜间要往相反方向走——文字得提亮、底得压深（白字要靠它） */
   --zhu-w:      rgba(176,58,43,.10);
   /* 朱色描边（队列当前项等）：此前各处直接写 rgba(176,58,43,…)，
      夜间 --zhu 提亮成 #E06A55 后，那些写死的边仍是日间的深朱。收成一个 token 随主题走。 */
@@ -38,6 +40,14 @@
   --tai:        #566E4C;   /* 苔绿：所得 / 达成 */
   --tai-w:      rgba(86,110,76,.12);
   --jin:        #8D6A24;   /* 赭金：贝币 / 温值（v1.31.136：#9C7628 是 3.79:1，压到 4.52） */
+  /* 日志四色（v1.31.189）：此前是 core.js 里写死的 hex，内联 style 直接印，不随主题走——
+     夜里 #8C6B15 的「gold」只剩 3.3:1。改成变量后昼夜各有一套。 */
+  --log-good:   #4A7C59;
+  --log-bad:    #C3272B;
+  --log-gold:   #8C6B15;
+  --log-sys:    #8C5A3C;
+  --jin-ink:    #75571A;   /* 淡金底上的金字（v1.31.189）：--jin 压在 .trade-tip 的 5% 暖底上只剩 4.17:1，
+                              标题是 12~13px 非粗体、按正文要 4.5 —— 这里再压深一档到 5.3:1 */
 
   /* —— 器（暗色栏） —— */
   --chrome:     #1E1C18;
@@ -115,13 +125,15 @@
   --ink:        #E8ECF4;   /* 月白正文 */
   --ink-2:      #CDD3E0;
   --ink-3:      #97A0B4;   /* 次级文字（暗底可读性下限） */
-  --ink-4:      #78829A;   /* 标签 */
+  --ink-4:      #8A93A8;   /* 标签（v1.31.189：原 #78829A 压在夜间承载面上只有 4.29:1，
+                              不够 4.5 —— 提亮一档到 5.3+；昼间的 #6F6A5D 不动） */
   --rule:       rgba(232,236,244,.14);
   --rule-2:     rgba(232,236,244,.08);
   --rule-3:     rgba(232,236,244,.04);
 
   --zhu:        #E06A55;   /* 朱砂在蓝黑底上微提亮 */
   --zhu-d:      #C04E3B;
+  --zhu-tx:     #E06A55;   /* 夜里朱色文字用亮档：3.8:1 → 5.0:1 */
   --zhu-w:      rgba(224,106,85,.16);
   --zhu-line:   rgba(224,106,85,.45);
   --qing:       #7FB2D8;   /* 石青提亮，与夜空同调 */
@@ -130,6 +142,11 @@
   --tai:        #8FB57C;   /* 苔绿提亮 */
   --tai-w:      rgba(143,181,124,.16);
   --jin:        #E0C078;   /* 赭金提亮 */
+  --jin-ink:    #E0C078;   /* 夜底本身够暗，金字不必再压深 */
+  --log-good:   #8FB57C;
+  --log-bad:    #E06A55;
+  --log-gold:   #E0C078;
+  --log-sys:    #C79B7A;
 
   --chrome:     #0A0D13;   /* 书脊（昼夜皆最深） */
   --chrome-2:   #141924;
@@ -509,7 +526,7 @@ html.theme-anim, html.theme-anim *{
 .sc-hud [data-tip]{ pointer-events:auto; }
 .sc-break{
   display:inline-block; margin-left:8px; padding:2px 10px; font-family:var(--f-kai); font-size:11.5px;
-  letter-spacing:.04em; color:var(--zhu-d); background:var(--zhu-w);
+  letter-spacing:.04em; color:var(--zhu-tx); background:var(--zhu-w);
   border:1px solid rgba(176,58,43,.45); border-radius:6px; cursor:pointer;
 }
 .sc-break:hover{ background:rgba(176,58,43,.16); }
@@ -621,7 +638,7 @@ html.theme-anim, html.theme-anim *{
   white-space:nowrap; animation:scDrop 1.25s ease-out forwards;
 }
 .sc-drop em{ font-style:normal; font-family:var(--f-num); font-size:10px; color:var(--jin); }
-.sc-drop s{ text-decoration:none; margin-left:2px; font-size:9px; color:var(--zhu-d); }
+.sc-drop s{ text-decoration:none; margin-left:2px; font-size:9px; color:var(--zhu-tx); }
 /* 初次著录：这一件是「图鉴里还没见过的」，值得比普通收成显眼一档 */
 .sc-drop.first{ border-color:rgba(176,58,43,.5); box-shadow:0 0 0 2px rgba(176,58,43,.1); }
 .sc-drop.up{ border-color:rgba(176,138,52,.55); }
@@ -641,7 +658,7 @@ html.theme-anim, html.theme-anim *{
 /* 这一回已经采了几件：数字要大、要朱，因为它是唯一在「涨」的东西 */
 .sc-hud b .sc-n{
   font-family:var(--f-num); font-size:19px; font-weight:700; font-style:normal;
-  color:var(--zhu-d); letter-spacing:0; margin-right:3px;
+  color:var(--zhu-tx); letter-spacing:0; margin-right:3px;
   display:inline-block; min-width:15px; text-align:right;
 }
 .sc-hud b .sc-n.zero{ color:var(--ink-4); opacity:.55; }
@@ -650,9 +667,9 @@ html.theme-anim, html.theme-anim *{
 }
 .sc-hud b .sc-n.bump{ animation:scBump .42s cubic-bezier(.2,1.4,.5,1); }
 @keyframes scBump{
-  0%  { transform:scale(1);    color:var(--zhu-d); }
+  0%  { transform:scale(1);    color:var(--zhu-tx); }
   35% { transform:scale(1.32); color:var(--zhu); }
-  100%{ transform:scale(1);    color:var(--zhu-d); }
+  100%{ transform:scale(1);    color:var(--zhu-tx); }
 }
 .sc-hud span{
   display:block; font-family:var(--f-num); font-size:10px; color:var(--ink-4); letter-spacing:.02em;
@@ -989,8 +1006,8 @@ html.theme-anim, html.theme-anim *{
    否则三者在同一行里互相挤压（手机上会糊成一团）。 */
 .mat-wrap{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:5px; }
 .sp-hint{ line-height:1.5; }
-.sp-cost{ color:var(--zhu-d); }
-.sp-hint b{ color:var(--zhu-d); }
+.sp-cost{ color:var(--zhu-tx); }
+.sp-hint b{ color:var(--zhu-tx); }
 .pilgrim{ font-family:var(--f-num); font-size:11px; font-weight:400; letter-spacing:0;
   color:var(--ink-4); white-space:nowrap; flex:0 0 auto; }
 .pilgrim.full{ color:var(--zhu); font-weight:700; }
@@ -1019,8 +1036,9 @@ html.theme-anim, html.theme-anim *{
 .btn:hover:not(:disabled){ border-color:var(--zhu); color:var(--zhu); background:#fff; }
 .btn:active:not(:disabled){ transform:translateY(.5px); }
 .btn:disabled{ opacity:.4; cursor:not-allowed; }
-.btn.primary{ background:var(--zhu); border-color:var(--zhu-d); color:#fff; box-shadow:inset 0 1px 0 rgba(255,255,255,.16); }
-.btn.primary:hover:not(:disabled){ background:var(--zhu-d); border-color:var(--zhu-d); color:#fff; }
+.btn.primary{ background:var(--zhu); border-color:var(--zhu-d); color:var(--on-accent); box-shadow:inset 0 1px 0 rgba(255,255,255,.16); }
+[data-theme="night"] .btn.primary:hover:not(:disabled){ background:var(--zhu); filter:brightness(1.1); }
+.btn.primary:hover:not(:disabled){ background:var(--zhu-d); border-color:var(--zhu-d); color:var(--on-accent); }
 .btn.danger{ background:transparent; color:var(--ink-2); border-color:var(--ink-4); }
 .btn.danger:hover:not(:disabled){ background:var(--ink); border-color:var(--ink); color:var(--paper-2); }
 .btn.on{ background:var(--qing); border-color:var(--qing-d); color:var(--on-accent); box-shadow:inset 0 1px 0 rgba(255,255,255,.14); }
@@ -1221,7 +1239,7 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; background:tran
   white-space:nowrap; line-height:1;
 }
 .ytab:hover{ color:var(--ink); }
-.ytab.on{ color:var(--zhu-d); border-bottom-color:var(--zhu); font-weight:600; }
+.ytab.on{ color:var(--zhu-tx); border-bottom-color:var(--zhu); font-weight:600; }
 /* 极窄屏（≤380px）：三个页签 + 山名排不进一行——「此山详情 · 招摇之山」在 320px 上
    把第三个页签顶出视口（页签条没有横向滚动，字就是被切掉的）。山名在这个宽度下
    不承担识别作用（详情面板头一行就是山名），只留「诸山」「此山详情」。 */
@@ -1239,7 +1257,7 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; background:tran
 }
 .region-tile .rg-sub{ font-family:var(--f-num); font-size:9.5px; color:var(--ink-4); letter-spacing:0; }
 .region-tile.on{ border-color:var(--zhu); background:var(--zhu-w); }
-.region-tile.on .rg-name{ color:var(--zhu-d); }
+.region-tile.on .rg-name{ color:var(--zhu-tx); }
 .region-tile.full .rg-sub{ color:var(--tai); }
 /* 巡礼印记：右上角一方小印。未领为朱底白字（催你点），已领转淡墨（只记个痕） */
 .region-tile{ position:relative; }
@@ -1291,14 +1309,14 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; background:tran
   margin:0 0 6px; font-family:var(--f-song); font-size:13px;
   line-height:2; color:var(--ink-2); text-indent:2em;
 }
-.ab-p b{ color:var(--zhu-d); font-weight:600; }
+.ab-p b{ color:var(--zhu-tx); font-weight:600; }
 .ab-flow{
   display:flex; flex-wrap:wrap; align-items:center; gap:6px;
   margin-bottom:8px; font-family:var(--f-song); font-size:12.5px; color:var(--ink-2);
 }
 .ab-flow span{
   padding:2px 7px; background:var(--zhu-w); border:1px solid rgba(176,58,43,.25);
-  border-radius:4px; color:var(--zhu-d);
+  border-radius:4px; color:var(--zhu-tx);
 }
 .ab-flow i{ color:var(--ink-4); font-style:normal; }
 .ab-list div{ margin-bottom:5px; font-family:var(--f-song); font-size:12.5px; line-height:1.85; color:var(--ink-2); }
@@ -1335,7 +1353,7 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; background:tran
 .node-tile .nt-tag{ font-family:var(--f-num); font-size:9.5px; color:var(--ink-4); letter-spacing:0; }
 .node-tile .nt-tag.done{ color:var(--tai); }
 .node-tile.on{ border-color:var(--zhu); background:var(--zhu-w); }
-.node-tile.on .nt-name{ color:var(--zhu-d); font-weight:600; }
+.node-tile.on .nt-name{ color:var(--zhu-tx); font-weight:600; }
 .node-tile.lock{ opacity:.5; border-style:dashed; }
 .node-tile.rec{ border-color:rgba(46,82,105,.45); background:var(--qing-w); }
 .node-tile.rec.tame{ border-color:rgba(176,58,43,.45); background:var(--zhu-w); }
@@ -1472,7 +1490,7 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; background:tran
 /* 境界面板（v1.31.169）：修行分组下，打坐突破的落脚点 */
 .realm-panel{ margin-top:11px; padding:11px 13px; background:var(--paper-2); border:1px solid var(--rule); border-radius:6px; }
 .realm-row{ display:flex; align-items:center; gap:9px; font-family:var(--f-kai); }
-.realm-name{ font-size:15px; color:var(--zhu-d); letter-spacing:.06em; }
+.realm-name{ font-size:15px; color:var(--zhu-tx); letter-spacing:.06em; }
 .realm-bonus{ font-family:var(--f-num); font-size:11.5px; color:var(--qing-d); }
 .realm-bonus::before{ content:'· '; color:var(--ink-4); }
 .realm-bar{ height:6px; background:var(--rule-3); border-radius:6px; overflow:hidden; margin:9px 0 5px; }
@@ -1656,7 +1674,7 @@ svg.bi.mk{ vertical-align:-2px; }
   font-family:var(--f-kai); font-size:15px; font-weight:700; margin-bottom:8px;
   letter-spacing:.1em; color:var(--ink);
 }
-.fighter.enemy .f-name{ color:var(--zhu-d); }
+.fighter.enemy .f-name{ color:var(--zhu-tx); }
 .f-hp{ height:6px; background:var(--rule-2); overflow:hidden; }
 .f-hp .fill{ height:100%; background:var(--tai); transition:width .2s; }
 .f-hp .fill.enemy{ background:var(--zhu); }
@@ -1697,7 +1715,7 @@ svg.bi.mk{ vertical-align:-2px; }
 .beast-tile .el-tu{ color:#8C6A4E; background:rgba(140,106,78,.16); }
 .beast-tile .bt-pick{
   position:absolute; top:3px; right:3px; padding:1px 3px; border-radius:4px;
-  font-size:9px; line-height:1.3; color:#FCFBF6; background:var(--zhu);
+  font-size:9px; line-height:1.3; color:var(--on-accent); background:var(--zhu);
 }
 .beast-tile .bt-el-hint{
   position:absolute; bottom:3px; left:3px; height:14px; padding:0 3px;
@@ -1876,7 +1894,7 @@ svg.bi.mk{ vertical-align:-2px; }
   margin:-2px 0 8px; font-size:11.5px; line-height:1.5; color:var(--ink-3);
   font-family:var(--f-num); letter-spacing:0;
 }
-.cmp-line.up b, .cmp-line.up{ color:var(--zhu-d); }
+.cmp-line.up b, .cmp-line.up{ color:var(--zhu-tx); }
 .cmp-line.down b, .cmp-line.down{ color:#3f7a52; }
 .cmp-line.same{ color:var(--ink-4); }
 /* 「仅未录」时的产地线索：只在待办模式下出现，平时留白 */
@@ -1888,7 +1906,7 @@ svg.bi.mk{ vertical-align:-2px; }
    按钮要小而克制——图鉴是查阅页，不是行动页，抢了主色的戏不好。 */
 .cc-go{
   margin-top:4px; padding:2px 8px; font-family:var(--f-kai); font-size:10.5px;
-  color:var(--zhu-d); background:transparent;
+  color:var(--zhu-tx); background:transparent;
   border:1px solid var(--zhu); border-radius:4px; cursor:pointer;
   transition:background .15s, color .15s;
 }
@@ -1901,7 +1919,7 @@ svg.bi.mk{ vertical-align:-2px; }
   font-family:var(--f-kai); font-size:10px; color:var(--ink-4);
   letter-spacing:.02em; cursor:default;
 }
-.cc-lock:hover{ color:var(--zhu-d); }
+.cc-lock:hover{ color:var(--zhu-tx); }
 /* 图鉴完成度总览：四类并排，各自一条细进度。
    1121 条的收集进度若只在「当前类」显示，玩家永远不知道自己整体走到哪了。 */
 .codex-overview{
@@ -1922,7 +1940,7 @@ svg.bi.mk{ vertical-align:-2px; }
 .cx-ov-b{ display:block; height:2px; background:var(--rule-2); border-radius:4px; overflow:hidden; margin-top:2px; }
 .cx-ov-b i{ display:block; height:100%; background:var(--qing); }
 .cx-ov.full .cx-ov-b i{ background:var(--zhu); }
-.cx-ov.full .cx-ov-v{ color:var(--zhu-d); }
+.cx-ov.full .cx-ov-v{ color:var(--zhu-tx); }
 .cx-ov-sum{
   flex:0 0 auto; margin-left:auto; font-family:var(--f-num); font-size:10.5px; color:var(--ink-4);
   white-space:nowrap; padding-left:4px;
@@ -1944,7 +1962,7 @@ svg.bi.mk{ vertical-align:-2px; }
   font-size:11.5px; color:var(--ink-4); line-height:1.5;
 }
 .cx-src.ok{ cursor:pointer; color:var(--ink-2); }
-.cx-src.ok:hover{ background:rgba(176,58,43,.08); color:var(--zhu-d); }
+.cx-src.ok:hover{ background:rgba(176,58,43,.08); color:var(--zhu-tx); }
 .cx-src-n{ font-family:var(--f-kai); }
 .cx-src-t{ margin-left:auto; font-family:var(--f-num); font-size:10px; color:var(--ink-4); white-space:nowrap; }
 .cx-src.ok .cx-src-t{ color:var(--qing-d); }
@@ -1958,7 +1976,7 @@ svg.bi.mk{ vertical-align:-2px; }
 .cc-sp{
   display:inline-block; margin-left:3px; padding:0 2px; border-radius:4px;
   font-family:var(--f-kai); font-size:8.5px; line-height:1.5; letter-spacing:0;
-  color:var(--zhu-d); background:rgba(176,58,43,.10); vertical-align:1px;
+  color:var(--zhu-tx); background:rgba(176,58,43,.10); vertical-align:1px;
 }
 .cc-name{ color:var(--ink-3); font-weight:400; }
 .codex-card.unseen:hover{ background:var(--paper-3); }
@@ -1971,7 +1989,7 @@ svg.bi.mk{ vertical-align:-2px; }
   display:flex; align-items:center; justify-content:center; gap:6px;
 }
 .cc-count{ font-family:var(--f-num); font-size:10px; color:var(--ink-4); }
-.codex-card:not(.unseen) .cc-name{ color:var(--zhu-d); }
+.codex-card:not(.unseen) .cc-name{ color:var(--zhu-tx); }
 /* 阶位五格：以方点表示著录深度，替代重复的「未见」二字 */
 .tier-dots{ display:flex; gap:3px; justify-content:center; margin-top:6px; }
 .tier-dots i{ width:5px; height:5px; border:1px solid rgba(31,29,25,.24); border-radius:1px; display:block; }
@@ -2057,7 +2075,7 @@ svg.bi.mk{ vertical-align:-2px; }
 .rate-rows b{ font-family:var(--f-num); }
 .rate-rows b i{ font-style:normal; font-size:9.5px; font-weight:400; color:var(--ink-4); margin-left:1px; }
 /* 卡住告警：朱色提醒，但不做成警报条——它多半是「缺料了」这一件小事 */
-.stall-warn{ color:var(--zhu-d); }
+.stall-warn{ color:var(--zhu-tx); }
 /* 「强化至 +N」的预估行：填了目标才出现 */
 .enh-est{
   margin:4px 0 0; font-family:var(--f-num); font-size:10.5px; line-height:1.5;
@@ -2265,7 +2283,7 @@ svg.bi.mk{ vertical-align:-2px; }
 .sell-tile .tile-tag{ color:var(--jin); }
 .sell-toolbar{ margin-bottom:12px; }
 .trade-tip{ background:rgba(156,118,40,.05); border:1px solid rgba(156,118,40,.28); }
-.trade-tip h3{ color:var(--jin); }
+.trade-tip h3{ color:var(--jin-ink); }
 .trade-tip ul{ margin:6px 0 0; padding-left:20px; }
 .trade-tip li{ margin:4px 0; font-size:12px; line-height:1.7; }
 
@@ -2771,7 +2789,7 @@ body.no-scroll{ overflow:hidden; }
   #tabs .tab.active .tab-ic{ color:var(--zhu); }
   /* 展开态：朱色压边 + 淡朱底，与桌面选中项同一套语言 */
   body.drawer-open #tabs .tab.active{
-    background:var(--zhu-w); color:var(--zhu-d);
+    background:var(--zhu-w); color:var(--zhu-tx);
     box-shadow:inset 2px 0 0 var(--zhu);
   }
   #tabs .tab-badge{ position:absolute; top:5px; right:6px; margin:0; }
@@ -2991,7 +3009,7 @@ body.no-scroll{ overflow:hidden; }
 }
 /* 图鉴检索命中：朱色淡底轻标记（平面、无渐变） */
 mark.hit{
-  background:var(--zhu-w); color:var(--zhu-d);
+  background:var(--zhu-w); color:var(--zhu-tx);
   padding:0 2px; border-radius:4px; font-weight:700;
 }
 
@@ -3075,7 +3093,7 @@ mark.hit{
 .act-link{ cursor:pointer; border-bottom:1px dashed transparent;
   transition:color .12s, border-color .12s; }
 .act-link:hover{ color:var(--zhu); border-bottom-color:var(--zhu); }
-.act-link:active{ color:var(--zhu-d); }
+.act-link:active{ color:var(--zhu-tx); }
 
 /* 页头等级条：每页顶部一条轻量技能进度（等级 / 当前经验 / 升级所需）
    贴在内容顶，随页面渲染插入；窄屏折成两行也不挤 */
@@ -3121,10 +3139,10 @@ mark.hit{
 .hm-buff{ margin:8px 0 6px; padding:7px 9px; background:var(--paper-2);
   border:1px solid var(--rule); border-left:2px solid var(--tai); }
 .hm-eff{ color:var(--tai); }
-.hm-lock{ margin:10px 0; padding:8px 10px; font-size:12px; color:var(--zhu-d);
+.hm-lock{ margin:10px 0; padding:8px 10px; font-size:12px; color:var(--zhu-tx);
   background:var(--zhu-w); border-left:2px solid var(--zhu); }
 /* 连败提示：这只已经连着打倒你两阵以上，开战前就该看见，而不是再败一次才知道 */
-.hm-warn{ color:var(--zhu-d); font-weight:600; }
+.hm-warn{ color:var(--zhu-tx); font-weight:600; }
 .hm-times{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:12px 0 6px; }
 .hm-times label{ font-size:12px; color:var(--ink-2); }
 .hm-times input[type=number]{
@@ -3331,7 +3349,7 @@ mark.hit{
   font-size:11.5px; color:var(--ink-2); background:var(--paper-3);
   border:1px solid var(--rule-2); border-radius:4px;
 }
-.use-chip.rite{ color:var(--zhu-d); border-color:var(--zhu); background:transparent; }
+.use-chip.rite{ color:var(--zhu-tx); border-color:var(--zhu); background:transparent; }
 .reveal .hint + .hint{ margin-left:8px; }
 
 /* 轮回：把「失去 / 保留 / 得到」三栏并排摊开，转生是不可逆的重置，得让人看清楚 */
@@ -3345,7 +3363,7 @@ mark.hit{
 .rb-col{ padding:9px 11px; border:1px solid var(--rule); background:var(--paper-2); }
 .rb-col b{ display:block; margin-bottom:5px; font-size:12px; }
 .rb-col ul{ margin:0; padding-left:16px; font-size:12px; color:var(--ink-2); line-height:1.7; }
-.rb-col.lose b{ color:var(--zhu-d); }
+.rb-col.lose b{ color:var(--zhu-tx); }
 .rb-col.keep b{ color:var(--qing); }
 .rb-col.gain b{ color:var(--tai); }
 
@@ -3361,7 +3379,7 @@ mark.hit{
 .bounty-item.done .bn-bar i{ background:var(--zhu); }
 .bounty-item .bn-swap{ flex:0 0 auto; padding:1px 7px; font-size:11px; color:var(--ink-3);
   background:transparent; border:1px solid var(--rule); border-radius:var(--r); cursor:pointer; }
-.bounty-item .bn-swap:hover{ color:var(--zhu-d); border-color:var(--zhu); }
+.bounty-item .bn-swap:hover{ color:var(--zhu-tx); border-color:var(--zhu); }
 /* PC 三签改列卡（v1.31.170）：一签一卡，进度条换行独占一行——
    原先单行 flex 把进度条拉满 ~950px，行与行之间大段空白，密度极低。 */
 @media (min-width:1000px){
@@ -3395,7 +3413,7 @@ mark.hit{
 /* 祠礼：一条「备料可行者 N 套」的工具行 + 缺料与产地提示 */
 .rite-bar{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:8px 0 10px; }
 .rite-bar .hint{ margin:0; }
-.rc-lack{ color:var(--zhu-d); font-size:12px; margin-top:4px; }
+.rc-lack{ color:var(--zhu-tx); font-size:12px; margin-top:4px; }
 .rc-src{ color:var(--ink-3); font-size:11px; }
 /* 这一礼值不值：祭品折价 vs 该域一小时增益，一行说完 */
 .rc-worth{ color:var(--ink-2); font-size:11px; margin-top:5px; padding-top:5px; border-top:1px dashed var(--rule); }
@@ -3451,9 +3469,9 @@ details.hetero-panel .hp-left{ margin-left:auto; font-style:normal; color:var(--
 
 /* 统计页「异迹 N/32 · 查看索引」：数字后面给一条去路 */
 .stat-link{ cursor:pointer; }
-.stat-link:hover b{ color:var(--zhu-d); }
+.stat-link:hover b{ color:var(--zhu-tx); }
 .stat-link .stat-go{ font-style:normal; margin-left:4px; font-size:11px; color:var(--ink-4); }
-.stat-link:hover .stat-go{ color:var(--zhu-d); }
+.stat-link:hover .stat-go{ color:var(--zhu-tx); }
 
 /* 长线成就：名 + 进度数 + 加成 + 一条细进度条；三样横排，扫一眼就知道还差多远 */
 .stat-rows.ms-rows > span{ display:flex; align-items:center; gap:6px; }
