@@ -121,9 +121,11 @@ UI.patchQueueProgress = function(){
   });
   const hint = box.querySelector('.queue-ctrl .hint');
   if (hint){
-    // 轮次之外再给一个「几点跑完」：相对时长要自己在心里换算，绝对时刻才好安排。
+    // 轮次之外再给两件事：①「几点跑完」（相对时长要自己在心里换算，绝对时刻才好安排）；
+    // ②队列停着没跑时明说一句——芯片在停跑时是收起的，这一行是主页之外唯一的落脚点。
     const clock = (typeof queueFinishClock === 'function') ? queueFinishClock() : '';
-    const t = `已完成 ${Game.queueRound} 轮` + (clock ? ` · 约 ${clock} 完` : '');
+    const t = `已完成 ${Game.queueRound} 轮`
+      + (clock ? ` · 约 ${clock} 完` : (Game.queueRunning && Game.queue.length ? '' : ' · 已停'));
     if (hint.textContent !== t) hint.textContent = t;
   }
 };
