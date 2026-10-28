@@ -1222,6 +1222,10 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; background:tran
 }
 .ytab:hover{ color:var(--ink); }
 .ytab.on{ color:var(--zhu-d); border-bottom-color:var(--zhu); font-weight:600; }
+/* 极窄屏（≤380px）：三个页签 + 山名排不进一行——「此山详情 · 招摇之山」在 320px 上
+   把第三个页签顶出视口（页签条没有横向滚动，字就是被切掉的）。山名在这个宽度下
+   不承担识别作用（详情面板头一行就是山名），只留「诸山」「此山详情」。 */
+@media (max-width:380px){ .ytab-sub{ display:none; } }
 
 /* 此山详情：超宽屏下限制在舒适阅读宽度并居中，避免正文被拉得过长（山系/诸山卡片仍用满宽） */
 .yudi-body[data-tab="detail"] .node-detail{ max-width:920px; margin:0 auto; }

@@ -9,6 +9,8 @@
 #   python3 -m http.server 8899 &          # 在仓库根目录
 #   python3 scripts/patrol.py              # 约 40 秒
 #   需要：pip install playwright && playwright install webkit
+#   引擎可用 PATROL_BROWSER 指定（默认 webkit）：PATROL_BROWSER=chromium python3 scripts/patrol.py
+#   ——CI / 沙箱里常常只装了 chromium；两种引擎的排版差异极小，抓的仍是同一批问题
 #
 # 输出：末行「巡检 N 组，坏 M 组」，坏的那组逐条列出；退出码 1 表示有坏组。
 import asyncio
@@ -182,7 +184,8 @@ BAD_DATA_PROBE = """() => {
 async def main():
     results, bad_state = [], []
     async with async_playwright() as p:
-        b = await p.webkit.launch()
+        engine = os.environ.get("PATROL_BROWSER", "webkit")
+        b = await getattr(p, engine).launch()
         for vname, w, h in VIEWPORTS:
             pg = await b.new_page(viewport={"width": w, "height": h}, device_scale_factor=2)
             errs = []

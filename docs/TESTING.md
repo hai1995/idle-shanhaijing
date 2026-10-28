@@ -10,6 +10,7 @@ node scripts/audit-data.js      # 数据跨表审计，零悬空才算过（有�
 # 真浏览器巡检（改过 UI 才需要）：先起静态服务，再跑
 python3 -m http.server 8899 &
 python3 scripts/patrol.py       # 9 页签 × 2 视口 × 3 状态，约 20 秒
+PATROL_BROWSER=chromium python3 scripts/patrol.py   # 只装了 chromium 的机器（默认 webkit）
 npm run check -- --patrol       # 或挂进自检一起跑（缺 python/playwright 时自动跳过）
 ```
 

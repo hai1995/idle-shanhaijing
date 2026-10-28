@@ -45,16 +45,18 @@ function omenPanelHtml(){
       const active = Game.omens.find(o=>o.id===id);
       const ever = !!Game.stats.omens[id];
       const mark = def.polarity==='凶'?'凶':def.polarity==='吉'?'吉':'中';
+      const bn = omenBeastName(def.beast);
       // 方块：印记字（吉/凶/中）+ 异兽名 + 征兆类型；生效中高亮并在角标显示剩余
-      return `<div class="tile omen-tile ${active?'active':''} ${def.polarity}" data-tip data-tip-title="${esc(def.beast)}">
+      return `<div class="tile omen-tile ${active?'active':''} ${def.polarity}" data-tip data-tip-title="${esc(bn.full)}">
         <span class="tile-ic bi-ic omen-ic">${typeof omenIcon==='function'?omenIcon(def,30):mark}</span>
         <span class="tile-seal ot-pol" title="${mark}兆">${mark}</span>
-        <span class="tile-nm">${esc(def.beast)}</span>
+        <span class="tile-nm" title="${esc(bn.full)}">${esc(bn.main)}</span>
         <span class="tile-tag">${esc(def.type)}</span>
         ${active?`<span class="tile-more ot-left" title="生效中，余 ${fmtTime(active.until-gameTime())}">${fmtTime(active.until-gameTime())}</span>`:''}
         <span class="tip-body hidden">
           <div class="oc-effect">${omenEffectText(def)}</div>
           <div class="oc-desc">${esc(def.desc)}</div>
+          ${bn.note?`<div class="hint">原文作「${esc(bn.full)}」</div>`:''}
           ${ever?'<div class="hint">已曾出现</div>':'<div class="hint">尚未出现</div>'}
         </span>
       </div>`;
@@ -111,6 +113,14 @@ UI.showOracle = function(regionId, siteName){
     </div>`);
 };
 
+// 征兆方块的名字（v1.31.187）：原文里的括注是辨异用的——「大鹗（钦䲹所化）」
+// 「天神（槐江）」——放进 63–87px 宽的方块名里必被截成「大鹗（钦…」。
+// 名字只留主名，括注落到浮层正文里（原文怎么写的仍看得见）。
+function omenBeastName(s){
+  const full = String(s || '').trim();
+  const m = full.match(/^([^（(]+)[（(]([^）)]+)[）)]$/);
+  return m ? { main: m[1].trim(), note: m[2].trim(), full } : { main: full, note: '', full };
+}
 UI.renderJisi = function(){
   const box = $('content');
   if (!box) return;
@@ -268,9 +278,10 @@ function openOmenSummary(){
           const d = OMENS[o.id]; if (!d) return '';
           const left = o.until ? fmtTime(o.until - gameTime()) : '常驻';
           const mark = d.polarity==='凶'?'凶':d.polarity==='吉'?'吉':'中';
-          return `<div class="tile omen-tile active ${d.polarity}" data-tip data-tip-title="${esc(d.beast||d.type)}">
+          const bn = omenBeastName(d.beast || d.type);
+          return `<div class="tile omen-tile active ${d.polarity}" data-tip data-tip-title="${esc(bn.full)}">
             <span class="tile-seal">${mark}</span>
-            <span class="tile-nm">${esc(d.beast||d.type)}</span>
+            <span class="tile-nm" title="${esc(bn.full)}">${esc(bn.main)}</span>
             <span class="tile-tag">${esc(d.type||'')}</span>
             <span class="tile-more ot-left" title="余 ${left}">${left}</span>
             <span class="tip-body hidden">

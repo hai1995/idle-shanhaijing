@@ -1249,6 +1249,10 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; background:tran
 }
 .ytab:hover{ color:var(--ink); }
 .ytab.on{ color:var(--zhu-d); border-bottom-color:var(--zhu); font-weight:600; }
+/* 极窄屏（≤380px）：三个页签 + 山名排不进一行——「此山详情 · 招摇之山」在 320px 上
+   把第三个页签顶出视口（页签条没有横向滚动，字就是被切掉的）。山名在这个宽度下
+   不承担识别作用（详情面板头一行就是山名），只留「诸山」「此山详情」。 */
+@media (max-width:380px){ .ytab-sub{ display:none; } }
 
 /* 此山详情：超宽屏下限制在舒适阅读宽度并居中，避免正文被拉得过长（山系/诸山卡片仍用满宽） */
 .yudi-body[data-tab="detail"] .node-detail{ max-width:920px; margin:0 auto; }
@@ -20352,8 +20356,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.186',
-  codename:'素绘 · 一脉',
+  version: '1.31.187',
+  codename:'窄屏 · 补隙',
   updated: '2026-10-28',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
@@ -32248,8 +32252,8 @@ UI.renderYudi = function(){
     + gatherAgainBar()
     + `<div class="yudi-tabs" role="tablist">
         <button class="ytab ${tab==='regions'?'on':''}" type="button" data-tip data-tip-title="舆地 · 山川" data-wiki="mechanic:yudi" onclick="UI.yudiTab='regions';UI.renderYudi()">山系<span class="tip-body hidden">五经山系之下诸山可点：每座山列出物产、异兽与山志原文；选「采集 / 讨伐」即动身前往。著录阶位愈高，可往的山川愈远。</span></button>
-        <button class="ytab ${tab==='nodes'?'on':''}" type="button" onclick="UI.yudiTab='nodes';UI.renderYudi()">诸山${unlocked?` · ${esc(region.regionName)}`:''}</button>
-        <button class="ytab ${tab==='detail'?'on':''}" type="button" onclick="UI.yudiTab='detail';UI.renderYudi()">此山详情${sel?` · ${esc(sel.name)}`:''}</button>
+        <button class="ytab ${tab==='nodes'?'on':''}" type="button" onclick="UI.yudiTab='nodes';UI.renderYudi()">诸山${unlocked?`<span class="ytab-sub"> · ${esc(region.regionName)}</span>`:''}</button>
+        <button class="ytab ${tab==='detail'?'on':''}" type="button" onclick="UI.yudiTab='detail';UI.renderYudi()">此山详情${sel?`<span class="ytab-sub"> · ${esc(sel.name)}</span>`:''}</button>
       </div>`
     + `<div class="yudi-body" data-tab="${tab}">
     <div class="panel regions">
@@ -34484,16 +34488,18 @@ function omenPanelHtml(){
       const active = Game.omens.find(o=>o.id===id);
       const ever = !!Game.stats.omens[id];
       const mark = def.polarity==='凶'?'凶':def.polarity==='吉'?'吉':'中';
+      const bn = omenBeastName(def.beast);
       // 方块：印记字（吉/凶/中）+ 异兽名 + 征兆类型；生效中高亮并在角标显示剩余
-      return `<div class="tile omen-tile ${active?'active':''} ${def.polarity}" data-tip data-tip-title="${esc(def.beast)}">
+      return `<div class="tile omen-tile ${active?'active':''} ${def.polarity}" data-tip data-tip-title="${esc(bn.full)}">
         <span class="tile-ic bi-ic omen-ic">${typeof omenIcon==='function'?omenIcon(def,30):mark}</span>
         <span class="tile-seal ot-pol" title="${mark}兆">${mark}</span>
-        <span class="tile-nm">${esc(def.beast)}</span>
+        <span class="tile-nm" title="${esc(bn.full)}">${esc(bn.main)}</span>
         <span class="tile-tag">${esc(def.type)}</span>
         ${active?`<span class="tile-more ot-left" title="生效中，余 ${fmtTime(active.until-gameTime())}">${fmtTime(active.until-gameTime())}</span>`:''}
         <span class="tip-body hidden">
           <div class="oc-effect">${omenEffectText(def)}</div>
           <div class="oc-desc">${esc(def.desc)}</div>
+          ${bn.note?`<div class="hint">原文作「${esc(bn.full)}」</div>`:''}
           ${ever?'<div class="hint">已曾出现</div>':'<div class="hint">尚未出现</div>'}
         </span>
       </div>`;
@@ -34550,6 +34556,14 @@ UI.showOracle = function(regionId, siteName){
     </div>`);
 };
 
+// 征兆方块的名字（v1.31.187）：原文里的括注是辨异用的——「大鹗（钦䲹所化）」
+// 「天神（槐江）」——放进 63–87px 宽的方块名里必被截成「大鹗（钦…」。
+// 名字只留主名，括注落到浮层正文里（原文怎么写的仍看得见）。
+function omenBeastName(s){
+  const full = String(s || '').trim();
+  const m = full.match(/^([^（(]+)[（(]([^）)]+)[）)]$/);
+  return m ? { main: m[1].trim(), note: m[2].trim(), full } : { main: full, note: '', full };
+}
 UI.renderJisi = function(){
   const box = $('content');
   if (!box) return;
@@ -34707,9 +34721,10 @@ function openOmenSummary(){
           const d = OMENS[o.id]; if (!d) return '';
           const left = o.until ? fmtTime(o.until - gameTime()) : '常驻';
           const mark = d.polarity==='凶'?'凶':d.polarity==='吉'?'吉':'中';
-          return `<div class="tile omen-tile active ${d.polarity}" data-tip data-tip-title="${esc(d.beast||d.type)}">
+          const bn = omenBeastName(d.beast || d.type);
+          return `<div class="tile omen-tile active ${d.polarity}" data-tip data-tip-title="${esc(bn.full)}">
             <span class="tile-seal">${mark}</span>
-            <span class="tile-nm">${esc(d.beast||d.type)}</span>
+            <span class="tile-nm" title="${esc(bn.full)}">${esc(bn.main)}</span>
             <span class="tile-tag">${esc(d.type||'')}</span>
             <span class="tile-more ot-left" title="余 ${left}">${left}</span>
             <span class="tip-body hidden">

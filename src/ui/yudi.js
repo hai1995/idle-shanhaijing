@@ -190,8 +190,8 @@ UI.renderYudi = function(){
     + gatherAgainBar()
     + `<div class="yudi-tabs" role="tablist">
         <button class="ytab ${tab==='regions'?'on':''}" type="button" data-tip data-tip-title="舆地 · 山川" data-wiki="mechanic:yudi" onclick="UI.yudiTab='regions';UI.renderYudi()">山系<span class="tip-body hidden">五经山系之下诸山可点：每座山列出物产、异兽与山志原文；选「采集 / 讨伐」即动身前往。著录阶位愈高，可往的山川愈远。</span></button>
-        <button class="ytab ${tab==='nodes'?'on':''}" type="button" onclick="UI.yudiTab='nodes';UI.renderYudi()">诸山${unlocked?` · ${esc(region.regionName)}`:''}</button>
-        <button class="ytab ${tab==='detail'?'on':''}" type="button" onclick="UI.yudiTab='detail';UI.renderYudi()">此山详情${sel?` · ${esc(sel.name)}`:''}</button>
+        <button class="ytab ${tab==='nodes'?'on':''}" type="button" onclick="UI.yudiTab='nodes';UI.renderYudi()">诸山${unlocked?`<span class="ytab-sub"> · ${esc(region.regionName)}</span>`:''}</button>
+        <button class="ytab ${tab==='detail'?'on':''}" type="button" onclick="UI.yudiTab='detail';UI.renderYudi()">此山详情${sel?`<span class="ytab-sub"> · ${esc(sel.name)}</span>`:''}</button>
       </div>`
     + `<div class="yudi-body" data-tab="${tab}">
     <div class="panel regions">
