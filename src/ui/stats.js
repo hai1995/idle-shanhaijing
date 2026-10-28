@@ -207,7 +207,7 @@ UI.renderStats = function(){
         const ago = Math.max(0, (typeof gameTime === 'function' ? gameTime() : 0) - lastAt);
         lastLine = `<div class="stat-rows"><span class="hint">最近一次：${esc(lastEv.name || lastId)} · ${fmtDur(ago)}前</span></div>`;
       }
-      return `<div class="panel stat-panel ev-panel"><h3>行旅见闻 <span class="hint">${kinds}/${evs.length} 种 · 共 ${total} 条</span></h3>
+      return `<div class="panel stat-panel ev-panel"><h3 data-tip data-tip-title="行旅见闻" data-wiki="mechanic:jianwen">行旅见闻 <span class="hint">${kinds}/${evs.length} 种 · 共 ${total} 条</span><span class="tip-body hidden">巡历途中偶有奇遇：一句话 + 一点东西；离山归来还会听说「不在时」的山中事。见过的种类在此录全，路上遇见的与不在时错过的分栏而记。</span></h3>
         <div class="stat-rows">${rows}${awayRows}</div>${lastLine}</div>`;
     })()}
     <div class="panel stat-panel"><h3>商旅</h3>

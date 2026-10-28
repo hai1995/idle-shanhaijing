@@ -20278,7 +20278,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.175',
+  version: '1.31.176',
   codename:'昼巡 · 对账',
   updated: '2026-10-28',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -34051,7 +34051,7 @@ function codexAchBarHtml(v){
   // 进度线：已领占比一眼可读——成就数字之外给一个「比例」的形
   const pct = v.achAll.length ? Math.round(v.achDone / v.achAll.length * 100) : 0;
   return `<div class="ach-bar">
-    <span class="ach-lb">收集成就</span>
+    <span class="ach-lb" data-tip data-tip-title="图鉴" data-wiki="mechanic:codex" role="button" tabindex="0">收集成就<span class="tip-body hidden">图鉴录走过的山川、著录的物产异兽与所得遗物；收集成就把奖励闭环挂在收集线自己的入口上，达成即可领取。</span></span>
     <span class="ach-stat">已领 <b>${v.achDone}</b> / ${v.achAll.length}</span>
     <span class="ach-meter" aria-hidden="true"><i style="width:${pct}%"></i></span>
     ${v.achClaim ? `<span class="ach-new">可领 ${v.achClaim}</span>` : '<span class="hint">暂无待领</span>'}
@@ -34467,7 +34467,7 @@ UI.renderJisi = function(){
   });
   const readyN = rows.filter(r => r.st.times > 0 && r.st.lvOk).length;
   const readyIdleN = rows.filter(r => r.st.times > 0 && r.st.lvOk && !r.st.auto).length;
-  let html = `<div class="panel rite-panel"><h3>祠礼（据原文祠礼格式）</h3>
+  let html = `<div class="panel rite-panel"><h3 data-tip data-tip-title="祠祀" data-wiki="mechanic:jisi">祠礼（据原文祠礼格式）<span class="tip-body hidden">谒见山神、依原文祠礼格式献祭：糈用稌米、毛一雄鸡……各山各有所求，祭则以增益区域产出；吉凶之兆随之而动，可禳可解。</span></h3>
     ${autoIds.length ? `<div class="rite-auto-bar">
       <span class="hint">续祭中 <b>${autoIds.length}</b> 套：到期前 60 秒自动重备同样祭品${stallIds.length?`　·　<b class="stall">${stallIds.length}</b> 套待料`:'，备齐自续'}。</span>
       <button class="btn" onclick="UI.stopAllRiteAuto()">全停</button>
@@ -34535,7 +34535,7 @@ UI.renderJisi = function(){
     <div class="hint">行祭后该山系采获 +${Math.round(30*(Game.buildings.citan?1.5:1))}%（祠坛 ×1.5），持续 1 小时。采获加成提高的是「一次得两份／三份」的几率，折算约合产量 +${typeof riteRealYield==='function'?riteRealYield(0.30*(Game.buildings.citan?1.5:1)):'—'}%。</div>
   </div>
 
-  <div class="panel omen-panel"><h3>征兆（原文「见则X」）</h3>
+  <div class="panel omen-panel"><h3 data-tip data-tip-title="征兆" data-wiki="mechanic:omen">征兆（原文「见则X」）<span class="tip-body hidden">首次著录异兽可能触发吉凶之兆（如「其邑大水」「有大兵」），影响区域产出或全局采获；部分物品可免疫对应征兆。</span></h3>
     ${omenPanelHtml()}
   </div>
 
@@ -36468,7 +36468,7 @@ UI.renderStats = function(){
         const ago = Math.max(0, (typeof gameTime === 'function' ? gameTime() : 0) - lastAt);
         lastLine = `<div class="stat-rows"><span class="hint">最近一次：${esc(lastEv.name || lastId)} · ${fmtDur(ago)}前</span></div>`;
       }
-      return `<div class="panel stat-panel ev-panel"><h3>行旅见闻 <span class="hint">${kinds}/${evs.length} 种 · 共 ${total} 条</span></h3>
+      return `<div class="panel stat-panel ev-panel"><h3 data-tip data-tip-title="行旅见闻" data-wiki="mechanic:jianwen">行旅见闻 <span class="hint">${kinds}/${evs.length} 种 · 共 ${total} 条</span><span class="tip-body hidden">巡历途中偶有奇遇：一句话 + 一点东西；离山归来还会听说「不在时」的山中事。见过的种类在此录全，路上遇见的与不在时错过的分栏而记。</span></h3>
         <div class="stat-rows">${rows}${awayRows}</div>${lastLine}</div>`;
     })()}
     <div class="panel stat-panel"><h3>商旅</h3>
@@ -36644,7 +36644,7 @@ UI.renderRank = function(){
 
   const head = `
   <div class="panel rank-panel">
-    <h3>群英榜</h3>
+    <h3 data-tip data-tip-title="群英榜" data-wiki="mechanic:rank">群英榜<span class="tip-body hidden">以修为、著录、轮回等综合指标排名；修为口径为累计经验——打坐等一切修行都计入，勤修者自然居前。</span></h3>
     <p class="hint">网游化的第一步：把你的修为、著录、轮回战绩投到一张榜上，与各路著录客一较高下。数值只取各人历史最好，重复投递不会刷低自己。</p>
     <div class="rank-cfg">
       <div class="form-row"><span>榜单服务</span>
@@ -37185,6 +37185,12 @@ function bindSwipeGestures(){
         ' 秒一息，每息凝 ' + (typeof TUNING !== 'undefined' && TUNING.MEDITATE_XP ? TUNING.MEDITATE_XP : 5) +
         ' 点修为，无工具无道具，离线亦照常结算。' +
         '现场以呼吸气旋相伴；攒够修为时，打坐中直接点「突破」晋升境界。一切修行都计入修为，打坐只是其中最静的一路。'
+    },
+    jianwen: {
+      title: '行旅见闻',
+      body: '巡历途中偶有奇遇：一句话 + 一点东西——残简、古玉、雨后山色、兽踪，偶或改一改手上的活计。' +
+        '离山较久归来，还会听说「不在时」的山中事（山客来访、兽迹过境……），彩头按离山时长缩放、封顶有度。' +
+        '见闻现场以浮记与天色变化一笔带过；统计页「行旅见闻」录全 seen 过的种类——路上遇见的与不在时错过的分栏而记。'
     },
     realm: {
       title: '境界',

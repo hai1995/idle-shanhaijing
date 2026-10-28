@@ -51,7 +51,7 @@ UI.renderRank = function(){
 
   const head = `
   <div class="panel rank-panel">
-    <h3>群英榜</h3>
+    <h3 data-tip data-tip-title="群英榜" data-wiki="mechanic:rank">群英榜<span class="tip-body hidden">以修为、著录、轮回等综合指标排名；修为口径为累计经验——打坐等一切修行都计入，勤修者自然居前。</span></h3>
     <p class="hint">网游化的第一步：把你的修为、著录、轮回战绩投到一张榜上，与各路著录客一较高下。数值只取各人历史最好，重复投递不会刷低自己。</p>
     <div class="rank-cfg">
       <div class="form-row"><span>榜单服务</span>

@@ -128,7 +128,7 @@ UI.renderJisi = function(){
   });
   const readyN = rows.filter(r => r.st.times > 0 && r.st.lvOk).length;
   const readyIdleN = rows.filter(r => r.st.times > 0 && r.st.lvOk && !r.st.auto).length;
-  let html = `<div class="panel rite-panel"><h3>祠礼（据原文祠礼格式）</h3>
+  let html = `<div class="panel rite-panel"><h3 data-tip data-tip-title="祠祀" data-wiki="mechanic:jisi">祠礼（据原文祠礼格式）<span class="tip-body hidden">谒见山神、依原文祠礼格式献祭：糈用稌米、毛一雄鸡……各山各有所求，祭则以增益区域产出；吉凶之兆随之而动，可禳可解。</span></h3>
     ${autoIds.length ? `<div class="rite-auto-bar">
       <span class="hint">续祭中 <b>${autoIds.length}</b> 套：到期前 60 秒自动重备同样祭品${stallIds.length?`　·　<b class="stall">${stallIds.length}</b> 套待料`:'，备齐自续'}。</span>
       <button class="btn" onclick="UI.stopAllRiteAuto()">全停</button>
@@ -196,7 +196,7 @@ UI.renderJisi = function(){
     <div class="hint">行祭后该山系采获 +${Math.round(30*(Game.buildings.citan?1.5:1))}%（祠坛 ×1.5），持续 1 小时。采获加成提高的是「一次得两份／三份」的几率，折算约合产量 +${typeof riteRealYield==='function'?riteRealYield(0.30*(Game.buildings.citan?1.5:1)):'—'}%。</div>
   </div>
 
-  <div class="panel omen-panel"><h3>征兆（原文「见则X」）</h3>
+  <div class="panel omen-panel"><h3 data-tip data-tip-title="征兆" data-wiki="mechanic:omen">征兆（原文「见则X」）<span class="tip-body hidden">首次著录异兽可能触发吉凶之兆（如「其邑大水」「有大兵」），影响区域产出或全局采获；部分物品可免疫对应征兆。</span></h3>
     ${omenPanelHtml()}
   </div>
 

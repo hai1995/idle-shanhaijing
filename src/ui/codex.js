@@ -203,7 +203,7 @@ function codexAchBarHtml(v){
   // 进度线：已领占比一眼可读——成就数字之外给一个「比例」的形
   const pct = v.achAll.length ? Math.round(v.achDone / v.achAll.length * 100) : 0;
   return `<div class="ach-bar">
-    <span class="ach-lb">收集成就</span>
+    <span class="ach-lb" data-tip data-tip-title="图鉴" data-wiki="mechanic:codex" role="button" tabindex="0">收集成就<span class="tip-body hidden">图鉴录走过的山川、著录的物产异兽与所得遗物；收集成就把奖励闭环挂在收集线自己的入口上，达成即可领取。</span></span>
     <span class="ach-stat">已领 <b>${v.achDone}</b> / ${v.achAll.length}</span>
     <span class="ach-meter" aria-hidden="true"><i style="width:${pct}%"></i></span>
     ${v.achClaim ? `<span class="ach-new">可领 ${v.achClaim}</span>` : '<span class="hint">暂无待领</span>'}
