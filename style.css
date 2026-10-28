@@ -1193,6 +1193,9 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; background:tran
 .ytab:hover{ color:var(--ink); }
 .ytab.on{ color:var(--zhu-d); border-bottom-color:var(--zhu); font-weight:600; }
 
+/* 此山详情：超宽屏下限制在舒适阅读宽度并居中，避免正文被拉得过长（山系/诸山卡片仍用满宽） */
+.yudi-body[data-tab="detail"] .node-detail{ max-width:920px; margin:0 auto; }
+
 /* 山系：小方卡。名在上、涉山进度在下，底部一条细进度线 */
 .region-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(78px,1fr)); gap:6px; padding:2px 0 4px; }
 .region-tile{ aspect-ratio:1/1; gap:2px; padding:8px 5px 9px; }
