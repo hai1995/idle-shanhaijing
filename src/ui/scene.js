@@ -412,9 +412,12 @@ function sceneHtml(s){
 
 // 重建判定用的签名：只含「换一个场景就该重画」的字段。
 // 数字（已采几件）不进签名——那由 sceneBeat 就地改文字，重建会把动画打断。
+// realm 在列（v1.31.177）：突破改变「可突破与否」，不进签名则打坐现场的
+// 「突破 →」按钮在突破后仍 stale 可见——点开确认弹窗却无事可做。
 function sceneSig(s){
   if (!s) return 'none';
-  return [s.kind, s.key, s.ink, s.iv.toFixed(2), s.name, s.place].join('|');
+  return [s.kind, s.key, s.ink, s.iv.toFixed(2), s.name, s.place,
+    (typeof Game !== 'undefined' && Game.realm) || ''].join('|');
 }
 
 // 打坐突破入口（v1.31.169）：攒够修为后，定坐中冲关，获全局修炼效率永久加成

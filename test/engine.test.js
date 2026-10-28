@@ -1842,7 +1842,11 @@ section('境界 / 百科 / 气旋 / 分组');
   // 28.6 sc-hud 可点子件恢复指针：hud 整体 pointer-events:none，突破按钮 / tip 锚点须显式恢复，
   // 否则 elementFromPoint 命中地面 SVG——按钮看得见点不着（v1.31.173 实测回归）
   assert(css.includes('.sc-hud .sc-break') && css.includes('pointer-events:auto'), 'sc-break 恢复 pointer-events（hud 罩层不吞点击）');
+  // 28.7 sceneSig 含 realm：突破改变 realm，签名须随之变，否则打坐现场突破按钮 stale（v1.31.177 实测回归）
   ST.Game.activity = { kind:'meditate', src:'fallback' };
+  const msSig28 = ST.sceneState();
+  assert(msSig28 && msSig28.kind === 'meditate', '打坐现场状态可取（供签名断言）');
+  assert(String(ST.sceneSig(msSig28)).indexOf((ST.Game && ST.Game.realm) || '') >= 0, 'sceneSig 含 realm（突破后现场立即重建）');
   const ms2 = ST.sceneState();
   assert(ms2 && ms2.kind === 'meditate', '打坐现场状态可取');
   if (typeof G.sceneHtml === 'function'){
