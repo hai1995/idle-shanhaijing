@@ -250,6 +250,10 @@ function init(){
     }
     if (e.key === 's' || e.key === 'S'){ saveGame(); UI.toast('已存档'); return; }
     if (e.key === 'q' || e.key === 'Q'){ stopActivity(); if (typeof pauseQueue==='function') pauseQueue('手动停止'); UI.refreshActivity(); UI.toast('已停止'); return; }
+    // 侧栏十四页，数字键只够十个（1–9 + 0）。剩下四页交给 [ ] 前后翻：
+    // 与手机上的左右滑同一个出口（switchTabNeighbor），键盘也能顺着读完全部页签。
+    if (e.key === '['){ UI.switchTabNeighbor(-1); return; }
+    if (e.key === ']'){ UI.switchTabNeighbor(1); return; }
     const idx = '1234567890'.indexOf(e.key);
     if (idx >= 0 && TABS[idx]) UI.switchTab(TABS[idx].id);
   });

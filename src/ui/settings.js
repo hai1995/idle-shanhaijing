@@ -91,7 +91,8 @@ UI.renderSettings = function(){
         </section>
         <section class="set-sec">
           <h4>快捷键</h4>
-          <div class="form-row"><span>切页</span><b>1–9</b><span class="hint">按侧栏顺序</span></div>
+          <div class="form-row"><span>切页</span><b>1–9 / 0</b><span class="hint">按侧栏顺序，前十页</span></div>
+          <div class="form-row"><span>前后翻页</span><b>[ ]</b><span class="hint">十四页都能走到</span></div>
           <div class="form-row"><span>立即存档</span><b>S</b></div>
           <div class="form-row"><span>停止行动</span><b>Q</b></div>
           <div class="form-row"><span>关闭弹层</span><b>Esc</b></div>
@@ -337,7 +338,7 @@ function openHelp(){
         <p class="hint">观象、谒见、灌木这三类「一次性地点」散在各山，<b>舆地页末的「异迹索引」</b>一并列出：谁已得、谁还没去、差几级，点一行即定位到那座山，右侧「往」直接动身。</p>${UI.wikiFooter?UI.wikiFooter('mechanic','shanglv'):''}</div>
       <div class="help-sec"><b>离线收益</b><p class="hint">离开页面仍按离线时长结算（效率随「观象」等提升，封顶约 0.85）。离山较久归来会弹出「离线归来」汇总。</p>${UI.wikiFooter?UI.wikiFooter('mechanic','offline'):''}</div>
       <div class="help-sec"><b>存档</b><p class="hint">游戏每 5 秒自动存档在本机浏览器；「统计」页可导出 / 导入 / 重置存档。想在多设备间续玩，可在「设置 → 存档」填入云端存档服务器地址：停止操作约 3 秒自动上传，离开页面时强传一次；拉取时与本地进度按规则合并（经验 / 著录取大，地图 / 背包并集，贝币取较新），不丢进度。</p></div>
-      <div class="help-sec"><b>快捷键</b><p class="hint">1–9 切页 · S 存档 · Q 停止当前行动 · Esc 关闭弹窗。</p></div>
+      <div class="help-sec"><b>快捷键</b><p class="hint">1–9 / 0 切页（前十页）· [ ] 前后翻页 · S 存档 · Q 停止当前行动 · Esc 关闭弹窗。</p></div>
     </div>
     <div class="modal-btns"><button class="btn on" onclick="UI.closeModal()">知道了</button></div>
   `);

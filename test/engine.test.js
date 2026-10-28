@@ -862,6 +862,15 @@ ST.UI.switchTabNeighbor(-1);
 assert(ST.UI.currentTab === 'yudi', '右滑切回上一页签');
 ST.UI.switchTabNeighbor(-1);
 assert(ST.UI.currentTab === 'wiki', '右滑在首页环绕到末页（百科）');
+// 键盘也得走完全部十四页：数字键只够十页（1–9 + 0），余下四页交给 [ ]。
+{
+  const bootSrc = require('fs').readFileSync(require('path').join(__dirname, '..', 'src/ui/boot.js'), 'utf8');
+  assert(/'1234567890'/.test(bootSrc), '数字键含 0（第 10 页 行装）');
+  assert(bootSrc.includes("e.key === '['") && bootSrc.includes('switchTabNeighbor(-1)'), '[ 退一页');
+  assert(bootSrc.includes("e.key === ']'") && bootSrc.includes('switchTabNeighbor(1)'), '] 进一页');
+  const setSrc = require('fs').readFileSync(require('path').join(__dirname, '..', 'src/ui/settings.js'), 'utf8');
+  assert(setSrc.includes('1–9 / 0') && setSrc.includes('[ ]'), '设置页把两个新键写进说明（说明不能落后于实现）');
+}
 
 // ============ 16.9 征兆数值预览 · 墟市头部 ============
 section('征兆数值预览 · 墟市头部');
@@ -1099,6 +1108,18 @@ try { ST.UI.currentTab = 'taofa'; ST.UI.renderTaofa(); ebTxt = renderTargets.con
 catch(e){ ebOk = false; console.error('目标卡异常：'+e.stack); }
 assert(ebOk && ebTxt.indexOf('宜用') >= 0 && ebTxt.indexOf('setZhuEl') >= 0, '讨伐目标卡宜用属性可一键切换');
 assert(ebTxt.indexOf('掉落') >= 0 && ebTxt.indexOf('📍') >= 0, '讨伐目标卡显示掉落与所在山');
+
+// 折起的山系排成索引（v1.31.195）：单列时三十来组各占一行，宽屏下「讨伐目标」长到两千多像素。
+assert(ebTxt.indexOf('class="grp-folds"') >= 0, '折起的山系装在 .grp-folds 里（不是散着排一列）');
+assert(ebTxt.indexOf('class="fold grp"') >= 0, '组本身仍是 details.fold.grp（展开加载卡片的逻辑不变）');
+{
+  const cssF = require('fs').readFileSync(require('path').join(__dirname, '..', 'style.css'), 'utf8');
+  const m = cssF.match(/\.grp-folds\{([^}]*)\}/);
+  assert(!!m, '.grp-folds 有样式');
+  assert(/grid-template-columns:repeat\(auto-fill,minmax\(/.test(m[1]), '.grp-folds 按宽度自动分栏');
+  assert(/\.grp-folds > \.fold\[open\]\{ grid-column:1\/-1; \}/.test(cssF), '展开的那一组跨满整行（卡片不被挤在窄栏里）');
+  assert(/@media \(max-width:760px\)\{ \.grp-folds\{ grid-template-columns:1fr;/.test(cssF), '窄屏回到单列（别把名字挤成省略号）');
+}
 
 // ============ 16.7 御使引导 · 连胜 ============
 section('御使引导 · 连胜');
@@ -7492,9 +7513,21 @@ section('罕用字子集');
   assert(css.includes('assets/rare-han.woff2'), '@font-face 指向子集文件');
   assert(css.includes('size-adjust:106%'), '明朝体字面补偿（与黑体混排不缩头）');
 
-  // 字体链：两条主链都要挂上，否则某些场景（宋体排的图鉴名）仍会豆腐
-  assert(/--f-song:[^;]*"RareHan"/.test(css), '宋体链挂 RareHan');
-  assert(/--f-sans:[^;]*"RareHan"/.test(css), '黑体链挂 RareHan');
+  // ★ @font-face 必须在最外层。v1.31.195 之前它被夹在 :root 里面（上一段 --chrome-tx 与
+  //   下一段 --f-kai 之间）——CSS 嵌套把 @font-face 当非法嵌套 at-rule 整条丢掉，
+  //   于是 document.fonts.size 一直是 0，字体文件从来没被注册过，生僻字照旧豆腐。
+  //   只在样式表文本上就能验：@font-face 之前的花括号必须已经配平。
+  const beforeFace = css.slice(0, css.indexOf('@font-face'));
+  let depth = 0;
+  for (const ch of beforeFace){ if (ch === '{') depth++; else if (ch === '}') depth--; }
+  assert(depth === 0, '@font-face 在最外层（前面未闭合的块数 = ' + depth + '）');
+
+  // 字体链：两条主链都要挂上，否则某些场景（宋体排的图鉴名）仍会豆腐。
+  // 而且要挂在**最前**：排最后时，系统里那些 cmap 谎报覆盖扩展 B 区、实际只画 .notdef 的
+  // CJK 字体（Linux 的 Noto Sans CJK 即是）会先被选中，轮不到我们这份子集。
+  assert(/--f-song:\s*"RareHan"/.test(css), '宋体链把 RareHan 排最前');
+  assert(/--f-sans:\s*"RareHan"/.test(css), '黑体链把 RareHan 排最前');
+  assert(/--f-kai:\s*"RareHan"/.test(css) && /--f-num:\s*"RareHan"/.test(css), '楷体 / 数字链同样排最前');
 
   // unicode-range 必须精确列出，不能写成整段区间
   const m = css.match(/unicode-range:\s*([^;]+);/);

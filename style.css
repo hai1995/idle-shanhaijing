@@ -9,6 +9,26 @@
    纸面一律平铺细线，不用圆角卡片与投影堆叠；版式靠留白与线，不靠阴影。
    ========================================================================== */
 
+/* ==========================================================================
+   罕用字子集（仅 41 字，14KB）
+   异兽名里的「𧔥」「𪁺」「𩽵」一类字在 CJK 扩展 B 区，PingFang / 思源黑都不收，
+   浏览器只能画成豆腐圈。系统层面无解（Win 只有 SimSun-ExtB 覆盖一部分，移动端几乎全缺），
+   所以随项目分发一份**只含这些字**的子集字体，14KB，代价可以忽略。
+   unicode-range 必须精确列出：若写成 U+20000-2A6DF，浏览器会以为本字体覆盖整个扩展 B 区，
+   遇到别的扩展字也会选它，反而照样豆腐——那才是真坑。
+   来源：花园明朝 HanaMinB（GlyphWiki），Hanazono Font License / OFL 1.1，见 assets/LICENSE_ASSETS.md。
+   ========================================================================== */
+@font-face{
+  font-family:"RareHan";
+  src:url("assets/rare-han.woff2") format("woff2");
+  font-display:swap;
+  font-weight:400;
+  /* 明朝体在同等 em 下字面比黑体小一号，混排会显得「缩了一头」；
+     只作用于这 41 个字，把字面补回来。 */
+  size-adjust:106%;
+  unicode-range:U+21EAF, U+224ED, U+230C1, U+235BE, U+23C97, U+23CB5, U+2461D, U+246CE, U+24722, U+24723, U+2477B, U+2479E, U+247E4, U+24822, U+248BA, U+25B41, U+2604E, U+26372, U+2688A, U+26B23, U+26B38, U+26CCC, U+27464, U+27525, U+2756F, U+27C82, U+28D2F, U+291EF, U+291F5, U+298E1, U+29C9C, U+29DAF, U+29F75, U+2A078, U+2A07A, U+2A0D1, U+2A100, U+2A1F1, U+2AE29, U+2C837, U+2C930;
+}
+
 :root{
   /* —— 纸与墨 —— */
   --paper:      #EDEBE2;   /* 页面纸底 */
@@ -54,31 +74,16 @@
   --chrome-2:   #2A2721;
   --chrome-tx:  #E8E4D8;
 
-/* ==========================================================================
-   罕用字子集（仅 41 字，14KB）
-   异兽名里的「𧔥」「𪁺」「𩽵」一类字在 CJK 扩展 B 区，PingFang / 思源黑都不收，
-   浏览器只能画成豆腐圈。系统层面无解（Win 只有 SimSun-ExtB 覆盖一部分，移动端几乎全缺），
-   所以随项目分发一份**只含这些字**的子集字体，14KB，代价可以忽略。
-   unicode-range 必须精确列出：若写成 U+20000-2A6DF，浏览器会以为本字体覆盖整个扩展 B 区，
-   遇到别的扩展字也会选它，反而照样豆腐——那才是真坑。
-   来源：花园明朝 HanaMinB（GlyphWiki），Hanazono Font License / OFL 1.1，见 assets/LICENSE_ASSETS.md。
-   ========================================================================== */
-@font-face{
-  font-family:"RareHan";
-  src:url("assets/rare-han.woff2") format("woff2");
-  font-display:swap;
-  font-weight:400;
-  /* 明朝体在同等 em 下字面比黑体小一号，混排会显得「缩了一头」；
-     只作用于这 41 个字，把字面补回来。 */
-  size-adjust:106%;
-  unicode-range:U+21EAF, U+224ED, U+230C1, U+235BE, U+23C97, U+23CB5, U+2461D, U+246CE, U+24722, U+24723, U+2477B, U+2479E, U+247E4, U+24822, U+248BA, U+25B41, U+2604E, U+26372, U+2688A, U+26B23, U+26B38, U+26CCC, U+27464, U+27525, U+2756F, U+27C82, U+28D2F, U+291EF, U+291F5, U+298E1, U+29C9C, U+29DAF, U+29F75, U+2A078, U+2A07A, U+2A0D1, U+2A100, U+2A1F1, U+2AE29, U+2C837, U+2C930;
-}
+
 
   /* —— 字体 —— */
-  --f-kai: "Kaiti SC","STKaiti","KaiTi","BiauKai","LXGW WenKai","楷体",var(--f-song);
-  --f-song: "Songti SC","STSong","Noto Serif CJK SC","Source Han Serif SC","SimSun","RareHan",serif;
-  --f-sans: "PingFang SC","HarmonyOS Sans SC","Hiragino Sans GB","Microsoft YaHei UI","Microsoft YaHei","Noto Sans CJK SC","Source Han Sans SC","WenQuanYi Micro Hei","RareHan",sans-serif;
-  --f-num: "Songti SC","STSong","Georgia","Times New Roman",var(--f-song);
+  --f-kai: "RareHan","Kaiti SC","STKaiti","KaiTi","BiauKai","LXGW WenKai","楷体",var(--f-song);
+  /* RareHan 排在各栈最前：它的 unicode-range 只认那 41 个扩展字，别的字自动落到后面的系统字体，
+     所以不会抢正文的字形；排最后反而会输——某些系统的 CJK 字体 cmap 声称覆盖扩展 B 区、
+     实际画出来是 .notdef 方块（Linux 的 Noto Sans CJK 就是这样），回退链走不到我们这份。 */
+  --f-song: "RareHan","Songti SC","STSong","Noto Serif CJK SC","Source Han Serif SC","SimSun",serif;
+  --f-sans: "RareHan","PingFang SC","HarmonyOS Sans SC","Hiragino Sans GB","Microsoft YaHei UI","Microsoft YaHei","Noto Sans CJK SC","Source Han Sans SC","WenQuanYi Micro Hei",sans-serif;
+  --f-num: "RareHan","Songti SC","STSong","Georgia","Times New Roman",var(--f-song);
 
   /* —— 尺度 —— */
   /* 简洁化（v1.31.153）：卡片类圆角从 2px 提到 8px。
@@ -1857,6 +1862,18 @@ svg.bi.mk{ vertical-align:-2px; }
 .mini-card span{ font-family:var(--f-num); color:var(--ink-4); font-size:10.5px; }
 
 /* 折叠区：次要名单（一次未著录的异兽）默认收起，避免开屏即长名单 */
+/* 折起的山系排成索引：宽屏一行三四个，点开的那个跨满整行。
+   单列时三十来个山系把「讨伐目标」拉到两千多像素，而每行只有半句字（v1.31.195）。 */
+.grp-folds{
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(232px,1fr));
+  gap:6px 10px; margin-top:10px;
+}
+.grp-folds > .fold{ margin-top:0; min-width:0; }
+/* 不设 nowrap：320 下单列时「西次三经 · 异兽 · 17 种（山系未解锁）」比格子宽，
+   截成省略号反而看不出是哪个山系（巡检 v1.31.195 抓到 21 处截断）。让它换行。 */
+.grp-folds > .fold[open]{ grid-column:1/-1; }
+@media (max-width:760px){ .grp-folds{ grid-template-columns:1fr; gap:6px; } }
+
 .fold{ margin-top:10px; }
 .fold > summary{
   cursor:pointer; list-style:none; font-size:11.5px; color:var(--ink-3);

@@ -218,6 +218,35 @@ BAD_DATA_PROBE = """() => {
 }"""
 
 
+# 罕用字子集：v1.31.195 之前 @font-face 被夹在 :root 里，整条被 CSS 嵌套规则丢掉，
+# document.fonts.size 一直是 0 —— 样式表里明明写着字体，浏览器一次都没读过。
+# 静态断言只能看文本结构，这里在真实浏览器里验三步：规则注册了没 / 文件下得下来 / 名字元素的字体栈排头是谁。
+FONT_PROBE = """async () => {
+  const bad = [];
+  const faces = [...document.fonts].filter(f => f.family.replace(/[\"']/g, '') === 'RareHan');
+  if (!faces.length) return { bad: ['RareHan 未注册（document.fonts.size=' + document.fonts.size + '）'] };
+  try {
+    await document.fonts.load('12px RareHan', '\\u{2A07A}');
+  } catch (e) { bad.push('子集字体加载失败：' + e.message); }
+  if (faces.some(f => f.status === 'error')) bad.push('RareHan 状态 error（文件 404 / 解码失败）');
+  // 名字元素的字体栈必须以 RareHan 打头，否则系统里那些「cmap 说覆盖、实际画方块」的
+  // CJK 字体先被选中，轮不到子集
+  const probe = document.createElement('span');
+  probe.className = 'tile-nm';
+  probe.textContent = '\\u{2A07A}\\u{2A078}';
+  probe.style.cssText = 'position:absolute;left:-9999px;top:0;font-size:12px';
+  document.body.appendChild(probe);
+  const fam = getComputedStyle(probe).fontFamily;
+  if (!/^\"?RareHan\"?\s*,/.test(fam)) bad.push('.tile-nm 字体栈没把 RareHan 排最前：' + fam.slice(0, 40));
+  const wRare = probe.getBoundingClientRect().width;
+  probe.style.fontFamily = 'monospace';
+  probe.style.fontSize = '12px';
+  const wMono = probe.getBoundingClientRect().width;
+  probe.remove();
+  return { bad, faces: faces.map(f => f.status), wRare: Math.round(wRare), wMono: Math.round(wMono) };
+}"""
+
+
 async def main():
     results, bad_state = [], []
     async with async_playwright() as p:
@@ -231,6 +260,7 @@ async def main():
             await pg.goto(BASE)
             await pg.wait_for_timeout(1200)
             await pg.evaluate("try{ if (typeof tutSkip==='function') tutSkip(); }catch(e){}")
+            results.append({"vp": vname, "font": await pg.evaluate(FONT_PROBE)})
 
             for state, expr in STATES.items():
                 if state != "晚期":
@@ -321,6 +351,11 @@ async def main():
             n += 1
             if r["badData"]:
                 bad.append(f"[{r['vp']}] 坏数据漏到界面：{'；'.join(r['badData'][:3])}")
+            continue
+        if "font" in r:
+            n += 1
+            if r["font"]["bad"]:
+                bad.append(f"[{r['vp']}] 罕用字：{'；'.join(r['font']['bad'][:3])}")
             continue
         if "errors" in r:
             if r["errors"]:

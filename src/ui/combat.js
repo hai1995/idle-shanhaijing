@@ -191,11 +191,21 @@ function taofaListHtml(){
     ${bandBar}
     <div class="loot-recent">最近所获：${(Game.recentLoot||[]).map(l=>`${typeof itemIc==='function'?itemIc(l.itemId,13):((Items[l.itemId]||{}).icon||'')}${esc((Items[l.itemId]||{}).name||l.itemId)}×${l.qty}`).join('　')||'无'}</div>
     ${foldedN ? `<div class="hint">已展开当前山系之目标；另 ${foldedN} 个山系折在下方，点开可见。</div>` : ''}`;
+  // 折起的山系排成多列索引（v1.31.195）：宽屏下三十来个山系各占一行，
+  // 一屏只放得下七八个，整页拉长到两千多像素。装进 grid 后一行三四个，
+  // 点开的那一个跨满整行，里面的卡片网格照旧铺开。
+  let folds = [];
+  const flushFolds = () => {
+    if (!folds.length) return;
+    list += `<div class="grp-folds">${folds.join('')}</div>`;
+    folds = [];
+  };
   for (let gi = 0; gi < groups.length; gi++){
     const g = groups[gi];
     if (!g.list.length) continue;
     const open = isOpen(g);
     if (open){
+      flushFolds();
       list += g.locked
         ? `<details class="fold grp" open><summary>${esc(g.title)} · ${g.list.length} 种（山系未解锁）</summary>`
         : `<h4>${g.title}</h4>`;
@@ -203,12 +213,13 @@ function taofaListHtml(){
       list += `<div class="beast-grid">${ordered.map(x=>beastCardHtml(x, pick)).join('')}</div>`;
       if (g.locked) list += `</details>`;
     } else {
-      list += `<details class="fold grp" data-g="${gi}" ontoggle="UI.loadBeastGroup(this)">
+      folds.push(`<details class="fold grp" data-g="${gi}" ontoggle="UI.loadBeastGroup(this)">
         <summary>${esc(g.title)} · ${g.list.length} 种${g.locked?'（山系未解锁）':''}</summary>
         <div class="beast-grid" data-loaded="0"></div>
-      </details>`;
+      </details>`);
     }
   }
+  flushFolds();
   // 存到 UI 上而不是 this：taofaListHtml 是普通函数，调用处没有绑定接收者
   UI._beastGroups = groups;
   UI._beastPick = pick;
