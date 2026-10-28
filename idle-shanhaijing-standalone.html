@@ -1448,6 +1448,9 @@ input[type=range]{ accent-color:var(--zhu); height:20px; flex:1; background:tran
 .realm-bar i{ display:block; height:100%; background:linear-gradient(90deg, var(--qing), var(--zhu)); transition:width .3s; }
 .realm-next{ font-size:11.5px; color:var(--ink-3); }
 .realm-break{ margin-top:9px; }
+/* 统计页境界面板里的细进度线（v1.31.171）：贴着账簿行的比例条 */
+.realm-stat-bar{ display:block; height:5px; background:var(--rule-3); border-radius:5px; overflow:hidden; margin:5px 0 2px; }
+.realm-stat-bar i{ display:block; height:100%; background:linear-gradient(90deg, var(--qing), var(--zhu)); transition:width .3s; }
 
 /* ===== 方形小卡（借鉴手游「一格一味」的识别方式）=====
    正方形格、图标为主、名字在下、角标放阶位；一眼扫过靠图形认物，不靠读字。 */
@@ -1801,6 +1804,9 @@ svg.bi.mk{ vertical-align:-2px; }
 .empty-note .btn{ margin-top:10px; }
 /* 单行空态不撑成大方块：日志框 / 小面板里的「暂无记录」只占一指高 */
 .empty-note:not(:has(.btn)):not(:has(br)){ padding:12px 16px; }
+/* 御使页两处空态（v1.31.171）：整栏就一块空态时，虚线框不必撑到 18px 高，
+   收紧一点，右侧面板不再像半屏空屋 */
+.deploy-panel .empty-note, .lock-panel .empty-note{ padding:12px 14px; line-height:1.7; }
 
 /* ==========================================================================
    图鉴
@@ -3543,8 +3549,9 @@ details.hetero-panel .hp-left{ margin-left:auto; font-style:normal; color:var(--
         </span>
         <!-- 境界胶囊（v1.31.170）：上轮新增的境界系统此前只能进技能页看，
              书脊右侧也一直空着——把当前境界常驻顶栏，可突破时染朱提醒；点开即百科。 -->
-        <span class="stat stat-realm" id="realmStat" title="境界：打坐可突破，给全局修炼效率永久加成" onclick="UI.openWiki('mechanic','realm')">
+        <span class="stat stat-realm" id="realmStat" data-tip data-tip-title="境界" data-wiki="mechanic:realm" onclick="UI.openWiki('mechanic','realm')">
           <i class="lb">境界</i><b id="realmName">炼气</b>
+          <span class="tip-body hidden" id="realmTipBody">攒够修为后于打坐中突破，全局修炼效率永久加成。</span>
         </span>
       </div>
       <!-- 增益一览：书脊最右一枚图标，点开浮层看御使 / 征兆 / 临时增益 -->
@@ -20242,7 +20249,7 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.170',
+  version: '1.31.171',
   codename:'昼巡 · 对账',
   updated: '2026-10-28',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
@@ -30501,6 +30508,21 @@ UI.renderTopbar = function(){
       const ready = (typeof canBreakthrough === 'function') && canBreakthrough();
       set('realmName', (cur ? cur.name : '—') + (ready ? ' ·可突破' : ''));
       rs.classList.toggle('ready', !!ready);
+      // 胶囊悬停正文（v1.31.171）：随进度刷新，让 hover 就能看到「还差多少修为」
+      const tb = document.getElementById ? document.getElementById('realmTipBody') : null;
+      if (tb && typeof Game !== 'undefined'){
+        const nx = (typeof nextRealm === 'function') ? nextRealm() : null;
+        const xp = (Game.stats && Game.stats.totalXp) || 0;
+        const rows = [`当前 <b>${cur ? cur.name : '—'}</b> · 修炼效率 <b>+${Math.round((cur ? cur.bonus : 0) * 100)}%</b>`];
+        if (nx){
+          rows.push(`下一阶 <b>${nx.name}</b> · 还差 <b>${fmt(Math.max(0, nx.need - xp))}</b> 修为`);
+          rows.push(ready ? '<b class="rt-ready">已可突破——去「技能 · 修行」打坐</b>' : '攒够后于打坐中突破。');
+        } else {
+          rows.push('已是已知最高境界。');
+        }
+        const html = rows.map(r=>`<div>${r}</div>`).join('');
+        if (tb.innerHTML !== html) tb.innerHTML = html;
+      }
     }
   }
   // 名号：没设昵称时也显示默认名号（顶栏空一块比「默认名」更像 bug）。
@@ -33303,7 +33325,7 @@ function taofaArenaHtml(){
         `<button class="chip-btn ${Prefs.stylePref===s?'on':''}" onclick="setCombatStyle('${s}')">${styleLabel(s)}</button>`).join('')}
     </div>
     <div class="style-row tactic-row">
-      <span class="tr-lb" title="战法决定「怎么打」：四项乘区各自独立，与五行、词条、绝技叠加">战法</span>
+      <span class="tr-lb" data-tip data-tip-title="征伐" data-wiki="mechanic:taofa">战法<span class="tip-body hidden">战法决定「怎么打」：四项乘区各自独立，与五行、词条、绝技叠加。讨伐既得经验与掉落，每次交手也累积著录度；连讨同一异兽经验递减，换一只即恢复。</span></span>
       ${Object.values(TACTICS).map(t=>
         `<button class="chip-btn ${(Prefs.tactic||'none')===t.id?'on':''}" onclick="setTactic('${t.id}')" title="${esc(t.desc)}">${t.name}</button>`).join('')}
       <span class="hint">${esc(currentTactic().desc)}</span>
@@ -33680,7 +33702,7 @@ UI.renderYushi = function(){
   const bonusText = bonusTextOf(bonus) === '—' ? '暂无' : bonusTextOf(bonus);
   const omenText = omenBonusText();
   let html = `<div class="two-col"><div class="panel slot-panel">
-    <h3>御使槽位（${used}/${slots}）</h3>
+    <h3 data-tip data-tip-title="御使" data-wiki="mechanic:yushi">御使槽位（${used}/${slots}）<span class="tip-body hidden">御使槽位随御使等级扩充（每 10 级 +1，至 9 槽）。著录至「通形」的异兽方可入槽，随行助阵并给予增益；御使中的异兽持续积累御使经验。</span></h3>
     <div class="slot-row">
       ${Array.from({length:slots}, (_,i)=>{
         const bid = Game.deployed[i];
@@ -34766,7 +34788,7 @@ UI.renderShichan = function(){
     board = '<div class="hint">方国使者未至——稍后再来，或「另访方国」主动求单</div>';
   }
   const orderBoard = `<div class="panel order-board">
-      <div class="ob-head"><h3><span class="mi-ic">${typeof markIcon==='function'?markIcon('scale',17):'⚖️'}</span> 方国求购</h3>
+      <div class="ob-head"><h3 data-tip data-tip-title="墟市" data-wiki="mechanic:shichan"><span class="mi-ic">${typeof markIcon==='function'?markIcon('scale',17):'⚖️'}</span> 方国求购<span class="tip-body hidden">方国求购常驻三单，约 30 分钟轮换一批，溢价 1.3～1.8 倍收可再生原材料；交付得贝币与贸易经验，一单少一单。售价加成由商旅等级、营造、御使、征兆共同决定。</span></h3>
         <span class="ob-refresh">整批轮换 <b>${mm}:${ss}</b> 后
           ${(()=>{
             // 一键交割：只在「有可交割的单」时出现，否则按钮常驻反而碍眼
@@ -34810,7 +34832,7 @@ UI.renderYing = function(){
   const box = $('content');
   if (!box) return;
   box.innerHTML = `<div class="panel">
-    <h3>营造（营邑）</h3>
+    <h3 data-tip data-tip-title="营造" data-wiki="mechanic:ying">营造（营邑）<span class="tip-body hidden">营邑每级随营造提升；造完一座，所得经验足以开启下一座。等级差一点时可「修复旧筑」补足；修学可加快营造升级。市廛广货、仓廪扩容、山海阁厚离线之收。</span></h3>
     ${(() => {
       const ready = Object.values(BUILDINGS).filter(b => !Game.buildings[b.id] && levelOf('yingyi') >= b.lvl && canAfford(b.cost)).length;
       const next = Object.values(BUILDINGS).filter(b => !Game.buildings[b.id]).sort((x, y) => x.lvl - y.lvl)[0];
@@ -34968,7 +34990,7 @@ UI.renderQueue = function(){
   const fb = Game.fallback;
   let html = `<div class="queue-wrap">
     <div class="panel queue-list">
-      <h3>巡历队列（${Game.queue.length}/${QUEUE_MAX}）${Game.queue.length?`<span class="h3-more"> · 预计一轮 ≈ ${fmtTime(estimateQueueSeconds())}</span>`:''}</h3>
+      <h3 data-tip data-tip-title="行动 · 巡历队列" data-wiki="mechanic:xunli">巡历队列（${Game.queue.length}/${QUEUE_MAX}）${Game.queue.length?`<span class="h3-more"> · 预计一轮 ≈ ${fmtTime(estimateQueueSeconds())}</span>`:''}<span class="tip-body hidden">巡历队列至多 ${QUEUE_MAX} 项，依序执行、循环往复；采集按产出个数、制作与讨伐按次数计。「快速挂机」按当前可达成目标自动排程；离线时队列照常结算。</span></h3>
       ${Game.queue.map((e,i)=>{
         const st = entryCanRun(e);
         // 条目前的小像：讨伐取目标异兽像，采集 / 制作取该行动的技艺像，一眼认得出在做什么
@@ -36300,6 +36322,32 @@ UI.renderStats = function(){
       </div>`;
     })()}
     ${(function(){
+      // 「境界」面板（v1.31.171）：境界系统上主页签的可感知入口——统计页一眼看到当前阶、
+      // 加成、突破次数与下一阶差距；突破入口仍在打坐（skills 页修行分组）。
+      if (typeof currentRealm !== 'function') return '';
+      const cur = currentRealm();
+      const nx = (typeof nextRealm === 'function') ? nextRealm() : null;
+      const xp = Game.stats.totalXp || 0;
+      const breaks = (Game.stats.realmBreaks || 0);
+      let nextRows = '';
+      if (nx){
+        const pct = nx.need > 0 ? Math.min(100, xp / nx.need * 100) : 100;
+        nextRows = `<span>下一阶 <b>${nx.name}</b></span>
+          <span>还差 <b>${fmt(Math.max(0, nx.need - xp))}</b> 修为</span>
+          <span class="realm-stat-bar"><i style="width:${pct.toFixed(1)}%"></i></span>
+          <span class="hint">攒够后去「技能 · 修行」打坐突破。</span>`;
+      } else {
+        nextRows = `<span class="hint">已是已知最高境界。</span>`;
+      }
+      return `<div class="panel stat-panel"><h3>境界 <span class="hint">打坐突破 · 修炼效率永久加成</span></h3>
+        <div class="stat-rows">
+          <span>当前 <b>${cur ? cur.name : '—'}</b></span>
+          <span>效率加成 <b>+${Math.round((cur ? cur.bonus : 0) * 100)}%</b></span>
+          <span>已突破 <b data-stat="realmBreaks">${breaks}</b> 次</span>
+          ${nextRows}
+        </div>${UI.wikiFooter ? UI.wikiFooter('mechanic', 'realm') : ''}</div>`;
+    })()}
+    ${(function(){
       // 行旅见闻：触发过的按次数列，没见过的也列出来（「还差几条」本身就是目的）
       const onRoad = (window.TRAVEL_EVENTS || []);
       const awayEv = (window.AWAY_EVENTS || []);
@@ -36986,6 +37034,36 @@ function bindSwipeGestures(){
       title: '商旅 · 观象 · 圃艺',
       body: '以贝币买卖物品、低买高卖；观象提升离线上限（基础 ' + (typeof TUNING !== 'undefined' && TUNING.OFFLINE ? TUNING.OFFLINE.CAP_H : '?') +
         ' 小时，每处观象 +1、仓廪 +2、土窟 +1）与离线效率；圃艺种植收成。'
+    },
+    taofa: {
+      title: '征伐',
+      body: '往讨异兽与凶神，是修行的另一面：既得经验与掉落，也累积著录度。兵器与祝术分五行——相克 ×1.35、被克 ×0.75、相生 ×1.15；' +
+        '战法四项乘区各自独立，与五行、词条、绝技叠加。连续讨伐同一异兽，经验递减，换一只即恢复全额。' +
+        '六凶与凶神皆是恶战，胜则名留图鉴、兆应四方。'
+    },
+    yushi: {
+      title: '御使',
+      body: '著录至「通形」（50 次）的异兽可入御使槽，随行助阵并给予增益；槽位随御使等级扩充（每 10 级 +1，至 9 槽）。' +
+        '御使中的异兽持续积累御使经验；著录愈深（识名 → 明性 → 通形 → 得御），增益愈强。' +
+        '「一键最优」按著录阶自动配满空槽；成对异兽占两槽。'
+    },
+    ying: {
+      title: '营造',
+      body: '营造以柴栅起步，逐级开启灶屋、土窟、祠坛、市廛、仓廪、烽火台、学宫……直至山海阁。' +
+        '造完一座，所得经验足以开启下一座；等级差一点时可「修复旧筑」补足（约本座所需四分之一）。修学可加快营造升级。' +
+        '诸营造各有所长：市廛广货、仓廪扩容、烽火台镇凶、山海阁厚离线之收（上限 +3 小时、效率 +5%）。'
+    },
+    xunli: {
+      title: '行动 · 巡历队列',
+      body: '巡历队列至多 10 项，依序执行、循环往复；采集按产出个数计，制作按次数计，讨伐按次数计。' +
+        '「快速挂机」按当前可达成目标自动排好队列；「循环」开启后一轮做完自动再来。' +
+        '离线时队列照常结算，上限与效率以页内一行实时标出的口径为准。'
+    },
+    shichan: {
+      title: '墟市',
+      body: '以贝币易物：市廛货架随商旅等级逐档开启。方国求购常驻三单，约 30 分钟轮换一批，' +
+        '溢价 1.3～1.8 倍收可再生原材料——交付得贝币与贸易经验，一单少一单。' +
+        '售价加成由商旅等级、营造、御使、征兆共同决定；低买高卖、囤积居奇，亦是修行。'
     },
     realm: {
       title: '境界',

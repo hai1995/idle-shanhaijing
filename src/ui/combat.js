@@ -34,7 +34,7 @@ function taofaArenaHtml(){
         `<button class="chip-btn ${Prefs.stylePref===s?'on':''}" onclick="setCombatStyle('${s}')">${styleLabel(s)}</button>`).join('')}
     </div>
     <div class="style-row tactic-row">
-      <span class="tr-lb" title="战法决定「怎么打」：四项乘区各自独立，与五行、词条、绝技叠加">战法</span>
+      <span class="tr-lb" data-tip data-tip-title="征伐" data-wiki="mechanic:taofa">战法<span class="tip-body hidden">战法决定「怎么打」：四项乘区各自独立，与五行、词条、绝技叠加。讨伐既得经验与掉落，每次交手也累积著录度；连讨同一异兽经验递减，换一只即恢复。</span></span>
       ${Object.values(TACTICS).map(t=>
         `<button class="chip-btn ${(Prefs.tactic||'none')===t.id?'on':''}" onclick="setTactic('${t.id}')" title="${esc(t.desc)}">${t.name}</button>`).join('')}
       <span class="hint">${esc(currentTactic().desc)}</span>
@@ -411,7 +411,7 @@ UI.renderYushi = function(){
   const bonusText = bonusTextOf(bonus) === '—' ? '暂无' : bonusTextOf(bonus);
   const omenText = omenBonusText();
   let html = `<div class="two-col"><div class="panel slot-panel">
-    <h3>御使槽位（${used}/${slots}）</h3>
+    <h3 data-tip data-tip-title="御使" data-wiki="mechanic:yushi">御使槽位（${used}/${slots}）<span class="tip-body hidden">御使槽位随御使等级扩充（每 10 级 +1，至 9 槽）。著录至「通形」的异兽方可入槽，随行助阵并给予增益；御使中的异兽持续积累御使经验。</span></h3>
     <div class="slot-row">
       ${Array.from({length:slots}, (_,i)=>{
         const bid = Game.deployed[i];

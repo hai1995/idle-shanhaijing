@@ -15,7 +15,7 @@ UI.renderQueue = function(){
   const fb = Game.fallback;
   let html = `<div class="queue-wrap">
     <div class="panel queue-list">
-      <h3>巡历队列（${Game.queue.length}/${QUEUE_MAX}）${Game.queue.length?`<span class="h3-more"> · 预计一轮 ≈ ${fmtTime(estimateQueueSeconds())}</span>`:''}</h3>
+      <h3 data-tip data-tip-title="行动 · 巡历队列" data-wiki="mechanic:xunli">巡历队列（${Game.queue.length}/${QUEUE_MAX}）${Game.queue.length?`<span class="h3-more"> · 预计一轮 ≈ ${fmtTime(estimateQueueSeconds())}</span>`:''}<span class="tip-body hidden">巡历队列至多 ${QUEUE_MAX} 项，依序执行、循环往复；采集按产出个数、制作与讨伐按次数计。「快速挂机」按当前可达成目标自动排程；离线时队列照常结算。</span></h3>
       ${Game.queue.map((e,i)=>{
         const st = entryCanRun(e);
         // 条目前的小像：讨伐取目标异兽像，采集 / 制作取该行动的技艺像，一眼认得出在做什么

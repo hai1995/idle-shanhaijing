@@ -175,6 +175,21 @@ UI.renderTopbar = function(){
       const ready = (typeof canBreakthrough === 'function') && canBreakthrough();
       set('realmName', (cur ? cur.name : '—') + (ready ? ' ·可突破' : ''));
       rs.classList.toggle('ready', !!ready);
+      // 胶囊悬停正文（v1.31.171）：随进度刷新，让 hover 就能看到「还差多少修为」
+      const tb = document.getElementById ? document.getElementById('realmTipBody') : null;
+      if (tb && typeof Game !== 'undefined'){
+        const nx = (typeof nextRealm === 'function') ? nextRealm() : null;
+        const xp = (Game.stats && Game.stats.totalXp) || 0;
+        const rows = [`当前 <b>${cur ? cur.name : '—'}</b> · 修炼效率 <b>+${Math.round((cur ? cur.bonus : 0) * 100)}%</b>`];
+        if (nx){
+          rows.push(`下一阶 <b>${nx.name}</b> · 还差 <b>${fmt(Math.max(0, nx.need - xp))}</b> 修为`);
+          rows.push(ready ? '<b class="rt-ready">已可突破——去「技能 · 修行」打坐</b>' : '攒够后于打坐中突破。');
+        } else {
+          rows.push('已是已知最高境界。');
+        }
+        const html = rows.map(r=>`<div>${r}</div>`).join('');
+        if (tb.innerHTML !== html) tb.innerHTML = html;
+      }
     }
   }
   // 名号：没设昵称时也显示默认名号（顶栏空一块比「默认名」更像 bug）。

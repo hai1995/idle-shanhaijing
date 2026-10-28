@@ -184,7 +184,7 @@ UI.renderShichan = function(){
     board = '<div class="hint">方国使者未至——稍后再来，或「另访方国」主动求单</div>';
   }
   const orderBoard = `<div class="panel order-board">
-      <div class="ob-head"><h3><span class="mi-ic">${typeof markIcon==='function'?markIcon('scale',17):'⚖️'}</span> 方国求购</h3>
+      <div class="ob-head"><h3 data-tip data-tip-title="墟市" data-wiki="mechanic:shichan"><span class="mi-ic">${typeof markIcon==='function'?markIcon('scale',17):'⚖️'}</span> 方国求购<span class="tip-body hidden">方国求购常驻三单，约 30 分钟轮换一批，溢价 1.3～1.8 倍收可再生原材料；交付得贝币与贸易经验，一单少一单。售价加成由商旅等级、营造、御使、征兆共同决定。</span></h3>
         <span class="ob-refresh">整批轮换 <b>${mm}:${ss}</b> 后
           ${(()=>{
             // 一键交割：只在「有可交割的单」时出现，否则按钮常驻反而碍眼
@@ -228,7 +228,7 @@ UI.renderYing = function(){
   const box = $('content');
   if (!box) return;
   box.innerHTML = `<div class="panel">
-    <h3>营造（营邑）</h3>
+    <h3 data-tip data-tip-title="营造" data-wiki="mechanic:ying">营造（营邑）<span class="tip-body hidden">营邑每级随营造提升；造完一座，所得经验足以开启下一座。等级差一点时可「修复旧筑」补足；修学可加快营造升级。市廛广货、仓廪扩容、山海阁厚离线之收。</span></h3>
     ${(() => {
       const ready = Object.values(BUILDINGS).filter(b => !Game.buildings[b.id] && levelOf('yingyi') >= b.lvl && canAfford(b.cost)).length;
       const next = Object.values(BUILDINGS).filter(b => !Game.buildings[b.id]).sort((x, y) => x.lvl - y.lvl)[0];

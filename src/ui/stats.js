@@ -135,6 +135,32 @@ UI.renderStats = function(){
       </div>`;
     })()}
     ${(function(){
+      // 「境界」面板（v1.31.171）：境界系统上主页签的可感知入口——统计页一眼看到当前阶、
+      // 加成、突破次数与下一阶差距；突破入口仍在打坐（skills 页修行分组）。
+      if (typeof currentRealm !== 'function') return '';
+      const cur = currentRealm();
+      const nx = (typeof nextRealm === 'function') ? nextRealm() : null;
+      const xp = Game.stats.totalXp || 0;
+      const breaks = (Game.stats.realmBreaks || 0);
+      let nextRows = '';
+      if (nx){
+        const pct = nx.need > 0 ? Math.min(100, xp / nx.need * 100) : 100;
+        nextRows = `<span>下一阶 <b>${nx.name}</b></span>
+          <span>还差 <b>${fmt(Math.max(0, nx.need - xp))}</b> 修为</span>
+          <span class="realm-stat-bar"><i style="width:${pct.toFixed(1)}%"></i></span>
+          <span class="hint">攒够后去「技能 · 修行」打坐突破。</span>`;
+      } else {
+        nextRows = `<span class="hint">已是已知最高境界。</span>`;
+      }
+      return `<div class="panel stat-panel"><h3>境界 <span class="hint">打坐突破 · 修炼效率永久加成</span></h3>
+        <div class="stat-rows">
+          <span>当前 <b>${cur ? cur.name : '—'}</b></span>
+          <span>效率加成 <b>+${Math.round((cur ? cur.bonus : 0) * 100)}%</b></span>
+          <span>已突破 <b data-stat="realmBreaks">${breaks}</b> 次</span>
+          ${nextRows}
+        </div>${UI.wikiFooter ? UI.wikiFooter('mechanic', 'realm') : ''}</div>`;
+    })()}
+    ${(function(){
       // 行旅见闻：触发过的按次数列，没见过的也列出来（「还差几条」本身就是目的）
       const onRoad = (window.TRAVEL_EVENTS || []);
       const awayEv = (window.AWAY_EVENTS || []);
