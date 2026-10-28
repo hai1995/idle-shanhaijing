@@ -11298,6 +11298,49 @@ section('录毕之印（v1.31.197）');
   G.resetToDefault();
 }
 
+section('首屏骨架与异步样式表（v1.31.198）');
+{
+  // 样式表 216KB 是渲染阻塞的，弱网下 FCP 全等它的下载完成时刻。
+  // 改法：media 先给一个不匹配的值（不阻塞），加载完切回 all；骨架用内联样式先画。
+  const html = readText('index.html');
+  assert(/<link rel="stylesheet" href="style\.css\?[^"]*" media="print"\s+onload="this\.media='all';document\.documentElement\.classList\.remove\('css-boot'\)"/.test(html),
+    'style.css 不阻塞渲染（media=print + onload 切回并放开 css-boot）');
+  assert(html.includes('<html lang="zh-CN" class="css-boot">'), '初始态挂着 css-boot（首屏隐藏顶栏与裸壳）');
+  assert(html.includes('<div class="boot-skel" role="status">'), '骨架挂在 #content 里（JS 渲染时自然替换掉）');
+  assert(/classList\.remove\('css-boot'\); \}, 4000\)/.test(html), '样式表 4 秒不来也兜底放开，不会停在骨架上');
+  assert(/html\.css-boot #topdock[^}]*visibility:hidden/.test(html), 'css-boot 时顶栏与页签先藏住');
+  assert(/html\.css-boot #updateBar[^{]*\{ display:none/.test(html.replace(/\n\s*/g,' ')) || /html\.css-boot #updateBar/.test(html),
+    'css-boot 时更新条等裸壳也按住（.hidden 的样式也在样式表里）');
+
+  // ⚠️ 内联骨架的色值是硬编码的（变量定义在被等的那个文件里）。
+  // 两处会走岔——逐字钉住与 :root / 夜间块同源，改色板别漏这里。
+  const css198 = readText('style.css');
+  const pairs = [
+    ['html.css-boot body{ background:',          /--paper:\s*(#[0-9A-Fa-f]+)/, '昼 --paper'],
+    ['html[data-theme="night"].css-boot body{ background:', /data-theme="night"\]\{\s*--paper:\s*(#[0-9A-Fa-f]+)/, '夜 --paper'],
+    ['justify-content:center; gap:14px; font-family:KaiTi,STKaiti,"Noto Serif SC",serif; color:',
+                                                 /--ink-3:\s*(#[0-9A-Fa-f]+)/, '昼 --ink-3'],
+    ['html[data-theme="night"] .boot-skel{ color:', /data-theme="night"\]\{[\s\S]{0,400}?--ink-3:\s*(#[0-9A-Fa-f]+)/, '夜 --ink-3'],
+    ['.boot-skel .bs-title{ font-size:30px; letter-spacing:.34em; text-indent:.34em; color:',
+                                                 /--ink:\s*(#[0-9A-Fa-f]+)/, '昼 --ink'],
+    ['html[data-theme="night"] .boot-skel .bs-title{ color:', /data-theme="night"\]\{[\s\S]{0,400}?--ink:\s*(#[0-9A-Fa-f]+)/, '夜 --ink'],
+    ['.boot-skel .bs-bar > i{ display:block; width:40%; height:100%; background:',
+                                                 /--zhu:\s*(#[0-9A-Fa-f]+)/, '昼 --zhu'],
+    ['html[data-theme="night"] .boot-skel .bs-bar > i{ background:', /data-theme="night"\]\{[\s\S]{0,1200}?--zhu:\s*(#[0-9A-Fa-f]+)/, '夜 --zhu'],
+  ];
+  for (const [needle, re, label] of pairs){
+    const m = css198.match(re);
+    assert(m, 'style.css 里找得到 ' + label);
+    assert(html.includes(needle + m[1]), `骨架色值与 ${label} 同源（${m[1]}）`);
+  }
+
+  // 单文件版：CSS 已内联成 <style>，没有「等样式表」这回事，异步与骨架隐藏态都要撤掉
+  const sa198 = fs.readFileSync(path.join(__dirname, '..', 'idle-shanhaijing-standalone.html'), 'utf8');
+  assert(!sa198.includes('class="css-boot"'), '单文件版撤掉 css-boot');
+  assert(!sa198.includes('media="print"'), '单文件版不再异步加载样式');
+  assert(sa198.includes('<style>'), '单文件版样式已内联');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

@@ -211,6 +211,26 @@ v1.31.109 复测（拆 world.js 之后；稳态取 5 次中位数，首次为同
 
 全站稳态 ≤ 25ms，首次最高 184ms（技能页），都在「切换不觉得卡」的范围内。
 
+**v1.31.198 补了首屏这一段**：`style.css` 改为不阻塞渲染（`media="print"` + `onload` 切回）后，
+本地限速重测（禁缓存、`Network.emulateNetworkConditions`，两遍取 FCP 较小值）：
+
+| 条件 | 改前 FCP | 改后 FCP | DCL / load |
+|---|---|---|---|
+| 4G（70ms RTT / 10Mbps） | 976ms | **100ms** | 不变（约 1.75s） |
+| 3G（150ms RTT / 1.6Mbps） | 5964ms | **220ms** | 不变（约 9.6s） |
+
+注意口径：FCP 的改前值就是 CSS 下载完成的时刻（`cssEnd` 与 FCP 逐次吻合），改后值是 HTML 首包后的
+骨架绘制；DCL / load 两列不变——这一步只把「白屏」换成「铺卷」，可交互时间没变。复测片段：
+
+```python
+cdp.send('Network.emulateNetworkConditions', dict(latency=150, downloadThroughput=200*1024, uploadThroughput=90*1024))
+pg.goto(url, wait_until='load')
+fcp = pg.evaluate("() => Math.round(performance.getEntriesByName('first-contentful-paint')[0].startTime)")
+```
+
+骨架本身的验收在「断样式表 + 断脚本」下做（骨架没有 JS 来替换它，正好截全）：昼 / 夜两套色、
+居中一屏、更新条与回到顶部等空壳不裸露；4 秒兜底放开、单文件版撤掉 `css-boot` 各有一条断言。
+
 **v1.31.197 复测（桌面 Chromium 1480×844，满档 `devSim('all')`，9 次取中位数）**：
 `chapterVisited` / `recordedCount` / `pilgrimFullCount` / `codexDoneCount` / `nodeHasItem` 加
 「一次重绘内只算一遍」的缓存后，同一会话里把 `beginRenderMemo` 换成空函数做 A/B：

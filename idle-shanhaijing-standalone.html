@@ -22,8 +22,41 @@
     if(!t && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) t = 'night';
     if(t === 'night') document.documentElement.dataset.theme = 'night';
   }catch(e){}
+  // 兜底：样式表若迟迟不来（断网 / 被拦），4 秒后放开首屏。
+  // 停在骨架上比白屏好，但停一辈子不行——顶栏与页签那时还被藏着。
+  setTimeout(function(){ document.documentElement.classList.remove('css-boot'); }, 4000);
 })();
 </script>
+<!-- 首屏骨架的样式（内联）：样式表是渲染阻塞的，216KB 没到之前页面一片空白——
+     玩家在弱网下要对着白屏等几秒。这里只写骨架自己要用的几行，让它能立刻画出来。
+     ⚠️ 色值只能硬编码：CSS 变量定义在 style.css 里，而它正是我们要等的那份文件。
+     两处同源由测试钉住（色值须与 style.css 的 :root / 夜间块逐字一致），改色板别漏这里。 -->
+<style id="bootCss">
+html.css-boot{ background:#EDEBE2; }
+html.css-boot body{ background:#EDEBE2; margin:0; }
+html.css-boot #topdock, html.css-boot #tabs, html.css-boot #fab{ visibility:hidden; }
+/* .hidden 这类显隐工具类也定义在 style.css 里——样式表没到时全数失效，
+   更新条、回到顶部这些空壳会裸露在骨架页上，一并按住 */
+html.css-boot #updateBar, html.css-boot #btnTop, html.css-boot #toasts,
+html.css-boot #modal, html.css-boot #drawerMask, html.css-boot #buffPop{ display:none; }
+.boot-skel{ min-height:100vh; display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:14px; font-family:KaiTi,STKaiti,"Noto Serif SC",serif; color:#6B6659; }
+.boot-skel .bs-title{ font-size:30px; letter-spacing:.34em; text-indent:.34em; color:#1F1D19; }
+.boot-skel .bs-sub{ font-size:13px; opacity:.75; }
+.boot-skel .bs-bar{ width:120px; height:2px; background:currentColor; opacity:.18; overflow:hidden; }
+.boot-skel .bs-bar > i{ display:block; width:40%; height:100%; background:#B03A2B;
+  animation:bs-slide 1.1s ease-in-out infinite; }
+@keyframes bs-slide{ from{ transform:translateX(-100%); } to{ transform:translateX(250%); } }
+html[data-theme="night"].css-boot, html[data-theme="night"].css-boot body{ background:#12151C; }
+html[data-theme="night"] .boot-skel{ color:#97A0B4; }
+html[data-theme="night"] .boot-skel .bs-title{ color:#E8ECF4; }
+html[data-theme="night"] .boot-skel .bs-bar > i{ background:#E06A55; }
+@media (prefers-reduced-motion:reduce){ .boot-skel .bs-bar > i{ animation:none; } }
+</style>
+<!-- 样式表改成不阻塞渲染：media 先给一个不匹配的值，加载完再切回 all。
+     于是首屏不再等它——骨架（内联样式）一到就画。init() 仍挂在 window onload 上，
+     时序与改动前一致（link 仍计入 load），只是白屏那一段换成了「正在铺卷」。
+     CSS 万一没到，4 秒后兜底放开（见上面那段昼夜脚本），不至于永远停在骨架上。 -->
 <style>
 /* ==========================================================================
    《山海经 · 著录》样式表 —— 「朱墨套印本」
@@ -3787,7 +3820,11 @@ details.hetero-panel .hp-left{ margin-left:auto; font-style:normal; color:var(--
   <!-- 侧边导航 + 主内容：PC 侧边栏常驻，移动端由左侧图标栏唤出抽屉 -->
   <div id="shell">
     <nav id="tabs"><!-- 各页签由 JS 渲染 --></nav>
-    <main id="content"><!-- 各页由 JS 渲染 --></main>
+    <main id="content"><div class="boot-skel" role="status">
+      <div class="bs-title">山海经</div>
+      <div class="bs-sub">正在铺卷…</div>
+      <div class="bs-bar" aria-hidden="true"><i></i></div>
+    </div></main>
   </div>
 
   <!-- 移动端功能总入口 -->
@@ -20483,8 +20520,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.197',
-  codename:'山志录毕',
+  version: '1.31.198',
+  codename:'铺卷即见',
   updated: '2026-10-28',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',

@@ -46,7 +46,10 @@ function build(){
     fs.readFileSync(path.join(root, 'src', f), 'utf8')).join('\n');
 
   let out = html
-    .replace(/<link rel="stylesheet" href="style\.css(?:\?[^"]*)?">/, '<style>\n' + css + '\n</style>')
+    // 样式表那条 link 可能带 media / onload（多文件版靠它不阻塞首屏），一律整条换掉
+    .replace(/<link rel="stylesheet" href="style\.css(?:\?[^"]*)?"[^>]*>/, '<style>\n' + css + '\n</style>')
+    // 单文件版 CSS 已内联，没有「等样式表」这回事：骨架的隐藏态要一并撤掉
+    .replace('<html lang="zh-CN" class="css-boot">', '<html lang="zh-CN">')
     .replace(/\s*<script src="src\/[^"]+"><\/script>/g, '');
   out = out.replace('</body>', '<script>\n' + scripts + '\n</script>\n</body>');
 
