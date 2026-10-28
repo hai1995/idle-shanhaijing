@@ -11020,6 +11020,46 @@ section('形态统一：空态 / 标题附注 / 日志行');
   assert(readText('src/ui/tutorial.js').includes('约 19:42 完'), '教程教读状态条芯片（第几项 / 几点跑完）');
 }
 
+// ---- 日志 / toast 的文案前缀：每个 emoji 都得有矢量去处（v1.31.190）----
+// 为什么从源码层验：toast 与日志是「字符串通道」，没有 DOM 可查；前缀 emoji 若没进
+// MARK_EMOJI_MAP 就原样印出来，同一屏里一行小墨图、下一行彩色字符（缺 emoji 字体的
+// 设备上还会落成豆腐块）。这里把调用点扫一遍，跟映射表对账。
+{
+  const coreSrc = readText('src/ui/core.js');
+  const mapBody = coreSrc.slice(coreSrc.indexOf('const MARK_EMOJI_MAP'),
+                                coreSrc.indexOf('};', coreSrc.indexOf('const MARK_EMOJI_MAP')));
+  const mapped = new Map([...mapBody.matchAll(/'([^']+)':'([^']+)'/g)].map(m => [m[1], m[2]]));
+  const uiFiles = fs.readdirSync(path.join(root, 'src', 'ui')).filter(f => f.endsWith('.js'))
+                    .map(f => 'src/ui/' + f).concat(['src/game.js']);
+  const re = /(?:UI\.log|this\.log|\blog\(\s*|\btoast\(\s*|\btoastT\()['"`]([\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}])/gu;
+  const missing = new Set();
+  for (const f of uiFiles){
+    if (!fs.existsSync(path.join(root, f))) continue;
+    const src = readText(f);
+    let m; while ((m = re.exec(src))) if (!mapped.has(m[1])) missing.add(m[1]);
+  }
+  assert(!missing.size, '日志 / toast 的前缀 emoji 都有矢量映射（缺：' + [...missing].join(' ') + '）');
+  // 映射值必须指向真实存在的图标：写个错名字，markIcon 会静默回落成「灯」
+  const mk = readText('src/markIcon.js');
+  const sk = readText('src/skillIcon.js');
+  const mkKeys = new Set([...mk.matchAll(/^  (\w+): `/gm)].map(m => m[1]));
+  const skKeys = new Set([...sk.matchAll(/^const (\w+) = \(\) =>/gm)].map(m => m[1]));
+  const dangling = [...mapped].filter(([, v]) => v.startsWith('skill:') ? !skKeys.has(v.slice(6)) : !mkKeys.has(v));
+  assert(!dangling.length, '前缀映射没有指向不存在的图标（悬空：' + dangling.map(x => x.join('→')).join(' ') + '）');
+  // 文案里带前缀 emoji 时，markHtml 必须真的把它换掉（含 skill: 分支）。
+  // markHtml 是 core.js 的顶层 function（走 vm 全局），而 markIcon / skillIcon 只挂在
+  // window 上——临时把两者垫进全局，跑完撤掉，别让后续用例看到「本来不该有」的图标函数。
+  const hadMk = 'markIcon' in context, hadSk = 'skillIcon' in context;
+  if (!hadMk && ST.markIcon) context.markIcon = ST.markIcon;
+  if (!hadSk && ST.skillIcon) context.skillIcon = ST.skillIcon;
+  const html1 = typeof context.markHtml === 'function' ? context.markHtml('🎋 三签已了', 14) : '';
+  const html2 = typeof context.markHtml === 'function' ? context.markHtml('🪓 采得木材', 14) : '';
+  if (!hadMk) delete context.markIcon;
+  if (!hadSk) delete context.skillIcon;
+  assert(html1.indexOf('<svg') >= 0 && !/🎋/.test(html1), '竹签前缀换成矢量（markIcon）');
+  assert(html2.indexOf('<svg') >= 0 && !/🪓/.test(html2), '斧前缀换成矢量（借 skillIcon 的樵采绘形）');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');

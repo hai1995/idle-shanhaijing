@@ -48,7 +48,19 @@ const MARK_EMOJI_MAP = {
   '📍':'pin', '🔒':'lock', '☀':'sun', '☾':'moon', '🧭':'compass',
   '⚖️':'scale', '⚖':'scale', '💡':'lamp', '⚡':'bolt', '✔':'check',
   '✓':'check', '⚠':'warn', '🌙':'moon', '⚔️':'bolt', '⚔':'bolt',
-  '🦹':'warn', '🗺️':'compass', '📜':'lamp', '🎒':'scale', '📊':'check',
+  '🦹':'warn', '🗺️':'compass', '🗺':'compass', '📜':'lamp', '🎒':'scale', '📊':'check',
+  // v1.31.190 补齐：日志与 toast 的文案前缀原先只有 8 种能换成矢量，其余 41 种
+  // 原样印 emoji——同一屏里一行是小墨图、下一行是个彩色字符。技艺类直接借
+  // skillIcon 的绘形（斧就是樵采那把斧、签就是卜筮那束蓍），值写 'skill:xxx'。
+  '🕯':'lamp', '🕯️':'lamp', '💡':'lamp',
+  '🔥':'fire', '🌊':'water', '🏘':'build', '🔨':'build', '🧹':'build',
+  '🌪':'wind', '☯':'peace', '☠':'plague', '💥':'bolt', '⛔':'warn', '🦹':'warn',
+  '✅':'check', '🎉':'star', '🌟':'star', '✨':'star', '🏆':'trophy', '🏅':'trophy',
+  '💀':'skull', '🔓':'unlock', '🎋':'slip', '🎴':'slip', '🌅':'sun', '🌳':'tree',
+  '🛡':'shield', '🎁':'gift', '🍖':'meat', '🐦':'bird', '🐝':'bird', '🪽':'feather',
+  '🔀':'swap', '📿':'beads', '🔕':'mute', '♻':'cycle',
+  '🧪':'skill:lianyao', '🌾':'skill:puyi', '🌱':'skill:puyi', '🪓':'skill:qiaocai',
+  '🏹':'skill:she', '🔮':'skill:bushi', '🐾':'skill:yushi',
 };
 function markHtml(text, size){
   const raw = String(text==null?'':text);
@@ -57,8 +69,15 @@ function markHtml(text, size){
   const m = raw.match(/^(\s*)([\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]+)\s*/u);
   if (!m) return esc(raw);
   const fam = MARK_EMOJI_MAP[m[2]] || MARK_EMOJI_MAP[m[2].replace(/\u{FE0F}/g,'')];
-  if (!fam || typeof markIcon !== 'function') return esc(raw);
-  return m[1] + markIcon(fam, size||15) + ' ' + esc(raw.slice(m[0].length));
+  if (!fam) return esc(raw);
+  // 'skill:xxx' → 借技艺的绘形（斧 / 蓍 / 爪痕这些形状技艺族里已经有了，不必再画一遍）
+  const rest = esc(raw.slice(m[0].length));
+  if (fam.indexOf('skill:') === 0){
+    if (typeof skillIcon !== 'function') return esc(raw);
+    return m[1] + skillIcon(fam.slice(6), size||15) + ' ' + rest;
+  }
+  if (typeof markIcon !== 'function') return esc(raw);
+  return m[1] + markIcon(fam, size||15) + ' ' + rest;
 }
 function esc(s){
   return String(s==null?'':s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));

@@ -127,42 +127,6 @@ LIVE_PROBE = """() => {
 }"""
 
 
-# 宽屏留白：整幅宽的容器里，内容只占左边一截。
-# 为什么查：横向溢出是「破版」，留白是「排得松」——1144px 的面板里每条只坐 150px 内容，
-# 页面看着没问题，可 18 条成就得拖三屏（v1.31.184 的统计页就是这样）。
-# 只认「叠放容器」（block / flex-column）：grid / flex-row 的最后一行不满是正常的，
-# 报它只会天天误警。
-WIDE_GAP_PROBE = """() => {
-  const c = document.getElementById('content');
-  if (!c) return [];
-  const cw = c.getBoundingClientRect().width;
-  const out = [];
-  const walk = (el) => {
-    for (const ch of el.children) {
-      const b = ch.getBoundingClientRect();
-      const cs = getComputedStyle(ch);
-      const stacked = cs.display === 'block' || (cs.display === 'flex' && cs.flexDirection === 'column');
-      if (stacked && b.width >= cw * 0.7 && b.height > 110 && ch.children.length >= 3){
-        let maxRight = -1e9, seen = 0;
-        for (const g of ch.children){
-          const gb = g.getBoundingClientRect();
-          if (gb.width > 0 && gb.height > 0){ maxRight = Math.max(maxRight, gb.right); seen++; }
-        }
-        if (seen >= 3){
-          const ratio = (maxRight - b.left) / b.width;
-          if (ratio < 0.65) out.push({ cls: (ch.className || '').toString().slice(0, 30),
-            w: Math.round(b.width), ratio: +ratio.toFixed(2),
-            txt: (ch.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 24) });
-        }
-      }
-      walk(ch);
-    }
-  };
-  walk(c);
-  return out.slice(0, 4);
-}"""
-
-
 # 文字被容器截断（overflow:hidden / ellipsis 且 scrollWidth > clientWidth）。
 # 为什么单独查：横向溢出是「破版」（元素跑出视口），截断是「信息少了」——
 # 页面看着完好，但标签被切掉一截（320px 下「北次一·瘗礼」69px 挤进 60px 的格子，
@@ -287,7 +251,6 @@ async def main():
                     r = await pg.evaluate(PROBE, t)
                     r["vp"], r["state"] = vname, state
                     r["clip"] = await pg.evaluate(CLIP_PROBE)
-                    r["gap"] = await pg.evaluate(WIDE_GAP_PROBE)
                     # 对比度对所有页都查（不只是晚期）：淡字在各页共用同一批变量
                     r["contrast"] = await pg.evaluate(CONTRAST_PROBE)
                     results.append(r)
@@ -306,7 +269,6 @@ async def main():
                     r = await pg.evaluate(PROBE, t)
                     r["vp"], r["state"] = vname, "夜间主题"
                     r["clip"] = await pg.evaluate(CLIP_PROBE)
-                    r["gap"] = await pg.evaluate(WIDE_GAP_PROBE)
                     r["contrast"] = await pg.evaluate(CONTRAST_PROBE)
                     results.append(r)
                 await pg.evaluate("try{ setTheme('day'); }catch(e){}")
@@ -376,10 +338,6 @@ async def main():
             c0 = r["clip"][0]
             bad.append(tag + f" 有 {len(r['clip'])} 处文字被截断（如 .{c0['cls']} "
                        f"{c0['sw']}>{c0['cw']}「{c0['txt']}」）")
-        elif r.get("gap"):
-            g0 = r["gap"][0]
-            bad.append(tag + f" 有 {len(r['gap'])} 处宽容器内容只用 {int(g0['ratio']*100)}% 宽"
-                       f"（.{g0['cls']} {g0['w']}px「{g0['txt']}」）")
         elif (r.get("contrast") or {}).get("bad"):
             cb = r["contrast"]["bad"]
             b0 = cb[0]

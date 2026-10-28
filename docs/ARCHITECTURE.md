@@ -22,7 +22,7 @@
 | 9 | `engine.js` | 状态骨架 `Game`/`Prefs`、经验与等级、日志、离线入口、读档装配 | 647 |
 | 10 | `game.js` | 全部系统规则：采集、制作、战斗、祠礼、观象、谒见、养木、圃艺、御使、轮回、三签、强化、离线结算 | 3746 |
 | 11 | `queue.js` | 巡历队列：多任务顺序执行 + 兜底动作 | 460 |
-| 12–17 | `beastIcon.js` `riteIcon.js` `structureIcon.js` `skillIcon.js` `itemIcon.js` `markIcon.js` | 手绘 SVG 图标族 | 140–690 |
+| 12–17 | `beastIcon.js` `riteIcon.js` `structureIcon.js` `skillIcon.js` `itemIcon.js` `markIcon.js` | 手绘 SVG 图标族；`markIcon` 另含日志 / toast 前缀用的 15 形（v1.31.190） | 140–690
 | 18 | `interact.js` | 交易 / 出售 / 订单 / 手动动作入口 | 390 |
 | 19 | `events.js` | **行旅见闻**（奇遇）：触发时给「一句话 + 一点东西」。两张表——路上见闻（采集 / 讨伐 / 制作，按技艺分家，含**限定条件**：夜间 / 旱季 / 雨季 / 珍稀 / 离山）与离线见闻（离山归来，按离山时长缩放）。限定条件写成结构化 `cond` 字段、配 `EVENT_COND` 标签表（界面只读，不从 `hint` 文案反推）。抽取分「见过 / 没见过」两层（65% 走新层），**只做正向**，效果只用 `gainXp` / `giveItem` / 贝币，不引入临时增益这类新状态。冷却、逐条计数与「最近一次」随存档走。条数以 `eventKindsTotal()` 为准，文档不写死 | 621 |
 | 20 | `fx.js` | 弹字、粒子、声效开关 | 180 |
