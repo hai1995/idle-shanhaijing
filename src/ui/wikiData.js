@@ -9,7 +9,7 @@
     for (const id in Skills) {
       const s = Skills[id];
       if (!s || !s.name) continue;
-      WIKI.skill[id] = { title: s.name, icon: s.icon || '📖', body: s.desc || '' };
+      WIKI.skill[id] = { title: s.name, body: s.desc || '' };   // 图标由 wiki.js 用 skillIcon 矢量绘形
     }
   }
 
@@ -142,7 +142,7 @@
       if (prev) body += '上一阶：' + prev.name + '。';
       if (next) body += '下一阶：' + next.name + '（需修为 ' + (typeof fmt === 'function' ? fmt(next.need) : next.need) + '）。';
       else body += '此为已知最高境界。';
-      WIKI.realm[r.id] = { title: r.name, icon: '🌀', body: body };
+      WIKI.realm[r.id] = { title: r.name, body: body };   // 图标由 wiki.js 画回旋墨线
     });
   }
 

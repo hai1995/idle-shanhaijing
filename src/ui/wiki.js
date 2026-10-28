@@ -1,5 +1,16 @@
 // ===== ui/wiki.js — 百科(wiki)页：索引 + 跳转 + 弹窗「查看百科」页脚（v1.31.169） =====
 // 界面文案精简后，所有知识的深读都收拢到这里；弹窗里的「查看百科 ›」按钮即入口。
+
+// 条目标记（v1.31.185）：技艺用 skillIcon 的矢量绘形——与技能页同一套墨影剪影。
+// 此前百科直接印 Skills 里的 emoji 字形，与全站「不用 emoji、矢量墨绘」的设计语言相悖
+// （skillIcon.js 开头即写明这条），在缺 emoji 字体的设备上还会落成豆腐块。
+// 只有技艺有绘形：机制与境界本就是概念，没有可画的形状——强行配个图标只是噪音。
+function wikiMark(domain, id) {
+  if (domain === 'skill' && typeof skillIcon === 'function')
+    return `<span class="wiki-eic">${skillIcon(id, 18)}</span>`;
+  return '';
+}
+
 UI.renderWiki = function () {
   const box = $('content');
   if (!box) return;
@@ -30,7 +41,7 @@ UI.renderWiki = function () {
     keys.forEach(id => {
       const e = g.items[id];
       html += `<article class="wiki-entry" id="wiki-entry-${g.domain}-${id}" data-wiki-entry="${g.domain}:${id}">
-        <h4 class="wiki-etitle">${esc(e.icon || '')} ${esc(e.title || id)}</h4>
+        <h4 class="wiki-etitle">${wikiMark(g.domain, id)}${esc(e.title || id)}</h4>
         <div class="wiki-ebody">${esc(e.body || '')}</div>
       </article>`;
     });

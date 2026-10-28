@@ -3610,6 +3610,11 @@ details.hetero-panel .hp-left{ margin-left:auto; font-style:normal; color:var(--
 .wiki-entry.wiki-flash{ animation:wiki-flash 1.2s ease; }
 @keyframes wiki-flash{ 0%{ box-shadow:0 0 0 2px var(--qing); } 100%{ box-shadow:0 0 0 2px transparent; } }
 .wiki-etitle{ font-family:var(--f-kai); font-size:13.5px; color:var(--ink); letter-spacing:.04em; margin:0 0 5px; }
+/* 百科条目标记（v1.31.185）：技艺用技能页同一套矢量绘形。
+   此前百科印的是 emoji 字形——与「不用 emoji、矢量墨绘」的设计语言相悖，
+   缺 emoji 字体的设备上更会落成豆腐块。机制 / 境界无绘形，保持纯文字标题。 */
+.wiki-eic{ display:inline-flex; align-items:center; justify-content:center; margin-right:6px; vertical-align:-3px; color:var(--ink-3); }
+.wiki-eic > .bi{ display:block; }
 .wiki-ebody{ font-family:var(--f-song); font-size:12.5px; line-height:1.85; color:var(--ink-2); }
 .wiki-foot{ margin-top:7px; text-align:right; }
 .wiki-foot .tip-link{ font-size:11px; }
@@ -20339,8 +20344,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.184',
-  codename:'昼巡 · 对账',
+  version: '1.31.185',
+  codename:'素绘 · 同源',
   updated: '2026-10-28',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
@@ -37159,7 +37164,7 @@ function bindSwipeGestures(){
     for (const id in Skills) {
       const s = Skills[id];
       if (!s || !s.name) continue;
-      WIKI.skill[id] = { title: s.name, icon: s.icon || '📖', body: s.desc || '' };
+      WIKI.skill[id] = { title: s.name, body: s.desc || '' };   // 图标由 wiki.js 用 skillIcon 矢量绘形
     }
   }
 
@@ -37292,7 +37297,7 @@ function bindSwipeGestures(){
       if (prev) body += '上一阶：' + prev.name + '。';
       if (next) body += '下一阶：' + next.name + '（需修为 ' + (typeof fmt === 'function' ? fmt(next.need) : next.need) + '）。';
       else body += '此为已知最高境界。';
-      WIKI.realm[r.id] = { title: r.name, icon: '🌀', body: body };
+      WIKI.realm[r.id] = { title: r.name, body: body };   // 图标由 wiki.js 画回旋墨线
     });
   }
 
@@ -37302,6 +37307,17 @@ function bindSwipeGestures(){
 // ===== ui/wiki.js =====
 // ===== ui/wiki.js — 百科(wiki)页：索引 + 跳转 + 弹窗「查看百科」页脚（v1.31.169） =====
 // 界面文案精简后，所有知识的深读都收拢到这里；弹窗里的「查看百科 ›」按钮即入口。
+
+// 条目标记（v1.31.185）：技艺用 skillIcon 的矢量绘形——与技能页同一套墨影剪影。
+// 此前百科直接印 Skills 里的 emoji 字形，与全站「不用 emoji、矢量墨绘」的设计语言相悖
+// （skillIcon.js 开头即写明这条），在缺 emoji 字体的设备上还会落成豆腐块。
+// 只有技艺有绘形：机制与境界本就是概念，没有可画的形状——强行配个图标只是噪音。
+function wikiMark(domain, id) {
+  if (domain === 'skill' && typeof skillIcon === 'function')
+    return `<span class="wiki-eic">${skillIcon(id, 18)}</span>`;
+  return '';
+}
+
 UI.renderWiki = function () {
   const box = $('content');
   if (!box) return;
@@ -37332,7 +37348,7 @@ UI.renderWiki = function () {
     keys.forEach(id => {
       const e = g.items[id];
       html += `<article class="wiki-entry" id="wiki-entry-${g.domain}-${id}" data-wiki-entry="${g.domain}:${id}">
-        <h4 class="wiki-etitle">${esc(e.icon || '')} ${esc(e.title || id)}</h4>
+        <h4 class="wiki-etitle">${wikiMark(g.domain, id)}${esc(e.title || id)}</h4>
         <div class="wiki-ebody">${esc(e.body || '')}</div>
       </article>`;
     });

@@ -3583,6 +3583,11 @@ details.hetero-panel .hp-left{ margin-left:auto; font-style:normal; color:var(--
 .wiki-entry.wiki-flash{ animation:wiki-flash 1.2s ease; }
 @keyframes wiki-flash{ 0%{ box-shadow:0 0 0 2px var(--qing); } 100%{ box-shadow:0 0 0 2px transparent; } }
 .wiki-etitle{ font-family:var(--f-kai); font-size:13.5px; color:var(--ink); letter-spacing:.04em; margin:0 0 5px; }
+/* 百科条目标记（v1.31.185）：技艺用技能页同一套矢量绘形。
+   此前百科印的是 emoji 字形——与「不用 emoji、矢量墨绘」的设计语言相悖，
+   缺 emoji 字体的设备上更会落成豆腐块。机制 / 境界无绘形，保持纯文字标题。 */
+.wiki-eic{ display:inline-flex; align-items:center; justify-content:center; margin-right:6px; vertical-align:-3px; color:var(--ink-3); }
+.wiki-eic > .bi{ display:block; }
 .wiki-ebody{ font-family:var(--f-song); font-size:12.5px; line-height:1.85; color:var(--ink-2); }
 .wiki-foot{ margin-top:7px; text-align:right; }
 .wiki-foot .tip-link{ font-size:11px; }
