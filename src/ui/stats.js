@@ -81,56 +81,6 @@ UI.renderStats = function(){
       </div>
       <div class="stat-rows gather-rows">${gatherRows}</div></div>
     ${(function(){
-      // 行旅见闻：触发过的按次数列，没见过的也列出来（「还差几条」本身就是目的）
-      const onRoad = (window.TRAVEL_EVENTS || []);
-      const awayEv = (window.AWAY_EVENTS || []);
-      const evs = onRoad.concat(awayEv);
-      if (!evs.length) return '';
-      const seen = (Game.events && Game.events.seen) || {};
-      // 总数用 seen 求和，不用 events.count：两者可能不一致（旧档只记 count，
-      // 调试时也可能只重置 count），求和是唯一自洽的口径。
-      const total = evs.reduce((a, e) => a + (seen[e.id] || 0), 0);
-      const kinds = evs.filter(e => seen[e.id]).length;
-      // 未见的条目带上「去哪儿能撞见」的线索（e.hint，v1.31.106）：
-      // 「未见」两个字只会让人干瞪眼，线索才让人动身。见过的不再啰嗦。
-      // 限定条件的小标记（v1.31.125）：25 条见闻里有一半要挑时间 / 挑地点，
-      // 原先只有读完整句线索才知道「这条要蹲雨季」——扫一眼看不出哪条在等什么。
-      // 标记只在未见时出现：见过的条目已经是战绩，不需要再提醒怎么弄到。
-      const condTag = (e) => {
-        const d = (window.EVENT_COND || {})[e.cond];
-        return d ? `<i class="ev-cond ev-cond-${esc(e.cond)}" title="${esc(d.title)}">${esc(d.label)}</i>` : '';
-      };
-      const cell = (e) => {
-        const n = seen[e.id] || 0;
-        return n ? `<span>${esc(e.name || e.id)} <b>${n}</b></span>`
-                 : `<span class="hint ev-unseen">${condTag(e)}${esc(e.name || e.id)} · 未见${e.hint
-                     ? `<em class="ev-hint">${e.go === 'hetero'
-                         ? `<button class="linklike" type="button" onclick="UI.gotoHetero()">${esc(e.hint)}</button>`
-                         : (e.go === 'omen'
-                         ? `<button class="linklike" type="button" onclick="UI.switchTab('jisi')">${esc(e.hint)}</button>`
-                         : esc(e.hint))}</em>`
-                     : ''}</span>`;
-      };
-      // 分两组：「路上遇见的」与「不在时错过的」是两种心情，
-      // 混在一堆里读不出「我离开时山里发生过什么」。
-      const rows = onRoad.map(cell).join('');
-      const awayRows = awayEv.length
-        ? `<div class="stat-sub">不在时</div>` + awayEv.map(cell).join('')
-        : '';
-      // 最近一次：计数只说「多少」，说不了「上次是什么时候」。
-      // 挂机回来想知道「这一夜有没有遇到什么」，看的是这一行，不是总数。
-      let lastLine = '';
-      const lastId = (Game.events && Game.events.lastId) || '';
-      const lastAt = (Game.events && Game.events.lastAt) || 0;
-      const lastEv = lastId ? evs.find(e => e.id === lastId) : null;
-      if (lastEv && lastAt > 0){
-        const ago = Math.max(0, (typeof gameTime === 'function' ? gameTime() : 0) - lastAt);
-        lastLine = `<div class="stat-rows"><span class="hint">最近一次：${esc(lastEv.name || lastId)} · ${fmtDur(ago)}前</span></div>`;
-      }
-      return `<div class="panel stat-panel"><h3>行旅见闻 <span class="hint">${kinds}/${evs.length} 种 · 共 ${total} 条</span></h3>
-        <div class="stat-rows">${rows}${awayRows}</div>${lastLine}</div>`;
-    })()}
-    ${(function(){
       // 「近况」：统计页其余都是累计数字，看不出「此刻」收益几何。
       // 换配装 / 换兽 / 开兆之后效率变好变坏，原先全凭感觉。
       const r = (typeof rateSummary === 'function') ? rateSummary(600) : null;
@@ -183,6 +133,56 @@ UI.renderStats = function(){
           return `<div class="hint">离线一小时约 <b>${fmt(offXp)}</b> 修为${loot}——${word}（在线 ${pct}%）。</div>`;
         })()}
       </div>`;
+    })()}
+    ${(function(){
+      // 行旅见闻：触发过的按次数列，没见过的也列出来（「还差几条」本身就是目的）
+      const onRoad = (window.TRAVEL_EVENTS || []);
+      const awayEv = (window.AWAY_EVENTS || []);
+      const evs = onRoad.concat(awayEv);
+      if (!evs.length) return '';
+      const seen = (Game.events && Game.events.seen) || {};
+      // 总数用 seen 求和，不用 events.count：两者可能不一致（旧档只记 count，
+      // 调试时也可能只重置 count），求和是唯一自洽的口径。
+      const total = evs.reduce((a, e) => a + (seen[e.id] || 0), 0);
+      const kinds = evs.filter(e => seen[e.id]).length;
+      // 未见的条目带上「去哪儿能撞见」的线索（e.hint，v1.31.106）：
+      // 「未见」两个字只会让人干瞪眼，线索才让人动身。见过的不再啰嗦。
+      // 限定条件的小标记（v1.31.125）：25 条见闻里有一半要挑时间 / 挑地点，
+      // 原先只有读完整句线索才知道「这条要蹲雨季」——扫一眼看不出哪条在等什么。
+      // 标记只在未见时出现：见过的条目已经是战绩，不需要再提醒怎么弄到。
+      const condTag = (e) => {
+        const d = (window.EVENT_COND || {})[e.cond];
+        return d ? `<i class="ev-cond ev-cond-${esc(e.cond)}" title="${esc(d.title)}">${esc(d.label)}</i>` : '';
+      };
+      const cell = (e) => {
+        const n = seen[e.id] || 0;
+        return n ? `<span>${esc(e.name || e.id)} <b>${n}</b></span>`
+                 : `<span class="hint ev-unseen">${condTag(e)}${esc(e.name || e.id)} · 未见${e.hint
+                     ? `<em class="ev-hint">${e.go === 'hetero'
+                         ? `<button class="linklike" type="button" onclick="UI.gotoHetero()">${esc(e.hint)}</button>`
+                         : (e.go === 'omen'
+                         ? `<button class="linklike" type="button" onclick="UI.switchTab('jisi')">${esc(e.hint)}</button>`
+                         : esc(e.hint))}</em>`
+                     : ''}</span>`;
+      };
+      // 分两组：「路上遇见的」与「不在时错过的」是两种心情，
+      // 混在一堆里读不出「我离开时山里发生过什么」。
+      const rows = onRoad.map(cell).join('');
+      const awayRows = awayEv.length
+        ? `<div class="stat-sub">不在时</div>` + awayEv.map(cell).join('')
+        : '';
+      // 最近一次：计数只说「多少」，说不了「上次是什么时候」。
+      // 挂机回来想知道「这一夜有没有遇到什么」，看的是这一行，不是总数。
+      let lastLine = '';
+      const lastId = (Game.events && Game.events.lastId) || '';
+      const lastAt = (Game.events && Game.events.lastAt) || 0;
+      const lastEv = lastId ? evs.find(e => e.id === lastId) : null;
+      if (lastEv && lastAt > 0){
+        const ago = Math.max(0, (typeof gameTime === 'function' ? gameTime() : 0) - lastAt);
+        lastLine = `<div class="stat-rows"><span class="hint">最近一次：${esc(lastEv.name || lastId)} · ${fmtDur(ago)}前</span></div>`;
+      }
+      return `<div class="panel stat-panel ev-panel"><h3>行旅见闻 <span class="hint">${kinds}/${evs.length} 种 · 共 ${total} 条</span></h3>
+        <div class="stat-rows">${rows}${awayRows}</div>${lastLine}</div>`;
     })()}
     <div class="panel stat-panel"><h3>商旅</h3>
       <div class="stat-rows">

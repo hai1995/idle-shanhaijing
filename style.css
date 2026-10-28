@@ -352,6 +352,14 @@ html.theme-anim, html.theme-anim *{
 }
 #topbar .stat .meter > i{ display:block; height:100%; width:0; background:var(--zhu); transition:width .4s ease-out; }
 
+/* 境界胶囊（v1.31.170）：青色系区别于录/贝的赭金；可突破时换朱色微光提醒。
+   点击跳百科（mechanic:realm），给个手型。窄屏书脊挤，让位给核心数值。 */
+#topbar .stat-realm{ cursor:pointer; }
+#topbar .stat-realm b{ color:#A8CDD6; }
+#topbar .stat-realm.ready{ border-color:rgba(224,106,85,.55); box-shadow:0 0 0 1px rgba(224,106,85,.22); }
+#topbar .stat-realm.ready b{ color:#E8926F; }
+@media (max-width:640px){ #topbar .stat-realm{ display:none; } }
+
 /* 顶栏不再设图标按钮：昼夜 / 玩法说明 / 设置并入侧边栏末尾的「设置」入口。
    书脊因此只剩印鉴、题名与三枚数值，右侧留给「已录」的细长量尺。 */
 
@@ -485,6 +493,15 @@ html.theme-anim, html.theme-anim *{
 .sc-aura::after{ content:''; position:absolute; inset:9px; border:1px solid currentColor; border-radius:50%; box-shadow:0 0 6px currentColor; opacity:.26; animation:scAuraPulse 3.4s ease-in-out infinite; }
 @keyframes scAuraSpin{ from{ transform:rotate(0); } to{ transform:rotate(360deg); } }
 @keyframes scAuraPulse{ 0%,100%{ transform:scale(.85); opacity:.16; } 50%{ transform:scale(1.04); opacity:.32; } }
+/* 突破瞬间的一次性爆发（v1.31.170）：整层放大再回落，亮度先冲高后衰减。
+   只在挂上 .sc-aura-burst 的 1.5 秒里生效，播完由 JS 摘类。 */
+.sc-aura.sc-aura-burst{ animation:scAuraBurst 1.4s ease-out; }
+@keyframes scAuraBurst{
+  0%{ transform:translate(-50%,-50%) scale(1); filter:brightness(1); }
+  22%{ transform:translate(-50%,-50%) scale(1.5); filter:brightness(2.1); }
+  100%{ transform:translate(-50%,-50%) scale(1); filter:brightness(1); }
+}
+@media (prefers-reduced-motion: reduce){ .sc-aura.sc-aura-burst{ animation:none; } }
 /* 打坐现场「突破」入口：小签一枚，跻身于状态条之侧 */
 .sc-break{
   display:inline-block; margin-left:8px; padding:2px 10px; font-family:var(--f-kai); font-size:11.5px;
@@ -722,7 +739,8 @@ html.theme-anim, html.theme-anim *{
 .sc-wrap.no-anim .sc-pit i{ animation:none; }
 .sc-wrap.no-anim .sc-aura,
 .sc-wrap.no-anim .sc-aura::before,
-.sc-wrap.no-anim .sc-aura::after{ animation:none; }
+.sc-wrap.no-anim .sc-aura::after,
+.sc-wrap.no-anim .sc-aura.sc-aura-burst{ animation:none; }
 .sc-wrap.no-anim .sc-drop{ animation-duration:.01s; }
 
 /* 宽屏：画面抬高、人物放大。82px 摊在 1080 宽的屏上像一条书签，
@@ -3249,6 +3267,20 @@ mark.hit{
 .bounty-item .bn-swap{ flex:0 0 auto; padding:1px 7px; font-size:11px; color:var(--ink-3);
   background:transparent; border:1px solid var(--rule); border-radius:var(--r); cursor:pointer; }
 .bounty-item .bn-swap:hover{ color:var(--zhu-d); border-color:var(--zhu); }
+/* PC 三签改列卡（v1.31.170）：一签一卡，进度条换行独占一行——
+   原先单行 flex 把进度条拉满 ~950px，行与行之间大段空白，密度极低。 */
+@media (min-width:1000px){
+  .bounty-list{ display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; }
+  .bounty-item{ flex-wrap:wrap; row-gap:5px; padding:9px 11px; border:1px solid var(--rule-2); border-radius:var(--r); background:var(--paper-3); }
+  .bounty-item .bn-name{ flex:1 1 auto; }
+  .bounty-item .bn-bar{ flex:1 1 100%; order:5; }
+}
+/* 技能总览条分组（v1.31.170）：成长 / 效率 / 容量三段，组间一道细竖线，
+   窄屏 flex-wrap 自动折行（竖线只落在组间，折行后随 padding 消失不碍眼）。 */
+.stats-bar .ov-group{ display:flex; gap:20px; flex-wrap:wrap; align-items:center; }
+@media (min-width:1000px){
+  .stats-bar .ov-group + .ov-group{ border-left:1px solid var(--rule-2); padding-left:20px; }
+}
 
 /* 前世遗物：折叠一条，展开是八枚小签（已得以金边、未得以问号） */
 .relic-box{ margin-top:12px; border-top:1px dashed var(--rule-2); padding-top:9px; }
@@ -3369,6 +3401,12 @@ details.hetero-panel .hp-left{ margin-left:auto; font-style:normal; color:var(--
 .stat-rows.ms-rows span.done .ms-bar > i{ background:var(--tai); }
 .stat-rows.ms-rows span.done .ms-bar{ border-color:var(--tai); }
 @media (max-width:720px){ .stat-panel.ms-panel{ grid-column:auto; } }
+/* 长面板整行化（v1.31.170）：行旅见闻几十条、日志与存档都是竖长块，
+   挤在 256px 格子里把列高拉得参差（四栏里一栏拖到屏外）；
+   PC 上让它们各占整行，上方短面板照旧网格。窄屏本来就是单列，无需回退。 */
+@media (min-width:721px){
+  .stat-panel.ev-panel, .stat-panel.log-panel, .stat-panel.save-panel{ grid-column:1 / -1; }
+}
 
 /* 关于页 · 同好：群号独占一行、等宽数字，旁边一颗复制按钮 */
 .ab-group{ display:flex; align-items:center; gap:10px; margin:10px 0 6px; padding:10px 12px;
@@ -3441,6 +3479,12 @@ details.hetero-panel .hp-left{ margin-left:auto; font-style:normal; color:var(--
 .wiki-count{ display:inline-block; margin-left:8px; font-family:var(--f-num); font-size:11px; color:var(--ink-4); background:var(--paper-2); border:1px solid var(--rule); border-radius:10px; padding:0 7px; vertical-align:middle; }
 .wiki-list{ display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; }
 @media (max-width:560px){ .wiki-list{ grid-template-columns:1fr; } }
+/* PC 大屏放开宽度（v1.31.170）：760px 居中在宽内容区两侧各空出一大截，
+   检索框仍保持 760 居中（表单不必跟着变宽），条目网格改 3 列铺满。 */
+@media (min-width:1000px){
+  .wiki-body{ max-width:none; }
+  .wiki-list{ grid-template-columns:repeat(3, 1fr); }
+}
 .wiki-entry{ background:var(--paper-2); border:1px solid var(--rule); border-radius:6px; padding:11px 13px; }
 .wiki-entry.wiki-flash{ animation:wiki-flash 1.2s ease; }
 @keyframes wiki-flash{ 0%{ box-shadow:0 0 0 2px var(--qing); } 100%{ box-shadow:0 0 0 2px transparent; } }

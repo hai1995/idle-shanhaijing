@@ -437,6 +437,18 @@ UI.confirmBreakthrough = function(){
     if (typeof UI.toast === 'function') UI.toast(`✨ 突破至${nx.name}，修炼效率 +${Math.round(nx.bonus * 100)}%`);
     if (typeof UI.renderScene === 'function') UI.renderScene();
     if (typeof UI.renderSkills === 'function' && UI.currentTab === 'skills') UI.renderSkills();
+    // 突破瞬间气旋爆发一次（v1.31.170）：给常驻的 .sc-aura 挂一次性动画类，
+    // 播完即摘。renderScene 重绘会提前摘掉它——无害，只是动画短一点；
+    // 纯 CSS 驱动，不碰 rAF 相位，no-anim / 减动效偏好由选择器侧排除。
+    if (typeof document !== 'undefined' && typeof setTimeout === 'function'){
+      const aura = document.querySelector('.sc-aura');
+      if (aura && aura.classList){
+        aura.classList.remove('sc-aura-burst');
+        void (aura.offsetWidth || 0);            // 重排以重启动画
+        aura.classList.add('sc-aura-burst');
+        setTimeout(()=>aura.classList.remove('sc-aura-burst'), 1500);
+      }
+    }
   }
 };
 

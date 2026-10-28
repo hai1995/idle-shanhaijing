@@ -166,6 +166,17 @@ UI.renderTopbar = function(){
   // 「已录」下的细进度线：让 0/632 这种数字有一个可感知的比例
   const meter = $('recordMeter');
   if (meter) meter.style.width = (recTotal ? Math.min(100, recDone / recTotal * 100) : 0).toFixed(1) + '%';
+  // 境界胶囊（v1.31.170）：当前境界名常驻书脊；攒够修为时染朱提示「可突破」，
+  // 点击跳百科（onclick 在 index.html 上）。读不到境界函数时静默跳过（测试桩兜底）。
+  if (typeof currentRealm === 'function'){
+    const rc = $('realmName'), rs = $('realmStat');
+    if (rc && rs){
+      const cur = currentRealm();
+      const ready = (typeof canBreakthrough === 'function') && canBreakthrough();
+      set('realmName', (cur ? cur.name : '—') + (ready ? ' ·可突破' : ''));
+      rs.classList.toggle('ready', !!ready);
+    }
+  }
   // 名号：没设昵称时也显示默认名号（顶栏空一块比「默认名」更像 bug）。
   // 超长截断交给 CSS，title 里放全名——手机上还能长按看。
   const nt = $('nickTag');

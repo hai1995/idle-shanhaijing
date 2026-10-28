@@ -169,13 +169,13 @@ UI.renderSkills = function(){
   }
   const cur = Game.activity;
   let html = `<div class="panel stats-bar">
-    <span>总等级 <b>${totalSkillLevel()}</b></span>
+    <span class="ov-group"><span>总等级 <b>${totalSkillLevel()}</b></span>
     <span>最高 <b>${(function(){ let b='',l=0; for(const id in Game.skills) if(Game.skills[id].level>l){l=Game.skills[id].level;b=Skills[id].name;} return b?b+' '+l:'—'; })()}</b></span>
-    <span>修为 <b>${fmt(Game.stats.totalXp || 0)}</b><i class="hint">（累计经验，不设上限）</i></span>
-    <span>经验倍率 <b>×${xpMult().toFixed(2)}</b></span>
+    <span>修为 <b>${fmt(Game.stats.totalXp || 0)}</b><i class="hint">（累计经验，不设上限）</i></span></span>
+    <span class="ov-group"><span>经验倍率 <b>×${xpMult().toFixed(2)}</b></span>
     <span>采集速度 <b>×${gatherSpeedMult().toFixed(2)}</b></span>
-    <span>采获 <b>+${Math.round(globalYieldBonus()*100)}%</b><i class="hint">（约合产量 +${typeof riteRealYield==='function'?riteRealYield(globalYieldBonus()):0}%）</i></span>
-    <span>御使槽 <b>${Object.keys(Game.deployed).length}/${beastSlots()}</b></span>
+    <span>采获 <b>+${Math.round(globalYieldBonus()*100)}%</b><i class="hint">（约合产量 +${typeof riteRealYield==='function'?riteRealYield(globalYieldBonus()):0}%）</i></span></span>
+    <span class="ov-group"><span>御使槽 <b>${Object.keys(Game.deployed).length}/${beastSlots()}</b></span></span>
   </div>
   ${(typeof bountyDef === 'function') ? (() => {
     const list = (Game.bounties || []).filter(b => bountyDef(b.id));
