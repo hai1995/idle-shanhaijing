@@ -144,20 +144,20 @@ for (let i = 0; i < ROUNDS; i++){
       S.Game.skills.yingyi = { level: 99, xp: S.xpForLevel(99) };
       typeof S.buildStructure === 'function' ? S.buildStructure(b) : null;
     });
-  } else if (r < 0.89){
+  } else if (r < 0.87){
     guard('observe', () => {
       const id = Object.keys(S.OBSERVE_SITES)[0];
       S.doObserve(id);
     });
-  } else if (r < 0.94){
+  } else if (r < 0.92){
     guard('audience', () => {
       const id = Object.keys(S.AUDIENCE_SITES)[0];
       S.doAudience(id, {});
     });
-  } else if (r < 0.965){
+  } else if (r < 0.945){
     // 卜筮：纯随机掷一卦，验证抽签/吉凶分支不抛（此前压测从未走过这条）
     guard('divine', () => S.divine());
-  } else if (r < 0.99){
+  } else if (r < 0.97){
     // 圃艺 + 养成：植一件嘉种并快进成熟收获，再灌一次养成点。
     guard('plant/grow', () => {
       const seedId = Object.keys(S.Items).find(id => { const it = S.Items[id]; return it && it.crop && (it.lvl||1) <= 40; });
@@ -172,6 +172,23 @@ for (let i = 0; i < ROUNDS; i++){
         for (const [mid, q] of (site.cost || [])) S.giveItem(mid, q * 3, false);
         S.doGrow(gid);
       }
+    });
+  } else if (r < 0.985){
+    // 一键配装：把若干装备实例塞进 packGear，再让 equipBest 在随机槽位下重挑最优。
+    // 此前压测从未走过这条——配装改写 Game.gear / packGear，是读档与战斗结算都依赖的状态。
+    guard('equipBest', () => {
+      S.giveItem('tan', 5, false);       // 木戈（装备）→ 入 packGear
+      S.giveItem('zhenwu', 3, false);     // 镇物（装备）
+      S.equipBest();
+    });
+  } else if (r < 0.992){
+    // 轮回：项目自述「最危险的一次操作」。先抬一门技艺到满级满足门槛，跑完再回填，
+    // 让后续动作仍跑得通（fuzz 其余分支依赖 40 级）。验证整条重置路径在随机前置态下不抛。
+    guard('rebirth', () => {
+      S.Game.skills.taofa = { level: 81, xp: S.xpForLevel(81) + 1 };
+      S.doRebirth();
+      for (const sk in S.Skills) S.Game.skills[sk] = { level: 40, xp: S.xpForLevel(40) + 1 };
+      S.Game.shells = 1e6;
     });
   } else {
     guard('settleAway', () => S.settleAway(60 + Math.floor(rnd() * 7200)));
