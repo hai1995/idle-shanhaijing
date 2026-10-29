@@ -69,6 +69,13 @@ const gatherItems = Object.keys(S.GATHER_POOLS.qiaocai || {}).length
 const recipes = S.Recipes.filter(r => (r.lvl || 1) <= 40);
 const rites = Object.keys(S.RITES);
 const builds = Object.keys(S.BUILDINGS);
+// 次级高危入口的素材：此前这些玩家动作 fuzz 从未走过，setup 里备好可部署异兽 / 装备 / 增益药 / 已解锁山。
+const omens = Object.keys(S.OMENS || {});
+const buffItem = Object.keys(S.Items).find(id => { const it = S.Items[id]; return it && it.buff; }) || null;
+const equipId = Object.keys(S.Items).find(id => { const it = S.Items[id]; return it && (it.equip || it.weapon || it.slot); }) || null;
+let nanshanNodes = Object.keys(S.WORLD.nodes || {}).filter(id => { const n = S.WORLD.nodes[id]; return n && n.chapter === 1 && S.nodeUnlocked(n); });
+if (!nanshanNodes.length) nanshanNodes = [S.Game.node];
+const aBeast = Object.keys(S.Monsters).find(id => { const m = S.Monsters[id]; return m && !m.boss && !m.unkillable; });
 
 function guard(label, fn){
   acts++;
@@ -157,7 +164,7 @@ for (let i = 0; i < ROUNDS; i++){
   } else if (r < 0.945){
     // 卜筮：纯随机掷一卦，验证抽签/吉凶分支不抛（此前压测从未走过这条）
     guard('divine', () => S.divine());
-  } else if (r < 0.97){
+  } else if (r < 0.96){
     // 圃艺 + 养成：植一件嘉种并快进成熟收获，再灌一次养成点。
     guard('plant/grow', () => {
       const seedId = Object.keys(S.Items).find(id => { const it = S.Items[id]; return it && it.crop && (it.lvl||1) <= 40; });
@@ -173,7 +180,33 @@ for (let i = 0; i < ROUNDS; i++){
         S.doGrow(gid);
       }
     });
-  } else if (r < 0.985){
+  } else if (r < 0.99){
+    // 次级玩家动作合集：此前 fuzz 从未走过的高危入口（御使 / 词缀重铸 / 方国订单 / 征兆 / 打坐 / 境界突破 / 用物 / 巡游 / 领取成就）。
+    // 各动作独立 guard；用二次随机挑一个，避免挤占主行动的概率。setup 已备好可部署异兽、装备、增益药、已解锁山。
+    const a = rnd();
+    if (a < 0.11){
+      guard('travelTo', () => { const id = pick(nanshanNodes); if (id) S.travelTo(id); });
+    } else if (a < 0.22){
+      guard('orders', () => { S.refreshOrders(true); for (const o of (S.Game.orders || [])) S.giveItem(o.itemId, o.qty, false); S.deliverAllOrders(); });
+    } else if (a < 0.33){
+      guard('activateOmen', () => S.activateOmen(pick(omens)));
+    } else if (a < 0.44){
+      guard('doMeditate', () => S.doMeditate());
+    } else if (a < 0.55){
+      guard('useConsumable', () => { if (buffItem){ S.giveItem(buffItem, 3, false); S.useConsumable(buffItem); } });
+    } else if (a < 0.66){
+      // 境界突破：把累计修为抬到顶，让突破链从头走到尾（每层 need 都远小于 1e9）。
+      guard('doBreakthrough', () => { S.Game.stats.totalXp = 1e9; S.doBreakthrough(); });
+    } else if (a < 0.77){
+      // 御使：把一只异兽著录至通形，部署 → 撤下 → 一键最优，验证槽位状态机。
+      guard('deploy', () => { if (aBeast){ S.Game.records[aBeast] = { tier: 3 }; S.deployBeast(aBeast); S.undeployBeast(0); S.autoDeployBest(); } });
+    } else if (a < 0.88){
+      // 词缀重铸：给足炭与贝，rollAffixes（纯派生）+ reforgeItem（salt+1 改写存档）。
+      guard('affix', () => { if (equipId){ S.giveItem('tan', 20, false); S.rollAffixes(equipId); S.reforgeItem(equipId); } });
+    } else {
+      guard('claimCodexAch', () => S.claimAllCodexAch());
+    }
+  } else if (r < 0.994){
     // 一键配装：把若干装备实例塞进 packGear，再让 equipBest 在随机槽位下重挑最优。
     // 此前压测从未走过这条——配装改写 Game.gear / packGear，是读档与战斗结算都依赖的状态。
     guard('equipBest', () => {
@@ -181,7 +214,7 @@ for (let i = 0; i < ROUNDS; i++){
       S.giveItem('zhenwu', 3, false);     // 镇物（装备）
       S.equipBest();
     });
-  } else if (r < 0.992){
+  } else if (r < 0.997){
     // 轮回：项目自述「最危险的一次操作」。先抬一门技艺到满级满足门槛，跑完再回填，
     // 让后续动作仍跑得通（fuzz 其余分支依赖 40 级）。验证整条重置路径在随机前置态下不抛。
     guard('rebirth', () => {
