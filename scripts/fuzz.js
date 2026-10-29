@@ -82,6 +82,27 @@ function guard(label, fn){
   try { fn(); }
   catch(e){ if (errors.length < 12) errors.push(`${label}\n    ${e && e.stack ? e.stack.split('\n').slice(0,3).join('\n    ') : e}`); }
 }
+// 不变量 Oracle：fuzz 不止查「抛不抛」，更要查「算没算错」。随机动作可能不抛异常，
+// 却留下负贝币 / NaN / 非整数库存 / 悬空引用这类悄悄错掉的状态。这里每轮动作后扫一遍核心数值，
+// 任一违例即记为一条错误（与异常同对待，闸门会红）。项目已有 3729 条断言护着「想得到的路径」，
+// 这一层护的是「随机组合撞出来的状态」——两者互补。
+function badNum(v, label){
+  if (typeof v !== 'number' || !isFinite(v)) return `${label}=${v}(非有限)`;
+  if (v < 0) return `${label}=${v}(负数)`;
+  return null;
+}
+function checkInvariants(){
+  const bad = [], G = S.Game;
+  let b;
+  if ((b = badNum(G.shells, 'shells'))) bad.push(b);
+  for (const k in G.inventory){ const v = G.inventory[k]; if (typeof v !== 'number' || !isFinite(v) || v < 0) bad.push(`inv[${k}]=${v}`); else if (v % 1 !== 0) bad.push(`inv[${k}]=${v}(非整数)`); }
+  for (const sk in G.skills){ const lv = (G.skills[sk] || {}).level; if ((b = badNum(lv, 'skill.' + sk))) bad.push(b); }
+  const st = G.stats || {};
+  for (const f of ['totalEarned','totalXp','spent','sold','sales','realmBreaks','bounties']){ const v = st[f]; if (v !== undefined && (b = badNum(v, 'stats.' + f))) bad.push(b); }
+  for (const slot of ['weapon','armor','charm','quiver']){ const g = G.gear && G.gear[slot]; if (g && g.id && !S.Items[g.id]) bad.push(`gear.${slot}=${g.id}(无此物)`); }
+  const dep = G.deployed || {}; for (const k in dep){ if (!S.Monsters[dep[k]]) bad.push(`deployed[${k}]=${dep[k]}(无此兽)`); }
+  return bad;
+}
 
 for (let i = 0; i < ROUNDS; i++){
   const r = rnd();
@@ -228,6 +249,9 @@ for (let i = 0; i < ROUNDS; i++){
   }
   // 小步推进时钟：让祠礼 / 征兆 / 续祭 的到期分支也走到
   guard('tick', () => { S.onSecond && S.onSecond(); });
+  // 不变量：本轮动作后的核心数值是否还「算对」（非负 / 有限 / 整数 / 引用有效）
+  const inv = checkInvariants();
+  if (inv.length && errors.length < 12) errors.push('invariant:\n    ' + inv.slice(0, 5).join(' | '));
 }
 
 console.log(`随机动作 ${acts} 次（种子 ${process.argv[3] || '20261026'}），异常 ${errors.length} 条`);
