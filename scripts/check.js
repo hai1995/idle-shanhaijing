@@ -64,6 +64,11 @@ step('引擎测试', () => run(path.join('test', 'engine.test.js')));
 // 这份测试用精确断言钉死 serialize→import→serialize 往返幂等 + mergeSaveData 各字段的
 // 取大 / 并集 / 较新档规则，改 save.js 合并逻辑时立刻卡住。纯断言、零依赖、开销 < 0.5s。
 step('存档/合并语义（确定性）', () => run(path.join('test', 'save-merge.test.js')));
+// 1.4b 最危险状态跃迁（确定性）：转生(doRebirth·全局重置)/装备淬炼(enhanceItem·成败俱毁)/
+// 词条重铸(reforgeItem)/廛市买卖(buyItem·bulkSell) 这几条一次性改动大片状态且直接动贝币背包账目。
+// 随机压测证不了「淬炼确实扣炭+贝币且等级+1」「转生后全状态仍有限非负（不蹦 NaN）」
+// 「买卖账目借贷平衡」。这份测试用精确断言钉死，改对应逻辑时立刻卡住。纯断言、零依赖。
+step('状态跃迁语义（确定性）', () => run(path.join('test', 'transitions.test.js')));
 // 1.6 随机动作压测（基线）：项目自述把「fuzz 零异常」当发布底线，但此前只在 --full 才跑，
 // 默认闸门反而漏了——等于「发布底线」从没被提交前自动卡。这里在默认闸门也跑一轮
 // 确定性压测：固定种子、可复现，不会随机红。引擎测试只走「想得到的路径」，fuzz 撞的是
