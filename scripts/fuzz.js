@@ -13,10 +13,11 @@
 //      比对规范化产物的存档对象是否一致（卡住 serializeSave 写了某键而 applySave 漏读的静默丢字段）；
 //      另用 mergeSaveData 取大/取较新/取并集的多种边界双向合并后校验不变量。
 //
-// 动作面（次级合集用 19 个等距槽位轮转，详见循环内的 a 阶梯）：采集 / 制作 / 战斗 / 祀典 /
+// 动作面（次级合集用 20 个等距槽位轮转，详见循环内的 a 阶梯）：采集 / 制作 / 战斗 / 祀典 /
 // 市集买卖 / 强化 / 队列 / 营造 / 观象 / 受众 / 卜筮 / 圃艺养成 / 巡游 / 方国订单 / 征兆 /
 // 打坐 / 用物 / 境界突破 / 御使部署 / 词缀重铸 / 领取成就 / 山系巡礼 / 山志录毕 / 轻量设置
-// （战法·战斗风格·主五行）/ 自动续祭 / 禳解凶兆 / 修葺旧筑 / 空闲兜底 / 存档往返 / 多端合并 / 手动换签。
+// （战法·战斗风格·主五行）/ 自动续祭 / 禳解凶兆 / 修葺旧筑 / 空闲兜底 / 经济进阶（廛市买卖·批量售出·装备淬炼·词条重铸）
+// / 存档往返 / 多端合并 / 手动换签。
 // 战斗分支不止 startCombat + combatTick：它会先强制驱动三个在 combatTick 自然态下不一定触发的
 // 战斗态内函数——势满绝技 doPlayerUltimate（势满归零）、Boss 专属技 doMonsterSpecial（五行嬗变 /
 // 闪避 / 蛇毒 / 多段 / 破甲 / 震慑逐型覆盖）、自动进食 autoEat（珍稀优先·够用就好），确保这些
@@ -133,6 +134,16 @@ function recordNodeFull(nodeId){
     if (m && m.nodeId === nodeId) S.Game.records[m.id] = { count: 999 };
   }
 }
+// 经济与装备进阶素材：廛市买卖（贝币账目）、批量售出（背包清算）、装备淬炼（炭+贝币，成败俱毁分支）、
+// 词条重铸（炭+贝币）。这四条是当前 fuzz 从未压到的贝币/背包账目主路径，回归会让账目悄悄错。
+const shopLen = (S.ShopStock || []).length;
+const gearWithStat = Object.keys(S.Items).filter(id => { const it = S.Items[id]; return it && it.equip && (it.dmg || it.def); });
+const affixItems = Object.keys(S.Items).filter(id => { const it = S.Items[id]; return it && S.affixSlotOf(it); });
+const sellableIds = Object.keys(S.Items).filter(id => {
+  const it = S.Items[id];
+  return it && it.value > 0 && !it.edible && !it.equip && it.type !== 'seed' && it.type !== 'potion' && it.type !== 'crop';
+});
+const SELL_RARITIES = ['COMMON', 'UNCOMMON', 'RARE', 'LEGENDARY', 'MYTHIC'];
 
 function guard(label, fn){
   acts++;
@@ -302,7 +313,7 @@ for (let i = 0; i < ROUNDS; i++){
     // 次级玩家动作合集：此前 fuzz 从未走过的高危入口。各动作独立 guard；用二次随机挑一个，避免挤占主行动的概率。
     // setup 已备好可部署异兽、装备、增益药、已解锁山。
     const a = rnd();
-    const aw = 1/19;   // 19 个等距槽位，新增分支只改这里一处，避免魔法数错位
+    const aw = 1/20;   // 20 个等距槽位，新增分支只改这里一处，避免魔法数错位
     if (a < aw){
       guard('travelTo', () => { const id = pick(nanshanNodes); if (id) S.travelTo(id); });
     } else if (a < aw*2){
@@ -421,6 +432,34 @@ for (let i = 0; i < ROUNDS; i++){
             if (inv.length && errors.length < 12) errors.push('merge invariant:\n    ' + inv.slice(0, 5).join(' | '));
           }
         }
+      });
+    } else if (a < aw*19){
+      // 经济与装备进阶：廛市买卖 / 批量售出 / 装备淬炼 / 词条重铸——四条都是贝币与背包账目主路径，
+      // 此前 fuzz 从未走过，回归会让账目（贝币扣减、背包清算、炭耗、淬炼成败俱毁、词条 salt 改写）悄悄错。
+      // 每条独立 guard，并先顶足资源（贝币/炭/商旅等级），确保不是空跑而是真走过结算分支。
+      guard('buyItem', () => {
+        if (!shopLen) return;
+        S.Game.shells = 1e9;
+        S.Game.skills.shanglv = { level: 99, xp: 0 };   // 抬高商旅等级，越过库存等级门控
+        for (let i = 0; i < shopLen; i++) S.buyItem(i, 1 + Math.floor(rnd() * 3));
+      });
+      guard('bulkSell', () => {
+        const ids = sellableIds;
+        for (let i = 0; i < 12; i++){ const id = pick(ids); if (id) S.giveItem(id, 5 + Math.floor(rnd() * 20), false); }
+        const rar = pick(SELL_RARITIES);
+        S.bulkSell(rar);
+      });
+      guard('enhanceItem', () => {
+        const id = pick(gearWithStat); if (!id) return;
+        S.giveItem(id, 1, false);
+        S.Game.inventory.tan = 999; S.Game.inventory.zhenwu = 999; S.Game.shells = 1e9;
+        for (let i = 0; i < 6; i++) S.enhanceItem(id, { silent: true });   // 多淬几次，自然覆盖成功/失败/十级俱毁分支
+      });
+      guard('reforgeItem', () => {
+        const id = pick(affixItems); if (!id) return;
+        S.giveItem(id, 1, false);
+        S.Game.inventory.tan = 999; S.Game.shells = 1e9;
+        S.reforgeItem(id);
       });
     } else {
       // 换签（三签手动换）：自动结算（onSecond→bountyTick）已覆盖生命周期，但玩家手动换签这条从未压测。
