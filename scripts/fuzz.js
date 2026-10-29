@@ -73,9 +73,39 @@ const builds = Object.keys(S.BUILDINGS);
 const omens = Object.keys(S.OMENS || {});
 const buffItem = Object.keys(S.Items).find(id => { const it = S.Items[id]; return it && it.buff; }) || null;
 const equipId = Object.keys(S.Items).find(id => { const it = S.Items[id]; return it && (it.equip || it.weapon || it.slot); }) || null;
-let nanshanNodes = Object.keys(S.WORLD.nodes || {}).filter(id => { const n = S.WORLD.nodes[id]; return n && n.chapter === 1 && S.nodeUnlocked(n); });
+// 节点数据实际挂在 WORLD.regions[].nodes 上（VM 压测环境里 WORLD.nodes 为空），
+// 这里统一从 regions 收集，避免拿到空列表导致 travelTo / claimNodeSeal 分支空跑。
+function collectNodeIds(){
+  const ids = [], map = {};
+  for (const r of (S.WORLD.regions || [])) for (const n of (r.nodes || [])) if (n && n.id){ ids.push(n.id); map[n.id] = n; }
+  return { ids, map };
+}
+const _nodes = collectNodeIds();
+let nanshanNodes = _nodes.ids.filter(id => { const n = _nodes.map[id]; return n && n.chapter === 1 && S.nodeUnlocked(n); });
 if (!nanshanNodes.length) nanshanNodes = [S.Game.node];
 const aBeast = Object.keys(S.Monsters).find(id => { const m = S.Monsters[id]; return m && !m.boss && !m.unkillable; });
+// 次级奖励结算分支的前置态：全部节点与山系（claimNodeSeal / claimPilgrim 需要先搭好「录满/走遍」的成就态）。
+const allNodeIds = _nodes.ids;
+const regionIds = (S.WORLD.regions || []).map(r => r.regionId);
+// 可封节点：至少有「经 nodeSourceItems 归属的物产」或「归属异兽」的节点——其余节点 nodeRecordProgress
+// 的 total 恒为 0，claimNodeSeal 必空返。只从这里面挑，保证封印分支真的能发赏而非空跑。
+const sealableNodes = allNodeIds.filter(nid => {
+  for (const it of Object.values(S.Items)){ if (it && (S.nodeSourceItems(it.id) || []).indexOf(nid) >= 0) return true; }
+  for (const m of Object.values(S.Monsters)){ if (m && m.nodeId === nid) return true; }
+  return false;
+});
+// 把一座山的全部物产与异兽著录满，使 nodeRecordProgress 达标（total>0 且 done>=total），供 claimNodeSeal 真正发赏。
+// 物产归属必须用 nodeSourceItems 判定（与 nodeHasItem 同口径），而非 it.nodes/it.node——两者覆盖不全等会漏录导致封印空返。
+function recordNodeFull(nodeId){
+  for (const it of Object.values(S.Items)){
+    if (!it) continue;
+    if ((S.nodeSourceItems(it.id) || []).indexOf(nodeId) < 0) continue;
+    S.Game.records[it.id] = { tier: 3, count: 999 };
+  }
+  for (const m of Object.values(S.Monsters)){
+    if (m && m.nodeId === nodeId) S.Game.records[m.id] = { count: 999 };
+  }
+}
 
 function guard(label, fn){
   acts++;
@@ -218,28 +248,47 @@ for (let i = 0; i < ROUNDS; i++){
     // 次级玩家动作合集：此前 fuzz 从未走过的高危入口。各动作独立 guard；用二次随机挑一个，避免挤占主行动的概率。
     // setup 已备好可部署异兽、装备、增益药、已解锁山。
     const a = rnd();
-    if (a < 0.0909){
+    const aw = 1/14;   // 14 个等距槽位，新增分支只改这里一处，避免魔法数错位
+    if (a < aw){
       guard('travelTo', () => { const id = pick(nanshanNodes); if (id) S.travelTo(id); });
-    } else if (a < 0.1818){
+    } else if (a < aw*2){
       guard('orders', () => { S.refreshOrders(true); for (const o of (S.Game.orders || [])) S.giveItem(o.itemId, o.qty, false); S.deliverAllOrders(); });
-    } else if (a < 0.2727){
+    } else if (a < aw*3){
       guard('activateOmen', () => S.activateOmen(pick(omens)));
-    } else if (a < 0.3636){
+    } else if (a < aw*4){
       guard('doMeditate', () => S.doMeditate());
-    } else if (a < 0.4545){
+    } else if (a < aw*5){
       guard('useConsumable', () => { if (buffItem){ S.giveItem(buffItem, 3, false); S.useConsumable(buffItem); } });
-    } else if (a < 0.5454){
+    } else if (a < aw*6){
       // 境界突破：把累计修为抬到顶，让突破链从头走到尾（每层 need 都远小于 1e9）。
       guard('doBreakthrough', () => { S.Game.stats.totalXp = 1e9; S.doBreakthrough(); });
-    } else if (a < 0.6363){
+    } else if (a < aw*7){
       // 御使：把一只异兽著录至通形，部署 → 撤下 → 一键最优，验证槽位状态机。
       guard('deploy', () => { if (aBeast){ S.Game.records[aBeast] = { tier: 3 }; S.deployBeast(aBeast); S.undeployBeast(0); S.autoDeployBest(); } });
-    } else if (a < 0.7272){
+    } else if (a < aw*8){
       // 词缀重铸：给足炭与贝，rollAffixes（纯派生）+ reforgeItem（salt+1 改写存档）。
       guard('affix', () => { if (equipId){ S.giveItem('tan', 20, false); S.rollAffixes(equipId); S.reforgeItem(equipId); } });
-    } else if (a < 0.8181){
+    } else if (a < aw*9){
       guard('claimCodexAch', () => S.claimAllCodexAch());
-    } else if (a < 0.9090){
+    } else if (a < aw*10){
+      // 山系巡礼：把该系所有节点标记为「已涉足」（Game.map 置真），让 regionPilgrim 满额，
+      // 触发 claimPilgrim 的整系奖励结算（贝币 + 修为 + 山系特产×2）。这条分支的「发赏 + 标记 pilgrim」此前从未压测。
+      guard('claimPilgrim', () => {
+        const rid = pick(regionIds); if (!rid) return;
+        const r = (S.WORLD.regions || []).find(x => x.regionId === rid);
+        (r.nodes || []).forEach(n => { S.Game.map[n.id] = true; });
+        S.claimPilgrim(rid);
+      });
+    } else if (a < aw*11){
+      // 山志录毕之印：把一座山全部物产/异兽著录满，令 nodeRecordProgress 达标，触发 claimNodeSeal
+      // 的封印奖励（贝币 + 舆地修为）。强依赖「录满才发赏」的判定，此前只覆盖采集/制作主路径，封印结算从未压测。
+      guard('claimNodeSeal', () => {
+        const id = pick(sealableNodes); if (!id) return;
+        if (S.Game.seals) delete S.Game.seals[id];   // 清掉旧印，保证本回合能重新触发发放
+        recordNodeFull(id);
+        S.claimNodeSeal(id);
+      });
+    } else if (a < aw*12){
       // 存档格式幂等性：随机态 → 序列化导出 → 重置 → 重导入（applySave）做第一次往返，
       // 把活态规范化（装备从 inventory 迁到 packGear、补默认字段、清掉幽灵键等）；再做第二次
       // 往返，比对两次规范化产物的存档对象是否一致（剔除非确定/不跨会话字段）。
@@ -262,7 +311,7 @@ for (let i = 0; i < ROUNDS; i++){
           if (errors.length < 12) errors.push('roundTrip 存档格式未幂等[' + diff + ']');
         }
       });
-    } else if (a < 0.9545){
+    } else if (a < aw*13){
       // 多端合并：把当前随机态复制一份、改几处（贝币 +1、某库存 +1）模拟「另一端」，
       // mergeSaveData 取较新一档 + 背包并集；直接校验合并产物的不变量（贝币/背包/技艺/统计）。
       guard('merge', () => {
