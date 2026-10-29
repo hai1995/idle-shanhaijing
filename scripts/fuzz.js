@@ -247,10 +247,19 @@ for (let i = 0; i < ROUNDS; i++){
     }
   } else if (r < 0.80){
     guard('queue', () => {
-      S.Game.queue = [];
-      S.addQueueEntry(pick(['qiaocai','caiyu','yu','caiyao']), pick(gatherItems), 1 + Math.floor(rnd() * 5));
-      S.startQueue();
-      S.ensureQueueActivity();
+      // 两条入队路径都压：手动 addQueueEntry + startQueue（基础装配），
+      // 以及一键快速挂机 quickIdlePreset（自动按当前等级挑采集/讨伐/制作各最宜目标排满整队 + 设兜底）。
+      // quickIdlePreset 是队列里最复杂的胶水（actionTargets 各模式 + canAfford 过滤 + setFallback + queueLoop），
+      // 此前 fuzz 只手动排了一条采集，这条「一键成队」从未压到。
+      if (rnd() < 0.5){
+        S.Game.queue = [];
+        S.addQueueEntry(pick(['qiaocai','caiyu','yu','caiyao']), pick(gatherItems), 1 + Math.floor(rnd() * 5));
+        S.startQueue();
+        S.ensureQueueActivity();
+      } else {
+        S.quickIdlePreset();
+        S.startQueue();
+      }
       S.stopQueue && S.stopQueue();
     });
   } else if (r < 0.86){
