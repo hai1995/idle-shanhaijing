@@ -91,8 +91,8 @@ function badNum(v, label){
   if (v < 0) return `${label}=${v}(负数)`;
   return null;
 }
-function checkInvariants(){
-  const bad = [], G = S.Game;
+function checkInvariants(src){
+  const bad = [], G = src || S.Game;
   let b;
   if ((b = badNum(G.shells, 'shells'))) bad.push(b);
   for (const k in G.inventory){ const v = G.inventory[k]; if (typeof v !== 'number' || !isFinite(v) || v < 0) bad.push(`inv[${k}]=${v}`); else if (v % 1 !== 0) bad.push(`inv[${k}]=${v}(非整数)`); }
@@ -202,30 +202,48 @@ for (let i = 0; i < ROUNDS; i++){
       }
     });
   } else if (r < 0.99){
-    // 次级玩家动作合集：此前 fuzz 从未走过的高危入口（御使 / 词缀重铸 / 方国订单 / 征兆 / 打坐 / 境界突破 / 用物 / 巡游 / 领取成就）。
-    // 各动作独立 guard；用二次随机挑一个，避免挤占主行动的概率。setup 已备好可部署异兽、装备、增益药、已解锁山。
+    // 次级玩家动作合集：此前 fuzz 从未走过的高危入口。各动作独立 guard；用二次随机挑一个，避免挤占主行动的概率。
+    // setup 已备好可部署异兽、装备、增益药、已解锁山。
     const a = rnd();
-    if (a < 0.11){
+    if (a < 0.0909){
       guard('travelTo', () => { const id = pick(nanshanNodes); if (id) S.travelTo(id); });
-    } else if (a < 0.22){
+    } else if (a < 0.1818){
       guard('orders', () => { S.refreshOrders(true); for (const o of (S.Game.orders || [])) S.giveItem(o.itemId, o.qty, false); S.deliverAllOrders(); });
-    } else if (a < 0.33){
+    } else if (a < 0.2727){
       guard('activateOmen', () => S.activateOmen(pick(omens)));
-    } else if (a < 0.44){
+    } else if (a < 0.3636){
       guard('doMeditate', () => S.doMeditate());
-    } else if (a < 0.55){
+    } else if (a < 0.4545){
       guard('useConsumable', () => { if (buffItem){ S.giveItem(buffItem, 3, false); S.useConsumable(buffItem); } });
-    } else if (a < 0.66){
+    } else if (a < 0.5454){
       // 境界突破：把累计修为抬到顶，让突破链从头走到尾（每层 need 都远小于 1e9）。
       guard('doBreakthrough', () => { S.Game.stats.totalXp = 1e9; S.doBreakthrough(); });
-    } else if (a < 0.77){
+    } else if (a < 0.6363){
       // 御使：把一只异兽著录至通形，部署 → 撤下 → 一键最优，验证槽位状态机。
       guard('deploy', () => { if (aBeast){ S.Game.records[aBeast] = { tier: 3 }; S.deployBeast(aBeast); S.undeployBeast(0); S.autoDeployBest(); } });
-    } else if (a < 0.88){
+    } else if (a < 0.7272){
       // 词缀重铸：给足炭与贝，rollAffixes（纯派生）+ reforgeItem（salt+1 改写存档）。
       guard('affix', () => { if (equipId){ S.giveItem('tan', 20, false); S.rollAffixes(equipId); S.reforgeItem(equipId); } });
-    } else {
+    } else if (a < 0.8181){
       guard('claimCodexAch', () => S.claimAllCodexAch());
+    } else if (a < 0.9090){
+      // 存档往返：随机态 → 序列化导出 → 重置 → 重导入（applySave）。强依赖存档的游戏，
+      // 这一条线若回归是灾难级（6 段迁移链 + reconcileSave）。重导入后由尾部不变量兜底校验。
+      guard('roundTrip', () => { S.saveGame(); const t = S.exportSaveText(); S.resetToDefault(); S.importSaveText(t); });
+    } else {
+      // 多端合并：把当前随机态复制一份、改几处（贝币 +1、某库存 +1）模拟「另一端」，
+      // mergeSaveData 取较新一档 + 背包并集；直接校验合并产物的不变量（贝币/背包/技艺/统计）。
+      guard('merge', () => {
+        const a1 = S.serializeSave();
+        const b1 = Object.assign({}, a1);
+        b1.shells = (a1.shells || 0) + 1;
+        b1.inventory = Object.assign({}, a1.inventory || {});
+        const k = Object.keys(b1.inventory)[0];
+        if (k) b1.inventory[k] = (b1.inventory[k] || 0) + 1;
+        const m = S.mergeSaveData(a1, b1);
+        const inv = checkInvariants(m);
+        if (inv.length && errors.length < 12) errors.push('merge invariant:\n    ' + inv.slice(0, 5).join(' | '));
+      });
     }
   } else if (r < 0.994){
     // 一键配装：把若干装备实例塞进 packGear，再让 equipBest 在随机槽位下重挑最优。
