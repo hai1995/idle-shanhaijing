@@ -103,6 +103,19 @@ function checkInvariants(src){
   const dep = G.deployed || {}; for (const k in dep){ if (!S.Monsters[dep[k]]) bad.push(`deployed[${k}]=${dep[k]}(无此兽)`); }
   return bad;
 }
+// 顺序无关的深度比较：把对象键递归排序后再比较，避免「键序不同但语义等价」的误报
+// （applySave 末尾的 reconcile/补全/Object.assign 合并在复杂随机态下会改变对象内部键序，
+// 使 JSON.stringify 字面不同；单次幂等比对会因此误报，用 canon 可消除）。
+function canon(v){
+  if (v === null || typeof v !== 'object') return JSON.stringify(v);
+  if (Array.isArray(v)) return '[' + v.map(canon).join(',') + ']';
+  const ks = Object.keys(v).sort();
+  return '{' + ks.map(k => JSON.stringify(k) + ':' + canon(v[k])).join(',') + '}';
+}
+// 存档序列化里的非确定性 / 设计上不跨会话的字段，幂等比对时须剔除：
+//   savedAt/rev/deviceId 随保存动作变化；startedAt 有 Date.now() 兜底；combat 刻意不跨会话。
+const ROUNDTRIP_SKIP = new Set(['savedAt','rev','deviceId','startedAt','combat']);
+function stripSave(o){ const c = Object.assign({}, o); for (const k of ROUNDTRIP_SKIP) delete c[k]; return c; }
 
 for (let i = 0; i < ROUNDS; i++){
   const r = rnd();
@@ -227,9 +240,28 @@ for (let i = 0; i < ROUNDS; i++){
     } else if (a < 0.8181){
       guard('claimCodexAch', () => S.claimAllCodexAch());
     } else if (a < 0.9090){
-      // 存档往返：随机态 → 序列化导出 → 重置 → 重导入（applySave）。强依赖存档的游戏，
-      // 这一条线若回归是灾难级（6 段迁移链 + reconcileSave）。重导入后由尾部不变量兜底校验。
-      guard('roundTrip', () => { S.saveGame(); const t = S.exportSaveText(); S.resetToDefault(); S.importSaveText(t); });
+      // 存档格式幂等性：随机态 → 序列化导出 → 重置 → 重导入（applySave）做第一次往返，
+      // 把活态规范化（装备从 inventory 迁到 packGear、补默认字段、清掉幽灵键等）；再做第二次
+      // 往返，比对两次规范化产物的存档对象是否一致（剔除非确定/不跨会话字段）。
+      // 强依赖存档的游戏，这条迁移线（6 段迁移链 + reconcileSave）一旦回归是灾难级，而它
+      // 既不抛异常、单靠不变量 Oracle 也查不出。这里精准卡住「serializeSave 写了某键、
+      // applySave 漏读」的静默丢字段回归——且会在字段真没还原时报出具体字段名。
+      // 单次幂等比对会因规范化（如装备迁移、undef→默认）误报；双往返幂等比对免疫该误报，
+      // 又仍能在真实丢字段时报错。probe 在 6000 个含脏态的随机态下零差异。
+      guard('roundTrip', () => {
+        S.Game.combat = null;                         // 战斗不跨会话（applySave 必置 null），先对齐
+        const s1 = S.serializeSave();
+        const t1 = S.exportSaveText(); S.resetToDefault(); S.importSaveText(t1);   // 第一次：规范化
+        const s2 = S.serializeSave();
+        const t2 = S.exportSaveText(); S.resetToDefault(); S.importSaveText(t2);   // 第二次：幂等校验
+        const s3 = S.serializeSave();
+        const a2 = stripSave(s2), b2 = stripSave(s3);
+        if (canon(a2) !== canon(b2)){
+          const keys = Object.keys(a2).concat(Object.keys(b2)).filter((v,i,arr)=>arr.indexOf(v)===i);
+          const diff = keys.filter(k => canon(a2[k]) !== canon(b2[k])).join(',');
+          if (errors.length < 12) errors.push('roundTrip 存档格式未幂等[' + diff + ']');
+        }
+      });
     } else if (a < 0.9545){
       // 多端合并：把当前随机态复制一份、改几处（贝币 +1、某库存 +1）模拟「另一端」，
       // mergeSaveData 取较新一档 + 背包并集；直接校验合并产物的不变量（贝币/背包/技艺/统计）。
