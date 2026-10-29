@@ -13,11 +13,11 @@
 //      比对规范化产物的存档对象是否一致（卡住 serializeSave 写了某键而 applySave 漏读的静默丢字段）；
 //      另用 mergeSaveData 取大/取较新/取并集的多种边界双向合并后校验不变量。
 //
-// 动作面（次级合集用 20 个等距槽位轮转，详见循环内的 a 阶梯）：采集 / 制作 / 战斗 / 祀典 /
+// 动作面（次级合集用 21 个等距槽位轮转，详见循环内的 a 阶梯）：采集 / 制作 / 战斗 / 祀典 /
 // 市集买卖 / 强化 / 队列 / 营造 / 观象 / 受众 / 卜筮 / 圃艺养成 / 巡游 / 方国订单 / 征兆 /
 // 打坐 / 用物 / 境界突破 / 御使部署 / 词缀重铸 / 领取成就 / 山系巡礼 / 山志录毕 / 轻量设置
 // （战法·战斗风格·主五行）/ 自动续祭 / 禳解凶兆 / 修葺旧筑 / 空闲兜底 / 经济进阶（廛市买卖·批量售出·装备淬炼·词条重铸）
-// / 存档往返 / 多端合并 / 手动换签。
+// / 社交与轮回（觐见神祇·行祭祀·轮回转生）/ 存档往返 / 多端合并 / 手动换签。
 // 战斗分支不止 startCombat + combatTick：它会先强制驱动三个在 combatTick 自然态下不一定触发的
 // 战斗态内函数——势满绝技 doPlayerUltimate（势满归零）、Boss 专属技 doMonsterSpecial（五行嬗变 /
 // 闪避 / 蛇毒 / 多段 / 破甲 / 震慑逐型覆盖）、自动进食 autoEat（珍稀优先·够用就好），确保这些
@@ -144,6 +144,12 @@ const sellableIds = Object.keys(S.Items).filter(id => {
   return it && it.value > 0 && !it.edible && !it.equip && it.type !== 'seed' && it.type !== 'potion' && it.type !== 'crop';
 });
 const SELL_RARITIES = ['COMMON', 'UNCOMMON', 'RARE', 'LEGENDARY', 'MYTHIC'];
+// 社交与轮回素材：觐见神祇(doAudience) 需 AUDIENCE_SITES 有效节点；行祭祀(performRite) 需备齐配方祭品；
+// 轮回转生(doRebirth) 需任一技艺至 99 级（重置全局）。三条均为此前 fuzz 从未压测的关键路径。
+const audienceNodeIds = Object.keys(S.AUDIENCE_SITES || {});
+const riteCostMap = {};
+for (const r of (S.Recipes || [])){ if (r.type === 'rite' && r.out) riteCostMap[r.out] = r.cost; }
+const performableRiteIds = Object.keys(riteCostMap).filter(id => S.RITES && S.RITES[id]);
 
 function guard(label, fn){
   acts++;
@@ -313,7 +319,7 @@ for (let i = 0; i < ROUNDS; i++){
     // 次级玩家动作合集：此前 fuzz 从未走过的高危入口。各动作独立 guard；用二次随机挑一个，避免挤占主行动的概率。
     // setup 已备好可部署异兽、装备、增益药、已解锁山。
     const a = rnd();
-    const aw = 1/20;   // 20 个等距槽位，新增分支只改这里一处，避免魔法数错位
+    const aw = 1/21;   // 21 个等距槽位，新增分支只改这里一处，避免魔法数错位
     if (a < aw){
       guard('travelTo', () => { const id = pick(nanshanNodes); if (id) S.travelTo(id); });
     } else if (a < aw*2){
@@ -460,6 +466,22 @@ for (let i = 0; i < ROUNDS; i++){
         S.giveItem(id, 1, false);
         S.Game.inventory.tan = 999; S.Game.shells = 1e9;
         S.reforgeItem(id);
+      });
+    } else if (a < aw*20){
+      // 社交与轮回：觐见神祇(doAudience) / 行祭祀(performRite) / 轮回转生(doRebirth)——三条此前 fuzz 从未压测。
+      // doAudience 需 AUDIENCE_SITES 有效节点；performRite 需备齐配方祭品(canAfford)；doRebirth 需任一技艺至 99 级
+      // （重置全局：技艺回退、贝币/背包清空、转生计数+1）。重置后状态需仍过不变量 Oracle，否则说明重生装配有回归。
+      guard('doAudience', () => { const id = pick(audienceNodeIds); if (id) S.doAudience(id); });
+      guard('performRite', () => {
+        const id = pick(performableRiteIds); if (!id) return;
+        const cost = riteCostMap[id];
+        if (Array.isArray(cost)) for (const [it, q] of cost) S.giveItem(it, q, false);
+        S.performRite(id, { silent: true });
+      });
+      guard('doRebirth', () => {
+        const sk = Object.keys(S.Skills)[0];
+        S.Game.skills[sk] = { level: 99, xp: 1 };   // 拉满一艺以越过 canRebirth 门槛
+        S.doRebirth();
       });
     } else {
       // 换签（三签手动换）：自动结算（onSecond→bountyTick）已覆盖生命周期，但玩家手动换签这条从未压测。
