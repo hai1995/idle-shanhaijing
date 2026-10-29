@@ -17,6 +17,10 @@
 // 市集买卖 / 强化 / 队列 / 营造 / 观象 / 受众 / 卜筮 / 圃艺养成 / 巡游 / 方国订单 / 征兆 /
 // 打坐 / 用物 / 境界突破 / 御使部署 / 词缀重铸 / 领取成就 / 山系巡礼 / 山志录毕 / 轻量设置
 // （战法·战斗风格·主五行）/ 自动续祭 / 禳解凶兆 / 修葺旧筑 / 存档往返 / 多端合并 / 手动换签。
+// 战斗分支不止 startCombat + combatTick：它会先强制驱动三个在 combatTick 自然态下不一定触发的
+// 战斗态内函数——势满绝技 doPlayerUltimate（势满归零）、Boss 专属技 doMonsterSpecial（五行嬗变 /
+// 闪避 / 蛇毒 / 多段 / 破甲 / 震慑逐型覆盖）、自动进食 autoEat（珍稀优先·够用就好），确保这些
+// 只悄悄错的结算分支也被提交闸门卡住。
 //
 // 只读：不写存档文件（每个种子从默认档重来），失败不影响玩家数据。固定种子可复现、不随机红。
 const fs = require('fs');
@@ -112,6 +116,11 @@ const combatStyles = ['attack', 'ranged', 'zhu', 'auto'];
 const elements = (S.TUNING && S.TUNING.ELEMENTS) || ['金', '木', '水', '火', '土'];
 const riteIds = Object.keys(S.RITES || {});
 const xiongOmens = Object.keys(S.OMENS || {}).filter(id => S.OMENS[id] && S.OMENS[id].polarity === '凶');
+// 战斗态内强制驱动所需的素材：有 heal 的食物（自动进食的择食逻辑依赖 inventory 里的食物，
+// 且 RARE_FOOD 表决定「珍稀优先」那条分支），以及带 special 的怪（doMonsterSpecial 的五行嬗变 /
+// 闪避 / 蛇毒 / 多段 / 破甲 / 震慑分支需逐一驱动——combatTick 自然触发只走当前怪的一种，其余类型可能永远撞不到）。
+const foodItems = Object.keys(S.Items).filter(id => { const it = S.Items[id]; return it && it.heal; });
+const specialMonsters = Object.keys(S.Monsters).filter(id => { const m = S.Monsters[id]; return m && m.special; });
 // 把一座山的全部物产与异兽著录满，使 nodeRecordProgress 达标（total>0 且 done>=total），供 claimNodeSeal 真正发赏。
 // 物产归属必须用 nodeSourceItems 判定（与 nodeHasItem 同口径），而非 it.nodes/it.node——两者覆盖不全等会漏录导致封印空返。
 function recordNodeFull(nodeId){
@@ -180,13 +189,31 @@ for (let i = 0; i < ROUNDS; i++){
       S.processRecipe(rec, 1);
     });
   } else if (r < 0.40){
+    // 战斗：startCombat 跑通真实开战路径；随后在战斗态内强制驱动此前只被 combatTick 间接触发、
+    // 随机态下不一定发生的三个高危函数——势满绝技 doPlayerUltimate、Boss 专属技 doMonsterSpecial、
+    // 自动进食 autoEat。combatTick 自然态下「势满→放绝技 / 怪物攒够 spec / 血线掉到阈值」三件事
+    // 未必凑齐，而这三者各自的结算（势满归零、五行嬗变/蛇毒/多段/破甲/震慑、珍稀优先·够用就好）
+    // 一旦回归只会悄悄错——不抛异常、不变量也查不出。所以先把它们顶出来跑，再自然推进到收尾。
     const id = pick(monsters);
     guard('combat ' + id, () => {
       const m = S.Monsters[id];
       S.Game.map[m.nodeId] = true;
       S.Game.node = m.nodeId;
       S.startCombat(id, { times: 1 + Math.floor(rnd() * 3) });
-      for (let t = 0; t < 120 && S.Game.combat; t++) S.combatTick(0.25);
+      // 战斗必在进行中，先强制驱动三个在 combatTick 里可能被跳过的高危函数：
+      if (S.Game.combat){
+        const c = S.Game.combat;
+        const cm = S.foeOf(S.Monsters[c.monsterId]);
+        c.momentum = 100; S.doPlayerUltimate(c, cm);                       // 势满绝技：势满即放、放完归零
+        for (const f of foodItems.slice(0, 6)) S.giveItem(f, 5, false);    // 塞多种食物
+        c.playerHp = Math.max(1, Math.floor(S.playerMaxHp() * 0.1));       // 压低血线
+        S.autoEat(c);                                                     // 自动进食：普通优先·够用就好
+        for (const sid of specialMonsters){                               // Boss 专属技逐型覆盖
+          if (!S.Game.combat) break;
+          S.doMonsterSpecial(S.Game.combat, S.foeOf(S.Monsters[sid]));
+        }
+      }
+      for (let t = 0; t < 120 && S.Game.combat; t++) S.combatTick(0.25);   // 再自然推进到击杀/败北收尾
       S.Game.combat = null;
     });
   } else if (r < 0.50){
