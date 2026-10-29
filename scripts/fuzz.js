@@ -337,18 +337,27 @@ for (let i = 0; i < ROUNDS; i++){
         }
       });
     } else if (a < aw*16){
-      // 多端合并：把当前随机态复制一份、改几处（贝币 +1、某库存 +1）模拟「另一端」，
-      // mergeSaveData 取较新一档 + 背包并集；直接校验合并产物的不变量（贝币/背包/技艺/统计）。
+      // 多端合并：把当前随机态复制一份、改几处模拟「另一端」，mergeSaveData 取较新一档 + 背包并集；
+      // 直接校验合并产物的不变量（贝币/背包/技艺/统计）。额外覆盖三种边界——
+      //   ① 背包+贝币更高（取大）；② 远端 savedAt 更晚（判为「较新一档」走 newer 分支）；
+      //   ③ 远端某技艺等级更高（mergeSkillMap 取大）。这三条都是合并数学的关键分支，
+      //   此前只有「+1 改几处」一种变体，远端更新/技艺更高路径从未单独压到；且每个变体都双向
+      //   合并（local×remote 与 remote×local）以压到「较新一档」选择的两条分支。
       guard('merge', () => {
-        const a1 = S.serializeSave();
-        const b1 = Object.assign({}, a1);
-        b1.shells = (a1.shells || 0) + 1;
-        b1.inventory = Object.assign({}, a1.inventory || {});
-        const k = Object.keys(b1.inventory)[0];
-        if (k) b1.inventory[k] = (b1.inventory[k] || 0) + 1;
-        const m = S.mergeSaveData(a1, b1);
-        const inv = checkInvariants(m);
-        if (inv.length && errors.length < 12) errors.push('merge invariant:\n    ' + inv.slice(0, 5).join(' | '));
+        const base = S.serializeSave();
+        const mk = (mut) => { const r = Object.assign({}, base); mut(r); return r; };
+        const variants = [
+          mk(r => { r.shells = (base.shells || 0) + 1; r.inventory = Object.assign({}, base.inventory || {}); const k = Object.keys(r.inventory)[0]; if (k) r.inventory[k] = (r.inventory[k] || 0) + 1; }),
+          mk(r => { r.savedAt = (base.savedAt || 0) + 100000; r.shells = (base.shells || 0) + 5; }),
+          mk(r => { r.skills = Object.assign({}, base.skills || {}); const sid = Object.keys(r.skills)[0]; if (sid) r.skills[sid] = { level: (r.skills[sid].level || 1) + 1, xp: 0 }; }),
+        ];
+        for (const remote of variants){
+          for (const [loc, rem] of [[base, remote], [remote, base]]){
+            const m = S.mergeSaveData(loc, rem);
+            const inv = checkInvariants(m);
+            if (inv.length && errors.length < 12) errors.push('merge invariant:\n    ' + inv.slice(0, 5).join(' | '));
+          }
+        }
       });
     } else {
       // 换签（三签手动换）：自动结算（onSecond→bountyTick）已覆盖生命周期，但玩家手动换签这条从未压测。
