@@ -94,6 +94,12 @@ const sealableNodes = allNodeIds.filter(nid => {
   for (const m of Object.values(S.Monsters)){ if (m && m.nodeId === nid) return true; }
   return false;
 });
+// 轻量设置类动作的前置素材（此前 fuzz 从未走过）：战法 / 战斗风格 / 主五行 / 自动续祭 / 禳解凶兆。
+const tacticIds = Object.keys(S.TACTICS || {});
+const combatStyles = ['attack', 'ranged', 'zhu', 'auto'];
+const elements = (S.TUNING && S.TUNING.ELEMENTS) || ['金', '木', '水', '火', '土'];
+const riteIds = Object.keys(S.RITES || {});
+const xiongOmens = Object.keys(S.OMENS || {}).filter(id => S.OMENS[id] && S.OMENS[id].polarity === '凶');
 // 把一座山的全部物产与异兽著录满，使 nodeRecordProgress 达标（total>0 且 done>=total），供 claimNodeSeal 真正发赏。
 // 物产归属必须用 nodeSourceItems 判定（与 nodeHasItem 同口径），而非 it.nodes/it.node——两者覆盖不全等会漏录导致封印空返。
 function recordNodeFull(nodeId){
@@ -248,7 +254,7 @@ for (let i = 0; i < ROUNDS; i++){
     // 次级玩家动作合集：此前 fuzz 从未走过的高危入口。各动作独立 guard；用二次随机挑一个，避免挤占主行动的概率。
     // setup 已备好可部署异兽、装备、增益药、已解锁山。
     const a = rnd();
-    const aw = 1/14;   // 14 个等距槽位，新增分支只改这里一处，避免魔法数错位
+    const aw = 1/17;   // 17 个等距槽位，新增分支只改这里一处，避免魔法数错位
     if (a < aw){
       guard('travelTo', () => { const id = pick(nanshanNodes); if (id) S.travelTo(id); });
     } else if (a < aw*2){
@@ -289,6 +295,25 @@ for (let i = 0; i < ROUNDS; i++){
         S.claimNodeSeal(id);
       });
     } else if (a < aw*12){
+      // 轻量设置类：战法 / 战斗风格 / 主五行。三者都只改 Prefs + saveGame，此前 fuzz 从未走过，
+      // 回归会让「玩家设置不落盘 / 切换无效」这类静默问题漏网。一个槽位把三个 setter 都压一遍。
+      guard('prefs', () => {
+        if (tacticIds.length) S.setTactic(pick(tacticIds));
+        S.setCombatStyle(pick(combatStyles));
+        S.setZhuEl(pick(elements));
+      });
+    } else if (a < aw*13){
+      // 自动续祭开关：挑一个祀典切换其自动续祭状态（riteState 不存在则空返）。此前未压测。
+      guard('toggleRiteAuto', () => { if (riteIds.length) S.toggleRiteAuto(pick(riteIds)); });
+    } else if (a < aw*14){
+      // 禳解凶兆：先塞一只凶兆 + 备齐祭品，触发 exorcise 的扣费 / 移除 / 授修为结算。此前未压测。
+      guard('exorcise', () => {
+        if (!xiongOmens.length) return;
+        S.Game.omens = [{ id: pick(xiongOmens) }];
+        S.giveItem('jian', 3, false); S.giveItem('dao', 3, false);
+        S.exorcise();
+      });
+    } else if (a < aw*15){
       // 存档格式幂等性：随机态 → 序列化导出 → 重置 → 重导入（applySave）做第一次往返，
       // 把活态规范化（装备从 inventory 迁到 packGear、补默认字段、清掉幽灵键等）；再做第二次
       // 往返，比对两次规范化产物的存档对象是否一致（剔除非确定/不跨会话字段）。
@@ -311,7 +336,7 @@ for (let i = 0; i < ROUNDS; i++){
           if (errors.length < 12) errors.push('roundTrip 存档格式未幂等[' + diff + ']');
         }
       });
-    } else if (a < aw*13){
+    } else if (a < aw*16){
       // 多端合并：把当前随机态复制一份、改几处（贝币 +1、某库存 +1）模拟「另一端」，
       // mergeSaveData 取较新一档 + 背包并集；直接校验合并产物的不变量（贝币/背包/技艺/统计）。
       guard('merge', () => {
