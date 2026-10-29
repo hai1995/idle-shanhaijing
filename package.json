@@ -4,7 +4,7 @@
   "private": true,
   "description": "《山海经·著录》——纯静态放置游戏（原生 JS、零依赖）",
   "scripts": {
-    "test": "node test/engine.test.js",
+    "test": "node test/engine.test.js && node test/save-merge.test.js && node test/transitions.test.js",
     "audit": "node scripts/audit-data.js",
     "build": "node scripts/build-standalone.js",
     "data:gen": "node scripts/gen-derived.js",
