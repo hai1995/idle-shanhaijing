@@ -144,15 +144,34 @@ for (let i = 0; i < ROUNDS; i++){
       S.Game.skills.yingyi = { level: 99, xp: S.xpForLevel(99) };
       typeof S.buildStructure === 'function' ? S.buildStructure(b) : null;
     });
-  } else if (r < 0.91){
+  } else if (r < 0.89){
     guard('observe', () => {
       const id = Object.keys(S.OBSERVE_SITES)[0];
       S.doObserve(id);
     });
-  } else if (r < 0.96){
+  } else if (r < 0.94){
     guard('audience', () => {
       const id = Object.keys(S.AUDIENCE_SITES)[0];
       S.doAudience(id, {});
+    });
+  } else if (r < 0.965){
+    // 卜筮：纯随机掷一卦，验证抽签/吉凶分支不抛（此前压测从未走过这条）
+    guard('divine', () => S.divine());
+  } else if (r < 0.99){
+    // 圃艺 + 养成：植一件嘉种并快进成熟收获，再灌一次养成点。
+    guard('plant/grow', () => {
+      const seedId = Object.keys(S.Items).find(id => { const it = S.Items[id]; return it && it.crop && (it.lvl||1) <= 40; });
+      if (seedId){
+        S.giveItem(seedId, 3, false);
+        S.plantSeed('p0', seedId, true);
+        S.farmTick(99999);
+      }
+      const gid = Object.keys(S.GROW_SITES)[0];
+      if (gid){
+        const site = S.GROW_SITES[gid];
+        for (const [mid, q] of (site.cost || [])) S.giveItem(mid, q * 3, false);
+        S.doGrow(gid);
+      }
     });
   } else {
     guard('settleAway', () => S.settleAway(60 + Math.floor(rnd() * 7200)));
