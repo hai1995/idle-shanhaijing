@@ -59,9 +59,16 @@ step('资源版本号（version.json）', () => {
 });
 
 step('引擎测试', () => run(path.join('test', 'engine.test.js')));
-// --full：额外跑一轮随机动作压测。默认不跑（多 2 秒），但改过引擎 / 拆分过文件时值得跑。
+// 1.6 随机动作压测（基线）：项目自述把「fuzz 零异常」当发布底线，但此前只在 --full 才跑，
+// 默认闸门反而漏了——等于「发布底线」从没被提交前自动卡。这里在默认闸门也跑一轮
+// 确定性压测：固定种子、可复现，不会随机红。引擎测试只走「想得到的路径」，fuzz 撞的是
+// 真实玩家的随机组合；二者互补。开销约 2 秒（3 个固定种子各 1000 轮）。
+const fuzzFile = path.join('scripts', 'fuzz.js');
+const fuzzSeeds = (rounds, seeds) => { for (const s of seeds) run(fuzzFile, [String(rounds), String(s)]); return `${seeds.length} 种子 ×${rounds}`; };
+step('随机动作压测（基线·确定性）', () => fuzzSeeds(1000, [20261026, 20261027, 20261028]));
+// --full：多种子广覆盖（每个种子是不同但可复现的随机组合），改过引擎 / 拆分过文件时值得跑。
 if (process.argv.includes('--full')){
-  step('随机动作压测（500 轮）', () => run(path.join('scripts', 'fuzz.js'), ['500']));
+  step('随机动作压测（广覆盖·多种子）', () => fuzzSeeds(2000, [20261026, 20261027, 20261028, 20261029, 20261030, 20261031]));
 }
 step('数据审计', () => run(path.join('scripts', 'audit-data.js')));
 step('单文件版构建', () => run(path.join('scripts', 'build-standalone.js')));
