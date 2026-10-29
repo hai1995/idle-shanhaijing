@@ -11341,6 +11341,29 @@ section('首屏骨架与异步样式表（v1.31.198）');
   assert(sa198.includes('<style>'), '单文件版样式已内联');
 }
 
+section('数据紧凑化（v1.31.199）');
+{
+  // 五章世界数据由 scripts/gen-world-data.js 从源 JSON 派生（文件头明确「请勿手改」），
+  // 原先 JSON.stringify(payload, null, 2) 漂亮打印，缩进只给人看。v1.31.199 改成紧凑输出，
+  // 把缩进砍掉——这是首屏字节账里唯一确定安全、零语义风险的赢（整包 gzip 490316→483908）。
+  // 守卫：防止有人把生成器改回漂亮打印，导致整包凭空多传 ~40% 原始字节。
+  const files = ['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','zhongshanData.js'];
+  let totalNodes = 0, totalRegions = 0;
+  for (const f of files){
+    const s = fs.readFileSync(path.join(base, f), 'utf8');
+    const start = s.indexOf('window.');
+    const end = s.lastIndexOf(';');
+    // 整段 window.X = {…}; 必须落在同一行——漂亮打印会把它拆成多行
+    const whole = s.slice(start, end);
+    assert(!whole.includes('\n'), f + ' 为紧凑单行（window.X = … ; 无换行，缩进已砍）');
+    const obj = JSON.parse(s.slice(s.indexOf('=', start) + 1, end));
+    const nodes = obj.regions.reduce((a,r)=>a+r.nodes.length, 0);
+    totalNodes += nodes; totalRegions += obj.regions.length;
+    assert(nodes > 0 && obj.regions.length > 0, f + ' 解析为合法对象（regions=' + obj.regions.length + ' nodes=' + nodes + '）');
+  }
+  assert(totalRegions === 26 && totalNodes === 447, '五章合计 26 山脉 / 447 节点，与源 JSON 一致（仅缩进变化）');
+}
+
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）
 function finishTests(){
   console.log('\n==== 测试结束：' + pass + ' 通过，' + fail + ' 失败 ====');
