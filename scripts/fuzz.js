@@ -230,7 +230,7 @@ for (let i = 0; i < ROUNDS; i++){
       // 存档往返：随机态 → 序列化导出 → 重置 → 重导入（applySave）。强依赖存档的游戏，
       // 这一条线若回归是灾难级（6 段迁移链 + reconcileSave）。重导入后由尾部不变量兜底校验。
       guard('roundTrip', () => { S.saveGame(); const t = S.exportSaveText(); S.resetToDefault(); S.importSaveText(t); });
-    } else {
+    } else if (a < 0.9545){
       // 多端合并：把当前随机态复制一份、改几处（贝币 +1、某库存 +1）模拟「另一端」，
       // mergeSaveData 取较新一档 + 背包并集；直接校验合并产物的不变量（贝币/背包/技艺/统计）。
       guard('merge', () => {
@@ -244,6 +244,9 @@ for (let i = 0; i < ROUNDS; i++){
         const inv = checkInvariants(m);
         if (inv.length && errors.length < 12) errors.push('merge invariant:\n    ' + inv.slice(0, 5).join(' | '));
       });
+    } else {
+      // 换签（三签手动换）：自动结算（onSecond→bountyTick）已覆盖生命周期，但玩家手动换签这条从未压测。
+      guard('bountySwap', () => { if (Array.isArray(S.Game.bounties) && S.Game.bounties.length) S.bountySwap(Math.floor(rnd() * S.Game.bounties.length)); });
     }
   } else if (r < 0.994){
     // 一键配装：把若干装备实例塞进 packGear，再让 equipBest 在随机槽位下重挑最优。
