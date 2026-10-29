@@ -79,7 +79,11 @@ ${opts.note ? '// ' + opts.note + '\n' : ''}`;
   // 紧凑输出（无缩进）：这五份是世界数据，纯数据、不手改，缩进只是给人看的。
   // 去掉缩进后原始字节约省 40%，gzip 再省约 12%——直接砍首屏可交互前的传输与解析量
   // （弱网下这一份占整包 gzip 的 13%）。源 JSON 仍保留全部可读性以供查考。
-  const out = header + '\nwindow.' + opts.global + ' = ' + JSON.stringify(payload) + ';\n';
+  // 末行是延后加载的登记回调（v1.31.200）：二三章起不在首屏同步加载，
+  // 抵达时 WORLD 已按南山建好，靠这条把本章区域并进去。
+  // 同步加载时（南山，以及单文件版）SHJ_LOAD_CHAPTER 尚未定义，整行自动跳过。
+  const out = header + '\nwindow.' + opts.global + ' = ' + JSON.stringify(payload) + ';\n'
+    + 'if (window.SHJ_LOAD_CHAPTER) window.SHJ_LOAD_CHAPTER("' + opts.global + '", window.' + opts.global + ');\n';
   fs.writeFileSync(path.join(root, 'src', outFile), out);
   console.log('written src/' + outFile, out.length, 'bytes');
 }

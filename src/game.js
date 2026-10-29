@@ -17,6 +17,11 @@ function ensureWorldIndex(){
     for (const n of r.nodes){ _nodeIndex.set(n.id, n); _regionIndex.set(n.id, r); }
   }
 }
+// 世界补录后必须调这个（v1.31.200：二至五章是首屏之后才并进 WORLD 的）。
+// 少了它，索引永远停在南山那一份——二至五章的节点一律 nodeOf() === null，
+// 表现为「点了没反应 / 采不了 / 走不过去」，且刷新也修不好（缓存在内存里）。
+function invalidateWorldIndex(){ _nodeIndex = null; _regionIndex = null; }
+window.invalidateWorldIndex = invalidateWorldIndex;
 function regionOf(nodeId){
   ensureWorldIndex();
   return _regionIndex.get(nodeId) || null;

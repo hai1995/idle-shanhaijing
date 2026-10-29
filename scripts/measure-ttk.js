@@ -40,8 +40,9 @@ const ctx = {
 ctx.window.UI = UIstub;
 vm.createContext(ctx);
 // 单一来源：从 index.html 解析脚本清单，取数据/引擎层（不含 ui）。
-const { scriptOrder } = require('./build-standalone');
-for (const f of scriptOrder().filter(f => !f.startsWith('ui/'))){
+const { scriptOrder, deferredOrder } = require('./build-standalone');
+// 延后的四章与派生表一并载入：只带南山的话二至五章的物产等级会塌成 1 级，TTK 全是假的
+for (const f of scriptOrder().filter(f => !f.startsWith('ui/')).concat(deferredOrder())){
   vm.runInContext(fs.readFileSync(path.join(root, 'src', f), 'utf8'), ctx, { filename: f });
 }
 const W = ctx.window;

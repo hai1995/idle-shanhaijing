@@ -45,8 +45,9 @@ ctx.window.UI = UIstub;
 vm.createContext(ctx);
 // 单一来源：从 index.html 解析全部脚本（与单文件构建、测试共用同一解析器），
 // 加载全部以尽量压测每条代码路径——此前这份手写清单漏了 scene/settings/tutorial/hud/modal/rank 六个 ui 文件。
-const { scriptOrder } = require('./build-standalone');
-for (const f of scriptOrder()){
+const { scriptOrder, deferredOrder } = require('./build-standalone');
+// 同上：压测要跑全书，只带南山就有四章的内容永远压不到
+for (const f of scriptOrder().concat(deferredOrder())){
   vm.runInContext(fs.readFileSync(path.join(root, 'src', f), 'utf8'), ctx, { filename: f });
 }
 const S = ctx.window;

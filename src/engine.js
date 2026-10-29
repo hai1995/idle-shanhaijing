@@ -120,6 +120,109 @@ function saveGame(){
   if (SaveManager.scheduleSync) SaveManager.scheduleSync();
 }
 
+// 判生死的前提是「表本身是准的」（v1.31.200）。
+// 首屏只带南山：中山的田种、东山的御使、北山的观象台在这一套表里都查不到，
+// 若照常按白名单校正，它们会被当成残留脏数据静默删掉——那是玩家攒出来的家当。
+// 数据没齐时一律不删；boot.js 另有安排：需要全图的存档会等数据到齐再开局。
+function saveJudgeable(){ return typeof window === 'undefined' || !!window.__SHJ_DATA_READY__; }
+
+// 这份存档里有没有「当下这套表认不出」的东西？
+// 有 → 必须等全图数据到齐才能装配（boot.js 据此推迟开局）；没有（新客）→ 当场开局。
+// 只查会被「判死」的几类：田 / 御使 / 行动 / 装备，以及到访与著录的落点。
+function saveNeedsFullWorld(){
+  if (typeof SaveManager === 'undefined' || !SaveManager.load) return false;
+  let d = null;
+  try { d = SaveManager.load(); } catch(e){ return false; }
+  if (!d) return false;
+  const miss = (tbl, k) => k != null && k !== '' && !(tbl && tbl[k]);
+  if (typeof nodeOf === 'function') for (const k in (d.map || {})) if (!nodeOf(k)) return true;
+  for (const k in (d.records || {})) if (miss(typeof CODEX !== 'undefined' ? CODEX : null, k)) return true;
+  for (const k in (d.farms || {})) if (miss(typeof Items !== 'undefined' ? Items : null, (d.farms[k] || {}).seedId)) return true;
+  for (const k in (d.deployed || {})) if (miss(typeof Monsters !== 'undefined' ? Monsters : null, d.deployed[k])) return true;
+  for (const k in (d.gear || {})){
+    const g = d.gear[k];
+    if (miss(typeof Items !== 'undefined' ? Items : null, typeof g === 'string' ? g : (g || {}).id)) return true;
+  }
+  const a = d.activity;
+  if (a){
+    if (a.kind === 'gather'){ if (miss(Items, a.itemId)) return true; }
+    else if (a.kind === 'craft'){ if (miss(Items, (a.recipe || {}).out)) return true; }
+    else if (a.kind === 'observe'){ if (miss(typeof OBSERVE_SITES !== 'undefined' ? OBSERVE_SITES : null, a.siteId)) return true; }
+    else if (a.kind === 'audience'){ if (miss(typeof AUDIENCE_SITES !== 'undefined' ? AUDIENCE_SITES : null, a.nodeId)) return true; }
+    else if (a.kind === 'grow'){ if (miss(typeof GROW_SITES !== 'undefined' ? GROW_SITES : null, a.siteId)) return true; }
+  }
+  return false;
+}
+
+// 「表里查不到就清掉」这一类校正（v1.31.200）：单独抽出来，因为它得跑两次——
+// 首屏只有南山时跑一次（那时一律不判死，见 saveJudgeable），数据补齐后再跑一次。
+// 抽出来也保证了两遍口径完全一致：不存在「读档清了一批、补齐时又清一批别的」。
+function reconcileSave(){
+    const judge = saveJudgeable();
+    // 校正田地
+    for (const slot in Game.farms){
+      const f = Game.farms[slot];
+      // 数据没齐时不判死：种子可能只是「那一章还没到」
+      if (!f || !f.seedId || !Items[f.seedId]){ if (judge) delete Game.farms[slot]; continue; }
+      if (!isFinite(f.remain) || f.remain < 0) f.remain = 0;
+      if (!isFinite(f.grow) || f.grow <= 0) f.grow = Items[f.seedId].grow || 10;
+    }
+    // 槽位 / 田块数按等级裁剪，不依赖世界数据，随时可跑
+    if (typeof trimDeployedToSlots === 'function') trimDeployedToSlots();
+    if (typeof trimFarmsToPlots === 'function') trimFarmsToPlots();
+
+    // 校正当前行动：行动里引用的技能 / 物品 / 配方必须还在。
+    // 一个缺 `skill` 的采集行动会让 `currentActivityLabel` 抛
+    // `Skills[a.skill].name` 的错——而它每次重绘都被调用，等于把舆地与技能两页彻底锁死。
+    // 宁可停掉这个行动，也不能让界面崩（2026-10-26 夜间：坏档实测可复现）。
+    if (Game.activity){
+      const a = Game.activity, kind = a && a.kind;
+      let ok = false;
+      if (kind === 'gather') ok = !!(Skills[a.skill] && Items[a.itemId]);
+      else if (kind === 'craft') ok = !!(a.recipe && a.recipe.out && Items[a.recipe.out] && RECIPE_SKILL && RECIPE_SKILL[a.recipe.type]);
+      else if (kind === 'observe') ok = !!OBSERVE_SITES[a.siteId];
+      else if (kind === 'audience') ok = !!AUDIENCE_SITES[a.nodeId];
+      else if (kind === 'grow') ok = !!GROW_SITES[a.siteId];
+      // 同上：观象台 / 谒见处可能只是还没载进来，数据齐了再判
+      if (!ok && judge) Game.activity = null;
+    }
+    // 校正装备引用（装备槽存的是物品对象，其 id 必须仍存在）
+    // 兼容两种历史形态：{id, ...} 对象（当前）与裸 id 字符串（早期档）。
+    const lostGear = [];
+    for (const slot in Game.gear){
+      const g = Game.gear[slot];
+      if (!g) continue;
+      const gid = (typeof g === 'string') ? g : g.id;
+      if (!gid){ Game.gear[slot] = null; continue; }
+      if (!Items[gid]){
+        // 物品表里找不到这件（旧档里有、后来改名或并入别处）。不能直接抹成 null：
+        // 玩家身上可能是一件淬到 +18 的兵器，凭空消失比数值过时严重得多。
+        // 保留原样，并在日志里点明，让他知道该换一件了。
+        Game.gear[slot] = (typeof g === 'object') ? Object.assign({}, g, { id: gid }) : null;
+        lostGear.push(gid);
+        continue;
+      }
+      // 一律按 Items 重建。存档只该记住「戴着哪一件」，不该记住它当时值多少——
+      // 否则每次调平衡，老档里的那件还是旧数字；更糟的是后来新增的字段
+      // （品阶 grade、神兵特性 divine）在旧快照里根本没有，读出来是 undefined：
+      // 神兵不带特性、珍品显示成良品、强化上限也对不上。
+      // 保留实例上的强化等级。旧档（v<5）把等级记在 Game.enhance[gid] 里、由所有同名共享，
+      // 读档时搬到实例上并从那张表里删掉——这样「身上那把」带着自己的等级，行囊另起一档。
+      let enh = Math.max(0, (typeof g === 'object' && g.enh) | 0);
+      if (!enh && Game.enhance && Game.enhance[gid]){
+        enh = Math.max(0, Game.enhance[gid] | 0);
+        delete Game.enhance[gid];
+      }
+      Game.gear[slot] = Object.assign({}, Items[gid], { id: gid, enh });
+    }
+    // 数据没齐时这条警告必然是误报（二至五章的物产还没进表），报了只会吓人
+    if (judge && lostGear.length && typeof log === 'function')
+      log(`⚠️ 存档中的装备已不在物产表（${lostGear.join('、')}），暂按原数值保留——请另换一件`, 'bad', 'sys');
+    // 校正御使槽位（同上：查不到的异兽可能只是那一章未到）
+    if (judge) for (const k in Game.deployed){ if (!Monsters[Game.deployed[k]]) delete Game.deployed[k]; }
+  return true;
+}
+
 // 把存档对象装配回内存状态（读档 + 校验 + 补缺）
 function applySave(d){
   try {
@@ -346,66 +449,13 @@ function applySave(d){
     // 校正技能完整
     for (const k in dflt.skills) if (typeof Game.skills[k] !== 'object') Game.skills[k] = { level:1, xp:0 };
     sanitizeBag(Game.inventory); sanitizeBag(Game.banking);
-    // 校正田地
-    for (const slot in Game.farms){
-      const f = Game.farms[slot];
-      if (!f || !f.seedId || !Items[f.seedId]){ delete Game.farms[slot]; continue; }
-      if (!isFinite(f.remain) || f.remain < 0) f.remain = 0;
-      if (!isFinite(f.grow) || f.grow <= 0) f.grow = Items[f.seedId].grow || 10;
-    }
     // 校正御使：槽位数随「御使」等级走，坏档或跨版本可能塞超了。
     // 超出的不生效却仍算加成（`deployedBonuses` 是全量求和），必须在读档时收干净。
     if (typeof trimDeployedToSlots === 'function') trimDeployedToSlots();
     // 田块数随圃艺等级走，坏档/跨版本同样会多出来（多出来的田照常出产，界面却不画）
     if (typeof trimFarmsToPlots === 'function') trimFarmsToPlots();
 
-    // 校正当前行动：行动里引用的技能 / 物品 / 配方必须还在。
-    // 一个缺 `skill` 的采集行动会让 `currentActivityLabel` 抛
-    // `Skills[a.skill].name` 的错——而它每次重绘都被调用，等于把舆地与技能两页彻底锁死。
-    // 宁可停掉这个行动，也不能让界面崩（2026-10-26 夜间：坏档实测可复现）。
-    if (Game.activity){
-      const a = Game.activity, kind = a && a.kind;
-      let ok = false;
-      if (kind === 'gather') ok = !!(Skills[a.skill] && Items[a.itemId]);
-      else if (kind === 'craft') ok = !!(a.recipe && a.recipe.out && Items[a.recipe.out] && RECIPE_SKILL && RECIPE_SKILL[a.recipe.type]);
-      else if (kind === 'observe') ok = !!OBSERVE_SITES[a.siteId];
-      else if (kind === 'audience') ok = !!AUDIENCE_SITES[a.nodeId];
-      else if (kind === 'grow') ok = !!GROW_SITES[a.siteId];
-      if (!ok) Game.activity = null;
-    }
-    // 校正装备引用（装备槽存的是物品对象，其 id 必须仍存在）
-    // 兼容两种历史形态：{id, ...} 对象（当前）与裸 id 字符串（早期档）。
-    const lostGear = [];
-    for (const slot in Game.gear){
-      const g = Game.gear[slot];
-      if (!g) continue;
-      const gid = (typeof g === 'string') ? g : g.id;
-      if (!gid){ Game.gear[slot] = null; continue; }
-      if (!Items[gid]){
-        // 物品表里找不到这件（旧档里有、后来改名或并入别处）。不能直接抹成 null：
-        // 玩家身上可能是一件淬到 +18 的兵器，凭空消失比数值过时严重得多。
-        // 保留原样，并在日志里点明，让他知道该换一件了。
-        Game.gear[slot] = (typeof g === 'object') ? Object.assign({}, g, { id: gid }) : null;
-        lostGear.push(gid);
-        continue;
-      }
-      // 一律按 Items 重建。存档只该记住「戴着哪一件」，不该记住它当时值多少——
-      // 否则每次调平衡，老档里的那件还是旧数字；更糟的是后来新增的字段
-      // （品阶 grade、神兵特性 divine）在旧快照里根本没有，读出来是 undefined：
-      // 神兵不带特性、珍品显示成良品、强化上限也对不上。
-      // 保留实例上的强化等级。旧档（v<5）把等级记在 Game.enhance[gid] 里、由所有同名共享，
-      // 读档时搬到实例上并从那张表里删掉——这样「身上那把」带着自己的等级，行囊另起一档。
-      let enh = Math.max(0, (typeof g === 'object' && g.enh) | 0);
-      if (!enh && Game.enhance && Game.enhance[gid]){
-        enh = Math.max(0, Game.enhance[gid] | 0);
-        delete Game.enhance[gid];
-      }
-      Game.gear[slot] = Object.assign({}, Items[gid], { id: gid, enh });
-    }
-    if (lostGear.length && typeof log === 'function')
-      log(`⚠️ 存档中的装备已不在物产表（${lostGear.join('、')}），暂按原数值保留——请另换一件`, 'bad', 'sys');
-    // 校正御使槽位
-    for (const k in Game.deployed){ if (!Monsters[Game.deployed[k]]) delete Game.deployed[k]; }
+    reconcileSave();
   } catch(e){
     console.error('存档装配失败', e);
     throw e;

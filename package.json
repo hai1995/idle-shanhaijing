@@ -1,12 +1,14 @@
 {
   "name": "idle-shanhaijing",
-  "version": "1.31.199",
+  "version": "1.31.200",
   "private": true,
   "description": "《山海经·著录》——纯静态放置游戏（原生 JS、零依赖）",
   "scripts": {
     "test": "node test/engine.test.js",
     "audit": "node scripts/audit-data.js",
     "build": "node scripts/build-standalone.js",
+    "data:gen": "node scripts/gen-derived.js",
+    "data:check": "node scripts/gen-derived.js --check",
     "check": "node scripts/check.js",
     "ttk": "node scripts/measure-ttk.js",
     "rebirth": "node scripts/measure-rebirth.js",

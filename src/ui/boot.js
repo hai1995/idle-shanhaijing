@@ -140,6 +140,8 @@ function bindTipEvents(){
 window.showTipFor = showTipFor; window.hideTip = hideTip;
 
 // ---------- 初始化 ----------
+let loopId = 0;
+function startGameLoop(){ if (loopId) return; loopId = setInterval(gameLoop, 250); }
 function init(){
   loadGame();
   // 同步交给将来的账号系统：启动时不再读取任何自定义云地址 / 令牌。
@@ -274,13 +276,18 @@ function init(){
   window.addEventListener('pagehide', ()=>{ if (typeof flushCloudSave === 'function') flushCloudSave(); });
   window.addEventListener('beforeunload', ()=>{ if (typeof flushCloudSave === 'function') flushCloudSave(); });
   // 开机结算：关页再开的那段时长交给离线结算（此前只认页面活着时累积的时间）
-  try { if (typeof settleOnBoot === 'function') settleOnBoot(); } catch(e){ console.error('离线结算失败', e); }
+  // 同上：离山这段时间若按南山口径结算，二至五章的田与行动会被漏掉——
+  // 等数据补齐再跑（晚一点反而更准，时长算得更足，见 chaptersDerivedReady）。
+  if (!_awaitingData) try { if (typeof settleOnBoot === 'function') settleOnBoot(); } catch(e){ console.error('离线结算失败', e); }
   // 后台停表：页面不可见时把主循环停掉。
   // iOS 本来就会节流，安卓与桌面不会——挂机游戏每 250ms 跑一次的循环，
   // 后台挂一晚是实打实的耗电，而这段时间的收益本来就该由离线结算来给。
   // 安全性：回来时第一帧的 dt 很大，gameLoop 里已有「pendingTime ≥ 60s → settleAway」
   // 的兜底，与「关掉页面再打开」走同一条路（那条路早就在跑）。
-  let loopId = setInterval(gameLoop, 250);
+  // v1.31.200：存档里有「南山口径表认不出」的东西时，先只画界面、不起表——
+  // 表不全时跑 tick，二至五章的田与行动都会漏算；等 chaptersDerivedReady 补齐再起。
+  if (!_awaitingData) startGameLoop();
+  else if (typeof UI !== 'undefined' && UI.toast) UI.toast('⏳ 正在补全山海（二至五章）…');
   document.addEventListener('visibilitychange', ()=>{
     if (document.visibilityState === 'hidden'){
       if (loopId){ clearInterval(loopId); loopId = 0; }
@@ -375,4 +382,95 @@ window.structureEffectRows = structureEffectRows;
 
 window.init = init;
 window.UI = UI;
+
+// ================= 数据按需加载（v1.31.200） =================
+// 首屏只同步「南山 + 引擎 + UI 逻辑」，其余四经与派生表（合计约 224KB gzip）
+// 等首屏画出来之后再由这里注入：关键路径的传输量因此减半，玩家先用南山那一片开张。
+// 清单写在 index.html 的 #shjDeferred 里——加载什么只有那一处说了算，
+// scripts/build-standalone.js 读的是同一份（两边各抄一份，迟早走岔）。
+function deferredFiles(){
+  const el = document.getElementById('shjDeferred');
+  if (!el || !el.textContent) return [];
+  try { const a = JSON.parse(el.textContent); return Array.isArray(a) ? a : []; }
+  catch(e){ console.error('延后清单解析失败', e); return []; }
+}
+let _deferredStarted = false, _deferredFailed = false;
+function loadDeferredData(){
+  if (_deferredStarted) return;
+  _deferredStarted = true;
+  if (window.__SHJ_DATA_READY__) return;      // 单文件版：全部已内联，没有 src/ 可取
+  const files = deferredFiles();
+  if (!files.length) return;
+  const ver = (typeof GAME_META !== 'undefined' && GAME_META.version) ? GAME_META.version : '';
+  let left = files.length;
+  const one = (bad) => {
+    if (bad) _deferredFailed = true;
+    if (--left > 0) return;
+    if (_deferredFailed) onDeferredFailed();
+  };
+  for (const f of files){
+    const s = document.createElement('script');
+    s.src = 'src/' + f + (ver ? '?v=' + ver : '');     // 版本串与同步脚本同款，绕开 Pages 的静态缓存
+    s.async = true;                                     // 谁先到都行：收敛性由 gen-derived.js 把关
+    s.onload = ()=>one(false);
+    s.onerror = ()=>one(true);
+    (document.head || document.documentElement).appendChild(s);
+  }
+}
+// 五份延后文件全部就位（或全部失败）后收口
+function onDeferredFailed(){
+  // 开局前就失败：存档里可能有着「只有全图表才认得」的东西，此时装配会误删——
+  // 与其开着一部残缺的书，不如直说，请他刷新。
+  if (!_initDone){ showBootBlocked(); return; }
+  if (typeof UI !== 'undefined' && UI.toast)
+    UI.toast('⚠️ 二至五章未能载入，当前只有南山经——请刷新页面重试');
+}
+function showBootBlocked(){
+  const c = (typeof $ === 'function') ? $('content') : document.getElementById('content');
+  if (!c) return;
+  c.innerHTML = '<div class="pad" style="text-align:center;line-height:2">'
+    + '<p>山海未载入齐备，暂不开局——以免把存档里的田、御使与行动误判成脏数据清掉。</p>'
+    + '<p><button class="btn" type="button" onclick="location.reload()">重新载入</button></p></div>';
+}
+// 开局是否要等全图数据：存档里有「南山口径表认不出」的东西时为真。
+// 这时界面照常先画（玩家立刻看到自己的书），但主循环与离线结算按下不表——
+// 表不全时跑结算，二至五章的田 / 行动会被当成「认不出」而漏算，那是真金白银的收益。
+let _initDone = false, _awaitingData = false;
+function bootInit(){
+  loadDeferredData();
+  if (_initDone) return;
+  _awaitingData = !window.__SHJ_DATA_READY__
+    && typeof saveNeedsFullWorld === 'function' && saveNeedsFullWorld();
+  _initDone = true;
+  init();
+}
+// 数据齐备闸门（由 gameData 回调）：世界补录、派生表覆盖都完成了
+function chaptersDerivedReady(){
+  if (typeof invalidateWorldIndex === 'function') invalidateWorldIndex();
+  if (typeof invalidateMilestones === 'function') invalidateMilestones();   // 分母变了：图鉴总数、山系数
+  // 补齐前已按南山播过一次解锁播报；新出现的山系不再重播，直接记为「已知」
+  if (typeof Game !== 'undefined' && Game.stats && typeof WORLD !== 'undefined' && WORLD.regions)
+    Game.stats._unlockedRegions = WORLD.regions.filter(r=>regionUnlocked(r)).map(r=>r.regionId);
+  // 数据比 onload 还快（单文件版 / 缓存命中）：这里什么都不用做，
+  // bootInit 随后照常开局，且因 __SHJ_DATA_READY__ 已置位而走「不等」那条路。
+  // ⚠️ 不能在这里反过来调 bootInit：沙箱脚本（fuzz / 测量）会把整个 src 一次载入，
+  // 那会凭空触发一次 init()，而它们的 DOM 是桩，必然崩。
+  if (!_initDone) return;
+  if (_awaitingData){
+    _awaitingData = false;
+    // 表现已就位，现在补两件「表不全时做不准」的事：
+    // ① 按全图表重跑一遍白名单校正（首屏那遍一个都没删，全留着）；
+    // ② 离线结算——晚一点跑反而更准，离山时长算得更足。
+    if (typeof reconcileSave === 'function') reconcileSave();
+    if (typeof invalidateMilestones === 'function') invalidateMilestones();
+    try { if (typeof settleOnBoot === 'function') settleOnBoot(); } catch(e){ console.error('离线结算失败', e); }
+    startGameLoop();
+  }
+  if (typeof UI !== 'undefined' && UI.renderCurrent) UI.renderCurrent();
+  if (typeof refreshTabBadges === 'function') refreshTabBadges();
+}
+window.bootInit = bootInit;
+window.chaptersDerivedReady = chaptersDerivedReady;
+window.deferredFiles = deferredFiles;
+window.saveNeedsFullWorld = saveNeedsFullWorld;
 

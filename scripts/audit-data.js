@@ -38,8 +38,10 @@ vm.createContext(ctx);
 // 单一来源：从 index.html 解析脚本清单（与单文件构建、测试共用同一解析器），
 // 按规则派生本脚本需要的子集——审计只看数据/引擎层，不含 ui。
 // 「抄一份就漏一份」的漂移在源头被消灭：新增文件只需改 index.html。
-const { scriptOrder } = require('./build-standalone');
-for (const f of scriptOrder().filter(f => !f.startsWith('ui/'))){
+const { scriptOrder, deferredOrder } = require('./build-standalone');
+// 延后的四章与派生表也要载入：审计查的是跨表引用，缺了它们，
+// 二至五章的物产在表里根本不存在——几百条「缺物品定义」全是假的。
+for (const f of scriptOrder().filter(f => !f.startsWith('ui/')).concat(deferredOrder())){
   vm.runInContext(fs.readFileSync(path.join(root, 'src', f), 'utf8'), ctx, { filename: f });
 }
 const W = ctx.window, I = W.Items;

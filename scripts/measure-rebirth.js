@@ -39,8 +39,9 @@ const ctx = {
 ctx.window.UI = UIstub;
 vm.createContext(ctx);
 // 单一来源：从 index.html 解析脚本清单，取数据/引擎层（不含 ui）。
-const { scriptOrder } = require('./build-standalone');
-for (const f of scriptOrder().filter(f => !f.startsWith('ui/'))){
+const { scriptOrder, deferredOrder } = require('./build-standalone');
+// 同上：轮回曲线要用全图数据，只带南山等于拿第一章的物产去推整本书的曲线
+for (const f of scriptOrder().filter(f => !f.startsWith('ui/')).concat(deferredOrder())){
   vm.runInContext(fs.readFileSync(path.join(root, 'src', f), 'utf8'), ctx, { filename: f });
 }
 const W = ctx.window;

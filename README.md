@@ -2,7 +2,7 @@
 
 一款以《山海经》为题材的纯前端放置挂机网页游戏（原生 JS，零依赖、无需构建、可离线运行）。
 
-> 当前版本 **v1.31.199**（代号「削简」）· 更新于 2026-10-29。版本号与更新日期集中于 `GAME_META`（`src/gameData.js`），「叙录」页直接读取，不散落硬编码。
+> 当前版本 **v1.31.200**（代号「按需」）· 更新于 2026-10-29。版本号与更新日期集中于 `GAME_META`（`src/gameData.js`），「叙录」页直接读取，不散落硬编码。
 
 玩家扮演**著录者**，受命巡行南山，采集、制作、讨伐、御使、祭祀，把山川万物逐条录于竹简——游戏进度即一部正在写成的《山海经》。
 
@@ -196,6 +196,7 @@ src/
     misc.js             统计 / 叙录 / 详情浮层 / init 初始化
 scripts/
   gen-world-data.js     JSON → src/{nanshan,xishan,beishan,dongshan,zhongshan}Data.js 派生脚本（含五章等级重排）
+  gen-derived.js        构建期预计算 src/derivedData.js（延后加载的派生表），并与「全图现算」逐字节比对；--check 只校验不写出
   build-standalone.js   多文件版 → idle-shanhaijing-standalone.html 自包含单文件（node scripts/build-standalone.js）
   audit-data.js         数据引用审计：配方产物 / 祠礼三表 / 种子 / 消耗品可达性 / 征兆触发源（node scripts/audit-data.js）
   check.js              一键自检：版本一致 → 测试 → 审计 → 构建（node scripts/check.js）

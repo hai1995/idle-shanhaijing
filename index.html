@@ -57,10 +57,10 @@ html[data-theme="night"] .boot-skel .bs-bar > i{ background:#E06A55; }
      于是首屏不再等它——骨架（内联样式）一到就画。init() 仍挂在 window onload 上，
      时序与改动前一致（link 仍计入 load），只是白屏那一段换成了「正在铺卷」。
      CSS 万一没到，4 秒后兜底放开（见上面那段昼夜脚本），不至于永远停在骨架上。 -->
-<link rel="stylesheet" href="style.css?v=1.31.199" media="print"
+<link rel="stylesheet" href="style.css?v=1.31.200" media="print"
       onload="this.media='all';document.documentElement.classList.remove('css-boot')">
 </head>
-<body onload="init()">
+<body onload="bootInit()">
 <div id="app">
 
   <!-- 吸顶：墨色书脊（顶栏）+ 纸质仪表带（状态条）+ 全局指引条 -->
@@ -152,49 +152,53 @@ html[data-theme="night"] .boot-skel .bs-bar > i{ background:#E06A55; }
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 14l6-6 6 6"/></svg>
 </button>
 
-<script src="src/nanshanData.js?v=1.31.199"></script>
-<script src="src/xishanData.js?v=1.31.199"></script>
-<script src="src/beishanData.js?v=1.31.199"></script>
-<script src="src/dongshanData.js?v=1.31.199"></script>
-<script src="src/zhongshanData.js?v=1.31.199"></script>
-<script src="src/gameData.js?v=1.31.199"></script>
-<script src="src/affix.js?v=1.31.199"></script>
-<script src="src/save.js?v=1.31.199"></script>
-<script src="src/engine.js?v=1.31.199"></script>
-<script src="src/game.js?v=1.31.199"></script>
-<script src="src/queue.js?v=1.31.199"></script>
-<script src="src/beastIcon.js?v=1.31.199"></script>
-<script src="src/riteIcon.js?v=1.31.199"></script>
-<script src="src/structureIcon.js?v=1.31.199"></script>
-<script src="src/skillIcon.js?v=1.31.199"></script>
-<script src="src/itemIcon.js?v=1.31.199"></script>
-<script src="src/markIcon.js?v=1.31.199"></script>
-<script src="src/interact.js?v=1.31.199"></script>
-<script src="src/events.js?v=1.31.199"></script>
-<script src="src/fx.js?v=1.31.199"></script>
-<script src="src/ui/core.js?v=1.31.199"></script>
-    <script src="src/ui/meta.js?v=1.31.199"></script>
-<script src="src/ui/hud.js?v=1.31.199"></script>
-<script src="src/ui/modal.js?v=1.31.199"></script>
-<script src="src/ui/settings.js?v=1.31.199"></script>
-<script src="src/ui/tutorial.js?v=1.31.199"></script>
-<script src="src/ui/scene.js?v=1.31.199"></script>
-<script src="src/ui/yudi.js?v=1.31.199"></script>
-<script src="src/ui/skills.js?v=1.31.199"></script>
-<script src="src/ui/combat.js?v=1.31.199"></script>
-<script src="src/ui/codex.js?v=1.31.199"></script>
-<script src="src/ui/shrine.js?v=1.31.199"></script>
-<script src="src/ui/trade.js?v=1.31.199"></script>
-<script src="src/ui/queue.js?v=1.31.199"></script>
-<script src="src/ui/pack.js?v=1.31.199"></script>
-<script src="src/ui/item.js?v=1.31.199"></script>
-<script src="src/ui/enhance.js?v=1.31.199"></script>
-<script src="src/ui/stats.js?v=1.31.199"></script>
-<script src="src/ui/rank.js?v=1.31.199"></script>
-    <script src="src/ui/misc.js?v=1.31.199"></script>
-    <script src="src/ui/wikiData.js?v=1.31.199"></script>
-    <script src="src/ui/wiki.js?v=1.31.199"></script>
-    <script src="src/ui/boot.js?v=1.31.199"></script>
+<!-- 延后加载清单（v1.31.200）：这五份不由浏览器同步下载，等首屏画出来之后
+     由 ui/boot.js 注入（见文件末尾的注释）。首屏关键路径因此少掉约 224KB gzip——
+     余下四经与派生表在后台补齐，玩家先用南山那一片开张。
+     顺序无关：并行下载，谁先到都行（两种到达顺序的收敛由 scripts/gen-derived.js 把关）。
+     单文件版读的是同一份清单（scripts/build-standalone.js），不另抄。 -->
+<script id="shjDeferred" type="application/json">
+["xishanData.js","beishanData.js","dongshanData.js","zhongshanData.js","derivedData.js"]
+</script>
+<script src="src/nanshanData.js?v=1.31.200"></script>
+<script src="src/gameData.js?v=1.31.200"></script>
+<script src="src/affix.js?v=1.31.200"></script>
+<script src="src/save.js?v=1.31.200"></script>
+<script src="src/engine.js?v=1.31.200"></script>
+<script src="src/game.js?v=1.31.200"></script>
+<script src="src/queue.js?v=1.31.200"></script>
+<script src="src/beastIcon.js?v=1.31.200"></script>
+<script src="src/riteIcon.js?v=1.31.200"></script>
+<script src="src/structureIcon.js?v=1.31.200"></script>
+<script src="src/skillIcon.js?v=1.31.200"></script>
+<script src="src/itemIcon.js?v=1.31.200"></script>
+<script src="src/markIcon.js?v=1.31.200"></script>
+<script src="src/interact.js?v=1.31.200"></script>
+<script src="src/events.js?v=1.31.200"></script>
+<script src="src/fx.js?v=1.31.200"></script>
+<script src="src/ui/core.js?v=1.31.200"></script>
+    <script src="src/ui/meta.js?v=1.31.200"></script>
+<script src="src/ui/hud.js?v=1.31.200"></script>
+<script src="src/ui/modal.js?v=1.31.200"></script>
+<script src="src/ui/settings.js?v=1.31.200"></script>
+<script src="src/ui/tutorial.js?v=1.31.200"></script>
+<script src="src/ui/scene.js?v=1.31.200"></script>
+<script src="src/ui/yudi.js?v=1.31.200"></script>
+<script src="src/ui/skills.js?v=1.31.200"></script>
+<script src="src/ui/combat.js?v=1.31.200"></script>
+<script src="src/ui/codex.js?v=1.31.200"></script>
+<script src="src/ui/shrine.js?v=1.31.200"></script>
+<script src="src/ui/trade.js?v=1.31.200"></script>
+<script src="src/ui/queue.js?v=1.31.200"></script>
+<script src="src/ui/pack.js?v=1.31.200"></script>
+<script src="src/ui/item.js?v=1.31.200"></script>
+<script src="src/ui/enhance.js?v=1.31.200"></script>
+<script src="src/ui/stats.js?v=1.31.200"></script>
+<script src="src/ui/rank.js?v=1.31.200"></script>
+    <script src="src/ui/misc.js?v=1.31.200"></script>
+    <script src="src/ui/wikiData.js?v=1.31.200"></script>
+    <script src="src/ui/wiki.js?v=1.31.200"></script>
+    <script src="src/ui/boot.js?v=1.31.200"></script>
 <script>
 /* 缓存自检（内联，不依赖任何模块）：index.html 自身没有 ?v=，主屏幕里的独立实例
    可能一直拿着旧页面——旧页面又去引用同名（旧版本串）的脚本，于是「改了手机不生效」。

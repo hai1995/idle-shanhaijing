@@ -43,10 +43,15 @@ function loadJS(file){ vm.runInContext(fs.readFileSync(path.join(base, file), 'u
 // 单一来源：从 index.html 解析 ui 脚本清单（与单文件构建、各脚本共用同一解析器），
 // 不再手抄——新增 ui 文件只需改 index.html，这里自动同步。
 const UI_FILES = require(path.join(__dirname, '..', 'scripts', 'build-standalone.js')).scriptOrder().filter(f => f.startsWith('ui/'));
+// 延后加载清单（v1.31.200）：与 index.html 的 #shjDeferred 同源，不另抄一份
+const DEFERRED_FILES = require(path.join(__dirname, '..', 'scripts', 'build-standalone.js')).deferredOrder();
 const uiSrcAll = UI_FILES.map(f => fs.readFileSync(path.join(base, f), 'utf8')).join('\n');
 // 单一来源：从 index.html 解析引擎层脚本（与单文件构建、各脚本共用同一解析器），不再手抄。
 require(path.join(__dirname, '..', 'scripts', 'build-standalone.js')).scriptOrder()
   .filter(f => !f.startsWith('ui/')).forEach(loadJS);
+// 延后加载的五份（v1.31.200）：浏览器里它们在首屏之后由 boot.js 注入；沙箱没有网络这一层，
+// 直接在这里补齐——测试跑的是「数据齐备之后」的世界，与单文件版同款（那一版也是全部内联）。
+DEFERRED_FILES.forEach(loadJS);
 const G = context;
 const ST = context.window;
 
@@ -3478,7 +3483,12 @@ section('交互改版：顶栏实时 · 行动链 · 弹窗 · 淬炼');
 {
   const srcDir = path.join(__dirname, '..', 'src');
   const files = fs.readdirSync(srcDir).filter(f => f.endsWith('.js'));
-  const all = files.map(f => fs.readFileSync(path.join(srcDir, f), 'utf8')).join('\n');
+  // 引用要扫 src/ui 下的文件：它们同样会裸名调用引擎层的函数
+  // （engine.js 的 saveNeedsFullWorld 就是 boot.js 在调，只扫 src 会被误判成死函数）。
+  const uiDir = path.join(srcDir, 'ui');
+  const uiFiles = fs.readdirSync(uiDir).filter(f => f.endsWith('.js')).map(f => 'ui/' + f);
+  const all = files.concat(uiFiles)
+    .map(f => fs.readFileSync(path.join(srcDir, f), 'utf8')).join('\n');
   const dead = [];
   for (const f of files){
     const src = fs.readFileSync(path.join(srcDir, f), 'utf8');
@@ -5762,18 +5772,24 @@ section('问神');
 // 只能靠对着数核。
 section('构建产物一致');
 {
-  const { scriptOrder, build } = require(path.join(__dirname, '..', 'scripts', 'build-standalone.js'));
+  const { scriptOrder, deferredOrder, build } = require(path.join(__dirname, '..', 'scripts', 'build-standalone.js'));
   const order = scriptOrder();
+  const deferred = deferredOrder();
   const srcDir = path.join(__dirname, '..', 'src');
   const srcFiles = fs.readdirSync(srcDir).filter(f => f.endsWith('.js'));
 
-  const orphan = srcFiles.filter(f => !order.includes(f));
-  assert(orphan.length === 0, 'src 下每个脚本都被 index.html 引用' + (orphan.length ? '：' + orphan.join('、') : ''));
+  // v1.31.200：二至五章与派生表不再同步加载（首屏只带南山），它们挂在 index.html 的
+  // #shjDeferred 上、由 ui/boot.js 后台注入。孤儿判定因此要把两份清单合起来看——
+  // 少一份仍是「这个文件根本没人加载」的静默事故。
+  const orphan = srcFiles.filter(f => !order.includes(f) && !deferred.includes(f));
+  assert(orphan.length === 0, 'src 下每个脚本都被 index.html 引用（同步清单 + 延后清单）' + (orphan.length ? '：' + orphan.join('、') : ''));
   assert(order.every(f => fs.existsSync(path.join(srcDir, f))), 'index.html 引用的脚本都存在');
+  assert(deferred.every(f => fs.existsSync(path.join(srcDir, f))), '延后清单里的脚本都存在');
 
-  // 数据文件必须先于 gameData（否则 WORLD 还没建，gameData 里的派生表全是空）
+  // 数据文件必须先于 gameData（否则 WORLD 还没建，gameData 里的派生表全是空）。
+  // 延后的四章不在此列：它们抵达时由 SHJ_LOAD_CHAPTER 并进已建好的 WORLD。
   const gi = order.indexOf('gameData.js');
-  ['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','zhongshanData.js'].forEach(f => {
+  ['nanshanData.js'].forEach(f => {
     assert(order.indexOf(f) >= 0 && order.indexOf(f) < gi, f + ' 在 gameData 之前加载');
   });
 
@@ -5788,6 +5804,11 @@ section('构建产物一致');
   const outTxt = fs.readFileSync(path.join(__dirname, '..', 'idle-shanhaijing-standalone.html'), 'utf8');
   const lost = order.filter(f => !outTxt.includes('// ===== ' + f + ' ====='));
   assert(lost.length === 0, '单文件版含全部脚本的横幅' + (lost.length ? '，缺：' + lost.join('、') : ''));
+  // 延后的五份在单文件版里没有「后台」可言——整包都在一个文件里，必须一并内联，
+  // 否则单文件版会永远停在南山（与当年漏掉 zhongshanData.js 同一类事故）。
+  const lostDef = deferred.filter(f => !outTxt.includes('// ===== ' + f + ' ====='));
+  assert(lostDef.length === 0, '单文件版含延后脚本的横幅（已内联）' + (lostDef.length ? '，缺：' + lostDef.join('、') : ''));
+  assert(!/id="shjDeferred"/.test(outTxt), '单文件版已撤掉延后清单（内容已内联，留着会让 boot.js 去 fetch 不存在的 src/）');
   assert(outTxt.length > 800 * 1024, '单文件版体积合理（' + Math.round(outTxt.length / 1024) + ' KB）');
 }
 
@@ -9249,7 +9270,10 @@ section('祠礼与配装');
 section('后台停表');
 {
   const mSrc = readText('src/ui/boot.js');
-  assert(/let loopId = setInterval\(gameLoop, 250\)/.test(mSrc), '主循环的 interval 句柄要留住');
+  // v1.31.200：起表收进 startGameLoop()（存档要等全图数据时先只画界面、不起表），
+  // 句柄仍是模块级那个 loopId——停表 / 复表的判断没变。
+  assert(/let loopId = 0;/.test(mSrc) && /function startGameLoop\(\)\{ if \(loopId\) return; loopId = setInterval\(gameLoop, 250\); \}/.test(mSrc),
+    '主循环的 interval 句柄要留住');
   assert(!/^\s*setInterval\(gameLoop, 250\);\s*$/m.test(mSrc), '不能再有一个没人管的 interval');
   assert(/visibilitychange[\s\S]{0,240}clearInterval\(loopId\)/.test(mSrc), '切到后台就清表');
   assert(/else if \(!loopId\)\{[\s\S]{0,160}gameLoop\(\)/.test(mSrc), '回前台先补算一次，再重新起表');
@@ -9848,7 +9872,17 @@ section('加载清单守卫');
   let derived = 0;          // 从 index.html 单一来源派生的脚本数
   scriptFiles.forEach(sf => {
     const src = readText('scripts/' + sf);
-    if (/scriptOrder\(\)/.test(src)){ derived++; return; }   // 派生清单：filter 只从 scriptOrder 里挑，不可能含已删文件名
+    if (/scriptOrder\(\)/.test(src)){
+      derived++;
+      // v1.31.200：清单分两批了。凡是「真的把游戏文件跑起来」的脚本（vm.runInContext），
+      // 只取同步清单就等于只带南山——二至五章的物产等级会塌成 1 级，量出来的数全是假的，
+      // 而且不报错。这类脚本必须连 deferredOrder 一起取。
+      if (/runInContext/.test(src)){
+        assert(/deferredOrder\(\)/.test(src),
+          'scripts/' + sf + ' 跑游戏文件，清单须含延后的四章与派生表（否则只带南山，数据全是假的）');
+      }
+      return;
+    }   // 派生清单：filter 只从 scriptOrder 里挑，不可能含已删文件名
     const m2 = src.match(/for \(const f of \[([\s\S]*?)\]\)/);
     if (!m2) return;                              // 既不派生也无清单的脚本（gen-world 等）跳过
     const list = (m2[1].match(/'([^']+\.js)'/g) || []).map(x => x.replace(/'/g, ''));
@@ -10730,9 +10764,13 @@ section('征兆专属见闻');
     }
   }
   // 扫描面必须与 index.html 实际加载的一致：漏扫一个文件，就等于给这个文件开了后门。
+  // v1.31.200：脚本分两批——同步的 <script src> 与 #shjDeferred 里延后的五份，两边都得扫到。
   const htmlScripts = (readText('index.html').match(/<script src="src\//g) || []).length;
-  assert(files.length === htmlScripts,
-    '扫过 ' + files.length + ' 个源文件，与 index.html 的 ' + htmlScripts + ' 个脚本一致（不漏扫）');
+  const deferredFiles = require(path.join(__dirname, '..', 'scripts', 'build-standalone.js')).deferredOrder();
+  assert(files.length === htmlScripts + deferredFiles.length,
+    '扫过 ' + files.length + ' 个源文件，与 index.html 的 ' + htmlScripts + ' 个同步脚本 + '
+    + deferredFiles.length + ' 份延后一致（不漏扫）');
+  assert(deferredFiles.every(f => files.some(x => x === 'src/' + f)), '延后清单里的文件都在扫描范围内');
 
   const bad = [];
   for (const rel of files){
@@ -11352,16 +11390,103 @@ section('数据紧凑化（v1.31.199）');
   for (const f of files){
     const s = fs.readFileSync(path.join(base, f), 'utf8');
     const start = s.indexOf('window.');
-    const end = s.lastIndexOf(';');
+    // v1.31.200 起末行还有一条延后登记的回调；数据段止于第一行末尾的分号
+    const end = s.indexOf(';\n', start);
     // 整段 window.X = {…}; 必须落在同一行——漂亮打印会把它拆成多行
     const whole = s.slice(start, end);
     assert(!whole.includes('\n'), f + ' 为紧凑单行（window.X = … ; 无换行，缩进已砍）');
+    // 末行：延后抵达时把本章并进 WORLD（同步加载时 SHJ_LOAD_CHAPTER 未定义，自动跳过）
+    assert(/if \(window\.SHJ_LOAD_CHAPTER\) window\.SHJ_LOAD_CHAPTER\("[A-Z]+", window\.[A-Z]+\);/.test(s),
+      f + ' 末行带延后登记回调');
     const obj = JSON.parse(s.slice(s.indexOf('=', start) + 1, end));
     const nodes = obj.regions.reduce((a,r)=>a+r.nodes.length, 0);
     totalNodes += nodes; totalRegions += obj.regions.length;
     assert(nodes > 0 && obj.regions.length > 0, f + ' 解析为合法对象（regions=' + obj.regions.length + ' nodes=' + nodes + '）');
   }
   assert(totalRegions === 26 && totalNodes === 447, '五章合计 26 山脉 / 447 节点，与源 JSON 一致（仅缩进变化）');
+}
+
+section('数据按需加载（v1.31.200）');
+{
+  // 首屏只带南山，其余四经与派生表后台补齐。这一节守三件事：
+  //   ① 预计算产物没跟派生逻辑走岔（生命线）；
+  //   ② 延后清单与加载接线都在位；
+  //   ③ 数据没齐时读档校正不判生死（否则二至五章的田 / 御使 / 行动会被静默删掉）。
+
+  // ---- ① 派生表必须与「全图现算」逐字节一致 ----
+  // 改了 gameData 的派生逻辑却忘了重算，产物会静默落后：游戏照常跑，
+  // 只是二至五章的物产等级、图鉴、采集池全是旧数——谁也看不出来。
+  let chk = 'ok';
+  try {
+    require('child_process').execSync('node scripts/gen-derived.js --check',
+      { cwd: path.join(__dirname, '..'), stdio: 'pipe' });
+  } catch(e){ chk = String((e.stdout && e.stdout.toString()) || e.message).slice(0, 300); }
+  assert(chk === 'ok', '派生表与当前派生逻辑一致（gen-derived --check）' + (chk === 'ok' ? '' : '：' + chk));
+
+  const dd = readText('src/derivedData.js');
+  assert(/^window\.__SHJ_DERIVED__ = \{/.test(dd), 'derivedData.js 以 window.__SHJ_DERIVED__ = {…} 起头');
+  assert(/if \(window\.SHJ_LOAD_DERIVED\) window\.SHJ_LOAD_DERIVED\(window\.__SHJ_DERIVED__\);/.test(dd),
+    'derivedData.js 末尾触发覆盖（先到则由 gameData 兜底）');
+  assert(!/\n\s*"/.test(dd.split('window.__SHJ_DERIVED__')[1].split(';\n')[0]),
+    'derivedData.js 的数据段是紧凑单行（不漂亮打印）');
+
+  // ---- ② 接线 ----
+  const gdSrc = readText('src/gameData.js');
+  assert(/window\.SHJ_LOAD_CHAPTER = shjLoadChapter;/.test(gdSrc), 'gameData 挂出 SHJ_LOAD_CHAPTER');
+  assert(/window\.SHJ_LOAD_DERIVED = shjLoadDerived;/.test(gdSrc), 'gameData 挂出 SHJ_LOAD_DERIVED');
+  assert(/function shjLoadChapter\(/.test(gdSrc) && /WORLD\.regions\.push\(r\)/.test(gdSrc),
+    '章补录是就地 push（不换 WORLD 的引用）');
+  assert(/const CHAPTER_BOXES = \{ NANSHAN, XISHAN/.test(gdSrc),
+    '章数据是稳定容器：补录填进同一个对象，裸名读到的 const 不会永远停在空');
+  const html200 = readText('index.html');
+  assert(/<body onload="bootInit\(\)">/.test(html200), 'index.html 的开局入口是 bootInit()');
+  assert(/id="shjDeferred"/.test(html200), 'index.html 里有延后清单 #shjDeferred');
+  const deferList = require(path.join(__dirname, '..', 'scripts', 'build-standalone.js')).deferredOrder();
+  assert(deferList.join(',') === 'xishanData.js,beishanData.js,dongshanData.js,zhongshanData.js,derivedData.js',
+    '延后清单 = 四章 + 派生表（' + deferList.join(',') + '）');
+  assert(deferList.indexOf('nanshanData.js') < 0, '南山仍在首屏同步加载（不在延后清单里）');
+  const bootSrc = readText('src/ui/boot.js');
+  assert(/function loadDeferredData\(\)/.test(bootSrc) && /s\.onerror = \(\?\)?/.test(bootSrc.replace(/\(\)=>/g,'()=>')) || /s\.onerror/.test(bootSrc),
+    'boot.js 负责注入延后脚本且认失败');
+  assert(/if \(window\.__SHJ_DATA_READY__\) return;/.test(bootSrc), '单文件版（数据已内联）不再去 fetch src/');
+  assert(/function chaptersDerivedReady\(\)/.test(bootSrc) && /invalidateWorldIndex\(\)/.test(bootSrc),
+    '数据齐了要作废世界索引（否则二至五章的节点 nodeOf 恒为 null）');
+  // 开局策略：老玩家也先开局，只是把「表不全就做不准」的两件事挪后
+  assert(/if \(!_awaitingData\) startGameLoop\(\);/.test(bootSrc), '等数据的那一局先不起主循环');
+  assert(/if \(!_awaitingData\) try \{ if \(typeof settleOnBoot/.test(bootSrc), '等数据的那一局先不做离线结算（晚点跑反而更准）');
+  assert(/if \(typeof reconcileSave === 'function'\) reconcileSave\(\);/.test(bootSrc),
+    '数据补齐后按全图表重跑一遍读档校正（首屏那遍一个都没删）');
+
+  // ---- ③ 判不了就别判 ----
+  const engSrc = readText('src/engine.js');
+  assert(/function saveJudgeable\(\)/.test(engSrc), 'engine.js 有「能否判生死」的判据');
+  assert(/if \(judge\) delete Game\.farms\[slot\]/.test(engSrc), '田的删除受闸门保护');
+  assert(/if \(!ok && judge\) Game\.activity = null/.test(engSrc), '行动的清除受闸门保护');
+  assert(/if \(judge\) for \(const k in Game\.deployed\)/.test(engSrc), '御使的清理受闸门保护');
+  assert(/function saveNeedsFullWorld\(\)/.test(engSrc), 'engine.js 能预判「这份存档是否要等全图」');
+  assert(/function reconcileSave\(\)/.test(engSrc) && /\n    reconcileSave\(\);/.test(engSrc),
+    'engine.js 把「表里查不到就清掉」抽成可重跑的 reconcileSave()');
+
+  // 行为验证：数据没齐时，存档里「表里查不到」的东西不许被抹掉
+  {
+    const keepReady = ST.__SHJ_DATA_READY__;
+    const bad = { version: 99, shells: 10, map: {}, records: {}, inventory: {}, banking: {},
+      skills: {}, gear: {}, deployed: { '0': 'not_a_beast' }, farms: { '0': { seedId: 'not_a_seed', remain: 3, grow: 10 } },
+      activity: { kind: 'observe', siteId: 'not_a_site' }, stats: {}, buff: {}, node: 'nanshan-1-01' };
+    ST.__SHJ_DATA_READY__ = false;
+    G.resetToDefault();
+    G.applySave(bad);
+    assert(ST.Game.farms['0'] && Object.values(ST.Game.deployed).indexOf('not_a_beast') >= 0
+      && ST.Game.activity && ST.Game.activity.siteId === 'not_a_site',
+      '数据未齐：田 / 御使 / 行动一律保留（那一章可能还没到，不能当脏数据删）');
+    ST.__SHJ_DATA_READY__ = true;
+    G.resetToDefault();
+    G.applySave(bad);
+    assert(!ST.Game.farms['0'] && Object.values(ST.Game.deployed).indexOf('not_a_beast') < 0 && !ST.Game.activity,
+      '数据齐了：同一份存档里的坏引用照常清掉（校正本身没被削弱）');
+    ST.__SHJ_DATA_READY__ = keepReady;
+    G.resetToDefault();
+  }
 }
 
 // 异步用例先收尾，再出汇总（漏计一条都比静默通过好）

@@ -21,8 +21,12 @@ const window = { location:{ href:'x' }, localStorage:new LS() };
 const ctx = { window, document, localStorage:window.localStorage, console, Math, Date, JSON,
   setInterval:()=>0, setTimeout:()=>0, clearTimeout:()=>{}, clearInterval:()=>{}, getComputedStyle:()=>({}), UI:UIstub };
 ctx.window.UI = UIstub; vm.createContext(ctx);
-for (const f of ['nanshanData.js','xishanData.js','beishanData.js','dongshanData.js','zhongshanData.js',
-  'gameData.js','affix.js','save.js','engine.js','game.js','queue.js','interact.js','events.js','fx.js'])
+// 清单从 index.html 派生（同步 + 延后两份），不另抄：抄一份就漏一份。
+// 延后的四章与派生表在这里必须一并载入——测的是「数据齐备之后」的平衡，
+// 少了它们，二至五章的物产等级会塌成 1 级，TTK 全是假的。
+const BS = require('./build-standalone.js');
+const ENGINE_FILES = BS.scriptOrder().filter(f => f.indexOf('ui/') !== 0);
+for (const f of ENGINE_FILES.concat(BS.deferredOrder()))
   vm.runInContext(fs.readFileSync(path.join(root,'src',f),'utf8'), ctx, { filename:f });
 const W = ctx.window;
 const argCycle = (() => { const i = process.argv.indexOf('--cycle'); return i>0 ? +process.argv[i+1] : 0; })();

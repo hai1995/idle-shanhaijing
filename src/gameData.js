@@ -168,11 +168,15 @@ function gearRatio(it){
 }
 
 // ---------- 世界（南山经 + 西山经 + 北山经 + 东山经 + 中山经，五章同构接入） ----------
+// 稳定容器（v1.31.200）：章数据可能延后抵达（首屏只带南山）。届时往这同一个对象里填，
+// 而不是换一个新对象——顶层 const 是脚本级词法绑定，别的脚本裸名读到的就是它；
+// 换了引用，src/ui/misc.js 里那句 `ZHONGSHAN.regions` 就永远读到空（统计页中山数恒为 0）。
 const NANSHAN = (typeof window !== 'undefined' && window.NANSHAN) ? window.NANSHAN : { regions: [] };
 const XISHAN  = (typeof window !== 'undefined' && window.XISHAN)  ? window.XISHAN  : { regions: [] };
 const BEISHAN = (typeof window !== 'undefined' && window.BEISHAN) ? window.BEISHAN : { regions: [] };
 const DONGSHAN = (typeof window !== 'undefined' && window.DONGSHAN) ? window.DONGSHAN : { regions: [] };
 const ZHONGSHAN = (typeof window !== 'undefined' && window.ZHONGSHAN) ? window.ZHONGSHAN : { regions: [] };
+const CHAPTER_BOXES = { NANSHAN, XISHAN, BEISHAN, DONGSHAN, ZHONGSHAN };
 const WORLD = { regions: [].concat(NANSHAN.regions||[], XISHAN.regions||[], BEISHAN.regions||[], DONGSHAN.regions||[], ZHONGSHAN.regions||[]) };
 // 章节（叙事层）：南山经=巡行记录，西山经=神话舞台（神祇密度支撑主线章节），北山经=长篇养成（精卫填海），
 // 东山经=荒经水路（水泽大荒），中山经=帝之密都（全书收卷：神祇与氏族记载最密的一部，十二系各有祠礼）
@@ -2478,13 +2482,19 @@ const Milestones = [
   // 达成口径与 desc 对不上，玩家谒见完全部西山神祇反而不亮。现在按谒见点实计。
   // ⚠️ 位数从 AUDIENCE_SITES 现算，不写死：以后给西山添一位神祇，门槛自动跟着涨。
   (() => {
-    const xsDeities = [];
-    for (const site of Object.values(AUDIENCE_SITES || {})){
-      if (String(site.nodeId).indexOf('xishan-') !== 0) continue;
-      for (const d of (site.deities || [])) xsDeities.push(d.id);
-    }
-    return { id:'xs_deity', name:'西山百神', desc:`谒见西山全部 ${xsDeities.length} 位神祇`,
-      prog:()=>[xsDeities.filter(id => ((Game.records || {})[id] || {}).count > 0).length, xsDeities.length],
+    // 名单在调用时现算，不在加载期抓快照（v1.31.200）：章数据延后抵达时，
+    // 加载期的 AUDIENCE_SITES 只有南山那一份——抓成常量就永远停在 0 位，
+    // 派生表覆盖了表也救不回闭包里的旧数组。
+    const xsDeities = () => {
+      const out = [];
+      for (const site of Object.values(AUDIENCE_SITES || {})){
+        if (String(site.nodeId).indexOf('xishan-') !== 0) continue;
+        for (const d of (site.deities || [])) out.push(d.id);
+      }
+      return out;
+    };
+    return { id:'xs_deity', name:'西山百神', desc:`谒见西山全部 ${xsDeities().length} 位神祇`,
+      prog:()=>{ const xs = xsDeities(); return [xs.filter(id => ((Game.records || {})[id] || {}).count > 0).length, xs.length]; },
       bonus:'祭祀经验 +20%', jisi:0.20,
       how:'西山各山有祠，一人可谒多位。走到山头点「谒见」逐位见过去——异迹索引里列着每处有哪几位。',
       go:{ act:'UI.gotoHetero()', label:'看异迹' } };
@@ -2520,10 +2530,7 @@ const Milestones = [
     how:'全书二十六系，走完一半。北山三系与东山四系各有一条长线，正好凑够十三。', go:{ tab:'yudi' } },
 ];
 // 达成判定一律从 prog 派生——只有一份数，界面进度与判定不可能走岔。
-Milestones.forEach(ms => {
-  if (typeof ms.prog === 'function')
-    ms.check = () => { const p = ms.prog(); return p[1] > 0 && p[0] >= p[1]; };
-});
+attachMilestoneChecks();
 
 // ---------- 采集物的等级阶梯 ----------
 // 采集物的 lvl 原本直接来自所在山的门槛（autoLvl ≈ 门槛 × 0.86），于是出现
@@ -2612,7 +2619,9 @@ function buildCodex(){
   }
   return cx;
 }
-const CODEX = buildCodex();
+// v1.31.200：下面四张都是「一次调用」的产物，数据补齐后重算即可，
+// 不必随延后的派生表一起传——CODEX 一处就占派生表 gzip 的 44%（原文引文长）。
+let CODEX = buildCodex();
 
 // ---------- 收集成就（图鉴的奖励闭环） ----------
 // 与 Milestones 的分工：Milestones 是「达成即生效」的被动加成；
@@ -2666,7 +2675,7 @@ function codexDoneCount(cat){
   });
 }
 
-const CODEX_ACHIEVEMENTS = buildCodexAch();
+let CODEX_ACHIEVEMENTS = buildCodexAch();
 
 // ---------- 工具函数 ----------
 function rarityId(it){
@@ -2718,7 +2727,7 @@ function beastSlots(){ return Math.min(9, 1 + Math.floor((Game.skills?.yushi?.le
 // ---------- 方国求购订单（商旅贸易深化：动态需求，贝币的第二出口） ----------
 // ⚠️ 依赖 buildBeasts 已跑完（掉落物品的产地要反查怪物 regionId），故置于其后再算。
 // 物品 → 产地（区域）：采集物看 it.node；异兽掉落物反查怪物 regionId。
-const ITEM_REGION = (function(){
+function buildItemRegion(){
   const map = {};
   for (const it of Object.values(Items)){
     if (it.node && (it.value||0) > 0) map[it.id] = it.node.split('-').slice(0, 2).join('-');
@@ -2731,11 +2740,15 @@ const ITEM_REGION = (function(){
     }
   }
   return map;
-})();
+}
+let ITEM_REGION = buildItemRegion();
 // 订单池：有产地的原材料。口径同「廛市清整」——食物 / 装备 / 嘉种 / 药品 / 嘉谷
 // 是生活线与祠礼资产，不应被求购；只收可再生的原材料。
-const ORDER_POOL = Object.values(Items).filter(it=>
-  (it.value||0) > 0 && !it.edible && !it.equip && it.type!=='seed' && it.type!=='potion' && it.type!=='crop' && ITEM_REGION[it.id]);
+function buildOrderPool(){
+  return Object.values(Items).filter(it=>
+    (it.value||0) > 0 && !it.edible && !it.equip && it.type!=='seed' && it.type!=='potion' && it.type!=='crop' && ITEM_REGION[it.id]);
+}
+let ORDER_POOL = buildOrderPool();
 function regionById(rid){ return (WORLD.regions||[]).find(r=>r.regionId===rid) || null; }
 // 求购数量按基准价分档：越贵要得越少，总价量级大致相当（一单 ≈ 普通材料几十件的价值）
 function orderQtyFor(value){
@@ -2750,8 +2763,8 @@ function orderQtyFor(value){
 // 版本代号取「五藏山经」体例：一卷一山系，一章一山。
 const GAME_META = {
   name:    '山海经 · 著录',
-  version: '1.31.199',
-  codename:'削简',
+  version: '1.31.200',
+  codename:'按需',
   updated: '2026-10-28',
   form:    '纯静态站点 · 原生 JavaScript · 零依赖',
   license: '代码 MIT · 文本取自公有领域古籍',
@@ -2787,4 +2800,112 @@ if (typeof window !== 'undefined'){
   window.recordedCount = recordedCount; window.beastSlots = beastSlots;
   window.ITEM_REGION = ITEM_REGION; window.ORDER_POOL = ORDER_POOL;
   window.regionById = regionById; window.orderQtyFor = orderQtyFor;
+}
+
+// ---------- 数据按需加载（v1.31.200）：章补录 + 派生表运行期覆盖 ----------
+// 首屏只同步「南山 + 引擎 + UI 逻辑」；其余四章原始数据与派生表（Items/Monsters/CODEX…）
+// 延后到后台。游戏逻辑表首屏先用 nanshan 一份（局部 WORLD）现算——其余章缺失，这份是错的；
+// 等派生表 __SHJ_DERIVED__ 抵达后再整体覆盖。覆盖必须覆盖全部 WORLD 派生表，否则南山版的错误值
+// 会残留——由 scripts/gen-derived.js 跑「全图现算」vs「nanshan + 覆盖」逐字节比对把关。
+
+// 卷次：章文件抵达顺序不定（并行下载），按 CHAPTERS 的卷次排回去，舆地页的先后才不乱
+const CHAPTER_REGION_ORDER = {};
+CHAPTERS.forEach((c, i) => c.regionIds.forEach((rid, j) => { CHAPTER_REGION_ORDER[rid] = i * 100 + j; }));
+const CHAPTER_REGION_TOTAL = CHAPTERS.reduce((a, c) => a + c.regionIds.length, 0);   // 26 系
+// 五章齐全时（同步加载 / 单文件版 / 测试），现算的派生表本身就是准的，不必等覆盖
+const _worldComplete = () => WORLD.regions.length >= CHAPTER_REGION_TOTAL;
+let _derivedOK = _worldComplete();
+// 「数据齐备」= 世界全 + 派生表准。存档的白名单校正只能在这个前提下判生死，
+// 否则二至五章的田 / 御使 / 行动会被当成「表里没有」静默删掉。
+function shjDataReady(){ return _worldComplete() && _derivedOK; }
+// 世界补齐 + 派生表覆盖之后，纯计算就能得出的四张表当场重算：
+// CODEX / CODEX_ACHIEVEMENTS / ITEM_REGION / ORDER_POOL。
+// 它们占了「全图现算」派生表的 gz 一大半（CODEX 一条就 44%，原文引文长），
+// 传一份现成的远不如等表齐了自己算——省下的正是后台要传的字节。
+function rebuildDerived(){
+  CODEX = buildCodex();
+  CODEX_ACHIEVEMENTS = buildCodexAch();
+  ITEM_REGION = buildItemRegion();
+  ORDER_POOL = buildOrderPool();
+  if (typeof window !== 'undefined'){
+    window.CODEX = CODEX; window.CODEX_ACHIEVEMENTS = CODEX_ACHIEVEMENTS;
+    window.ITEM_REGION = ITEM_REGION; window.ORDER_POOL = ORDER_POOL;
+  }
+}
+function shjMaybeReady(){
+  if (typeof window === 'undefined') return;
+  if (window.__SHJ_DATA_READY__ || !shjDataReady()) return;
+  rebuildDerived();
+  window.__SHJ_DATA_READY__ = true;
+  // 通知编排层（boot.js 定义）：重建索引、重渲染、补跑存档校正
+  if (typeof chaptersDerivedReady === 'function') chaptersDerivedReady();
+}
+// 章数据延后抵达时把区域并进 WORLD。WORLD 是顶层现算的那一份，engine/UI 拿的都是
+// 同一份引用——只能就地 push，不能重新赋值（换了别的引用，各处旧引用就永远停在南山）。
+function shjLoadChapter(name, payload){
+  if (!payload || !payload.regions || !payload.regions.length) return 0;
+  const seen = new Set(WORLD.regions.map(r => r.regionId));
+  let n = 0;
+  for (const r of payload.regions){
+    if (seen.has(r.regionId)) continue;
+    seen.add(r.regionId); WORLD.regions.push(r); n++;
+  }
+  // 同一个容器里填（不是换引用）：裸名读到的 const 与 window.X 都得是这一份
+  const box = CHAPTER_BOXES[name];
+  if (box){
+    for (const k of Object.keys(payload)) if (k !== 'regions') box[k] = payload[k];
+    if (box.regions !== payload.regions){
+      const seenBox = new Set(box.regions.map(r => r.regionId));
+      for (const r of payload.regions) if (!seenBox.has(r.regionId)) box.regions.push(r);
+    }
+    if (typeof window !== 'undefined') window[name] = box;
+  }
+  if (n){
+    const rank = (r) => CHAPTER_REGION_ORDER[r.regionId] == null ? 999 : CHAPTER_REGION_ORDER[r.regionId];
+    WORLD.regions.sort((a, b) => rank(a) - rank(b));
+    // 节点索引是「构建后不再变动」的缓存，世界变了必须作废
+    if (typeof invalidateWorldIndex === 'function') invalidateWorldIndex();
+  }
+  shjMaybeReady();
+  return n;
+}
+function attachMilestoneChecks(){
+  Milestones.forEach(ms => {
+    if (typeof ms.prog === 'function')
+      ms.check = () => { const p = ms.prog(); return p[1] > 0 && p[0] >= p[1]; };
+  });
+}
+// Milestones 混有运行期 prog/check 函数：只覆盖静态 desc/need/total，保留源里 prog，再重挂 check
+function loadDerivedTables(d){
+  const TABLES = { Items, Monsters, CODEX, CODEX_ACHIEVEMENTS, OMENS, OBSERVE_SITES, AUDIENCE_SITES, GATHER_POOLS, ITEM_REGION, ORDER_POOL };
+  for (const k in TABLES){
+    const t = TABLES[k], s = d[k];
+    if (!s) continue;
+    if (Array.isArray(t)){ t.length = 0; s.forEach(v => t.push(v)); }
+    else { for (const kk of Object.keys(t)) delete t[kk]; Object.assign(t, s); }
+  }
+  if (d.Milestones){
+    for (const m of d.Milestones){
+      const t = Milestones.find(x => x.id === m.id);
+      if (t){ t.desc = m.desc; if ('need' in m) t.need = m.need; if ('total' in m) t.total = m.total; }
+    }
+  }
+  // 征兆挂接计数跟着 Monsters 走（linkOmens 已按南山口径算过一次，这里校正为全图口径）
+  if (typeof window !== 'undefined' && typeof d._omenLinks === 'number') window._omenLinks = d._omenLinks;
+  attachMilestoneChecks();
+  _derivedOK = true;
+  shjMaybeReady();   // 世界与派生表双双就位才播一次性通知
+}
+// 后台派生表抵达时由 derivedData.js 触发；若它在 gameData 之前已到（单文件版 / 测试），
+// 下面这行在加载期末兜底触发，保证只覆盖一次。
+// 跨文件共享一律「函数声明 + 挂 window」（见 v1.31.131 的血案）：vm 测试上下文里
+// window 是普通对象，`window.x = function(){}` 不产生全局绑定，裸名调用会静默走兜底。
+function shjLoadDerived(d){ loadDerivedTables(d); }
+if (typeof window !== 'undefined'){
+  window.SHJ_LOAD_DERIVED = shjLoadDerived;
+  window.SHJ_LOAD_CHAPTER = shjLoadChapter;
+  window.shjDataReady = shjDataReady;
+  if (window.__SHJ_DERIVED__) loadDerivedTables(window.__SHJ_DERIVED__);
+  // 同步加载路径（五章俱全）：数据当下就齐，不必等谁
+  shjMaybeReady();
 }
