@@ -254,7 +254,7 @@ for (let i = 0; i < ROUNDS; i++){
     // 次级玩家动作合集：此前 fuzz 从未走过的高危入口。各动作独立 guard；用二次随机挑一个，避免挤占主行动的概率。
     // setup 已备好可部署异兽、装备、增益药、已解锁山。
     const a = rnd();
-    const aw = 1/17;   // 17 个等距槽位，新增分支只改这里一处，避免魔法数错位
+    const aw = 1/18;   // 18 个等距槽位，新增分支只改这里一处，避免魔法数错位
     if (a < aw){
       guard('travelTo', () => { const id = pick(nanshanNodes); if (id) S.travelTo(id); });
     } else if (a < aw*2){
@@ -314,6 +314,12 @@ for (let i = 0; i < ROUNDS; i++){
         S.exorcise();
       });
     } else if (a < aw*15){
+      // 修葺旧筑：备齐怪木×2、沙石×1 触发 repairBuild 的扣费 + 营邑授修为结算。此前未压测。
+      guard('repairBuild', () => {
+        S.giveItem('guaimu', 2, false); S.giveItem('shashi', 1, false);
+        S.repairBuild();
+      });
+    } else if (a < aw*16){
       // 存档格式幂等性：随机态 → 序列化导出 → 重置 → 重导入（applySave）做第一次往返，
       // 把活态规范化（装备从 inventory 迁到 packGear、补默认字段、清掉幽灵键等）；再做第二次
       // 往返，比对两次规范化产物的存档对象是否一致（剔除非确定/不跨会话字段）。
@@ -336,7 +342,7 @@ for (let i = 0; i < ROUNDS; i++){
           if (errors.length < 12) errors.push('roundTrip 存档格式未幂等[' + diff + ']');
         }
       });
-    } else if (a < aw*16){
+    } else if (a < aw*17){
       // 多端合并：把当前随机态复制一份、改几处模拟「另一端」，mergeSaveData 取较新一档 + 背包并集；
       // 直接校验合并产物的不变量（贝币/背包/技艺/统计）。额外覆盖三种边界——
       //   ① 背包+贝币更高（取大）；② 远端 savedAt 更晚（判为「较新一档」走 newer 分支）；
